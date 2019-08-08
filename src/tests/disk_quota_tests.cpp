@@ -47,6 +47,10 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+#if __linux__
+#include "tests/containerizer/docker_archive.hpp"
+#endif
+
 using namespace process;
 
 using std::string;
@@ -175,10 +179,44 @@ TEST_F(DiskUsageCollectorTest, ExcludeRelativePath)
 class DiskQuotaTest : public MesosTest {};
 
 
+class DiskQuotaEnforcement
+  : public DiskQuotaTest,
+    public ::testing::WithParamInterface<ParamDiskQuota::Type>
+{
+public:
+  DiskQuotaEnforcement() :DiskQuotaTest() {}
+
+  static Future<Nothing> CreateDockerImage(
+      const string& registry, const string& name)
+  {
+#if __linux__
+    return DockerArchive::create(registry, name);
+#else
+    return Failure("DockerArchive is only supported on Linux");
+#endif
+  }
+};
+
+
+INSTANTIATE_TEST_CASE_P(
+    Enforcing,
+    DiskQuotaEnforcement,
+    ::testing::ValuesIn(ParamDiskQuota::parameters()),
+    ParamDiskQuota::Printer());
+
+
 // This test verifies that the container will be killed if the disk
 // usage exceeds its quota.
-TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
+TEST_P(DiskQuotaEnforcement, DiskUsageExceedsQuota)
 {
+  // NOTE: We don't use the "ROOT_" tag on the test because that
+  // would require the SANDBOX tests to be run as root as well.
+  // If we did that, then we would lose disk isolator test coverage
+  // in the default CI configuration.
+  if (GetParam() == ParamDiskQuota::ROOTFS && ::geteuid() != 0) {
+    return;
+  }
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -189,6 +227,17 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
   // the 'du' subprocess.
   flags.container_disk_watch_interval = Milliseconds(1);
   flags.enforce_container_disk_quota = true;
+
+  if (GetParam() == ParamDiskQuota::ROOTFS) {
+    flags.isolation += ",filesystem/linux,docker/runtime";
+
+    flags.docker_registry = path::join(sandbox.get(), "registry");
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+    flags.image_provisioner_backend = "overlay";
+
+    AWAIT_READY(CreateDockerImage(flags.docker_registry, "test_image"));
+  }
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -212,12 +261,25 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
 
   const Offer& offer = offers.get()[0];
 
+  TaskInfo task;
+
   // Create a task which requests 1MB disk, but actually uses more
   // than 2MB disk.
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:1").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+  switch (GetParam()) {
+    case ParamDiskQuota::SANDBOX:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:1").get(),
+        "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+      break;
+    case ParamDiskQuota::ROOTFS:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:1").get(),
+        "dd if=/dev/zero of=/tmp/file bs=1048576 count=2 && sleep 1000");
+      task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+      break;
+  }
 
   Future<TaskStatus> status0;
   Future<TaskStatus> status1;
@@ -353,8 +415,12 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
 // This test verifies that the container will not be killed if
 // disk_enforce_quota flag is false (even if the disk usage exceeds
 // its quota).
-TEST_F(DiskQuotaTest, NoQuotaEnforcement)
+TEST_P(DiskQuotaEnforcement, NoQuotaEnforcement)
 {
+  if (GetParam() == ParamDiskQuota::ROOTFS && ::geteuid() != 0) {
+    return;
+  }
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -365,6 +431,17 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
   // the 'du' subprocess.
   flags.container_disk_watch_interval = Milliseconds(1);
   flags.enforce_container_disk_quota = false;
+
+  if (GetParam() == ParamDiskQuota::ROOTFS) {
+    flags.isolation += ",filesystem/linux,docker/runtime";
+
+    flags.docker_registry = path::join(sandbox.get(), "registry");
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+    flags.image_provisioner_backend = "overlay";
+
+    AWAIT_READY(CreateDockerImage(flags.docker_registry, "test_image"));
+  }
 
   Fetcher fetcher(flags);
 
@@ -401,11 +478,24 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
 
   const Offer& offer = offers.get()[0];
 
+  TaskInfo task;
+
   // Create a task that uses 2MB disk.
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:1").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+  switch (GetParam()) {
+    case ParamDiskQuota::SANDBOX:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:1").get(),
+        "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+      break;
+    case ParamDiskQuota::ROOTFS:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:1").get(),
+        "dd if=/dev/zero of=/tmp/file bs=1048576 count=2 && sleep 1000");
+      task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+      break;
+  }
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -459,8 +549,12 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
 }
 
 
-TEST_F(DiskQuotaTest, ResourceStatistics)
+TEST_P(DiskQuotaEnforcement, ResourceStatistics)
 {
+  if (GetParam() == ParamDiskQuota::ROOTFS && ::geteuid() != 0) {
+    return;
+  }
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -472,6 +566,17 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
   flags.container_disk_watch_interval = Milliseconds(1);
+
+  if (GetParam() == ParamDiskQuota::ROOTFS) {
+    flags.isolation += ",filesystem/linux,docker/runtime";
+
+    flags.docker_registry = path::join(sandbox.get(), "registry");
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+    flags.image_provisioner_backend = "overlay";
+
+    AWAIT_READY(CreateDockerImage(flags.docker_registry, "test_image"));
+  }
 
   Fetcher fetcher(flags);
 
@@ -533,13 +638,28 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   taskResources += volume;
 
+  TaskInfo task;
+
   // Create a task that uses 2MB disk.
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      taskResources,
-      "dd if=/dev/zero of=file bs=1048576 count=2 && "
-      "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
-      "sleep 1000");
+  switch (GetParam()) {
+    case ParamDiskQuota::SANDBOX:
+      task = createTask(
+        offer.slave_id(),
+        taskResources,
+        "dd if=/dev/zero of=file bs=1048576 count=2 && "
+        "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
+        "sleep 1000");
+      break;
+    case ParamDiskQuota::ROOTFS:
+      task = createTask(
+        offer.slave_id(),
+        taskResources,
+        "dd if=/dev/zero of=/tmp/file bs=1048576 count=2 && "
+        "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
+        "sleep 1000");
+      task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+      break;
+  }
 
   Future<TaskStatus> status0;
   Future<TaskStatus> status1;
@@ -624,14 +744,29 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
 // This test verifies that disk quota isolator recovers properly after
 // the slave restarts.
-TEST_F(DiskQuotaTest, SlaveRecovery)
+TEST_P(DiskQuotaEnforcement, SlaveRecovery)
 {
+  if (GetParam() == ParamDiskQuota::ROOTFS && ::geteuid() != 0) {
+    return;
+  }
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem,disk/du";
   flags.container_disk_watch_interval = Milliseconds(1);
+
+  if (GetParam() == ParamDiskQuota::ROOTFS) {
+    flags.isolation += ",filesystem/linux,docker/runtime";
+
+    flags.docker_registry = path::join(sandbox.get(), "registry");
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+    flags.image_provisioner_backend = "overlay";
+
+    AWAIT_READY(CreateDockerImage(flags.docker_registry, "test_image"));
+  }
 
   Fetcher fetcher(flags);
 
@@ -672,11 +807,24 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
 
   const Offer& offer = offers.get()[0];
 
+  TaskInfo task;
+
   // Create a task that uses 2MB disk.
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:3").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+  switch (GetParam()) {
+    case ParamDiskQuota::SANDBOX:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:3").get(),
+        "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+      break;
+    case ParamDiskQuota::ROOTFS:
+      task = createTask(
+        offer.slave_id(),
+        Resources::parse("cpus:1;mem:128;disk:3").get(),
+        "dd if=/dev/zero of=/tmp/file bs=1048576 count=2 && sleep 1000");
+      task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+      break;
+  }
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
