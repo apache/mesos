@@ -25,6 +25,8 @@ This release contains the following highlights:
     * [MESOS-9771] - The Mesos containerizer now masks sensitive paths
       in `/proc` for containers that do not share the host's PID namespace.
 
+    * [MESOS-9900] - The Mesos containerizer now includes ephemeral
+      overlayfs storage in the task disk quota as well as sandbox storage.
 
 Additional API Changes:
 
