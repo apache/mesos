@@ -541,6 +541,9 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
         containerId,
         targets,
         volumeModes,
+        containerConfig.has_user()
+          ? containerConfig.user()
+          : Option<string>::none(),
         lambda::_1));
 }
 
@@ -549,6 +552,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<string>& targets,
     const vector<Volume::Mode>& volumeModes,
+    const Option<string>& user,
     const vector<Future<string>>& futures)
 {
   ContainerLaunchInfo launchInfo;
@@ -576,6 +580,19 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const string& source = sources[i];
     const string& target = targets[i];
     const Volume::Mode volumeMode = volumeModes[i];
+
+    if (flags.docker_volume_chown && user.isSome() && user.get() != "root") {
+      LOG(INFO) << "Changing the ownership of the docker volume at '"
+                << source << "' to user '" << user.get() << "' for container "
+                << containerId;
+
+      Try<Nothing> chown = os::chown(user.get(), source, false);
+      if (chown.isError()) {
+        return Failure(
+            "Failed to set '" + user.get() + "' as the docker volume '" +
+            source + "' owner: " + chown.error());
+      }
+    }
 
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target << "' for container " << containerId;
