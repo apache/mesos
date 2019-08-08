@@ -27,6 +27,7 @@
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 
 #include "slave/flags.hpp"
 
@@ -93,6 +94,11 @@ private:
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
+  struct ProjectRoots {
+    std::string deviceName;
+    hashset<std::string> directories;
+  };
+
   XfsDiskIsolatorProcess(
       Duration watchInterval,
       xfs::QuotaPolicy quotaPolicy,
@@ -113,6 +119,9 @@ private:
   // that are not.
   void reclaimProjectIds();
 
+  Try<Nothing> scheduleProjectRoot(
+      prid_t projectId, const std::string& rootDir);
+
   const Duration watchInterval;
   const Duration projectWatchInterval;
   xfs::QuotaPolicy quotaPolicy;
@@ -123,7 +132,7 @@ private:
 
   // Track the device and filesystem path of unused project IDs we want
   // to reclaim.
-  hashmap<prid_t, std::pair<std::string, std::string>> scheduledProjects;
+  hashmap<prid_t, ProjectRoots> scheduledProjects;
 
   // Metrics used by the XFS disk isolator.
   struct Metrics

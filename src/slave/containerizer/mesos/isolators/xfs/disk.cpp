@@ -345,23 +345,19 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
     // about this persistent volume.
     CHECK(!scheduledProjects.contains(projectId.get()))
         << "Duplicate project ID " << projectId.get()
-        << " assigned to '" << directory << "'"
-        << " and '" << scheduledProjects.at(projectId.get()).second << "'";
+        << " assigned to '" << directory << "' and '"
+        << *scheduledProjects.at(projectId.get()).directories.begin() << "'";
 
     freeProjectIds -= projectId.get();
     if (totalProjectIds.contains(projectId.get())) {
       --metrics.project_ids_free;
     }
 
-    Try<string> devname = xfs::getDeviceForPath(directory);
-    if (devname.isError()) {
+    Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
+    if (scheduled.isError()) {
       LOG(ERROR) << "Unable to schedule project ID " << projectId.get()
-                 << " for reclaimation: " << devname.error();
-      continue;
+                 << " for reclaimation: " << scheduled.error();
     }
-
-    scheduledProjects.put(
-        projectId.get(), make_pair(devname.get(), directory));
   }
 
   return Nothing();
@@ -567,16 +563,10 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
               << " for project " << projectId.get()
               << " to " << status->softLimit << "/" << status->hardLimit;
 
-    if (!scheduledProjects.contains(projectId.get())) {
-      Try<string> devname = xfs::getDeviceForPath(directory);
-      if (devname.isError()) {
-        LOG(ERROR) << "Unable to schedule project " << projectId.get()
-                   << " for reclaimation: " << devname.error();
-        continue;
-      }
-
-      scheduledProjects.put(
-          projectId.get(), make_pair(devname.get(), directory));
+    Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
+    if (scheduled.isError()) {
+      LOG(ERROR) << "Unable to schedule project " << projectId.get()
+                  << " for reclaimation: " << scheduled.error();
     }
   }
 
@@ -732,21 +722,11 @@ Future<Nothing> XfsDiskIsolatorProcess::cleanup(const ContainerID& containerId)
   // we determine that the persistent volume is no longer present.
   foreachpair (
       const string& directory, const Info::PathInfo& pathInfo, info->paths) {
-    // If we assigned a project ID to a persistent volume, it might
-    // already be scheduled for reclaimation.
-    if (scheduledProjects.contains(pathInfo.projectId)) {
-      continue;
-    }
-
-    Try<string> devname = xfs::getDeviceForPath(directory);
-    if (devname.isError()) {
+    Try<Nothing> scheduled = scheduleProjectRoot(pathInfo.projectId, directory);
+    if (scheduled.isError()) {
       LOG(ERROR) << "Unable to schedule project " << pathInfo.projectId
-                 << " for reclaimation: " << devname.error();
-      continue;
+                 << " for reclaimation: " << scheduled.error();
     }
-
-    scheduledProjects.put(
-        pathInfo.projectId, make_pair(devname.get(), directory));
   }
 
   infos.erase(containerId);
@@ -781,6 +761,33 @@ void XfsDiskIsolatorProcess::returnProjectId(
 }
 
 
+Try<Nothing> XfsDiskIsolatorProcess::scheduleProjectRoot(
+    prid_t projectId,
+    const string& rootDir)
+{
+  Try<string> devname = xfs::getDeviceForPath(rootDir);
+
+  if (devname.isError()) {
+    return Error(devname.error());
+  }
+
+  if (!scheduledProjects.contains(projectId)) {
+    scheduledProjects.put(projectId, ProjectRoots{devname.get(), {rootDir}});
+  } else {
+    ProjectRoots& roots = scheduledProjects.at(projectId);
+
+    if (roots.deviceName != devname.get()) {
+      return Error(strings::format(
+            "Conflicting device names '%s' and '%s' for project ID %s",
+            roots.deviceName, devname.get(), projectId).get());
+    }
+
+    roots.directories.insert(rootDir);
+  }
+
+  return Nothing();
+}
+
 void XfsDiskIsolatorProcess::reclaimProjectIds()
 {
   // Note that we need both the directory we assigned the project ID to,
@@ -789,22 +796,29 @@ void XfsDiskIsolatorProcess::reclaimProjectIds()
   // need the latter to make the corresponding quota record updates.
 
   foreachpair (
-      prid_t projectId, const auto& dir, utils::copy(scheduledProjects)) {
-    if (os::exists(dir.second)) {
-      continue;
+      prid_t projectId, auto& roots, utils::copy(scheduledProjects)) {
+    // Stop tracking any directories that have already been removed.
+    foreach (const string& directory, utils::copy(roots.directories)) {
+      if (!os::exists(directory)) {
+        roots.directories.erase(directory);
+
+        VLOG(1) << "Droppped path '" << directory
+                << "' from project ID " << projectId;
+      }
     }
 
-    Try<Nothing> status = xfs::clearProjectQuota(dir.first, projectId);
-    if (status.isError()) {
-      LOG(ERROR) << "Failed to clear quota for '"
-                 << dir.second << "': " << status.error();
+    if (roots.directories.empty()) {
+      Try<Nothing> status = xfs::clearProjectQuota(roots.deviceName, projectId);
+      if (status.isError()) {
+        LOG(ERROR) << "Failed to clear quota for project ID "
+                   << projectId << "': " << status.error();
+      }
+
+      returnProjectId(projectId);
+      scheduledProjects.erase(projectId);
+
+      LOG(INFO) << "Reclaimed project ID " << projectId;
     }
-
-    returnProjectId(projectId);
-    scheduledProjects.erase(projectId);
-
-    LOG(INFO) << "Reclaimed project ID " << projectId
-              << " from '" << dir.second << "'";
   }
 }
 
