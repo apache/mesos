@@ -3919,6 +3919,24 @@ private:
   Type type;
 };
 
+
+struct ParamDiskQuota
+{
+  enum Type
+  {
+    SANDBOX,
+    ROOTFS,
+  };
+
+  struct Printer
+  {
+    std::string operator()(
+        const ::testing::TestParamInfo<ParamDiskQuota::Type>& info) const;
+  };
+
+  static std::vector<Type> parameters();
+};
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

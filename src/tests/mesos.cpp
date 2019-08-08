@@ -35,6 +35,7 @@
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
 #endif
 
 #ifdef ENABLE_PORT_MAPPING_ISOLATOR
@@ -56,6 +57,7 @@ using mesos::master::detector::MasterDetector;
 using std::list;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 using testing::_;
 
@@ -934,6 +936,37 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
   }
 }
 #endif // __linux__
+
+
+string ParamDiskQuota::Printer::operator()(
+  const ::testing::TestParamInfo<ParamDiskQuota::Type>& info) const
+{
+  switch (info.param) {
+    case SANDBOX:
+      return "Sandbox";
+    case ROOTFS:
+      return "Rootfs";
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+vector<ParamDiskQuota::Type> ParamDiskQuota::parameters()
+{
+  vector<Type> params{SANDBOX};
+
+  // ROOTFS tests depend on overlayfs being available, since that is
+  // the only provisioner backend that supports ephemeral volumes.
+#if __linux__
+  Try<bool> overlayfsSupported = fs::supported("overlayfs");
+  if (overlayfsSupported.isSome() && overlayfsSupported.get()) {
+    params.push_back(ROOTFS);
+  }
+#endif
+
+  return params;
+}
 
 } // namespace tests {
 } // namespace internal {
