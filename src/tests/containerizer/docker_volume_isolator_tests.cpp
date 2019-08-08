@@ -1267,6 +1267,148 @@ TEST_F(DockerVolumeIsolatorTest,
 }
 
 
+// This test verifies that a docker volume with absolute path can
+// be properly mounted to a container with rootfs, and launches a
+// command task that is running as a non-root user and is able to
+// write files from the mounted docker volume.
+TEST_F(DockerVolumeIsolatorTest,
+       ROOT_INTERNET_CURL_UNPRIVILEGED_USER_CommandTaskRootfs)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/volume,docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_volume_chown = true;
+
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer->get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a volume with absolute path.
+  const string volumeDriver = "driver";
+  const string name = "name";
+
+  const string containerPath = path::join(os::getcwd(), "foo");
+
+  Volume volume = createDockerVolume(volumeDriver, name, containerPath);
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/bin' is not in the PATH by default.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/usr/bin/test");
+  command.add_arguments("test");
+  command.add_arguments("-w");
+  command.add_arguments(containerPath);
+
+  command.set_user(user.get());
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      command);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume);
+
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // Create mount point for volume.
+  const string mountPoint = path::join(os::getcwd(), "volume");
+  ASSERT_SOME(os::mkdir(mountPoint));
+
+  Future<string> mountName;
+
+  EXPECT_CALL(*mockClient, mount(volumeDriver, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mountName),
+                    Return(mountPoint)));
+
+  Future<string> unmountName;
+
+  EXPECT_CALL(*mockClient, unmount(volumeDriver, _))
+    .WillOnce(DoAll(FutureArg<1>(&unmountName),
+                    Return(Nothing())));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_EXPECT_EQ(name, mountName);
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  AWAIT_EXPECT_EQ(name, unmountName);
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that a container launched without
 // a rootfs cannot write to a read-only docker volume.
 TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithReadOnlyVolume)
