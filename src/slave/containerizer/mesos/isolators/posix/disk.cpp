@@ -135,7 +135,13 @@ Future<Nothing> PosixDiskIsolatorProcess::recover(
     CHECK(os::exists(state.directory()))
       << "Executor work directory " << state.directory() << " doesn't exist";
 
-    infos.put(state.container_id(), Owned<Info>(new Info(state.directory())));
+    Owned<Info> info(new Info(state.directory()));
+
+    foreach (const string& path, state.ephemeral_volumes()) {
+      info->directories.insert(path);
+    }
+
+    infos.put(state.container_id(), info);
   }
 
   return Nothing();
@@ -157,8 +163,13 @@ Future<Option<ContainerLaunchInfo>> PosixDiskIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  infos.put(containerId, Owned<Info>(new Info(containerConfig.directory())));
+  Owned<Info> info(new Info(containerConfig.directory()));
 
+  foreach (const string& path, containerConfig.ephemeral_volumes()) {
+    info->directories.insert(path);
+  }
+
+  infos.put(containerId, info);
   return None();
 }
 
@@ -232,7 +243,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // If either DiskInfo or DiskInfo.Volume are not set we're
       // dealing with the working directory of the executor (aka the
       // sandbox).
-      path = info->directory;
+      path = info->sandbox;
     } else {
       // Otherwise it is a disk resource (such as a persistent volume)
       // and we extract the path from the protobuf.
@@ -242,7 +253,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // is relative to the working directory of the executor. We
       // always store the absolute path.
       if (!path::absolute(path)) {
-        path = path::join(info->directory, path);
+        path = path::join(info->sandbox, path);
       }
     }
 
@@ -251,6 +262,16 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     // multiple Resource objects associated with the sandbox because
     // it might be a mix of reserved and unreserved resources.
     quotas[path] += resource;
+  }
+
+  // If we still have a sandbox quota, include all the ephemeral
+  // quota directories so we include them in the collection state
+  // updates below.
+  if (quotas.contains(info->sandbox)) {
+    const Resources quota = quotas[info->sandbox];
+    foreach (const string& path, info->directories) {
+      quotas[path] = quota;
+    }
   }
 
   // Update the quota for paths. For each new path we also initiate
@@ -291,9 +312,9 @@ Future<Bytes> PosixDiskIsolatorProcess::collect(
   // 'du' process to incorrectly include the disk usage of the newly
   // added persistent volume to the usage of the sandbox.
   vector<string> excludes;
-  if (path == info->directory) {
+  if (info->directories.contains(path)) {
     foreachkey (const string& exclude, info->paths) {
-      if (exclude != info->directory) {
+      if (!info->directories.contains(exclude)) {
         excludes.push_back(exclude);
       }
     }
@@ -302,7 +323,7 @@ Future<Bytes> PosixDiskIsolatorProcess::collect(
   // We append "/" at the end to make sure that 'du' runs on actual
   // directory pointed by the symlink (and not the symlink itself).
   string _path = path;
-  if (path != info->directory && os::stat::islink(path)) {
+  if (!info->directories.contains(path) && os::stat::islink(path)) {
     _path = path::join(path, "");
   }
 
@@ -350,30 +371,40 @@ void PosixDiskIsolatorProcess::_collect(
     // Save the last disk usage.
     info->paths[path].lastUsage = future.get();
 
-    // We need to ignore the quota enforcement check for MOUNT type
-    // disk resources because its quota will be enforced by the
-    // underlying filesystem.
-    bool isDiskSourceMount = false;
-    foreach (const Resource& resource, info->paths[path].quota) {
-      if (resource.has_disk() &&
-          resource.disk().has_source() &&
-          resource.disk().source().type() ==
-            Resource::DiskInfo::Source::MOUNT) {
-        isDiskSourceMount = true;
+    if (flags.enforce_container_disk_quota) {
+      Bytes currentUsage = future.get();
+
+      // We need to ignore the quota enforcement check for MOUNT type
+      // disk resources because its quota will be enforced by the
+      // underlying filesystem.
+      bool isDiskSourceMount = false;
+      foreach (const Resource& resource, info->paths[path].quota) {
+        if (resource.has_disk() &&
+            resource.disk().has_source() &&
+            resource.disk().source().type() ==
+              Resource::DiskInfo::Source::MOUNT) {
+          isDiskSourceMount = true;
+        }
       }
-    }
 
-    if (flags.enforce_container_disk_quota && !isDiskSourceMount) {
-      Option<Bytes> quota = info->paths[path].quota.disk();
-      CHECK_SOME(quota);
+      if (!isDiskSourceMount) {
+        // If this path is using the ephemeral quota, we need to
+        // estimate the total current usage.
+        if (info->directories.contains(path)) {
+          currentUsage = info->ephemeralUsage();
+        }
 
-      if (future.get() > quota.get()) {
-        info->limitation.set(
-            protobuf::slave::createContainerLimitation(
-                Resources(info->paths[path].quota),
-                "Disk usage (" + stringify(future.get()) +
-                ") exceeds quota (" + stringify(quota.get()) + ")",
-                TaskStatus::REASON_CONTAINER_LIMITATION_DISK));
+        Option<Bytes> quota = info->paths[path].quota.disk();
+        CHECK_SOME(quota);
+
+        if (currentUsage > quota.get()) {
+          info->limitation.set(
+              protobuf::slave::createContainerLimitation(
+                  Resources(info->paths[path].quota),
+                  "Disk usage (" + stringify(currentUsage) +
+                  ") exceeds quota (" + stringify(quota.get()) + ")",
+                  TaskStatus::REASON_CONTAINER_LIMITATION_DISK));
+        }
       }
     }
   }
@@ -400,41 +431,48 @@ Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
   foreachpair (const string& path,
                const Info::PathInfo& pathInfo,
                info->paths) {
+    // Skip ephemeral paths. We explicitly deal with those below.
+    if (info->directories.contains(path)) {
+      continue;
+    }
+
     DiskStatistics *statistics = result.add_disk_statistics();
 
     Option<Bytes> quota = pathInfo.quota.disk();
     CHECK_SOME(quota);
 
     statistics->set_limit_bytes(quota->bytes());
-    if (path == info->directory) {
-      result.set_disk_limit_bytes(quota->bytes());
-    }
 
     // NOTE: There may be a large delay (# of containers * interval)
     // until an initial cached value is returned here!
     if (pathInfo.lastUsage.isSome()) {
       statistics->set_used_bytes(pathInfo.lastUsage->bytes());
-      if (path == info->directory) {
-        result.set_disk_used_bytes(pathInfo.lastUsage->bytes());
-      }
     }
 
-    // Set meta information for persistent volumes.
-    if (path != info->directory) {
-      // TODO(jieyu): For persistent volumes, validate that there is
-      // only one Resource object associated with it.
-      Resource resource = *pathInfo.quota.begin();
+    // TODO(jieyu): For persistent volumes, validate that there is
+    // only one Resource object associated with it.
+    Resource resource = *pathInfo.quota.begin();
 
-      if (resource.has_disk() && resource.disk().has_source()) {
-        statistics->mutable_source()->CopyFrom(resource.disk().source());
-      }
+    if (resource.has_disk() && resource.disk().has_source()) {
+      statistics->mutable_source()->CopyFrom(resource.disk().source());
+    }
 
-      if (resource.has_disk() && resource.disk().has_persistence()) {
-        statistics->mutable_persistence()->CopyFrom(
-            resource.disk().persistence());
-      }
+    if (resource.has_disk() && resource.disk().has_persistence()) {
+      statistics->mutable_persistence()->CopyFrom(
+          resource.disk().persistence());
     }
   }
+
+  result.set_disk_used_bytes(info->ephemeralUsage().bytes());
+
+  // It doesn't matter which ephemeral path we use to get the quota,
+  // since it's replicated there.
+  result.set_disk_limit_bytes(
+      info->paths[info->sandbox].quota.disk()->bytes());
+
+  DiskStatistics *statistics = result.add_disk_statistics();
+  statistics->set_limit_bytes(result.disk_limit_bytes());
+  statistics->set_used_bytes(result.disk_used_bytes());
 
   return result;
 }
@@ -457,6 +495,18 @@ Future<Nothing> PosixDiskIsolatorProcess::cleanup(
   infos.erase(containerId);
 
   return Nothing();
+}
+
+
+Bytes PosixDiskIsolatorProcess::Info::ephemeralUsage() const
+{
+  Bytes usage;
+
+  foreach (const string& path, directories) {
+    usage += paths.at(path).lastUsage.getOrElse(0);
+  }
+
+  return usage;
 }
 
 

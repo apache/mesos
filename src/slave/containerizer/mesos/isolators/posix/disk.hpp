@@ -24,6 +24,7 @@
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 
 #include "slave/flags.hpp"
 
@@ -122,11 +123,17 @@ private:
 
   struct Info
   {
-    explicit Info(const std::string& _directory) : directory(_directory) {}
+    explicit Info(const std::string& _directory)
+      : directories({_directory}), sandbox(_directory) {}
 
-    // We save executor working directory here so that we know where
-    // to collect disk usage for disk resources without DiskInfo.
-    const std::string directory;
+    Bytes ephemeralUsage() const;
+
+    // Save the executor ephemeral storage (sandbox and rootfs)
+    // directories so that we know where to collect disk usage
+    // for disk resources without DiskInfo.
+    hashset<std::string> directories;
+
+    std::string sandbox;
 
     process::Promise<mesos::slave::ContainerLimitation> limitation;
 
