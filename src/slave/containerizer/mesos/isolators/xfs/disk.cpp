@@ -38,6 +38,8 @@
 
 #include "slave/paths.hpp"
 
+#include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
+
 using std::list;
 using std::make_pair;
 using std::pair;
@@ -317,6 +319,64 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
     }
   }
 
+  foreach (const ContainerState& state, states) {
+    foreach (const string& directory, state.ephemeral_volumes()) {
+      Result<prid_t> projectId = xfs::getProjectId(directory);
+      if (projectId.isError()) {
+        return Failure(projectId.error());
+      }
+
+      // Ephemeral volumes should have been assigned a project ID, but
+      // that's not atommic, so if we were killed during a container
+      // launch, we can't guarantee that we labeled all the ephemeral
+      // volumes.
+      if (projectId.isNone()) {
+        if (!infos.contains(state.container_id())) {
+          LOG(WARNING) << "Missing project ID for ephemeral volume at '"
+                       << directory << "'";
+          continue;
+        }
+
+        // We have an unlabeled ephemeral volume for a known container. Find
+        // the corresponding sandbox path to get the right project ID.
+        const Owned<Info>& info = infos.at(state.container_id());
+
+        foreachpair (
+            const string& directory,
+            const Info::PathInfo& pathInfo,
+            info->paths) {
+          // Skip persistent volumes.
+          if (pathInfo.disk.isSome()) {
+            continue;
+          }
+
+          Try<Nothing> status =
+            xfs::setProjectId(directory, pathInfo.projectId);
+          if (status.isError()) {
+            return Failure(
+                "Failed to assign project " +
+                stringify(projectId.get()) + ": " + status.error());
+          }
+
+          break;
+        }
+      }
+
+      Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
+      if (scheduled.isError()) {
+        return Failure(
+            "Unable to schedule project ID " + stringify(projectId.get()) +
+            " for reclaimation: " + scheduled.error());
+      }
+
+      // If we are still managing this project ID, we should have
+      // tracked it when we added sandboxes above.
+      if (totalProjectIds.contains(projectId.get())) {
+          CHECK_NOT_CONTAINS(freeProjectIds, projectId.get());
+      }
+    }
+  }
+
   Try<list<string>> volumes = paths::getPersistentVolumePaths(workDir);
 
   if (volumes.isError()) {
@@ -355,8 +415,52 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
 
     Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
     if (scheduled.isError()) {
-      LOG(ERROR) << "Unable to schedule project ID " << projectId.get()
-                 << " for reclaimation: " << scheduled.error();
+      return Failure(
+          "Unable to schedule project ID " + stringify(projectId.get()) +
+          " for reclaimation: " + scheduled.error());
+    }
+  }
+
+  // Scan ephemeral provisioner directories to pick up any project IDs that
+  // aren't already captured by the recovered container states. Admittedly,
+  // it's a bit hacky to specifically check the overlay backend here,
+  // but it's not really worse than the sandbox scanning we do above.
+  Try<list<string>> provisionerDirs =
+    OverlayBackend::listEphemeralVolumes(workDir);
+
+  if (provisionerDirs.isError()) {
+    return Failure("Failed to scan overlay provisioner directories: " +
+                   provisionerDirs.error());
+  }
+
+  foreach (const string& directory, provisionerDirs.get()) {
+    if (!os::stat::isdir(directory)) {
+      continue;
+    }
+
+    Result<prid_t> projectId = xfs::getProjectId(directory);
+    if (projectId.isError()) {
+      return Failure(projectId.error());
+    }
+
+    // Not all provisioner directories will have a project IDs.
+    if (projectId.isNone()) {
+      continue;
+    }
+
+    // It is likely we counted this project ID when we recovered the
+    // containers, so don't double-count.
+    if (totalProjectIds.contains(projectId.get()) &&
+        freeProjectIds.contains(projectId.get())) {
+      --metrics.project_ids_free;
+      freeProjectIds -= projectId.get();
+    }
+
+    Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
+    if (scheduled.isError()) {
+      return Failure(
+          "Unable to schedule project ID " + stringify(projectId.get()) +
+          " for reclaimation: " + scheduled.error());
     }
   }
 
@@ -395,8 +499,30 @@ Future<Option<ContainerLaunchInfo>> XfsDiskIsolatorProcess::prepare(
         status.error());
   }
 
-  LOG(INFO) << "Assigned project " << stringify(projectId.get()) << " to '"
-            << containerConfig.directory() << "'";
+  LOG(INFO) << "Assigned project " << stringify(projectId.get())
+            << " to '" << containerConfig.directory() << "'";
+
+  // The ephemeral volumes share the same quota as the sandbox, so label
+  // them with the project ID now.
+  foreach (const string& directory, containerConfig.ephemeral_volumes()) {
+    Try<Nothing> status = xfs::setProjectId(directory, projectId.get());
+
+    if (status.isError()) {
+      return Failure(
+          "Failed to assign project " + stringify(projectId.get()) + ": " +
+          status.error());
+    }
+
+    LOG(INFO) << "Assigned project " << stringify(projectId.get())
+              << " to '" << directory << "'";
+
+    Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
+    if (scheduled.isError()) {
+      return Failure(
+          "Unable to schedule project ID " + stringify(projectId.get()) +
+          " for reclaimation: " + scheduled.error());
+    }
+  }
 
   return update(containerId, containerConfig.resources())
     .then([]() -> Future<Option<ContainerLaunchInfo>> {
@@ -409,7 +535,7 @@ Future<ContainerLimitation> XfsDiskIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   if (infos.contains(containerId)) {
-    return infos[containerId]->limitation.future();
+    return infos.at(containerId)->limitation.future();
   }
 
   // Any container that did not have a project ID assigned when
@@ -477,7 +603,7 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
     return Nothing();
   }
 
-  const Owned<Info>& info = infos[containerId];
+  const Owned<Info>& info = infos.at(containerId);
 
   // First, apply the disk quota to the sandbox.
   Option<Bytes> sandboxQuota = getSandboxDisk(resources);
@@ -565,8 +691,9 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
 
     Try<Nothing> scheduled = scheduleProjectRoot(projectId.get(), directory);
     if (scheduled.isError()) {
-      LOG(ERROR) << "Unable to schedule project " << projectId.get()
-                  << " for reclaimation: " << scheduled.error();
+      return Failure(
+          "Unable to schedule project " + stringify(projectId.get()) +
+          " for reclaimation: " + scheduled.error());
     }
   }
 
@@ -637,7 +764,7 @@ Future<ResourceStatistics> XfsDiskIsolatorProcess::usage(
     return ResourceStatistics();
   }
 
-  const Owned<Info>& info = infos[containerId];
+  const Owned<Info>& info = infos.at(containerId);
   ResourceStatistics statistics;
 
   foreachpair(
@@ -706,7 +833,7 @@ Future<Nothing> XfsDiskIsolatorProcess::cleanup(const ContainerID& containerId)
     return Nothing();
   }
 
-  const Owned<Info>& info = infos[containerId];
+  const Owned<Info>& info = infos.at(containerId);
 
   // Schedule the directory for project ID reclaimation.
   //
@@ -724,8 +851,9 @@ Future<Nothing> XfsDiskIsolatorProcess::cleanup(const ContainerID& containerId)
       const string& directory, const Info::PathInfo& pathInfo, info->paths) {
     Try<Nothing> scheduled = scheduleProjectRoot(pathInfo.projectId, directory);
     if (scheduled.isError()) {
-      LOG(ERROR) << "Unable to schedule project " << pathInfo.projectId
-                 << " for reclaimation: " << scheduled.error();
+      return Failure(
+          "Unable to schedule project " + stringify(pathInfo.projectId) +
+          " for reclaimation: " + scheduled.error());
     }
   }
 

@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
+
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -27,7 +29,9 @@
 
 #include "linux/fs.hpp"
 
-#include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
+#include "slave/paths.hpp"
+
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
 
 using process::Failure;
 using process::Future;
@@ -61,6 +65,21 @@ public:
       const string& rootfs,
       const string& backendDir);
 };
+
+
+Try<std::list<std::string>> OverlayBackend::listEphemeralVolumes(
+    const string& workDir)
+{
+  return os::glob(path::join(
+    paths::getProvisionerDir(workDir),
+    "containers",
+    "*", /* ContainerID */
+    "backends",
+    OVERLAY_BACKEND, /* backendDir */
+    "scratch"
+    "*", /* rootfs ID */
+    "*"));
+}
 
 
 Try<Owned<Backend>> OverlayBackend::create(const Flags&)

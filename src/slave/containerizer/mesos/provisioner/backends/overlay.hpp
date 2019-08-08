@@ -17,6 +17,9 @@
 #ifndef __MESOS_PROVISIONER_OVERLAY_HPP__
 #define __MESOS_PROVISIONER_OVERLAY_HPP__
 
+#include <list>
+#include <string>
+
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
 
 namespace mesos {
@@ -48,6 +51,9 @@ public:
   ~OverlayBackend() override;
 
   static Try<process::Owned<Backend>> create(const Flags&);
+
+  static Try<std::list<std::string>> listEphemeralVolumes(
+      const std::string& workDir);
 
   process::Future<Option<std::vector<Path>>> provision(
       const std::vector<std::string>& layers,
