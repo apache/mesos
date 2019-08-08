@@ -45,7 +45,7 @@ public:
 
   // Provisions a rootfs given the layers' paths and target rootfs
   // path.
-  process::Future<Nothing> provision(
+  process::Future<Option<std::vector<Path>>> provision(
       const std::vector<std::string>& layers,
       const std::string& rootfs,
       const std::string& backendDir) override;

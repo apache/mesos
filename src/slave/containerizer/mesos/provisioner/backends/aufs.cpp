@@ -51,7 +51,7 @@ public:
   AufsBackendProcess()
     : ProcessBase(process::ID::generate("aufs-provisioner-backend")) {}
 
-  Future<Nothing> provision(
+  Future<Option<vector<Path>>> provision(
       const vector<string>& layers,
       const string& rootfs,
       const string& backendDir);
@@ -87,7 +87,7 @@ AufsBackend::AufsBackend(Owned<AufsBackendProcess> _process)
 }
 
 
-Future<Nothing> AufsBackend::provision(
+Future<Option<vector<Path>>> AufsBackend::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -113,7 +113,7 @@ Future<bool> AufsBackend::destroy(
 }
 
 
-Future<Nothing> AufsBackendProcess::provision(
+Future<Option<vector<Path>>> AufsBackendProcess::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -236,7 +236,7 @@ Future<Nothing> AufsBackendProcess::provision(
         "' as a shared mount: " + mount.error());
   }
 
-  return Nothing();
+  return None();
 }
 
 

@@ -904,7 +904,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   }
 
   // Recover the containers from 'SlaveState'.
-  foreach (const ContainerState& state, recoverable) {
+  foreach (ContainerState& state, recoverable) {
     const ContainerID& containerId = state.container_id();
 
     // Contruct the structure for containers from the 'SlaveState'
@@ -931,6 +931,10 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
     if (config.isSome()) {
       container->config = config.get();
+
+      // Copy the ephemeral volume paths to the ContainerState, since this
+      // information is otherwise only available to the prepare() callback.
+      *state.mutable_ephemeral_volumes() = config->ephemeral_volumes();
     } else {
       VLOG(1) << "No config is recovered for container " << containerId
               << ", this means image pruning will be disabled.";
@@ -1093,6 +1097,12 @@ Future<Nothing> MesosContainerizerProcess::recover(
             containerId,
             container->pid.get(),
             container->directory.get());
+
+      if (config.isSome()) {
+        // Copy the ephemeral volume paths to the ContainerState, since this
+        // information is otherwise only available to the prepare() callback.
+        *state.mutable_ephemeral_volumes() = config->ephemeral_volumes();
+      }
 
       recoverable.push_back(state);
       continue;
@@ -1516,6 +1526,12 @@ Future<Nothing> MesosContainerizerProcess::prepare(
 
   if (provisionInfo.isSome()) {
     container->config->set_rootfs(provisionInfo->rootfs);
+
+    if (provisionInfo->ephemeralVolumes.isSome()) {
+      foreach (const Path& path, provisionInfo->ephemeralVolumes.get()) {
+        container->config->add_ephemeral_volumes(path);
+      }
+    }
 
     if (provisionInfo->dockerManifest.isSome() &&
         provisionInfo->appcManifest.isSome()) {

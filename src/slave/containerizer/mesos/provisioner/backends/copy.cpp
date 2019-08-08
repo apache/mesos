@@ -52,7 +52,8 @@ public:
   CopyBackendProcess()
     : ProcessBase(process::ID::generate("copy-provisioner-backend")) {}
 
-  Future<Nothing> provision(const vector<string>& layers, const string& rootfs);
+  Future<Option<vector<Path>>> provision(
+      const vector<string>& layers, const string& rootfs);
 
   Future<bool> destroy(const string& rootfs);
 
@@ -82,7 +83,7 @@ CopyBackend::CopyBackend(Owned<CopyBackendProcess> _process)
 }
 
 
-Future<Nothing> CopyBackend::provision(
+Future<Option<vector<Path>>> CopyBackend::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -100,7 +101,7 @@ Future<bool> CopyBackend::destroy(
 }
 
 
-Future<Nothing> CopyBackendProcess::provision(
+Future<Option<vector<Path>>> CopyBackendProcess::provision(
     const vector<string>& layers,
     const string& rootfs)
 {
@@ -126,7 +127,7 @@ Future<Nothing> CopyBackendProcess::provision(
   }
 
   return collect(futures)
-    .then([]() -> Future<Nothing> { return Nothing(); });
+    .then([]() -> Future<Option<vector<Path>>> { return None(); });
 }
 
 

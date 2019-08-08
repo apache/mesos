@@ -52,7 +52,7 @@ public:
   OverlayBackendProcess()
     : ProcessBase(process::ID::generate("overlay-provisioner-backend")) {}
 
-  Future<Nothing> provision(
+  Future<Option<vector<Path>>> provision(
       const vector<string>& layers,
       const string& rootfs,
       const string& backendDir);
@@ -88,7 +88,7 @@ OverlayBackend::OverlayBackend(Owned<OverlayBackendProcess> _process)
 }
 
 
-Future<Nothing> OverlayBackend::provision(
+Future<Option<vector<Path>>> OverlayBackend::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -114,7 +114,7 @@ Future<bool> OverlayBackend::destroy(
 }
 
 
-Future<Nothing> OverlayBackendProcess::provision(
+Future<Option<vector<Path>>> OverlayBackendProcess::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -237,7 +237,10 @@ Future<Nothing> OverlayBackendProcess::provision(
         "' as a shared mount: " + mount.error());
   }
 
-  return Nothing();
+  // Note that both upperdir and workdir are ephemeral. The `disk/xfs`
+  // isolator needs this because XFS will error with EXDEV when renaming
+  // a file into a tree with a different project ID (see xfs_rename).
+  return vector<Path>{Path(upperdir), Path(workdir)};
 }
 
 

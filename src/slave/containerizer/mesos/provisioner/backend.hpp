@@ -24,6 +24,8 @@
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
@@ -48,7 +50,10 @@ public:
   // directory by applying the specified list of root filesystem layers in
   // the list order, i.e., files in a layer can overwrite/shadow those from
   // another layer earlier in the list.
-  virtual process::Future<Nothing> provision(
+  //
+  // Optionally returns a set of paths whose contents should be included
+  // in the ephemeral sandbox disk quota.
+  virtual process::Future<Option<std::vector<Path>>> provision(
       const std::vector<std::string>& layers,
       const std::string& rootfs,
       const std::string& backendDir) = 0;

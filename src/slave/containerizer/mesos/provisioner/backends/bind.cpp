@@ -47,7 +47,8 @@ public:
   BindBackendProcess()
     : ProcessBase(process::ID::generate("bind-provisioner-backend")) {}
 
-  Future<Nothing> provision(const vector<string>& layers, const string& rootfs);
+  Future<Option<vector<Path>>> provision(
+      const vector<string>& layers, const string& rootfs);
 
   Future<bool> destroy(const string& rootfs);
 
@@ -86,7 +87,7 @@ BindBackend::BindBackend(Owned<BindBackendProcess> _process)
 }
 
 
-Future<Nothing> BindBackend::provision(
+Future<Option<std::vector<Path>>> BindBackend::provision(
     const vector<string>& layers,
     const string& rootfs,
     const string& backendDir)
@@ -104,7 +105,7 @@ Future<bool> BindBackend::destroy(
 }
 
 
-Future<Nothing> BindBackendProcess::provision(
+Future<Option<std::vector<Path>>> BindBackendProcess::provision(
     const vector<string>& layers,
     const string& rootfs)
 {
@@ -164,7 +165,7 @@ Future<Nothing> BindBackendProcess::provision(
         "' as a shared mount: " + mount.error());
   }
 
-  return Nothing();
+  return None();
 }
 
 

@@ -79,6 +79,9 @@ message ContainerState {
 
   // The sandbox directory.
   required string directory = 4;
+
+  // Ephemeral path volumes subject to container disk quota.
+  repeated string ephemeral_volumes = 5;
 }
 
 
@@ -141,6 +144,9 @@ message ContainerConfig {
 
   // The work directory for the container in the host filesystem.
   required string directory = 3;
+
+  // Ephemeral path volumes subject to container disk quota.
+  repeated string ephemeral_volumes = 15;
 
   // The user that should be used to run the `command_info`.
   // The sandbox directory and any artifacts from the Mesos fetcher will

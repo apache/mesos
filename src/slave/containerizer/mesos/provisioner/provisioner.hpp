@@ -30,6 +30,7 @@
 #include <mesos/slave/isolator.hpp> // For ContainerState.
 
 #include <stout/nothing.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <process/future.hpp>
@@ -60,6 +61,10 @@ class Store;
 struct ProvisionInfo
 {
   std::string rootfs;
+
+  // Ephemeral volumes are any additional paths the Provisioner backend
+  // may have created that should be counted towards the sandbox disk quota.
+  Option<std::vector<Path>> ephemeralVolumes;
 
   // Docker v1 image manifest.
   Option<::docker::spec::v1::ImageManifest> dockerManifest;
