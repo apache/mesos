@@ -1135,6 +1135,83 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
 }
 
 
+// Test that when a framework removes a role from the
+// suppressed roles, it clears filters (same as REVIVE):
+// - start a master, a driver and an agent
+// - wait for offer and decline it for a long timeout
+// - add / remove suppressed roles via updateFramework
+// - ensure we get an offer for the agent again
+TEST_F(UpdateFrameworkV0Test, UnsuppressClearsFilters)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  v1::MockMasterAPISubscriber masterAPISubscriber;
+  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
+
+  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated1;
+  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated2;
+  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
+    .WillOnce(FutureArg<0>(&frameworkUpdated1))
+    .WillOnce(FutureArg<0>(&frameworkUpdated2));
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1->size());
+
+  Filters filters;
+  filters.set_refuse_seconds(Days(1).secs());
+
+  driver.declineOffer(offers1->at(0).id(), filters);
+
+  // Suppress and unsuppress the role.
+  FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
+  *update.mutable_id() = frameworkId.get();
+
+  vector<string> suppressedRoles(
+    update.roles().begin(), update.roles().end());
+
+  driver.updateFramework(update, suppressedRoles);
+  AWAIT_READY(frameworkUpdated1);
+
+  driver.updateFramework(update, {});
+  AWAIT_READY(frameworkUpdated2);
+
+  // Now the previously declined agent should be re-offered.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers2);
+
+  driver.stop();
+  driver.join();
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
