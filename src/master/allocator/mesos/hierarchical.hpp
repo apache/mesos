@@ -638,7 +638,7 @@ private:
   void suppressRoles(
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles);
-  void unsuppressRoles(
+  void reviveRoles(
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles);
 

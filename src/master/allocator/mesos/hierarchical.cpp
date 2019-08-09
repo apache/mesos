@@ -499,6 +499,8 @@ void HierarchicalAllocatorProcess::updateFramework(
     if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
       trackFrameworkUnderRole(frameworkId, role);
     }
+
+    frameworkSorters.at(role)->activate(frameworkId.value());
   }
 
   foreach (const string& role, oldRoles - newRoles) {
@@ -525,8 +527,10 @@ void HierarchicalAllocatorProcess::updateFramework(
   framework.minAllocatableResources =
     unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
 
-  suppressRoles(frameworkId, suppressedRoles);
-  unsuppressRoles(frameworkId, newRoles - suppressedRoles);
+  suppressRoles(
+      frameworkId, suppressedRoles - oldSuppressedRoles);
+  reviveRoles(
+      frameworkId, (oldSuppressedRoles - suppressedRoles) & newRoles);
 
   CHECK(framework.suppressedRoles == suppressedRoles)
     << "After updating framework " << frameworkId
@@ -1340,7 +1344,7 @@ void HierarchicalAllocatorProcess::suppressOffers(
 }
 
 
-void HierarchicalAllocatorProcess::unsuppressRoles(
+void HierarchicalAllocatorProcess::reviveRoles(
     const FrameworkID& frameworkId,
     const set<string>& roles)
 {
@@ -1348,6 +1352,12 @@ void HierarchicalAllocatorProcess::unsuppressRoles(
   CHECK_CONTAINS(frameworks, frameworkId);
 
   Framework& framework = frameworks.at(frameworkId);
+
+  framework.inverseOfferFilters.clear();
+
+  foreach (const string& role, roles) {
+    framework.offerFilters.erase(role);
+  }
 
   // Activating the framework in the sorter is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,
@@ -1362,30 +1372,21 @@ void HierarchicalAllocatorProcess::unsuppressRoles(
 
   // TODO(bmahler): This logs roles that were already unsuppressed,
   // only log roles that transitioned from suppressed -> unsuppressed.
-  LOG(INFO) << "Unsuppressed offers for roles " << stringify(roles)
-            << " of framework " << frameworkId;
+  LOG(INFO) << "Unsuppressed offers and cleared filters for roles "
+            << stringify(roles) << " of framework " << frameworkId;
 }
 
 
 void HierarchicalAllocatorProcess::reviveOffers(
     const FrameworkID& frameworkId,
-    const set<string>& roles_)
+    const set<string>& roles)
 {
   CHECK(initialized);
   CHECK_CONTAINS(frameworks, frameworkId);
 
   Framework& framework = frameworks.at(frameworkId);
-  framework.inverseOfferFilters.clear();
 
-  const set<string>& roles = roles_.empty() ? framework.roles : roles_;
-  foreach (const string& role, roles) {
-    framework.offerFilters.erase(role);
-  }
-
-  unsuppressRoles(frameworkId, roles);
-
-  LOG(INFO) << "Revived roles " << stringify(roles)
-            << " of framework " << frameworkId;
+  reviveRoles(frameworkId, roles.empty() ? framework.roles : roles);
 
   allocate();
 }
