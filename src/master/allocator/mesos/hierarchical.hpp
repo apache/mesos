@@ -74,6 +74,7 @@ namespace internal {
 // Forward declarations.
 class OfferFilter;
 class InverseOfferFilter;
+class RoleTree;
 
 
 struct Framework
@@ -109,34 +110,131 @@ struct Framework
 };
 
 
-struct Role
+class Role
 {
-  Role() : weight(DEFAULT_WEIGHT) {}
+public:
+  Role(const std::string& name, Role* parent);
 
-  // IDs of the frameworks susbscibed to the role, if any.
-  hashset<FrameworkID> frameworks;
+  const ResourceQuantities& reservationScalarQuantities() const
+  {
+    return reservationScalarQuantities_;
+  }
+
+  const hashset<FrameworkID>& frameworks() const { return frameworks_; }
+
+  const Quota& quota() const { return quota_; }
+
+  double weight() const { return weight_; }
+
+  bool isEmpty() const
+  {
+    return children_.empty() &&
+           frameworks_.empty() &&
+           reservationScalarQuantities_.empty() &&
+           quota_ == DEFAULT_QUOTA &&
+           weight_ == DEFAULT_WEIGHT;
+  }
+
+  std::vector<Role*> children() const { return children_.values(); }
+
+  const std::string role; // E.g. "a/b/c"
+  const std::string basename; // E.g. "c"
+
+private:
+  // We keep fields that are related to the tree structure as private
+  // and only allow mutations through the RoleTree structure.
+  friend class RoleTree;
+
+  // Add a child to the role, the child must not already exist.
+  void addChild(Role* child);
+
+  // Remove a child from the role, the child must be present.
+  void removeChild(Role* child);
+
+  Role* parent;
+
+  // Configured guaranteed resource quantities and resource limits for
+  // this role. By default, a role has no guarantee and no limit.
+  Quota quota_;
+
+  // Configured weight for the role. This affects sorting precedence.
+  // By default, weights == DEFAULT_WEIGHT == 1.0.
+  double weight_;
+
+  // IDs of the frameworks subscribed to the role, if any.
+  hashset<FrameworkID> frameworks_;
 
   // Aggregated reserved scalar resource quantities on all agents tied to this
   // role, if any. This includes both its own reservations as well as
   // reservations of any of its subroles (i.e. it is hierarchical aware).
   // Note that non-scalar resources, such as ports, are excluded.
-  ResourceQuantities reservationScalarQuantities;
+  ResourceQuantities reservationScalarQuantities_;
 
-  // Configured guaranteed resource quantities and resource limits for
-  // this role. By default, a role has no guarantee and no limit.
-  Quota quota;
+  hashmap<std::string, Role*> children_;
+};
 
-  // Configured weight for the role. This affects sorting precedence.
-  // By default, weights == DEFAULT_WEIGHT == 1.0.
-  double weight;
 
-  bool isEmpty() const
-  {
-    return frameworks.empty() &&
-           reservationScalarQuantities.empty() &&
-           quota == DEFAULT_QUOTA &&
-           weight == DEFAULT_WEIGHT;
-  }
+// A tree abstraction for organizing `class Role` hierarchically.
+//
+// We track a role when it has:
+//
+//   * a non-default weight, or
+//   * a non-default quota, or
+//   * frameworks subscribed to it, or
+//   * reservations, or
+//   * descendent roles meeting any of the above conditions.
+//
+// Any roles that do not meet these conditions are not tracked in the role tree.
+class RoleTree
+{
+public:
+  RoleTree(Metrics* metrics);
+
+  ~RoleTree();
+
+  Option<const Role*> get(const std::string& role) const;
+
+  // Return a hashmap of all known roles. Root is not included.
+  const hashmap<std::string, Role>& roles() const { return roles_; }
+
+  const Role* root() const { return root_; }
+
+  // We keep track of reservations to enforce role quota limit
+  // in the presence of unallocated reservations. See MESOS-4527.
+  void trackReservations(const Resources& resources);
+  void untrackReservations(const Resources& resources);
+
+  void trackFramework(
+    const FrameworkID& frameworkId, const std::string& role);
+  void untrackFramework(
+      const FrameworkID& frameworkId, const std::string& role);
+
+  void updateQuota(const std::string& role, const Quota& quota);
+
+  void updateWeight(const std::string& role, double weight);
+
+private:
+  // Lookup or add the role struct associated with the role. Ancestor roles
+  // along the tree path will be created if necessary.
+  Role& operator[](const std::string& role);
+
+  // Try to remove the role associated with the given role.
+  // The role must exist. The role and its ancestors will be removed
+  // if they become "empty". See "Role:isEmpty()".
+  // Return true if the role instance associated with the role is removed.
+  // This should be called whenever a role's state (that defines its emptiness)
+  // gets updated, such as quota, weight, reservation and tracked frameworks.
+  // Otherwise the "tracking only non-empty" tree invariant may break.
+  bool tryRemove(const std::string& role);
+
+  // Root node of the tree, its `basename` == `role` == "".
+  Role* root_;
+
+  // Allocator's metrics handle for publishing role related metrics.
+  Metrics* metrics;
+
+  // A map of role and `Role` pairs for quick lookup.
+  hashmap<std::string, Role> roles_;
 };
 
 
@@ -310,6 +408,7 @@ public:
       paused(true),
       metrics(*this),
       completedFrameworkMetrics(0),
+      roleTree(&metrics),
       roleSorter(roleSorterFactory()),
       frameworkSorterFactory(_frameworkSorterFactory) {}
 
@@ -554,6 +653,8 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
+  RoleTree roleTree;
+
   // A set of agents that are kept as allocation candidates. Events
   // may add or remove candidates to the set. When an allocation is
   // processed, the set of candidates is cleared.
@@ -562,13 +663,6 @@ protected:
   // Future for the dispatched allocation that becomes
   // ready after the allocation run is complete.
   Option<process::Future<Nothing>> allocation;
-
-  // We track information about roles that we're aware of in the system.
-  // Specifically, we keep track of the roles when a framework subscribes to
-  // the role, and/or when there are resources allocated to the role
-  // (e.g. some tasks and/or executors are consuming resources under the role),
-  // and/or when there are reservations tied to this role.
-  hashmap<std::string, Role> roles;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
@@ -648,26 +742,6 @@ private:
   void reviveRoles(
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles);
-
-  // `trackReservations` and `untrackReservations` are helpers
-  // to track role resource reservations. We need to keep
-  // track of reservations to enforce role quota limit
-  // in the presence of unallocated reservations. See MESOS-4527.
-  //
-  // TODO(mzhu): Ideally, we want these helpers to instead track the
-  // reservations as *allocated* in the sorters even when the
-  // reservations have not been allocated yet. This will help to:
-  //
-  //   (1) Solve the fairness issue when roles with unallocated
-  //       reservations may game the allocator (See MESOS-8299).
-  //
-  //   (2) Simplify the quota enforcement logic -- the allocator
-  //       would no longer need to track reservations separately.
-  void trackReservations(
-      const hashmap<std::string, Resources>& reservations);
-
-  void untrackReservations(
-      const hashmap<std::string, Resources>& reservations);
 
   // Helper to update the agent's total resources maintained in the allocator
   // and the role and quota sorters (whose total resources match the agent's
