@@ -109,6 +109,8 @@ using mesos::internal::protobuf::createLabel;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using mesos::v1::resource_provider::Event;
+
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerTermination;
 
@@ -10682,15 +10684,25 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
 
     // Two PUBLISH_RESOURCES events will be received: one for launching the
     // executor, and the other for launching the task.
+    auto resourceProviderProcess = resourceProvider.process->self();
     EXPECT_CALL(*resourceProvider.process, publishResources(_))
-      .WillOnce(Invoke(
-          resourceProvider.process.get(),
-          &v1::TestResourceProviderProcess::publishDefault))
+      .WillOnce(
+          Invoke([resourceProviderProcess](
+                     const typename Event::PublishResources& publish) {
+            dispatch(
+                resourceProviderProcess,
+                &v1::TestResourceProviderProcess::publishDefault,
+                publish);
+          }))
       .WillOnce(DoAll(
-          FutureArg<0>(&publish),
-          Invoke(
-              resourceProvider.process.get(),
-              &v1::TestResourceProviderProcess::publishDefault)));
+          Invoke([resourceProviderProcess](
+                     const typename Event::PublishResources& publish) {
+            dispatch(
+                resourceProviderProcess,
+                &v1::TestResourceProviderProcess::publishDefault,
+                publish);
+          }),
+          FutureArg<0>(&publish)));
 
     Future<TaskStatus> taskStarting;
     Future<TaskStatus> taskRunning;

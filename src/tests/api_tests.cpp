@@ -9192,11 +9192,18 @@ TEST_P(AgentAPITest, MarkResourceProviderGone)
 
   Future<mesos::v1::resource_provider::Event::Subscribed> subscribed;
 
+  auto resourceProviderProcess = resourceProvider.process->self();
   EXPECT_CALL(*resourceProvider.process, subscribed(_))
     .WillOnce(DoAll(
         Invoke(
-            resourceProvider.process.get(),
-            &v1::TestResourceProviderProcess::subscribedDefault),
+            [resourceProviderProcess](
+                const typename mesos::v1::resource_provider::Event::Subscribed&
+                  subscribed) {
+              dispatch(
+                  resourceProviderProcess,
+                  &v1::TestResourceProviderProcess::subscribedDefault,
+                  subscribed);
+            }),
         FutureArg<0>(&subscribed)))
     .WillRepeatedly(Return());
 

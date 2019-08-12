@@ -1192,13 +1192,15 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   // We terminate the resource provider once we have confirmed that it
   // got disconnected. This avoids it to in turn resubscribe racing
   // with the newly created resource provider.
+  auto resourceProviderProcess = resourceProvider->process->self();
   Future<Nothing> disconnected;
   EXPECT_CALL(*resourceProvider->process, disconnected())
     .WillOnce(DoAll(
-      Invoke(
-        resourceProvider->process.get(),
-        &v1::TestResourceProviderProcess::stop),
-      FutureSatisfy(&disconnected)))
+        Invoke([resourceProviderProcess]() {
+          dispatch(
+              resourceProviderProcess, &v1::TestResourceProviderProcess::stop);
+        }),
+        FutureSatisfy(&disconnected)))
     .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `stop`.
 
   // The agent failover.
@@ -1270,12 +1272,15 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeUnknownID)
 
   // We explicitly terminate the resource provider after the expected
   // disconnect to prevent it from resubscribing indefinitely.
+  auto resourceProviderProcess = resourceProvider.process->self();
   Future<Nothing> disconnected;
   EXPECT_CALL(*resourceProvider.process, disconnected())
     .WillOnce(DoAll(
-      Invoke(
-        resourceProvider.process.get(), &v1::TestResourceProviderProcess::stop),
-      FutureSatisfy(&disconnected)));
+        Invoke([resourceProviderProcess]() {
+          dispatch(
+              resourceProviderProcess, &v1::TestResourceProviderProcess::stop);
+        }),
+        FutureSatisfy(&disconnected)));
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -1423,13 +1428,16 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   // We terminate the first resource provider once we have confirmed
   // that it got disconnected. This avoids it to in turn resubscribe
   // racing with the other resource provider.
+  auto resourceProviderProcess1 = resourceProvider1.process->self();
   Future<Nothing> disconnected1;
   EXPECT_CALL(*resourceProvider1.process, disconnected())
     .WillOnce(DoAll(
-      Invoke(
-        resourceProvider1.process.get(),
-        &v1::TestResourceProviderProcess::stop),
-      FutureSatisfy(&disconnected1)))
+        Invoke([resourceProviderProcess1]() {
+          dispatch(
+              resourceProviderProcess1,
+              &v1::TestResourceProviderProcess::stop);
+        }),
+        FutureSatisfy(&disconnected1)))
     .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `stop`.
 
   Future<Event::Subscribed> subscribed2;

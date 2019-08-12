@@ -3039,32 +3039,50 @@ public:
   TestResourceProviderProcess(
       const ResourceProviderInfo& _info,
       const Option<Resources>& _resources = None())
-    : info(_info),
+    : process::ProcessBase(process::ID::generate("test-resource-provider")),
+      info(_info),
       resources(_resources)
   {
-    ON_CALL(*this, connected())
-      .WillByDefault(
-          Invoke(this, &TestResourceProviderProcess::connectedDefault));
+    auto self = this->self();
+
+    ON_CALL(*this, connected()).WillByDefault(Invoke([self]() {
+      dispatch(self, &TestResourceProviderProcess::connectedDefault);
+    }));
     EXPECT_CALL(*this, connected()).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, subscribed(_))
       .WillByDefault(
-          Invoke(this, &TestResourceProviderProcess::subscribedDefault));
+          Invoke([self](const typename Event::Subscribed& subscribed) {
+            dispatch(
+                self,
+                &TestResourceProviderProcess::subscribedDefault,
+                subscribed);
+          }));
     EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, applyOperation(_))
       .WillByDefault(
-          Invoke(this, &TestResourceProviderProcess::operationDefault));
+          Invoke([self](const typename Event::ApplyOperation& operation) {
+            dispatch(
+                self,
+                &TestResourceProviderProcess::operationDefault,
+                operation);
+          }));
     EXPECT_CALL(*this, applyOperation(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, publishResources(_))
       .WillByDefault(
-          Invoke(this, &TestResourceProviderProcess::publishDefault));
+          Invoke([self](const typename Event::PublishResources& publish) {
+            dispatch(
+                self,
+                &TestResourceProviderProcess::publishDefault,
+                publish);
+          }));
     EXPECT_CALL(*this, publishResources(_)).WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, teardown())
-      .WillByDefault(
-          Invoke(this, &TestResourceProviderProcess::teardownDefault));
+    ON_CALL(*this, teardown()).WillByDefault(Invoke([self]() {
+      dispatch(self, &TestResourceProviderProcess::teardownDefault);
+    }));
     EXPECT_CALL(*this, teardown()).WillRepeatedly(DoDefault());
   }
 
@@ -3087,6 +3105,7 @@ public:
   {
     while (!events.empty()) {
       Event event = events.front();
+
       events.pop();
 
       switch (event.type()) {
