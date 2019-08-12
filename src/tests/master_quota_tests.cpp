@@ -2080,12 +2080,7 @@ TEST_F(MasterQuotaTest, RescindOffersEnforcingLimits)
   // Cluster resources: cpus:1;mem:1024
   // Allocated: `ROLE1` cpus:1;mem:1024
 
-  // Start a second agent with identical resources.
-  slave::Flags flags2 = CreateSlaveFlags();
-  flags2.resources = "cpus:1;mem:1024";
-  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), flags2);
-  ASSERT_SOME(slave2);
-
+  // Add a 2nd framework.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_roles(0, ROLE1 + "/child");
 
@@ -2097,19 +2092,28 @@ TEST_F(MasterQuotaTest, RescindOffersEnforcingLimits)
   EXPECT_CALL(sched2, registered(&framework2, _, _))
     .WillOnce(FutureArg<1>(&frameworkId2));
 
+  framework2.start();
+
+  AWAIT_READY(frameworkId2);
+
+  // Start a second agent with identical resources.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = "cpus:1;mem:1024";
+  Try<Owned<cluster::Slave>> agent2 = StartSlave(detector.get(), flags2);
+  ASSERT_SOME(agent2);
+
+  // `agent2` will be allocated to `framework2` due to DRF.
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched2, resourceOffers(&framework2, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1u, offers2->size());
+
   Future<Nothing> offerRescinded2;
   EXPECT_CALL(sched2, offerRescinded(&framework2, _))
     .WillOnce(FutureSatisfy(&offerRescinded2));
-
-  framework2.start();
-
-  AWAIT_READY(offers2);
-  ASSERT_EQ(1u, offers2->size());
 
   // Cluster resources: cpus:2;mem:2048
   // Allocated: `ROLE1`  cpus:1;mem:1024
