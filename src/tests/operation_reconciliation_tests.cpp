@@ -1833,11 +1833,15 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, finishedUpdate->status().state());
   EXPECT_TRUE(finishedUpdate->status().has_uuid());
 
+  Future<mesos::v1::scheduler::Mesos*> disconnected;
   EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(2);
+    .Times(1)
+    .WillOnce(FutureArg<0>(&disconnected));
 
+  Future<mesos::v1::scheduler::Mesos*> connected;
   EXPECT_CALL(*scheduler, connected(_))
-    .Times(2);
+    .Times(1)
+    .WillOnce(FutureArg<0>(&connected));
 
   // Drop the `UpdateSlaveMessage` which contains the resubscribed resource
   // provider in order to simulate a race between this message and the
@@ -1845,8 +1849,12 @@ TEST_P(
   updateSlaveMessage = DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   // Restart the master to clear out the master's operation state and force
-  // an agent reregistration.
+  // an agent reregistration. Also appoint `None()` to avoid a spurious
+  // detection of the master since it reuses the same `UPID`.
+  detector->appoint(None());
   master->reset();
+  AWAIT_READY(disconnected);
+
   master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1866,6 +1874,7 @@ TEST_P(
 
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
 
+  AWAIT_READY(connected);
   mesos.send(createCallSubscribe(frameworkInfo, frameworkId));
 
   AWAIT_READY(resubscribed);
