@@ -3136,7 +3136,11 @@ public:
 
   process::Future<Nothing> send(const Call& call)
   {
-    return driver->send(call);
+    if (driver != nullptr) {
+      return driver->send(call);
+    } else {
+      return process::Failure("Cannot send call since driver is torn down");
+    }
   }
 
   void start(
@@ -3198,7 +3202,10 @@ public:
     call.set_type(Call::SUBSCRIBE);
     call.mutable_subscribe()->mutable_resource_provider_info()->CopyFrom(info);
 
-    driver->send(call);
+    send(call)
+      .onFailed([](const std::string& failure) {
+        LOG(INFO) << "Failed to send call: " << failure;
+      });
   }
 
   void subscribedDefault(const typename Event::Subscribed& subscribed)
@@ -3224,7 +3231,10 @@ public:
       update->mutable_resource_version_uuid()->set_value(
           id::UUID::random().toBytes());
 
-      driver->send(call);
+      send(call)
+        .onFailed([](const std::string& failure) {
+          LOG(INFO) << "Failed to send call: " << failure;
+        });
     }
   }
 
@@ -3299,7 +3309,10 @@ public:
 
     update->mutable_latest_status()->CopyFrom(update->status());
 
-    driver->send(call);
+    send(call)
+      .onFailed([](const std::string& failure) {
+        LOG(INFO) << "Failed to send call: " << failure;
+      });
   }
 
   void publishDefault(const typename Event::PublishResources& publish)
@@ -3315,7 +3328,10 @@ public:
     update->mutable_uuid()->CopyFrom(publish.uuid());
     update->set_status(Call::UpdatePublishResourcesStatus::OK);
 
-    driver->send(call);
+    send(call)
+      .onFailed([](const std::string& failure) {
+        LOG(INFO) << "Failed to send call: " << failure;
+      });
   }
 
   void teardownDefault() {}
