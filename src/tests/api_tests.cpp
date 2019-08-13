@@ -5820,6 +5820,197 @@ TEST_P(MasterAPITest, DrainAgentMarkGone)
 }
 
 
+// When an operator submits a DRAIN_AGENT call with an agent that has gone
+// unreachable, the call should succeed, and the agent should be drained
+// if/when it returns to the cluster.
+TEST_P(MasterAPITest, DrainAgentUnreachable)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::PARTITION_AWARE);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  auto mesos = std::make_shared<v1::scheduler::TestMesos>(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Try<v1::Resources> resources =
+    v1::Resources::parse("cpus:0.1;mem:64;disk:64");
+
+  ASSERT_SOME(resources);
+
+  v1::TaskInfo taskInfo =
+    v1::createTask(agentId, resources.get(), SLEEP_COMMAND(1000));
+
+  testing::Sequence updateSequence;
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  Future<v1::scheduler::Event::Update> unreachableUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate2;
+  Future<v1::scheduler::Event::Update> killedUpdate;
+
+  // Make absolutely sure the agent receives these two acknowledgements
+  // before forcing the agent offline.
+  Future<StatusUpdateAcknowledgementMessage> startingAck =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+  Future<StatusUpdateAcknowledgementMessage> runningAck =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+          TaskStatusUpdateStateEq(v1::TASK_STARTING))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+            TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&runningUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+            TaskStatusUpdateStateEq(v1::TASK_UNREACHABLE))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&unreachableUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  // When the agent is brought back, we expect a TASK_RUNNING followed by
+  // a TASK_KILLED (due to draining).
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+            TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&runningUpdate2),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+            TaskStatusUpdateStateEq(v1::TASK_KILLED))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&killedUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  mesos->send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::LAUNCH({taskInfo})}));
+
+  AWAIT_READY(startingUpdate);
+  AWAIT_READY(startingAck);
+  AWAIT_READY(runningUpdate);
+  AWAIT_READY(runningAck);
+
+  // Simulate an agent crash, so that it disconnects from the master.
+  slave.get()->terminate();
+  slave->reset();
+
+  Clock::advance(masterFlags.agent_reregister_timeout);
+  AWAIT_READY(unreachableUpdate);
+
+  // Start draining the unreachable agent.
+  ContentType contentType = GetParam();
+
+  {
+    v1::master::Call::DrainAgent drainAgent;
+    drainAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::DRAIN_AGENT);
+    call.mutable_drain_agent()->CopyFrom(drainAgent);
+
+    post(master.get()->pid, call, contentType);
+  }
+
+  // Bring the agent back.
+  Future<ReregisterExecutorMessage> reregisterExecutor =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<DrainSlaveMessage> drainSlaveMesage =
+    FUTURE_PROTOBUF(DrainSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> recoveredSlave =
+    StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(recoveredSlave);
+
+  AWAIT_READY(reregisterExecutor);
+  Clock::advance(agentFlags.executor_reregistration_timeout);
+  Clock::settle();
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // The agent should be told to drain once it reregisters.
+  AWAIT_READY(drainSlaveMesage);
+  AWAIT_READY(runningUpdate2);
+  AWAIT_READY(killedUpdate);
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>

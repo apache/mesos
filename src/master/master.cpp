@@ -7938,6 +7938,30 @@ void Master::__reregisterSlave(
 
   addSlave(slave, std::move(completedFrameworks));
 
+  // If this agent was deactivated, make sure to deactivate it again,
+  // now that it has reregistered.
+  if (slaves.deactivated.contains(slaveInfo.id())) {
+    deactivate(slave);
+  }
+
+  // If this is a draining agent, send it the drain message.
+  // We do this regardless of the draining state (DRAINING or DRAINED),
+  // because the agent is expected to handle the message in either state.
+  if (slaves.draining.contains(slaveInfo.id())) {
+    DrainSlaveMessage message;
+    message.mutable_config()->CopyFrom(
+        slaves.draining.at(slaveInfo.id()).config());
+
+    send(slave->pid, message);
+
+    // NOTE: If the agent supports resource providers, the agent will not
+    // report pending operations until the agent's first UpdateSlaveMessage.
+    // Therefore, we cannot check the agent's drain state here.
+    if (!slaveCapabilities.resourceProvider) {
+      checkAndTransitionDrainingAgent(slave);
+    }
+  }
+
   Duration pingTimeout =
     flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
   MasterSlaveConnection connection;
@@ -8049,6 +8073,7 @@ void Master::___reregisterSlave(
   const string& version = reregisterSlaveMessage.version();
   const vector<SlaveInfo::Capability> agentCapabilities =
     google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
+  protobuf::slave::Capabilities slaveCapabilities(agentCapabilities);
 
   Option<UUID> resourceVersion;
   if (reregisterSlaveMessage.has_resource_version_uuid()) {
@@ -8132,9 +8157,12 @@ void Master::___reregisterSlave(
 
     send(slave->pid, message);
 
-    // Check if the agent is already drained and transition it
-    // appropriately if so.
-    checkAndTransitionDrainingAgent(slave);
+    // NOTE: If the agent supports resource providers, the agent will not
+    // report pending operations until the agent's first UpdateSlaveMessage.
+    // Therefore, we cannot check the agent's drain state here.
+    if (!slaveCapabilities.resourceProvider) {
+      checkAndTransitionDrainingAgent(slave);
+    }
   }
 
   // Inform the agent of the new framework pids for its tasks, and
@@ -8457,6 +8485,11 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     LOG(INFO) << "Ignoring update on agent " << *slave
               << " as it reports no changes";
 
+    // NOTE: This is necessary to catch draining agents with the
+    // RESOURCE_PROVIDER capability, since the master will not know about
+    // any pending operations until the first UpdateSlaveMessage has been
+    // sent after reregistration.
+    checkAndTransitionDrainingAgent(slave);
     return;
   }
 
@@ -8823,6 +8856,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
   // NOTE: We don't need to rescind inverse offers here as they are unrelated to
   // oversubscription.
+
+  // Now that we have the agent's operations in master memory, we can check
+  // if the agent is drained and transition it appropriately if so.
+  checkAndTransitionDrainingAgent(slave);
 }
 
 
