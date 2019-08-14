@@ -96,8 +96,6 @@ using mesos::internal::slave::ContainerDaemonProcess;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
-using mesos::resource_provider::DEFAULT_STORAGE_RECONCILIATION_INTERVAL;
-
 using process::Clock;
 using process::Future;
 using process::Owned;
@@ -1643,8 +1641,6 @@ TEST_P(StorageLocalResourceProviderTest, ProfileDisappeared)
   // The resource provider will reconcile the storage pools to reclaim the
   // space freed by destroying a MOUNT disk of a disappeared profile, which
   // would in turn trigger another agent update and thus another allocation.
-  //
-  // TODO(chhsiao): This might change once MESOS-9254 is done.
   AWAIT_READY(offers);
   ASSERT_EQ(1, offers->offers_size());
 
@@ -6706,6 +6702,197 @@ TEST_P(
     AWAIT_READY(offers);
     ASSERT_EQ(1u, offers->size());
   }
+}
+
+
+// This test validates that the SLRP periodically
+// reconciles resources with the CSI plugin.
+TEST_P(StorageLocalResourceProviderTest, Update)
+{
+  Clock::pause();
+
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+
+  ASSERT_SOME(
+      os::write(profilesPath, createDiskProfileMapping({{"test", None()}})));
+
+  loadUriDiskProfileAdaptorModule(profilesPath);
+
+  const string mockCsiEndpoint =
+    "unix://" + path::join(sandbox.get(), "mock_csi.sock");
+
+  MockCSIPlugin plugin;
+  ASSERT_SOME(plugin.startup(mockCsiEndpoint));
+
+  constexpr Duration reconciliationInterval = Seconds(15);
+
+  setupResourceProviderConfig(
+      Bytes(0),
+      None(),
+      mockCsiEndpoint,
+      None(),
+      None(),
+      reconciliationInterval);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  process::Queue<Nothing> getCapacityCalls;
+  process::Queue<Nothing> listVolumesCalls;
+  if (GetParam() == csi::v0::API_VERSION) {
+    EXPECT_CALL(plugin, ListVolumes(_, _, A<csi::v0::ListVolumesResponse*>()))
+      .WillOnce(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v0::ListVolumesRequest* request,
+          csi::v0::ListVolumesResponse* response) {
+        listVolumesCalls.put({});
+        return grpc::Status::OK;
+      }))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v0::ListVolumesRequest* request,
+          csi::v0::ListVolumesResponse* response) {
+        csi::v0::Volume* volume = response->add_entries()->mutable_volume();
+        volume->set_capacity_bytes(Bytes(1024).bytes());
+        volume->set_id("volume1");
+
+        listVolumesCalls.put({});
+        return grpc::Status::OK;
+      }));
+
+    EXPECT_CALL(plugin, GetCapacity(_, _, A<csi::v0::GetCapacityResponse*>()))
+      .WillOnce(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v0::GetCapacityRequest* request,
+          csi::v0::GetCapacityResponse* response) {
+        getCapacityCalls.put({});
+        return grpc::Status::OK;
+      }))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v0::GetCapacityRequest* request,
+          csi::v0::GetCapacityResponse* response) {
+        response->set_available_capacity(Bytes(1024).bytes());
+
+        getCapacityCalls.put({});
+        return grpc::Status::OK;
+      }));
+  } else if (GetParam() == csi::v1::API_VERSION) {
+    EXPECT_CALL(plugin, ListVolumes(_, _, A<csi::v1::ListVolumesResponse*>()))
+      .WillOnce(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v1::ListVolumesRequest* request,
+          csi::v1::ListVolumesResponse* response) {
+        listVolumesCalls.put({});
+        return grpc::Status::OK;
+      }))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v1::ListVolumesRequest* request,
+          csi::v1::ListVolumesResponse* response) {
+        csi::v1::Volume* volume = response->add_entries()->mutable_volume();
+        volume->set_capacity_bytes(Bytes(1024).bytes());
+        volume->set_volume_id("volume1");
+
+        listVolumesCalls.put({});
+        return grpc::Status::OK;
+      }));
+
+    EXPECT_CALL(plugin, GetCapacity(_, _, A<csi::v1::GetCapacityResponse*>()))
+      .WillOnce(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v1::GetCapacityRequest* request,
+          csi::v1::GetCapacityResponse* response) {
+        getCapacityCalls.put({});
+        return grpc::Status::OK;
+      }))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v1::GetCapacityRequest* request,
+          csi::v1::GetCapacityResponse* response) {
+        response->set_available_capacity(Bytes(1024).bytes());
+
+        getCapacityCalls.put({});
+        return grpc::Status::OK;
+      }));
+  }
+
+  Future<Nothing> listVolumes1 = listVolumesCalls.get();
+  Future<Nothing> listVolumes2 = listVolumesCalls.get();
+
+  Future<Nothing> getCapacity1 = getCapacityCalls.get();
+  Future<Nothing> getCapacity2 = getCapacityCalls.get();
+
+
+  // Since the local resource provider daemon gets subscribed after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider. After that a single update
+  // will be send since they underlying provider resources got changed.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave3 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+  ASSERT_TRUE(updateSlave1->has_resource_providers());
+  ASSERT_TRUE(updateSlave1->resource_providers().providers().empty());
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(getCapacity1);
+  AWAIT_READY(listVolumes1);
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_FALSE(updateSlave2->resource_providers().providers().empty());
+
+  Clock::pause();
+
+  // Advance the clock so the SLRP polls for volume and storage pool updates.
+  Clock::settle();
+  Clock::advance(reconciliationInterval);
+
+  AWAIT_READY(listVolumes2);
+  AWAIT_READY(getCapacity2);
+  ASSERT_TRUE(updateSlave3.isPending());
+
+  // Advance the clock so the SLRP polls again.
+  Future<Nothing> listVolumes3 = listVolumesCalls.get();
+  Future<Nothing> getCapacity3 = getCapacityCalls.get();
+
+  Clock::settle();
+  Clock::advance(reconciliationInterval);
+
+  AWAIT_READY(listVolumes3);
+  AWAIT_READY(getCapacity3);
+  AWAIT_READY(updateSlave3);
+  ASSERT_TRUE(updateSlave3->has_resource_providers());
+  ASSERT_FALSE(updateSlave3->resource_providers().providers().empty());
+
+  // Resource changes are reported and the resource version changes.
+  ASSERT_NE(
+      updateSlave2->resource_providers().providers(0).resource_version_uuid(),
+      updateSlave3->resource_providers().providers(0).resource_version_uuid());
 }
 
 } // namespace tests {

@@ -38,6 +38,7 @@
 
 #include <mesos/v1/resource_provider.hpp>
 
+#include <process/after.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -79,6 +80,7 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
+#include "resource_provider/constants.hpp"
 #include "resource_provider/detector.hpp"
 #include "resource_provider/state.hpp"
 
@@ -130,6 +132,7 @@ using mesos::internal::protobuf::convertLabelsToStringMap;
 using mesos::internal::protobuf::convertStringMapToLabels;
 
 using mesos::resource_provider::Call;
+using mesos::resource_provider::DEFAULT_STORAGE_RECONCILIATION_INTERVAL;
 using mesos::resource_provider::Event;
 using mesos::resource_provider::ResourceProviderState;
 
@@ -274,8 +277,10 @@ private:
   Future<Nothing> reconcileResourceProviderState();
   Future<Nothing> reconcileOperationStatuses();
 
-  // Query the plugin for its resources and update the providers state.
-  Future<Nothing> reconcileResources();
+  // Query the plugin for its resources and update the providers
+  // state. If `alwaysUpdate` is `true` an update will always be
+  // sent, even if no changes are detected.
+  Future<Nothing> reconcileResources(bool alwaysUpdate);
 
   ResourceConversion computeConversion(
       const Resources& checkpointed, const Resources& discovered) const;
@@ -310,6 +315,13 @@ private:
   void acknowledgeOperationStatus(
       const Event::AcknowledgeOperationStatus& acknowledge);
   void reconcileOperations(const Event::ReconcileOperations& reconcile);
+
+  // Periodically poll the provider for resource changes. The poll interval is
+  // controlled by
+  // `ResourceProviderInfo.Storage.reconciliation_interval_seconds`. When this
+  // function is invoked it will perform the first poll after one reconciliation
+  // interval.
+  void watchResources();
 
   // Applies the operation. Speculative operations will be synchronously
   // applied. Do nothing if the operation is already in a terminal state.
@@ -372,6 +384,8 @@ private:
   const SlaveID slaveId;
   const Option<string> authToken;
   const bool strict;
+
+  const Duration reconciliationInterval;
 
   shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
@@ -442,6 +456,10 @@ StorageLocalResourceProviderProcess::StorageLocalResourceProviderProcess(
     slaveId(_slaveId),
     authToken(_authToken),
     strict(_strict),
+    reconciliationInterval(
+        _info.storage().has_reconciliation_interval_seconds()
+          ? Seconds(info.storage().reconciliation_interval_seconds())
+          : DEFAULT_STORAGE_RECONCILIATION_INTERVAL),
     metrics("resource_providers/" + info.type() + "." + info.name() + "/"),
     resourceVersion(id::UUID::random()),
     sequence("storage-local-resource-provider-sequence")
@@ -716,24 +734,73 @@ Future<Nothing>
 StorageLocalResourceProviderProcess::reconcileResourceProviderState()
 {
   return reconcileOperationStatuses()
-    .then(defer(self(), &Self::reconcileResources));
+    .then(defer(self(), &Self::reconcileResources, true))
+    .then(defer(self(), [this] {
+      statusUpdateManager.resume();
+
+      switch (state) {
+        case RECOVERING:
+        case DISCONNECTED:
+        case CONNECTED:
+        case SUBSCRIBED: {
+          LOG(INFO) << "Resource provider " << info.id()
+                    << " is in READY state";
+
+          state = READY;
+        }
+        case READY:
+          break;
+      }
+
+      return Nothing();
+    }));
 }
 
 
-Future<Nothing> StorageLocalResourceProviderProcess::reconcileResources()
+void StorageLocalResourceProviderProcess::watchResources()
+{
+  // A specified reconciliation interval of zero
+  // denotes disabled periodic reconciliations.
+  if (reconciliationInterval == Seconds(0)) {
+    return;
+  }
+
+  CHECK(info.has_id());
+
+  loop(
+      self(),
+      std::bind(&process::after, reconciliationInterval),
+      [this](const Nothing&) {
+        // Poll resource provider state in `sequence` to
+        // prevent concurrent non-reconcilable operations.
+        reconciled = sequence.add(std::function<Future<Nothing>()>(
+            defer(self(), &Self::reconcileResources, false)));
+
+        return reconciled.then(
+            [](const Nothing&) -> ControlFlow<Nothing> { return Continue(); });
+      });
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::reconcileResources(
+    bool alwaysUpdate)
 {
   LOG(INFO) << "Reconciling storage pools and volumes";
+
+  CHECK_PENDING(reconciled);
 
   return collect<vector<ResourceConversion>>(
              {getExistingVolumes(), getStoragePools()})
     .then(defer(
-        self(), [this](const vector<vector<ResourceConversion>>& collected) {
+        self(),
+        [alwaysUpdate, this]
+        (const vector<vector<ResourceConversion>>& collected) {
           Resources result = totalResources;
           foreach (const vector<ResourceConversion>& conversions, collected) {
             result = CHECK_NOTERROR(result.apply(conversions));
           }
 
-          bool shouldSendUpdate = false;
+          bool shouldSendUpdate = alwaysUpdate;
 
           if (result != totalResources) {
             LOG(INFO) << "Removing '" << (totalResources - result)
@@ -742,33 +809,14 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileResources()
 
             // Update the resource version since the total resources changed.
             totalResources = result;
-            resourceVersion = id::UUID::random();
 
             checkpointResourceProviderState();
 
             shouldSendUpdate = true;
           }
 
-          switch (state) {
-            case RECOVERING:
-            case DISCONNECTED:
-            case CONNECTED:
-            case SUBSCRIBED: {
-              LOG(INFO) << "Resource provider " << info.id()
-                        << " is in READY state";
-
-              state = READY;
-
-              // This is the first resource update of the current subscription.
-              shouldSendUpdate = true;
-            }
-            case READY:
-              break;
-          }
-
           if (shouldSendUpdate) {
             sendResourceProviderStateUpdate();
-            statusUpdateManager.resume();
           }
 
           return Nothing();
@@ -1168,7 +1216,7 @@ void StorageLocalResourceProviderProcess::watchProfiles()
 
         std::function<Future<Nothing>()> update = defer(self(), [=] {
           return updateProfiles(profiles)
-            .then(defer(self(), &Self::reconcileResources));
+            .then(defer(self(), &Self::reconcileResources, false));
         });
 
         // Update the profile mapping and storage pools in `sequence` to wait
@@ -1261,10 +1309,12 @@ void StorageLocalResourceProviderProcess::subscribed(
   // Reconcile resources after obtaining the resource provider ID and start
   // watching for profile changes after the reconciliation.
   // TODO(chhsiao): Reconcile and watch for profile changes early.
-  reconciled = reconcileResourceProviderState()
-    .onReady(defer(self(), &Self::watchProfiles))
-    .onFailed(defer(self(), std::bind(die, lambda::_1)))
-    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
+  reconciled =
+    reconcileResourceProviderState()
+      .onReady(defer(self(), &Self::watchProfiles))
+      .onReady(defer(self(), &Self::watchResources))
+      .onFailed(defer(self(), std::bind(die, lambda::_1)))
+      .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 }
 
 
@@ -1728,7 +1778,7 @@ StorageLocalResourceProviderProcess::applyCreateDisk(
 
   // TODO(chhsiao): Consider calling `createVolume` sequentially with other
   // create or delete operations, and send an `UPDATE_STATE` for storage pools
-  // afterward. See MESOS-9254.
+  // afterward.
   Future<VolumeInfo> created;
   if (resource.disk().source().has_profile()) {
     created = volumeManager->createVolume(
@@ -1866,7 +1916,7 @@ StorageLocalResourceProviderProcess::applyDestroyDisk(
             reconciled =
               sequence
                 .add(std::function<Future<Nothing>()>(
-                    defer(self(), &Self::reconcileResources)))
+                    defer(self(), &Self::reconcileResources, false)))
                 .onFailed(std::bind(err, resource, lambda::_1))
                 .onDiscard(std::bind(err, resource, "future discarded"));
           }
@@ -2123,6 +2173,12 @@ void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
 
 void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
 {
+  // Set a new resource version here since we typically send state
+  // updates when resources change. While this ensures we always have
+  // a new resource version whenever we set new state, with that this
+  // function is not idempotent anymore.
+  resourceVersion = id::UUID::random();
+
   Call call;
   call.set_type(Call::UPDATE_STATE);
   call.mutable_resource_provider_id()->CopyFrom(info.id());
