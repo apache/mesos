@@ -273,9 +273,8 @@ private:
   // truth, such as CSI plugin responses or the status update manager.
   Future<Nothing> reconcileResourceProviderState();
   Future<Nothing> reconcileOperationStatuses();
-  ResourceConversion reconcileResources(
-      const Resources& checkpointed,
-      const Resources& discovered);
+  ResourceConversion computeConversion(
+      const Resources& checkpointed, const Resources& discovered) const;
 
   // Returns a list of resource conversions to updates volume contexts for
   // existing volumes, remove disappeared unconverted volumes, and add newly
@@ -992,9 +991,8 @@ bool StorageLocalResourceProviderProcess::allowsReconciliation(
 }
 
 
-ResourceConversion StorageLocalResourceProviderProcess::reconcileResources(
-    const Resources& checkpointed,
-    const Resources& discovered)
+ResourceConversion StorageLocalResourceProviderProcess::computeConversion(
+    const Resources& checkpointed, const Resources& discovered) const
 {
   // NOTE: If a resource in the checkpointed resources is missing in the
   // discovered resources, we will still keep it if it is converted by
@@ -1120,7 +1118,7 @@ StorageLocalResourceProviderProcess::getExistingVolumes()
 
       return vector<ResourceConversion>{
         std::move(metadataConversion),
-        reconcileResources(std::move(checkpointed), std::move(discovered))};
+        computeConversion(std::move(checkpointed), std::move(discovered))};
     }));
 }
 
@@ -1158,7 +1156,7 @@ StorageLocalResourceProviderProcess::getStoragePools()
         });
 
       return vector<ResourceConversion>{
-        reconcileResources(std::move(checkpointed), std::move(discovered))};
+        computeConversion(std::move(checkpointed), std::move(discovered))};
     }));
 }
 
