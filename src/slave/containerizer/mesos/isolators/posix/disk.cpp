@@ -463,16 +463,21 @@ Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
     }
   }
 
-  result.set_disk_used_bytes(info->ephemeralUsage().bytes());
+  // Note that if there is no disk resource, we aren't tracking
+  // any ephemeral usage either. Note that if the sandbox is
+  // present, all the ephemeral paths must also be present.
+  if (info->paths.contains(info->sandbox)) {
+    result.set_disk_used_bytes(info->ephemeralUsage().bytes());
 
-  // It doesn't matter which ephemeral path we use to get the quota,
-  // since it's replicated there.
-  result.set_disk_limit_bytes(
-      info->paths[info->sandbox].quota.disk()->bytes());
+    // It doesn't matter which ephemeral path we use to get the quota,
+    // since it's replicated there.
+    result.set_disk_limit_bytes(
+        info->paths[info->sandbox].quota.disk()->bytes());
 
-  DiskStatistics *statistics = result.add_disk_statistics();
-  statistics->set_limit_bytes(result.disk_limit_bytes());
-  statistics->set_used_bytes(result.disk_used_bytes());
+    DiskStatistics *statistics = result.add_disk_statistics();
+    statistics->set_limit_bytes(result.disk_limit_bytes());
+    statistics->set_used_bytes(result.disk_used_bytes());
+  }
 
   return result;
 }
