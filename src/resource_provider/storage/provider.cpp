@@ -273,6 +273,10 @@ private:
   // truth, such as CSI plugin responses or the status update manager.
   Future<Nothing> reconcileResourceProviderState();
   Future<Nothing> reconcileOperationStatuses();
+
+  // Query the plugin for its resources and update the providers state.
+  Future<Nothing> reconcileResources();
+
   ResourceConversion computeConversion(
       const Resources& checkpointed, const Resources& discovered) const;
 
@@ -294,10 +298,6 @@ private:
   // profile, the resource provider will continue to operate with the
   // set of profiles it knows about.
   Future<Nothing> updateProfiles(const hashset<string>& profiles);
-
-  // Reconcile the storage pools when the set of known profiles changes,
-  // or a volume with an unknown profile is destroyed.
-  Future<Nothing> reconcileStoragePools();
 
   // Returns true if the storage pools are allowed to be reconciled when
   // the operation is being applied.
@@ -716,39 +716,63 @@ Future<Nothing>
 StorageLocalResourceProviderProcess::reconcileResourceProviderState()
 {
   return reconcileOperationStatuses()
-    .then(defer(self(), [=] {
-      return collect<vector<ResourceConversion>>(
-          {getExistingVolumes(), getStoragePools()})
-        .then(defer(self(), [=](
-            const vector<vector<ResourceConversion>>& collected) {
+    .then(defer(self(), &Self::reconcileResources));
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::reconcileResources()
+{
+  LOG(INFO) << "Reconciling storage pools and volumes";
+
+  return collect<vector<ResourceConversion>>(
+             {getExistingVolumes(), getStoragePools()})
+    .then(defer(
+        self(), [this](const vector<vector<ResourceConversion>>& collected) {
           Resources result = totalResources;
           foreach (const vector<ResourceConversion>& conversions, collected) {
             result = CHECK_NOTERROR(result.apply(conversions));
           }
 
-          if (result != totalResources) {
-            LOG(INFO)
-              << "Removing '" << (totalResources - result) << "' and adding '"
-              << (result - totalResources) << "' to the total resources";
+          bool shouldSendUpdate = false;
 
+          if (result != totalResources) {
+            LOG(INFO) << "Removing '" << (totalResources - result)
+                      << "' and adding '" << (result - totalResources)
+                      << "' to the total resources";
+
+            // Update the resource version since the total resources changed.
             totalResources = result;
+            resourceVersion = id::UUID::random();
+
             checkpointResourceProviderState();
+
+            shouldSendUpdate = true;
           }
 
-          // NOTE: Since this is the first `UPDATE_STATE` call of the
-          // current subscription, there must be no racing speculative
-          // operation, thus no need to update the resource version.
-          sendResourceProviderStateUpdate();
-          statusUpdateManager.resume();
+          switch (state) {
+            case RECOVERING:
+            case DISCONNECTED:
+            case CONNECTED:
+            case SUBSCRIBED: {
+              LOG(INFO) << "Resource provider " << info.id()
+                        << " is in READY state";
 
-          LOG(INFO)
-            << "Resource provider " << info.id() << " is in READY state";
+              state = READY;
 
-          state = READY;
+              // This is the first resource update of the current subscription.
+              shouldSendUpdate = true;
+            }
+            case READY:
+              break;
+          }
+
+          if (shouldSendUpdate) {
+            sendResourceProviderStateUpdate();
+            statusUpdateManager.resume();
+          }
 
           return Nothing();
         }));
-    }));
 }
 
 
@@ -910,44 +934,6 @@ StorageLocalResourceProviderProcess::reconcileOperationStatuses()
       // for operations to fail.
       return await(futures).then([] { return Nothing(); });
     }));
-}
-
-
-Future<Nothing> StorageLocalResourceProviderProcess::reconcileStoragePools()
-{
-  CHECK_PENDING(reconciled);
-
-  auto die = [=](const string& message) {
-    LOG(ERROR)
-      << "Failed to reconcile storage pools for resource provider " << info.id()
-      << ": " << message;
-    fatal();
-  };
-
-  return getStoragePools()
-    .then(defer(self(), [=](const vector<ResourceConversion>& conversions) {
-      Resources result = CHECK_NOTERROR(totalResources.apply(conversions));
-
-      if (result != totalResources) {
-        LOG(INFO)
-          << "Removing '" << (totalResources - result) << "' and adding '"
-          << (result - totalResources) << "' to the total resources";
-
-        totalResources = result;
-        checkpointResourceProviderState();
-
-        // NOTE: We always update the resource version before sending
-        // an `UPDATE_STATE`, so that any racing speculative operation
-        // will be rejected. Otherwise, the speculative resource
-        // conversion done on the master will be cancelled out.
-        resourceVersion = id::UUID::random();
-        sendResourceProviderStateUpdate();
-      }
-
-      return Nothing();
-    }))
-    .onFailed(defer(self(), std::bind(die, lambda::_1)))
-    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 }
 
 
@@ -1182,7 +1168,7 @@ void StorageLocalResourceProviderProcess::watchProfiles()
 
         std::function<Future<Nothing>()> update = defer(self(), [=] {
           return updateProfiles(profiles)
-            .then(defer(self(), &Self::reconcileStoragePools));
+            .then(defer(self(), &Self::reconcileResources));
         });
 
         // Update the profile mapping and storage pools in `sequence` to wait
@@ -1871,8 +1857,18 @@ StorageLocalResourceProviderProcess::applyDestroyDisk(
             // pending operation that disallow reconciliation to finish, and set
             // up `reconciled` to drop incoming operations that disallow
             // reconciliation until the storage pools are reconciled.
-            reconciled = sequence.add(std::function<Future<Nothing>()>(
-                defer(self(), &Self::reconcileStoragePools)));
+            auto err = [](const Resource& resource, const string& message) {
+              LOG(ERROR)
+                << "Failed to reconcile storage pools after resource "
+                << "'" << resource << "' has been freed: " << message;
+            };
+
+            reconciled =
+              sequence
+                .add(std::function<Future<Nothing>()>(
+                    defer(self(), &Self::reconcileResources)))
+                .onFailed(std::bind(err, resource, lambda::_1))
+                .onDiscard(std::bind(err, resource, "future discarded"));
           }
         }
       } else {

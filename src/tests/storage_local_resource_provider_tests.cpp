@@ -5129,12 +5129,13 @@ TEST_P(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   ASSERT_SOME(source);
 
   // We expect that the following RPC calls are made during startup: `Probe`,
-  // `GetPluginInfo` (2), `GetPluginCapabilities, `ControllerGetCapabilities`,
-  // `ListVolumes`, `GetCapacity`, `NodeGetCapabilities`, `NodeGetId`.
+  // `GetPluginInfo` (2), `GetCapacity`, `GetPluginCapabilities,
+  // `ControllerGetCapabilities`, `ListVolumes` (2), `NodeGetCapabilities`,
+  // `NodeGetId`.
   //
   // TODO(chhsiao): As these are implementation details, we should count the
   // calls processed by a mock CSI plugin and check the metrics against that.
-  const int numFinishedStartupRpcs = 9;
+  const int numFinishedStartupRpcs = 10;
 
   EXPECT_TRUE(metricEquals(
       metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs));
@@ -5870,11 +5871,11 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   // We expect that the following RPC calls are made during startup: `Probe`,
   // `GetPluginInfo` (2), `GetPluginCapabilities, `ControllerGetCapabilities`,
-  // `ListVolumes`, `GetCapacity`, `NodeGetCapabilities`, `NodeGetId`.
+  // `ListVolumes` (2), `GetCapacity`, `NodeGetCapabilities`, `NodeGetId`.
   //
   // TODO(chhsiao): As these are implementation details, we should count the
   // calls processed by a mock CSI plugin and check the metrics against that.
-  const int numFinishedStartupRpcs = 9;
+  const int numFinishedStartupRpcs = 10;
 
   EXPECT_TRUE(metricEquals(
       metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs));
