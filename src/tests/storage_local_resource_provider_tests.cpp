@@ -612,7 +612,7 @@ TEST_P(StorageLocalResourceProviderTest, NoResource)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -648,7 +648,7 @@ TEST_P(StorageLocalResourceProviderTest, NoResource)
   // Restart the agent.
   slave.get()->terminate();
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -693,7 +693,7 @@ TEST_P(StorageLocalResourceProviderTest, DISABLED_ZeroSizedDisk)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -845,7 +845,7 @@ TEST_P(StorageLocalResourceProviderTest, ProfileAppeared)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -1412,7 +1412,7 @@ TEST_P(StorageLocalResourceProviderTest, ProfileDisappeared)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -4235,7 +4235,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
   slave::Flags flags = CreateSlaveFlags();
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -4397,7 +4397,7 @@ TEST_P(
   slave::Flags flags = CreateSlaveFlags();
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -4490,7 +4490,7 @@ TEST_P(
   // Restart the agent.
   slave.get()->terminate();
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -4579,7 +4579,7 @@ TEST_P(StorageLocalResourceProviderTest, ContainerTerminationMetric)
 
   Owned<slave::MesosContainerizer> containerizer(_containerizer.get());
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains information from
   // the storage local resource provider.
@@ -4684,7 +4684,7 @@ TEST_P(StorageLocalResourceProviderTest, OperationUpdate)
   slave::Flags flags = CreateSlaveFlags();
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -5222,7 +5222,7 @@ TEST_P(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  // Since the local resource provider daemon is started after the agent is
+  // Since the local resource provider gets subscribed after the agent is
   // registered, it is guaranteed that the agent will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from the
   // storage local resource provider.
@@ -5604,7 +5604,7 @@ TEST_P(
   slave::Flags flags = CreateSlaveFlags();
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -5802,7 +5802,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   slave::Flags flags = CreateSlaveFlags();
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
@@ -6397,7 +6397,7 @@ TEST_P(
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
-  // Since the local resource provider daemon is started after the agent
+  // Since the local resource provider gets subscribed after the agent
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
