@@ -243,10 +243,10 @@ public:
 
   void setupResourceProviderConfig(
       const Bytes& capacity,
-      const Option<string> volumes = None(),
-      const Option<string> forward = None(),
-      const Option<string> createParameters = None(),
-      const Option<string> volumeMetadata = None())
+      const Option<string>& volumes = None(),
+      const Option<string>& forward = None(),
+      const Option<string>& createParameters = None(),
+      const Option<string>& volumeMetadata = None())
   {
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
