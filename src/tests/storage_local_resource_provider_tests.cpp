@@ -327,9 +327,7 @@ public:
         forward.isSome() ? "--forward=" + forward.get() : "",
         createParameters.getOrElse(""),
         volumeMetadata.getOrElse(""),
-        stringify(reconciliationInterval
-         .getOrElse(DEFAULT_STORAGE_RECONCILIATION_INTERVAL)
-         .secs()));
+        stringify(reconciliationInterval.getOrElse(Seconds(0)).secs()));
 
     ASSERT_SOME(resourceProviderConfig);
 
