@@ -63,6 +63,8 @@
 
 #include "messages/messages.hpp"
 
+#include "resource_provider/constants.hpp"
+
 #include "slave/container_daemon_process.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -93,6 +95,8 @@ using mesos::internal::slave::ContainerDaemonProcess;
 
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
+
+using mesos::resource_provider::DEFAULT_STORAGE_RECONCILIATION_INTERVAL;
 
 using process::Clock;
 using process::Future;
@@ -246,7 +250,8 @@ public:
       const Option<string>& volumes = None(),
       const Option<string>& forward = None(),
       const Option<string>& createParameters = None(),
-      const Option<string>& volumeMetadata = None())
+      const Option<string>& volumeMetadata = None(),
+      const Option<Duration>& reconciliationInterval = None())
   {
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
@@ -304,7 +309,8 @@ public:
                   ]
                 }
               ]
-            }
+            },
+            "reconciliation_interval_seconds" : %s
           }
         }
         )~",
@@ -320,7 +326,10 @@ public:
         volumes.getOrElse(""),
         forward.isSome() ? "--forward=" + forward.get() : "",
         createParameters.getOrElse(""),
-        volumeMetadata.getOrElse(""));
+        volumeMetadata.getOrElse(""),
+        stringify(reconciliationInterval
+         .getOrElse(DEFAULT_STORAGE_RECONCILIATION_INTERVAL)
+         .secs()));
 
     ASSERT_SOME(resourceProviderConfig);
 
