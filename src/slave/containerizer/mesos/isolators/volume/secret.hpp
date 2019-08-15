@@ -51,6 +51,9 @@ public:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId) override;
+
 private:
   VolumeSecretIsolatorProcess(
       const Flags& flags,
