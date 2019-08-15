@@ -33,6 +33,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/mkdir.hpp>
+#include <stout/os/rmdir.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/write.hpp>
 
@@ -128,6 +129,18 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     return None();
   }
 
+  const string containerDir = path::join(
+      flags.runtime_dir,
+      SECRET_DIR,
+      stringify(containerId));
+
+  Try<Nothing> mkdir = os::mkdir(containerDir);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create container directory at '" +
+        containerDir + "': " + mkdir.error());
+  }
+
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
@@ -137,7 +150,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
 
   // TODO(Kapil): Add some UUID suffix to the secret-root dir to avoid conflicts
   // with user container_path.
-  Try<Nothing> mkdir = os::mkdir(sandboxSecretRootDir);
+  mkdir = os::mkdir(sandboxSecretRootDir);
   if (mkdir.isError()) {
     return Failure("Failed to create sandbox secret root directory at '" +
                    sandboxSecretRootDir + "': " + mkdir.error());
@@ -238,7 +251,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     }
 
     const string hostSecretPath =
-      path::join(flags.runtime_dir, SECRET_DIR, stringify(id::UUID::random()));
+      path::join(containerDir, stringify(id::UUID::random()));
 
     const string sandboxSecretPath =
       path::join(sandboxSecretRootDir,
@@ -288,6 +301,27 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
                 << "container " << containerId;
       return launchInfo;
     });
+}
+
+
+Future<Nothing> VolumeSecretIsolatorProcess::cleanup(
+    const ContainerID& containerId)
+{
+  const string containerDir = path::join(
+      flags.runtime_dir,
+      SECRET_DIR,
+      stringify(containerId));
+
+  if (os::exists(containerDir)) {
+    Try<Nothing> rmdir = os::rmdir(containerDir);
+    if (rmdir.isError()) {
+      return Failure(
+          "Failed to remove the container directory '" +
+          containerDir + "': " + rmdir.error());
+    }
+  }
+
+  return Nothing();
 }
 
 } // namespace slave {
