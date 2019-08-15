@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/containerizer/mesos/paths.hpp"
+
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 
 #include <list>
@@ -48,6 +50,8 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 
+using mesos::internal::slave::containerizer::paths::SECRET_DIRECTORY;
+
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -58,9 +62,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-constexpr char SECRET_DIR[] = ".secret";
-
-
 Try<Isolator*> VolumeSecretIsolatorProcess::create(
     const Flags& flags,
     SecretResolver* secretResolver)
@@ -70,7 +71,8 @@ Try<Isolator*> VolumeSecretIsolatorProcess::create(
     return Error("Volume secret isolation requires filesystem/linux isolator.");
   }
 
-  const string hostSecretTmpDir = path::join(flags.runtime_dir, SECRET_DIR);
+  const string hostSecretTmpDir =
+    path::join(flags.runtime_dir, SECRET_DIRECTORY);
 
   Try<Nothing> mkdir = os::mkdir(hostSecretTmpDir);
   if (mkdir.isError()) {
@@ -122,7 +124,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
 
   const string containerDir = path::join(
       flags.runtime_dir,
-      SECRET_DIR,
+      SECRET_DIRECTORY,
       stringify(containerId));
 
   Try<Nothing> mkdir = os::mkdir(containerDir);
@@ -137,7 +139,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
 
   const string sandboxSecretRootDir =
     path::join(containerConfig.directory(),
-               SECRET_DIR + string("-") + stringify(id::UUID::random()));
+               SECRET_DIRECTORY + string("-") + stringify(id::UUID::random()));
 
   // TODO(Kapil): Add some UUID suffix to the secret-root dir to avoid conflicts
   // with user container_path.
@@ -318,7 +320,7 @@ Future<Nothing> VolumeSecretIsolatorProcess::cleanup(
 {
   const string containerDir = path::join(
       flags.runtime_dir,
-      SECRET_DIR,
+      SECRET_DIRECTORY,
       stringify(containerId));
 
   if (os::exists(containerDir)) {
