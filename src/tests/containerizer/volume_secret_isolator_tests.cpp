@@ -25,6 +25,8 @@
 
 #include <stout/gtest.hpp>
 
+#include "slave/containerizer/mesos/paths.hpp"
+
 #include "tests/mesos.hpp"
 
 #include "tests/containerizer/docker_archive.hpp"
@@ -38,8 +40,11 @@ using mesos::internal::slave::MesosContainerizer;
 
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::internal::slave::containerizer::paths::SECRET_DIRECTORY;
+
 using mesos::slave::ContainerTermination;
 
+using std::list;
 using std::map;
 using std::string;
 
@@ -268,6 +273,98 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
   ASSERT_SOME(termination.get());
   ASSERT_TRUE(termination.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+}
+
+
+class VolumeSecretIsolatorCleanupTest : public MesosTest {};
+
+
+// This test verifies that container directory created by `volume/secret`
+// isolator can be cleaned up when the container is destroyed.
+TEST_F(VolumeSecretIsolatorCleanupTest, ROOT_FailInPreparing)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,volume/secret,network/cni";
+
+  Fetcher fetcher(flags);
+
+  Try<SecretResolver*> secretResolver = SecretResolver::create();
+  EXPECT_SOME(secretResolver);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher,
+      nullptr,
+      secretResolver.get());
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  Volume volume;
+  volume.set_mode(Volume::RW);
+  volume.set_container_path("my_secret");
+
+  Volume::Source* source = volume.mutable_source();
+  source->set_type(Volume::Source::SECRET);
+
+  // Request a secret.
+  Secret* secret = source->mutable_secret();
+  secret->set_type(Secret::VALUE);
+  secret->mutable_value()->set_data(SECRET_VALUE);
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume);
+
+  // Specify a nonexistent CNI network to make container fails to launch.
+  NetworkInfo* networkInfo = containerInfo.add_network_infos();
+  networkInfo->set_name("nonexistent_network");
+
+  ExecutorInfo executor = createExecutorInfo("test_executor", "sleep 1000");
+  executor.mutable_container()->CopyFrom(containerInfo);
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory),
+      map<string, string>(),
+      None());
+
+  AWAIT_FAILED(launch);
+
+  // Check the container directory is created.
+  const string containerDir = path::join(
+      flags.runtime_dir,
+      SECRET_DIRECTORY,
+      stringify(containerId));
+
+  ASSERT_TRUE(os::exists(containerDir));
+
+  // Check there is one secret resolved and written to the container directory.
+  Try<list<string>> secretFiles = os::ls(containerDir);
+  ASSERT_SOME(secretFiles);
+  ASSERT_EQ(secretFiles->size(), 1u);
+
+  // Destroy the container.
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(termination);
+
+  // Check the container directory is removed.
+  ASSERT_FALSE(os::exists(containerDir));
 }
 
 } // namespace tests {
