@@ -84,6 +84,7 @@ constexpr char CONTAINER_LAUNCH_INFO_FILE[] = "launch_info";
 constexpr char STANDALONE_MARKER_FILE[] = "standalone.marker";
 constexpr char CONTAINER_SHM_DIRECTORY[] = "shm";
 constexpr char AGENT_SHM_DIRECTORY[] = "/dev/shm";
+constexpr char SECRET_DIRECTORY[] = ".secret";
 
 
 enum Mode
