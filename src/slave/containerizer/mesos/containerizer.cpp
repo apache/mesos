@@ -1444,7 +1444,6 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
   }
 
   Owned<Container> container(new Container());
-  container->state = PROVISIONING;
   container->config = containerConfig;
   container->resources = containerConfig.resources();
   container->directory = containerConfig.directory();
@@ -1457,6 +1456,7 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
   }
 
   containers_.put(containerId, container);
+  transition(containerId, PROVISIONING);
 
   Future<Nothing> _prepare;
 
@@ -3313,13 +3313,16 @@ void MesosContainerizerProcess::transition(
 {
   CHECK(containers_.contains(containerId));
 
+  Time now = Clock::now();
   const Owned<Container>& container = containers_.at(containerId);
 
   LOG_BASED_ON_CLASS(container->containerClass())
     << "Transitioning the state of container " << containerId << " from "
-    << container->state << " to " << state;
+    << container->state << " to " << state
+    << " after " << (now - container->lastStateTransition);
 
   container->state = state;
+  container->lastStateTransition = now;
 }
 
 
@@ -3359,6 +3362,8 @@ std::ostream& operator<<(
     const MesosContainerizerProcess::State& state)
 {
   switch (state) {
+    case MesosContainerizerProcess::STARTING:
+      return stream << "STARTING";
     case MesosContainerizerProcess::PROVISIONING:
       return stream << "PROVISIONING";
     case MesosContainerizerProcess::PREPARING:
@@ -3371,9 +3376,9 @@ std::ostream& operator<<(
       return stream << "RUNNING";
     case MesosContainerizerProcess::DESTROYING:
       return stream << "DESTROYING";
-    default:
-      UNREACHABLE();
   }
+
+  UNREACHABLE();
 };
 
 } // namespace slave {
