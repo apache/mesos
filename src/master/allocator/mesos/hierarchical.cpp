@@ -438,7 +438,8 @@ Framework::Framework(
     const set<string>& _suppressedRoles,
     bool _active,
     bool publishPerFrameworkMetrics)
-  : roles(protobuf::framework::getRoles(frameworkInfo)),
+  : frameworkId(frameworkInfo.id()),
+    roles(protobuf::framework::getRoles(frameworkInfo)),
     suppressedRoles(_suppressedRoles),
     capabilities(frameworkInfo.capabilities()),
     active(_active),
@@ -561,11 +562,15 @@ void HierarchicalAllocatorProcess::addFramework(
   CHECK(initialized);
   CHECK_NOT_CONTAINS(frameworks, frameworkId);
 
-  frameworks.insert(
-      {frameworkId, Framework(frameworkInfo,
-          suppressedRoles,
-          active,
-          options.publishPerFrameworkMetrics)});
+  // TODO(mzhu): remove the `frameworkId` parameter.
+  CHECK_EQ(frameworkId, frameworkInfo.id());
+
+  frameworks.insert({frameworkId,
+                     Framework(
+                         frameworkInfo,
+                         suppressedRoles,
+                         active,
+                         options.publishPerFrameworkMetrics)});
 
   const Framework& framework = frameworks.at(frameworkId);
 
@@ -759,10 +764,8 @@ void HierarchicalAllocatorProcess::updateFramework(
   framework.minAllocatableResources =
     unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
 
-  suppressRoles(
-      frameworkId, suppressedRoles - oldSuppressedRoles);
-  reviveRoles(
-      frameworkId, (oldSuppressedRoles - suppressedRoles) & newRoles);
+  suppressRoles(framework, suppressedRoles - oldSuppressedRoles);
+  reviveRoles(framework, (oldSuppressedRoles - suppressedRoles) & newRoles);
 
   CHECK(framework.suppressedRoles == suppressedRoles)
     << "After updating framework " << frameworkId
@@ -1536,13 +1539,9 @@ void HierarchicalAllocatorProcess::recoverResources(
 
 
 void HierarchicalAllocatorProcess::suppressRoles(
-    const FrameworkID& frameworkId,
-    const set<string>& roles)
+    Framework& framework, const set<string>& roles)
 {
   CHECK(initialized);
-  CHECK_CONTAINS(frameworks, frameworkId);
-
-  Framework& framework = frameworks.at(frameworkId);
 
   // Deactivating the framework in the sorter is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,
@@ -1551,7 +1550,7 @@ void HierarchicalAllocatorProcess::suppressRoles(
   foreach (const string& role, roles) {
     CHECK_CONTAINS(frameworkSorters, role);
 
-    frameworkSorters.at(role)->deactivate(frameworkId.value());
+    frameworkSorters.at(role)->deactivate(framework.frameworkId.value());
     framework.suppressedRoles.insert(role);
     framework.metrics->suppressRole(role);
   }
@@ -1559,7 +1558,7 @@ void HierarchicalAllocatorProcess::suppressRoles(
   // TODO(bmahler): This logs roles that were already suppressed,
   // only log roles that transitioned from unsuppressed -> suppressed.
   LOG(INFO) << "Suppressed offers for roles " << stringify(roles)
-            << " of framework " << frameworkId;
+            << " of framework " << framework.frameworkId;
 }
 
 
@@ -1572,18 +1571,14 @@ void HierarchicalAllocatorProcess::suppressOffers(
   Framework& framework = frameworks.at(frameworkId);
 
   const set<string>& roles = roles_.empty() ? framework.roles : roles_;
-  suppressRoles(frameworkId, roles);
+  suppressRoles(framework, roles);
 }
 
 
 void HierarchicalAllocatorProcess::reviveRoles(
-    const FrameworkID& frameworkId,
-    const set<string>& roles)
+    Framework& framework, const set<string>& roles)
 {
   CHECK(initialized);
-  CHECK_CONTAINS(frameworks, frameworkId);
-
-  Framework& framework = frameworks.at(frameworkId);
 
   framework.inverseOfferFilters.clear();
 
@@ -1597,7 +1592,7 @@ void HierarchicalAllocatorProcess::reviveRoles(
   foreach (const string& role, roles) {
     CHECK_CONTAINS(frameworkSorters, role);
 
-    frameworkSorters.at(role)->activate(frameworkId.value());
+    frameworkSorters.at(role)->activate(framework.frameworkId.value());
     framework.suppressedRoles.erase(role);
     framework.metrics->reviveRole(role);
   }
@@ -1605,7 +1600,7 @@ void HierarchicalAllocatorProcess::reviveRoles(
   // TODO(bmahler): This logs roles that were already unsuppressed,
   // only log roles that transitioned from suppressed -> unsuppressed.
   LOG(INFO) << "Unsuppressed offers and cleared filters for roles "
-            << stringify(roles) << " of framework " << frameworkId;
+            << stringify(roles) << " of framework " << framework.frameworkId;
 }
 
 
@@ -1618,7 +1613,7 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
   Framework& framework = frameworks.at(frameworkId);
 
-  reviveRoles(frameworkId, roles.empty() ? framework.roles : roles);
+  reviveRoles(framework, roles.empty() ? framework.roles : roles);
 
   allocate();
 }
@@ -2135,7 +2130,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // If the framework filters these resources, ignore.
         if (!allocatable(toAllocate, role, framework) ||
-            isFiltered(frameworkId, role, slaveId, toAllocate)) {
+            isFiltered(framework, role, slaveId, toAllocate)) {
           continue;
         }
 
@@ -2287,7 +2282,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // If the framework filters these resources, ignore.
         if (!allocatable(toAllocate, role, framework) ||
-            isFiltered(frameworkId, role, slaveId, toAllocate)) {
+            isFiltered(framework, role, slaveId, toAllocate)) {
           continue;
         }
 
@@ -2397,7 +2392,7 @@ void HierarchicalAllocatorProcess::deallocate()
               // inverse offers for maintenance primitives, and those are at the
               // whole slave level, we only need to filter based on the
               // time-out.
-              if (isFiltered(frameworkId, slaveId)) {
+              if (isFiltered(framework, slaveId)) {
                 continue;
               }
 
@@ -2536,15 +2531,12 @@ bool HierarchicalAllocatorProcess::isWhitelisted(
 
 
 bool HierarchicalAllocatorProcess::isFiltered(
-    const FrameworkID& frameworkId,
+    const Framework& framework,
     const string& role,
     const SlaveID& slaveId,
     const Resources& resources) const
 {
-  CHECK_CONTAINS(frameworks, frameworkId);
   CHECK_CONTAINS(slaves, slaveId);
-
-  const Framework& framework = frameworks.at(frameworkId);
   const Slave& slave = slaves.at(slaveId);
 
   // TODO(mpark): Consider moving these filter logic out and into the master,
@@ -2556,7 +2548,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
   if (framework.capabilities.multiRole &&
       !slave.capabilities.multiRole) {
     LOG(WARNING) << "Implicitly filtering agent " << slaveId
-                 << " from framework " << frameworkId
+                 << " from framework " << framework.frameworkId
                  << " because the framework is MULTI_ROLE capable"
                  << " but the agent is not";
 
@@ -2591,7 +2583,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
       VLOG(1) << "Filtered offer with " << resources
               << " on agent " << slaveId
               << " for role " << role
-              << " of framework " << frameworkId;
+              << " of framework " << framework.frameworkId;
 
       return true;
     }
@@ -2602,20 +2594,16 @@ bool HierarchicalAllocatorProcess::isFiltered(
 
 
 bool HierarchicalAllocatorProcess::isFiltered(
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId) const
+    const Framework& framework, const SlaveID& slaveId) const
 {
-  CHECK_CONTAINS(frameworks, frameworkId);
   CHECK_CONTAINS(slaves, slaveId);
-
-  const Framework& framework = frameworks.at(frameworkId);
 
   if (framework.inverseOfferFilters.contains(slaveId)) {
     foreach (const shared_ptr<InverseOfferFilter>& inverseOfferFilter,
              framework.inverseOfferFilters.at(slaveId)) {
       if (inverseOfferFilter->filter()) {
         VLOG(1) << "Filtered unavailability on agent " << slaveId
-                << " for framework " << frameworkId;
+                << " for framework " << framework.frameworkId;
 
         return true;
       }

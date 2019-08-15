@@ -85,6 +85,8 @@ struct Framework
       bool active,
       bool publishPerFrameworkMetrics);
 
+  const FrameworkID frameworkId;
+
   std::set<std::string> roles;
 
   std::set<std::string> suppressedRoles;
@@ -596,16 +598,14 @@ protected:
   // Returns true if there is a resource offer filter for the
   // specified role of this framework on this slave.
   bool isFiltered(
-      const FrameworkID& frameworkId,
+      const Framework& framework,
       const std::string& role,
       const SlaveID& slaveId,
       const Resources& resources) const;
 
   // Returns true if there is an inverse offer filter for this framework
   // on this slave.
-  bool isFiltered(
-      const FrameworkID& frameworkID,
-      const SlaveID& slaveID) const;
+  bool isFiltered(const Framework& framework, const SlaveID& slaveID) const;
 
   bool allocatable(
       const Resources& resources,
@@ -738,15 +738,8 @@ private:
       const FrameworkID& frameworkId,
       const std::string& role);
 
-  // TODO(bmahler): Take a `Framework*` here (and in other functions!),
-  // it's currently not possible because `Framework` doesn't store the
-  // framework ID.
-  void suppressRoles(
-      const FrameworkID& frameworkId,
-      const std::set<std::string>& roles);
-  void reviveRoles(
-      const FrameworkID& frameworkId,
-      const std::set<std::string>& roles);
+  void suppressRoles(Framework& framework, const std::set<std::string>& roles);
+  void reviveRoles(Framework& framework, const std::set<std::string>& roles);
 
   // Helper to update the agent's total resources maintained in the allocator
   // and the role and quota sorters (whose total resources match the agent's
