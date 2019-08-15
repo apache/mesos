@@ -2979,14 +2979,20 @@ void Slave::__run(
         defaultExecutorCommandInfo(flags.launcher_dir, executor->user);
     }
 
-    // NOTE: We modify the ExecutorInfo to include the task's resources when
-    // launching the executor so that the containerizer has non-zero resources
-    // to work with when the executor has no resources. This should be revisited
-    // after MESOS-600.
-    if (task.isSome()) {
-      *executorInfo_.mutable_resources() =
-        Resources(executorInfo.resources()) + task->resources();
+    // We modify the ExecutorInfo to include the task/task group's resources
+    // when launching the executor so that the containerizer has non-zero
+    // resources to work with when the executor has no resources. And this is
+    // also helpful for the executor to have enough resources to start because
+    // usually the resources that framework gives to executor are pretty small
+    // (e.g., Marathon/mesos-execute give 0.1 CPUs to the default executor) so
+    // the executor may be throttled by CFS, see MESOS-9925 for details.
+    Resources tasksResources;
+    foreach (const TaskInfo& _task, tasks) {
+      tasksResources += _task.resources();
     }
+
+    *executorInfo_.mutable_resources() =
+      Resources(executorInfo.resources()) + tasksResources;
 
     // Add the default container info to the executor info.
     // TODO(jieyu): Rename the flag to be default_mesos_container_info.
