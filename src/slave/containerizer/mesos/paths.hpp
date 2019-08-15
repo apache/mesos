@@ -80,6 +80,7 @@ constexpr char CONTAINER_DIRECTORY[] = "containers";
 constexpr char CONTAINER_DEVICES_DIRECTORY[] = "devices";
 constexpr char CONTAINER_LAUNCH_INFO_FILE[] = "launch_info";
 constexpr char STANDALONE_MARKER_FILE[] = "standalone.marker";
+constexpr char SECRET_DIRECTORY[] = ".secret";
 
 
 enum Mode
