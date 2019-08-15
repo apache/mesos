@@ -29,6 +29,7 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
   * [MESOS-9868] - NetworkInfo from the agent /state endpoint is not correct.
   * [MESOS-9870] - Simultaneous adding/removal of a role from framework's roles and its suppressed roles crashes the master.
   * [MESOS-9893] - `volume/secret` isolator should cleanup the stored secret from runtime directory when the container is destroyed.
+  * [MESOS-9925] - Default executor takes a couple of seconds to start and subscribe Mesos agent.
 
 ** Improvements
   * [MESOS-8880] - Add minimum capabilities in the master.
