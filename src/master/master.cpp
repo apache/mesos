@@ -1066,14 +1066,6 @@ void Master::initialize()
           logRequest(request);
           return http.unreserve(request, principal);
         });
-  route("/quota",
-        READWRITE_HTTP_AUTHENTICATION_REALM,
-        Http::QUOTA_HELP(),
-        [this](const process::http::Request& request,
-               const Option<Principal>& principal) {
-          logRequest(request);
-          return http.quota(request, principal);
-        });
   route("/weights",
         READWRITE_HTTP_AUTHENTICATION_REALM,
         Http::WEIGHTS_HELP(),
@@ -1081,6 +1073,16 @@ void Master::initialize()
                const Option<Principal>& principal) {
           logRequest(request);
           return http.weights(request, principal);
+        });
+
+  // Deprecated routes:
+  route("/quota",
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        Http::QUOTA_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.quota(request, principal);
         });
 
   // Provide HTTP assets from a "webui" directory. This is either

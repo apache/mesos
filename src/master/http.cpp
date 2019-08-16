@@ -2113,8 +2113,11 @@ string Master::Http::QUOTA_HELP()
 {
   return HELP(
     TLDR(
-        "Gets or updates quota for roles."),
+        "(Deprecated) Gets or updates quota for roles."),
     DESCRIPTION(
+        "NOTE: This endpoint is deprecated in favor of using the v1 master",
+        "calls: UPDATE_QUOTA and GET_QUOTA.",
+        "",
         "Returns 200 OK when the quota was queried or updated successfully.",
         "",
         "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
@@ -2143,6 +2146,7 @@ string Master::Http::QUOTA_HELP()
 }
 
 
+// Deprecated in favor of v1 UPDATE_QUOTA and GET_QUOTA.
 Future<Response> Master::Http::quota(
     const Request& request,
     const Option<Principal>& principal) const

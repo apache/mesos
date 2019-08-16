@@ -1618,14 +1618,14 @@ private:
         const Option<process::http::authentication::Principal>&
             principal) const;
 
-    // /master/quota
-    process::Future<process::http::Response> quota(
+    // /master/weights
+    process::Future<process::http::Response> weights(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
             principal) const;
 
-    // /master/weights
-    process::Future<process::http::Response> weights(
+    // /master/quota (DEPRECATED).
+    process::Future<process::http::Response> quota(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
             principal) const;
