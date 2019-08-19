@@ -42,6 +42,7 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 
@@ -387,6 +388,38 @@ void RoleTree::updateWeight(const string& role, double weight)
   (*this)[role].weight_ = weight;
 
   tryRemove(role);
+}
+
+
+std::string RoleTree::toJSON() const
+{
+  std::function<void(JSON::ObjectWriter*, const Role*)> json =
+    [&](JSON::ObjectWriter* writer, const Role* role) {
+      writer->field("basename", role->basename);
+      writer->field("role", role->role);
+      writer->field("weight", role->weight_);
+      writer->field("guarantees", role->quota_.guarantees);
+      writer->field("limits", role->quota_.limits);
+      writer->field(
+          "reservation_quantities", role->reservationScalarQuantities_);
+
+      writer->field("frameworks", [&](JSON::ArrayWriter* writer) {
+        foreach (const FrameworkID& id, role->frameworks_) {
+          writer->element(id.value());
+        }
+      });
+
+      writer->field("children", [&](JSON::ArrayWriter* writer) {
+        foreachvalue (const Role* child, role->children_) {
+          writer->element(
+              [&](JSON::ObjectWriter* writer) { json(writer, child); });
+        }
+      });
+    };
+
+  auto tree = [&](JSON::ObjectWriter* writer) { json(writer, root_); };
+
+  return jsonify(tree);
 }
 
 

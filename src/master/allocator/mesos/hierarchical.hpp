@@ -213,6 +213,9 @@ public:
 
   void updateWeight(const std::string& role, double weight);
 
+  // Dump the role tree state in JSON format for debugging.
+  std::string toJSON() const;
+
 private:
   // Lookup or add the role struct associated with the role. Ancestor roles
   // along the tree path will be created if necessary.
