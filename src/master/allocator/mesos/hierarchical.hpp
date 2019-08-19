@@ -188,6 +188,8 @@ private:
 class RoleTree
 {
 public:
+  RoleTree(); // Only used in tests.
+
   RoleTree(Metrics* metrics);
 
   ~RoleTree();
@@ -234,7 +236,7 @@ private:
   Role* root_;
 
   // Allocator's metrics handle for publishing role related metrics.
-  Metrics* metrics;
+  Option<Metrics*> metrics;
 
   // A map of role and `Role` pairs for quick lookup.
   hashmap<std::string, Role> roles_;

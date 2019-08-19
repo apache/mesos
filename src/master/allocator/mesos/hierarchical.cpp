@@ -224,6 +224,9 @@ void Role::removeChild(Role* child)
 }
 
 
+RoleTree::RoleTree() : root_(new Role("", nullptr)) {}
+
+
 RoleTree::RoleTree(Metrics* metrics_)
   : root_(new Role("", nullptr)), metrics(metrics_) {}
 
@@ -268,7 +271,10 @@ Role& RoleTree::operator[](const std::string& rolePath)
       current == root_ ? token : strings::join("/", current->role, token);
     CHECK_NOT_CONTAINS(roles_, newRolePath);
     roles_.put(newRolePath, Role(newRolePath, current));
-    metrics->addRole(newRolePath);
+
+    if (metrics.isSome()) {
+      (*metrics)->addRole(newRolePath);
+    }
 
     Role& role = roles_.at(newRolePath);
     current->addChild(&role);
@@ -300,7 +306,11 @@ bool RoleTree::tryRemove(const std::string& role)
     Role* parent = CHECK_NOTNULL(current->parent);
 
     parent->removeChild(current);
-    metrics->removeRole(current->role);
+
+    if (metrics.isSome()) {
+      (*metrics)->removeRole(current->role);
+    }
+
     roles_.erase(current->role);
 
     current = parent;
