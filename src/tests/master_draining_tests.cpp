@@ -563,11 +563,18 @@ TEST_P(MasterDrainingTest, DrainAgent)
         FutureArg<1>(&killedUpdate),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
+  Future<StatusUpdateAcknowledgementMessage> killedAck =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
   Future<Nothing> registrarApplyDrained;
+  Future<Nothing> registrarApplyReactivated;
   EXPECT_CALL(*master->registrar, apply(_))
     .WillOnce(DoDefault())
     .WillOnce(DoAll(
         FutureSatisfy(&registrarApplyDrained),
+        Invoke(master->registrar.get(), &MockRegistrar::unmocked_apply)))
+    .WillOnce(DoAll(
+        FutureSatisfy(&registrarApplyReactivated),
         Invoke(master->registrar.get(), &MockRegistrar::unmocked_apply)));
 
   ContentType contentType = GetParam();
@@ -587,6 +594,7 @@ TEST_P(MasterDrainingTest, DrainAgent)
   }
 
   AWAIT_READY(killedUpdate);
+  AWAIT_READY(killedAck);
   AWAIT_READY(registrarApplyDrained);
 
   // Ensure that the update acknowledgement has been processed.
@@ -676,6 +684,33 @@ TEST_P(MasterDrainingTest, DrainAgent)
     ASSERT_SOME(stateDrainStartTime);
     EXPECT_LT(0, stateDrainStartTime->as<int>());
   }
+
+  // Reactivate the agent and expect to get the agent in an offer.
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    v1::master::Call::ReactivateAgent reactivateAgent;
+    reactivateAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::REACTIVATE_AGENT);
+    call.mutable_reactivate_agent()->CopyFrom(reactivateAgent);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::OK().status,
+        post(master->pid, call, contentType));
+  }
+
+  AWAIT_READY(registrarApplyReactivated);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+  EXPECT_EQ(agentId, offers->offers(0).agent_id());
 }
 
 
@@ -788,6 +823,9 @@ TEST_P(MasterDrainingTest, DrainAgentDisconnected)
         FutureArg<1>(&killedUpdate),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
+  Future<StatusUpdateAcknowledgementMessage> killedAck =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
   Try<Owned<cluster::Slave>> recoveredSlave =
     StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(recoveredSlave);
@@ -802,6 +840,7 @@ TEST_P(MasterDrainingTest, DrainAgentDisconnected)
   // The agent should be told to drain once it reregisters.
   AWAIT_READY(drainSlaveMesage);
   AWAIT_READY(killedUpdate);
+  AWAIT_READY(killedAck);
 
   // Ensure that the agent is marked as DRAINED in the master now.
   {
@@ -825,6 +864,31 @@ TEST_P(MasterDrainingTest, DrainAgentDisconnected)
     EXPECT_EQ(agent.deactivated(), true);
     EXPECT_EQ(mesos::v1::DRAINED, agent.drain_info().state());
   }
+
+  // Reactivate the agent and expect to get the agent in an offer.
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    v1::master::Call::ReactivateAgent reactivateAgent;
+    reactivateAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::REACTIVATE_AGENT);
+    call.mutable_reactivate_agent()->CopyFrom(reactivateAgent);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::OK().status,
+        post(master->pid, call, contentType));
+  }
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+  EXPECT_EQ(agentId, offers->offers(0).agent_id());
 }
 
 
@@ -869,6 +933,9 @@ TEST_P(MasterDrainingTest, DrainAgentUnreachable)
     .WillOnce(DoAll(
         FutureArg<1>(&killedUpdate),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  Future<StatusUpdateAcknowledgementMessage> killedAck =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
 
   // Simulate an agent crash, so that it disconnects from the master.
   slave->terminate();
@@ -918,6 +985,32 @@ TEST_P(MasterDrainingTest, DrainAgentUnreachable)
   AWAIT_READY(drainSlaveMesage);
   AWAIT_READY(runningUpdate);
   AWAIT_READY(killedUpdate);
+  AWAIT_READY(killedAck);
+
+  // Reactivate the agent and expect to get the agent in an offer.
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    v1::master::Call::ReactivateAgent reactivateAgent;
+    reactivateAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::REACTIVATE_AGENT);
+    call.mutable_reactivate_agent()->CopyFrom(reactivateAgent);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::OK().status,
+        post(master->pid, call, contentType));
+  }
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+  EXPECT_EQ(agentId, offers->offers(0).agent_id());
 }
 
 } // namespace tests {
