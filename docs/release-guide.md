@@ -303,17 +303,34 @@ Update the Mesos Homebrew package.
 
 Upload the binary RPM packages to Bintray:
 
-1. Create/use a Bintray account with access to the [Bintray repo](https://bintray.com/apache/mesos).
+1. If you haven't done so, sign up for bintray and request membership in the apache organization.
+   Get your API key by clicking on `Edit profile` and then `API Key` on Bintray
 
-2. Trigger a build of the [CentOS packaging job](https://builds.apache.org/view/M-R/view/Mesos/job/Mesos/job/Packaging/job/CentosRPMs/)
-   in the Apache Jenkins using the `MESOS_TAG` of the version being released.
+2. Go to the [Bintray package](https://bintray.com/apache/mesos/mesos) and click the `Add a version` button.
+   Enter the version number as `Name`, set the appropriate release date and click `Create`.
 
-3. Create a new Mesos version on bintray.
+3. Go to [Apache Jenkins](https://builds.apache.org/job/Mesos/job/Packaging/job/CentosRPMs) and start a
+   manual run of the `CentosRPMs` job to generate official binary packages for this version.
 
-4. Download the generated RPM artifacts from the Jenkins job above and upload them
-   to the new release on bintray.
+4. Upload the files generated in step 3 to Bintray. Note that you cannot use the web interface
+   for this step, since it has a file size limit of 250MiB as of the time of this writing.
 
-5. On the bintray website, navigate to the new release and click 'Publish Artifacts'.
+   To upload, use a command like this, replacing file name and version number where necessary:
+
+    curl                                            \
+      -u<username>:<api-key>                        \
+      -H Content-Type:application/json              \
+      -H Accept:application/json                    \
+      -T ./mesos-debuginfo-1.8.1-1.el7.x86_64.rpm   \
+      -H X-Bintray-Package:mesos                    \
+      -H X-Bintray-Version:1.8.1                    \
+      -H X-Bintray-Publish:0                        \
+      https://api.bintray.com/content/apache/mesos/el7/x86_64/mesos-debuginfo-1.8.1-1.el7.x86_64.rpm
+
+  (NOTE: The correct upload URL for the package is `apache/mesos/` whereas the web UI is at `apache/mesos/mesos/`.)
+
+5. Go back to the bintray web interface, verify that you uploaded the correct files to the correct location
+   and finally click on `Publish all`.
 
 Update Wikipedia:
 
