@@ -1150,11 +1150,11 @@ TEST_P(MasterAPITest, GetRoles)
   ASSERT_EQ(2, v1Response->get_roles().roles().size());
   EXPECT_EQ("role1", v1Response->get_roles().roles(1).name());
   EXPECT_EQ(2.5, v1Response->get_roles().roles(1).weight());
-  ASSERT_EQ(
-      allocatedResources(
-          devolve(v1::Resources::parse(slaveFlags.resources.get()).get()),
-          "role1"),
-      devolve(v1Response->get_roles().roles(1).resources()));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(v1::Resources::parse(
+          "cpus:0.5; disk:1024; mem:512")),
+      v1Response->get_roles().roles(1).resources());
 
   driver.stop();
   driver.join();

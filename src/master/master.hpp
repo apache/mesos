@@ -2778,25 +2778,6 @@ struct Role
     frameworks.erase(framework->id());
   }
 
-  Resources allocatedAndOfferedResources() const
-  {
-    Resources resources;
-
-    auto allocatedTo = [](const std::string& role) {
-      return [role](const Resource& resource) {
-        CHECK(resource.has_allocation_info());
-        return resource.allocation_info().role() == role;
-      };
-    };
-
-    foreachvalue (Framework* framework, frameworks) {
-      resources += framework->totalUsedResources.filter(allocatedTo(role));
-      resources += framework->totalOfferedResources.filter(allocatedTo(role));
-    }
-
-    return resources;
-  }
-
   const Master* master;
   const std::string role;
 

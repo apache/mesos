@@ -738,8 +738,9 @@ process::http::Response Master::ReadOnlyHandler::roles(
             writer->element([&](JSON::ObjectWriter* writer) {
               writer->field("name", name);
 
-              // Default weight is 1.0.
-              writer->field("weight", master->weights.get(name).getOrElse(1.0));
+              writer->field(
+                  "weight",
+                  master->weights.get(name).getOrElse(DEFAULT_WEIGHT));
 
               Option<Role*> role = master->roles.get(name);
 

@@ -2705,28 +2705,39 @@ Future<Response> Master::Http::getRoles(
           continue;
         }
 
-        mesos::Role role;
+        mesos::Role* role = getRoles->add_roles();
 
-        if (master->weights.contains(name)) {
-          role.set_weight(master->weights[name]);
-        } else {
-          role.set_weight(1.0);
-        }
+        role->set_name(name);
 
-        if (master->roles.contains(name)) {
-          Role* role_ = master->roles.at(name);
+        role->set_weight(master->weights.get(name).getOrElse(DEFAULT_WEIGHT));
 
-          *role.mutable_resources() =
-            role_->allocatedAndOfferedResources();
+        RoleResourceBreakdown resourceBreakdown(master, name);
 
-          foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
-            role.add_frameworks()->CopyFrom(frameworkId);
+        ResourceQuantities allocatedAndOffered =
+          resourceBreakdown.allocated() + resourceBreakdown.offered();
+
+        // `resources` will be deprecated in favor of
+        // `offered`, `allocated`, `reserved`, and quota consumption.
+        // As a result, we don't bother trying to expose more
+        // than {cpus, mem, disk, gpus} since we don't know if
+        // anything outside this set is of type SCALAR.
+        foreach (const auto& quantity, allocatedAndOffered) {
+          if (quantity.first == "cpus" || quantity.first == "mem" ||
+              quantity.first == "disk" || quantity.first == "gpus") {
+            Resource* resource = role->add_resources();
+            resource->set_name(quantity.first);
+            resource->set_type(Value::SCALAR);
+            *resource->mutable_scalar() = quantity.second;
           }
         }
 
-        role.set_name(name);
+        Option<Role*> role_ = master->roles.get(name);
 
-        getRoles->add_roles()->CopyFrom(role);
+        if (role_.isSome()) {
+          foreachkey (const FrameworkID& frameworkId, (*role_)->frameworks) {
+            *role->add_frameworks() = frameworkId;
+          }
+        }
       }
 
       return OK(serialize(contentType, evolve(response)),
