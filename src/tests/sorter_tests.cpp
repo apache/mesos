@@ -30,11 +30,16 @@
 #include "master/allocator/mesos/sorter/random/sorter.hpp"
 #include "master/allocator/mesos/sorter/random/utils.hpp"
 
+#include "master/allocator/mesos/hierarchical.hpp"
+
+#include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"
 
 using mesos::internal::master::allocator::DRFSorter;
 using mesos::internal::master::allocator::RandomSorter;
+
+using mesos::internal::master::allocator::internal::RoleTree;
 
 using std::cout;
 using std::endl;
@@ -2179,6 +2184,92 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_HierarchyFullSort)
     }
   }
 }
+
+
+TEST(RoleTreeTest, RolesTracking) {
+  RoleTree roleTree;
+
+  // Tracking by weights.
+
+  roleTree.updateWeight("a/b/c", 2.0);
+
+  EXPECT_SOME(roleTree.get("a"));
+  EXPECT_SOME(roleTree.get("a/b"));
+  EXPECT_SOME(roleTree.get("a/b/c"));
+
+  EXPECT_EQ(master::DEFAULT_WEIGHT, (*roleTree.get("a"))->weight());
+  EXPECT_EQ(master::DEFAULT_WEIGHT, (*roleTree.get("a/b"))->weight());
+  EXPECT_EQ(2.0, (*roleTree.get("a/b/c"))->weight());
+
+  roleTree.updateWeight("a/b/c", master::DEFAULT_WEIGHT);
+
+  EXPECT_NONE(roleTree.get("a/b/c"));
+  EXPECT_NONE(roleTree.get("a/b"));
+  EXPECT_NONE(roleTree.get("a"));
+
+  // Tracking by quota.
+
+  Quota quota = createQuota("cpus:1");
+  roleTree.updateQuota("a/b/c", quota);
+
+  EXPECT_SOME(roleTree.get("a"));
+  EXPECT_SOME(roleTree.get("a/b"));
+  EXPECT_SOME(roleTree.get("a/b/c"));
+
+  EXPECT_EQ(master::DEFAULT_QUOTA, (*roleTree.get("a"))->quota());
+  EXPECT_EQ(master::DEFAULT_QUOTA, (*roleTree.get("a/b"))->quota());
+  EXPECT_EQ(quota, (*roleTree.get("a/b/c"))->quota());
+
+  roleTree.updateQuota("a/b/c", master::DEFAULT_QUOTA);
+
+  EXPECT_NONE(roleTree.get("a/b/c"));
+  EXPECT_NONE(roleTree.get("a/b"));
+  EXPECT_NONE(roleTree.get("a"));
+
+  // Tracking by reservation.
+
+  Resources reserved = CHECK_NOTERROR(Resources::parse("cpus(a/b/c):1"));
+  ResourceQuantities quantities =
+    ResourceQuantities::fromScalarResources(reserved);
+
+  roleTree.trackReservations(reserved);
+
+  EXPECT_SOME(roleTree.get("a"));
+  EXPECT_SOME(roleTree.get("a/b"));
+  EXPECT_SOME(roleTree.get("a/b/c"));
+
+  EXPECT_EQ(quantities, (*roleTree.get("a"))->reservationScalarQuantities());
+  EXPECT_EQ(quantities, (*roleTree.get("a/b"))->reservationScalarQuantities());
+  EXPECT_EQ(
+      quantities, (*roleTree.get("a/b/c"))->reservationScalarQuantities());
+
+  roleTree.untrackReservations(reserved);
+
+  EXPECT_NONE(roleTree.get("a/b/c"));
+  EXPECT_NONE(roleTree.get("a/b"));
+  EXPECT_NONE(roleTree.get("a"));
+
+  // Tracking by frameworks.
+
+  FrameworkID frameworkId;
+  frameworkId.set_value("framework");
+  roleTree.trackFramework(frameworkId, "a/b/c");
+
+  EXPECT_SOME(roleTree.get("a"));
+  EXPECT_SOME(roleTree.get("a/b"));
+  EXPECT_SOME(roleTree.get("a/b/c"));
+
+  EXPECT_TRUE((*roleTree.get("a"))->frameworks().empty());
+  EXPECT_TRUE((*roleTree.get("a/b"))->frameworks().empty());
+  EXPECT_EQ(1u, (*roleTree.get("a/b/c"))->frameworks().size());
+
+  roleTree.untrackFramework(frameworkId, "a/b/c");
+
+  EXPECT_NONE(roleTree.get("a/b/c"));
+  EXPECT_NONE(roleTree.get("a/b"));
+  EXPECT_NONE(roleTree.get("a"));
+}
+
 
 } // namespace tests {
 } // namespace internal {
