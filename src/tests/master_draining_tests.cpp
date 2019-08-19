@@ -254,6 +254,99 @@ TEST_P(MasterAlreadyDrainedTest, DrainAgentMarkGone)
 }
 
 
+// When an operator submits a DRAIN_AGENT call with an agent that has
+// momentarily disconnected, the call should succeed, and the agent should
+// be drained when it returns to the cluster.
+TEST_P(MasterAlreadyDrainedTest, DrainAgentDisconnected)
+{
+  // Simulate an agent crash, so that it disconnects from the master.
+  slave->terminate();
+  slave.reset();
+
+  ContentType contentType = GetParam();
+
+  // Ensure that the agent is disconnected (not active).
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<http::Response> response =
+      post(master->pid, call, contentType);
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> getAgents =
+      deserialize<v1::master::Response>(contentType, response->body);
+    ASSERT_SOME(getAgents);
+
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, getAgents->type());
+    ASSERT_EQ(getAgents->get_agents().agents_size(), 1);
+
+    const v1::master::Response::GetAgents::Agent& agent =
+        getAgents->get_agents().agents(0);
+
+    EXPECT_EQ(agent.active(), false);
+    EXPECT_EQ(agent.deactivated(), false);
+  }
+
+  // Start draining the disconnected agent.
+  {
+    v1::master::Call::DrainAgent drainAgent;
+    drainAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::DRAIN_AGENT);
+    call.mutable_drain_agent()->CopyFrom(drainAgent);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::OK().status,
+        post(master->pid, call, contentType));
+  }
+
+  // Bring the agent back.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<DrainSlaveMessage> drainSlaveMesage =
+    FUTURE_PROTOBUF(DrainSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> recoveredSlave =
+    StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(recoveredSlave);
+
+  Clock::advance(agentFlags.executor_reregistration_timeout);
+  Clock::settle();
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // The agent should be told to drain once it reregisters.
+  AWAIT_READY(drainSlaveMesage);
+
+  // Ensure that the agent is marked as DRAINED in the master now.
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<http::Response> response =
+      post(master->pid, call, contentType);
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> getAgents =
+      deserialize<v1::master::Response>(contentType, response->body);
+    ASSERT_SOME(getAgents);
+
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, getAgents->type());
+    ASSERT_EQ(getAgents->get_agents().agents_size(), 1);
+
+    const v1::master::Response::GetAgents::Agent& agent =
+        getAgents->get_agents().agents(0);
+
+    EXPECT_EQ(agent.deactivated(), true);
+    EXPECT_EQ(mesos::v1::DRAINED, agent.drain_info().state());
+  }
+}
+
+
 // When an operator submits a DRAIN_AGENT call for an agent that has gone
 // unreachable, the call should succeed, and the agent should be drained
 // if/when it returns to the cluster.
@@ -624,6 +717,114 @@ TEST_P(MasterDrainingTest, DrainAgentMarkGone)
 
   AWAIT_READY(goneUpdate);
   AWAIT_READY(shutdownMessage);
+}
+
+
+// When an operator submits a DRAIN_AGENT call with an agent that has
+// momentarily disconnected, the call should succeed, and the agent should
+// be drained when it returns to the cluster.
+TEST_P(MasterDrainingTest, DrainAgentDisconnected)
+{
+  // Simulate an agent crash, so that it disconnects from the master.
+  slave->terminate();
+  slave.reset();
+
+  ContentType contentType = GetParam();
+
+  // Ensure that the agent is disconnected (not active).
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<http::Response> response =
+      post(master->pid, call, contentType);
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> getAgents =
+      deserialize<v1::master::Response>(contentType, response->body);
+    ASSERT_SOME(getAgents);
+
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, getAgents->type());
+    ASSERT_EQ(getAgents->get_agents().agents_size(), 1);
+
+    const v1::master::Response::GetAgents::Agent& agent =
+        getAgents->get_agents().agents(0);
+
+    EXPECT_EQ(agent.active(), false);
+    EXPECT_EQ(agent.deactivated(), false);
+  }
+
+  // Start draining the disconnected agent.
+  {
+    v1::master::Call::DrainAgent drainAgent;
+    drainAgent.mutable_agent_id()->CopyFrom(agentId);
+
+    v1::master::Call call;
+    call.set_type(v1::master::Call::DRAIN_AGENT);
+    call.mutable_drain_agent()->CopyFrom(drainAgent);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::OK().status,
+        post(master->pid, call, contentType));
+  }
+
+  // Bring the agent back.
+  Future<ReregisterExecutorMessage> reregisterExecutor =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<DrainSlaveMessage> drainSlaveMesage =
+    FUTURE_PROTOBUF(DrainSlaveMessage(), _, _);
+
+  Future<v1::scheduler::Event::Update> killedUpdate;
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
+            TaskStatusUpdateStateEq(v1::TASK_KILLED))))
+    .WillOnce(DoAll(
+        FutureArg<1>(&killedUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  Try<Owned<cluster::Slave>> recoveredSlave =
+    StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(recoveredSlave);
+
+  AWAIT_READY(reregisterExecutor);
+  Clock::advance(agentFlags.executor_reregistration_timeout);
+  Clock::settle();
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // The agent should be told to drain once it reregisters.
+  AWAIT_READY(drainSlaveMesage);
+  AWAIT_READY(killedUpdate);
+
+  // Ensure that the agent is marked as DRAINED in the master now.
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<http::Response> response =
+      post(master->pid, call, contentType);
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> getAgents =
+      deserialize<v1::master::Response>(contentType, response->body);
+    ASSERT_SOME(getAgents);
+
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, getAgents->type());
+    ASSERT_EQ(getAgents->get_agents().agents_size(), 1);
+
+    const v1::master::Response::GetAgents::Agent& agent =
+        getAgents->get_agents().agents(0);
+
+    EXPECT_EQ(agent.deactivated(), true);
+    EXPECT_EQ(mesos::v1::DRAINED, agent.drain_info().state());
+  }
 }
 
 
