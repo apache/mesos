@@ -1,7 +1,6 @@
 FROM centos:6
 MAINTAINER Kapil Arya <kapil@apache.org>
 
-# Get curl.
 RUN yum install -y              \
       centos-release-scl        \
       epel-release              \
@@ -9,8 +8,12 @@ RUN yum install -y              \
       redhat-rpm-config         \
       rpm-build                 \
       scl-utils                 \
-      yum-utils                 \
-      devtoolset-7
+      yum-utils
+
+# We need to install `devtoolset-7` in a separate step because the
+# repository containing it only gets added during installation of
+# the `centos-release-scl` package.
+RUN yum install -y devtoolset-7
 
 # Add the Subversion repo.
 RUN echo -e '[WANdiscoSVN]\n\
