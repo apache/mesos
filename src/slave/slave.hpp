@@ -918,6 +918,9 @@ public:
 
   void recoverTask(const state::TaskState& state, bool recheckpointTask);
 
+  void addPendingTaskStatus(const TaskStatus& status);
+  void removePendingTaskStatus(const TaskStatus& status);
+
   Try<Nothing> updateTaskState(const TaskStatus& status);
 
   // Returns true if there are any queued/launched/terminated tasks.
@@ -1061,6 +1064,9 @@ public:
   // information sent in the status updates for any remaining
   // non-terminal tasks.
   Option<mesos::slave::ContainerTermination> pendingTermination;
+
+  // Task status updates that are being processed by the agent.
+  hashmap<TaskID, LinkedHashMap<id::UUID, TaskStatus>> pendingStatusUpdates;
 
 private:
   Executor(const Executor&) = delete;
