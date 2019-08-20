@@ -5947,6 +5947,8 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
   metrics.valid_status_updates++;
 
+  executor->addPendingTaskStatus(status);
+
   // Before sending update, we need to retrieve the container status
   // if the task reached the executor. For tasks that are queued, we
   // do not need to send the container status and we must
@@ -6158,6 +6160,17 @@ void Slave::___statusUpdate(
   VLOG(1) << "Task status update manager successfully handled status update "
           << update;
 
+  const TaskStatus& status = update.status();
+
+  Executor* executor = nullptr;
+  Framework* framework = getFramework(update.framework_id());
+  if (framework != nullptr) {
+    executor = framework->getExecutor(status.task_id());
+    if (executor != nullptr) {
+      executor->removePendingTaskStatus(status);
+    }
+  }
+
   if (pid == UPID()) {
     return;
   }
@@ -6165,7 +6178,7 @@ void Slave::___statusUpdate(
   StatusUpdateAcknowledgementMessage message;
   message.mutable_framework_id()->MergeFrom(update.framework_id());
   message.mutable_slave_id()->MergeFrom(update.slave_id());
-  message.mutable_task_id()->MergeFrom(update.status().task_id());
+  message.mutable_task_id()->MergeFrom(status.task_id());
   message.set_uuid(update.uuid());
 
   // Task status update manager successfully handled the status update.
@@ -6177,14 +6190,12 @@ void Slave::___statusUpdate(
     send(pid.get(), message);
   } else {
     // Acknowledge the HTTP based executor.
-    Framework* framework = getFramework(update.framework_id());
     if (framework == nullptr) {
       LOG(WARNING) << "Ignoring sending acknowledgement for status update "
                    << update << " of unknown framework";
       return;
     }
 
-    Executor* executor = framework->getExecutor(update.status().task_id());
     if (executor == nullptr) {
       // Refer to the comments in 'statusUpdate()' on when this can
       // happen.
@@ -10795,6 +10806,33 @@ void Executor::recoverTask(const TaskState& state, bool recheckpointTask)
 }
 
 
+void Executor::addPendingTaskStatus(const TaskStatus& status)
+{
+  auto uuid = id::UUID::fromBytes(status.uuid()).get();
+  pendingStatusUpdates[status.task_id()][uuid] = status;
+}
+
+
+void Executor::removePendingTaskStatus(const TaskStatus& status)
+{
+  const TaskID& taskId = status.task_id();
+
+  auto uuid = id::UUID::fromBytes(status.uuid()).get();
+
+  if (!pendingStatusUpdates.contains(taskId) ||
+      !pendingStatusUpdates[taskId].contains(uuid)) {
+    LOG(WARNING) << "Unknown pending status update (uuid: " << uuid << ")";
+    return;
+  }
+
+  pendingStatusUpdates[taskId].erase(uuid);
+
+  if (pendingStatusUpdates[taskId].empty()) {
+    pendingStatusUpdates.erase(taskId);
+  }
+}
+
+
 Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
 {
   bool terminal = protobuf::isTerminalState(status.state());
@@ -10818,6 +10856,24 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
     task = launchedTasks.at(status.task_id());
 
     if (terminal) {
+      if (pendingStatusUpdates.contains(status.task_id())) {
+        auto statusUpdates = pendingStatusUpdates[status.task_id()].values();
+
+        auto firstTerminal = std::find_if(
+            statusUpdates.begin(),
+            statusUpdates.end(),
+            [](const TaskStatus& status) {
+              return protobuf::isTerminalState(status.state());
+            });
+
+        CHECK(firstTerminal != statusUpdates.end());
+
+        if (firstTerminal->uuid() != status.uuid()) {
+          return Error("Unexpected terminal status update after first status"
+                       " update " + stringify(firstTerminal->state()));
+        }
+      }
+
       launchedTasks.erase(taskId);
     }
   } else if (terminatedTasks.contains(taskId)) {
