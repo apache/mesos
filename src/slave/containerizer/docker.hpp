@@ -250,6 +250,7 @@ private:
       const ContainerID& containerId,
       process::Future<Nothing> future);
 
+#ifdef __linux__
   process::Future<Nothing> _update(
       const ContainerID& containerId,
       const Resources& resources,
@@ -257,8 +258,8 @@ private:
 
   process::Future<Nothing> __update(
       const ContainerID& containerId,
-      const Resources& resources,
-      pid_t pid);
+      const Resources& resources);
+#endif // __linux__
 
   process::Future<Nothing> mountPersistentVolumes(
       const ContainerID& containerId);
@@ -519,6 +520,9 @@ private:
 #ifdef __linux__
     // GPU resources allocated to the container.
     std::set<Gpu> gpus;
+
+    Option<std::string> cpuCgroup;
+    Option<std::string> memoryCgroup;
 #endif // __linux__
 
     // Marks if this container launches an executor in a docker
