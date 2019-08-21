@@ -887,8 +887,8 @@ Try<Nothing> verify(
             // Current name is a DNS name, let's check it.
             const string dns_name =
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-              // `ASN1_STRING_get_data` is deprecated since OpenSSL 1.1.0.
-              reinterpret_cast<char*>(ASN1_STRING_get_data(
+              // `ASN1_STRING_data` is deprecated since OpenSSL 1.1.0.
+              reinterpret_cast<char*>(ASN1_STRING_data(
 #else
               reinterpret_cast<const char*>(ASN1_STRING_get0_data(
 #endif // OPENSSL_VERSION_NUMBER < 0x10100000L
