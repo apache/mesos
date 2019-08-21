@@ -1169,7 +1169,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   newResources = Resources::parse("cpus:1;mem:144");
 
-  // Issue second update that uses the cached pid instead of inspect.
+  // Issue second update that uses the cached cgroups instead of inspect.
   update = dockerContainerizer.update(containerId.get(), newResources.get());
 
   AWAIT_READY(update);
