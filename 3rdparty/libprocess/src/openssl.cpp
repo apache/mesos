@@ -51,6 +51,14 @@
 // family of functions was backported. (OpenSSL 1.0.2)
 #define MIN_VERSION_X509_VERIFY_PARAM 0x10002000L
 
+// Smallest OpenSSL version number that deprecated the `ASN1_STRING_data()`
+// function in favor of `ASN1_STRING_get0_data()`. (OpenSSL 1.1.0)
+#define MIN_VERSION_ASN1_STRING_GET0 0x10100000L
+
+#if OPENSSL_VERSION_NUMBER < MIN_VERSION_ASN1_STRING_GET0
+#  define ASN1_STRING_get0_data ASN1_STRING_data
+#endif
+
 using std::map;
 using std::ostringstream;
 using std::string;
@@ -885,14 +893,8 @@ Try<Nothing> verify(
         case GEN_DNS: {
           if (peer_hostname.isSome()) {
             // Current name is a DNS name, let's check it.
-            const string dns_name =
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-              // `ASN1_STRING_data` is deprecated since OpenSSL 1.1.0.
-              reinterpret_cast<char*>(ASN1_STRING_data(
-#else
-              reinterpret_cast<const char*>(ASN1_STRING_get0_data(
-#endif // OPENSSL_VERSION_NUMBER < 0x10100000L
-                  current_name->d.dNSName));
+            const string dns_name = reinterpret_cast<const char*>(
+                ASN1_STRING_get0_data(current_name->d.dNSName));
 
             // Make sure there isn't an embedded NUL character in the DNS name.
             const size_t length = ASN1_STRING_length(current_name->d.dNSName);
