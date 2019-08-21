@@ -264,7 +264,7 @@ struct DRFSorter::Node
   // (virtual leaf), and "a/b". The `clientPath()` of "a/." is "a",
   // because that is the name of the client associated with that
   // virtual leaf node.
-  std::string clientPath() const
+  const std::string& clientPath() const
   {
     if (name == ".") {
       CHECK(kind == ACTIVE_LEAF || kind == INACTIVE_LEAF);
