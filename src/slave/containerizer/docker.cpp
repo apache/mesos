@@ -1693,9 +1693,9 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
-  // Skip inspecting the docker container if we already have the pid.
-  if (container->pid.isSome()) {
-    return __update(containerId, _resources, container->pid.get());
+  // Skip inspecting the docker container if we already have the cgroups.
+  if (container->cpuCgroup.isSome() && container->memoryCgroup.isSome()) {
+    return __update(containerId, _resources);
   }
 
   string containerName = containers_.at(containerId)->containerName;
@@ -1746,6 +1746,7 @@ Future<Nothing> DockerContainerizerProcess::update(
 }
 
 
+#ifdef __linux__
 Future<Nothing> DockerContainerizerProcess::_update(
     const ContainerID& containerId,
     const Resources& _resources,
@@ -1763,29 +1764,78 @@ Future<Nothing> DockerContainerizerProcess::_update(
 
   containers_.at(containerId)->pid = container.pid.get();
 
-  return __update(containerId, _resources, container.pid.get());
-}
-
-
-Future<Nothing> DockerContainerizerProcess::__update(
-    const ContainerID& containerId,
-    const Resources& _resources,
-    pid_t pid)
-{
-#ifdef __linux__
-  // Determine the cgroups hierarchies where the 'cpu' and
-  // 'memory' subsystems are mounted (they may be the same). Note that
-  // we make these static so we can reuse the result for subsequent
-  // calls.
-  static Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
-  static Result<string> memoryHierarchy = cgroups::hierarchy("memory");
-
   // NOTE: Normally, a Docker container should be in its own cgroup.
   // However, a zombie process (exited but not reaped) will be
   // temporarily moved into the system root cgroup. We add some
   // defensive check here to make sure we are not changing the knobs
   // in the root cgroup. See MESOS-8480 for details.
   const string systemRootCgroup = stringify(os::PATH_SEPARATOR);
+
+  // We need to find the cgroup(s) this container is currently running
+  // in for both the hierarchy with the 'cpu' subsystem attached and
+  // the hierarchy with the 'memory' subsystem attached so we can
+  // update the proper cgroup control files.
+
+  // Determine the cgroup for the 'cpu' subsystem (based on the
+  // container's pid).
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(container.pid.get());
+  if (cpuCgroup.isError()) {
+    return Failure("Failed to determine cgroup for the 'cpu' subsystem: " +
+                   cpuCgroup.error());
+  } else if (cpuCgroup.isNone()) {
+    LOG(WARNING) << "Container " << containerId
+                 << " does not appear to be a member of a cgroup"
+                 << " where the 'cpu' subsystem is mounted";
+  } else if (cpuCgroup.get() == systemRootCgroup) {
+    LOG(WARNING)
+        << "Process '" << container.pid.get()
+        << "' should not be in the system root cgroup (being destroyed?)";
+  } else {
+    // Cache the CPU cgroup.
+    containers_.at(containerId)->cpuCgroup = cpuCgroup.get();
+  }
+
+  // Now determine the cgroup for the 'memory' subsystem.
+  Result<string> memoryCgroup = cgroups::memory::cgroup(container.pid.get());
+  if (memoryCgroup.isError()) {
+    return Failure("Failed to determine cgroup for the 'memory' subsystem: " +
+                   memoryCgroup.error());
+  } else if (memoryCgroup.isNone()) {
+    LOG(WARNING) << "Container " << containerId
+                 << " does not appear to be a member of a cgroup"
+                 << " where the 'memory' subsystem is mounted";
+  } else if (memoryCgroup.get() == systemRootCgroup) {
+    LOG(WARNING)
+        << "Process '" << container.pid.get()
+        << "' should not be in the system root cgroup (being destroyed?)";
+  } else {
+    // Cache the memory cgroup.
+    containers_.at(containerId)->memoryCgroup = memoryCgroup.get();
+  }
+
+  if (containers_.at(containerId)->cpuCgroup.isNone() &&
+      containers_.at(containerId)->memoryCgroup.isNone()) {
+    return Nothing();
+  }
+
+  return __update(containerId, _resources);
+}
+
+
+Future<Nothing> DockerContainerizerProcess::__update(
+    const ContainerID& containerId,
+    const Resources& _resources)
+{
+  CHECK(containers_.contains(containerId));
+
+  Container* container = containers_.at(containerId);
+
+  // Determine the cgroups hierarchies where the 'cpu' and
+  // 'memory' subsystems are mounted (they may be the same). Note that
+  // we make these static so we can reuse the result for subsequent
+  // calls.
+  static Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  static Result<string> memoryHierarchy = cgroups::hierarchy("memory");
 
   if (cpuHierarchy.isError()) {
     return Failure("Failed to determine the cgroup hierarchy "
@@ -1799,32 +1849,12 @@ Future<Nothing> DockerContainerizerProcess::__update(
                    memoryHierarchy.error());
   }
 
-  // We need to find the cgroup(s) this container is currently running
-  // in for both the hierarchy with the 'cpu' subsystem attached and
-  // the hierarchy with the 'memory' subsystem attached so we can
-  // update the proper cgroup control files.
+  Option<string> cpuCgroup = container->cpuCgroup;
+  Option<string> memoryCgroup = container->memoryCgroup;
 
-  // Determine the cgroup for the 'cpu' subsystem (based on the
-  // container's pid).
-  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid);
-
-  if (cpuCgroup.isError()) {
-    return Failure("Failed to determine cgroup for the 'cpu' subsystem: " +
-                   cpuCgroup.error());
-  } else if (cpuCgroup.isNone()) {
-    LOG(WARNING) << "Container " << containerId
-                 << " does not appear to be a member of a cgroup"
-                 << " where the 'cpu' subsystem is mounted";
-  } else if (cpuCgroup.get() == systemRootCgroup) {
-    LOG(WARNING)
-        << "Process '" << pid
-        << "' should not be in the system root cgroup (being destroyed?)";
-  }
-
-  // And update the CPU shares (if applicable).
+  // Update the CPU shares (if applicable).
   if (cpuHierarchy.isSome() &&
       cpuCgroup.isSome() &&
-      cpuCgroup.get() != systemRootCgroup &&
       _resources.cpus().isSome()) {
     double cpuShares = _resources.cpus().get();
 
@@ -1872,26 +1902,9 @@ Future<Nothing> DockerContainerizerProcess::__update(
     }
   }
 
-  // Now determine the cgroup for the 'memory' subsystem.
-  Result<string> memoryCgroup = cgroups::memory::cgroup(pid);
-
-  if (memoryCgroup.isError()) {
-    return Failure("Failed to determine cgroup for the 'memory' subsystem: " +
-                   memoryCgroup.error());
-  } else if (memoryCgroup.isNone()) {
-    LOG(WARNING) << "Container " << containerId
-                 << " does not appear to be a member of a cgroup"
-                 << " where the 'memory' subsystem is mounted";
-  } else if (memoryCgroup.get() == systemRootCgroup) {
-    LOG(WARNING)
-        << "Process '" << pid
-        << "' should not be in the system root cgroup (being destroyed?)";
-  }
-
-  // And update the memory limits (if applicable).
+  // Update the memory limits (if applicable).
   if (memoryHierarchy.isSome() &&
       memoryCgroup.isSome() &&
-      memoryCgroup.get() != systemRootCgroup &&
       _resources.mem().isSome()) {
     // TODO(tnachen): investigate and handle OOM with docker.
     Bytes mem = _resources.mem().get();
@@ -1938,10 +1951,10 @@ Future<Nothing> DockerContainerizerProcess::__update(
                 << " for container " << containerId;
     }
   }
-#endif // __linux__
 
   return Nothing();
 }
+#endif // __linux__
 
 
 Future<ResourceStatistics> DockerContainerizerProcess::usage(
