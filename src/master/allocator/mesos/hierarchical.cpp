@@ -1970,13 +1970,13 @@ void HierarchicalAllocatorProcess::__allocate()
       Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
-        Resources available = slave.getAvailable();
+        Resources available = slave.getAvailable().allocatableTo(role);
 
         // Offer a shared resource only if it has not been offered in this
         // offer cycle to a framework.
         available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
-        if (available.allocatableTo(role).empty()) {
+        if (available.empty()) {
           break; // Nothing left for the role.
         }
 
@@ -2196,13 +2196,13 @@ void HierarchicalAllocatorProcess::__allocate()
       Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
-        Resources available = slave.getAvailable();
+        Resources available = slave.getAvailable().allocatableTo(role);
 
         // Offer a shared resource only if it has not been offered in this
         // offer cycle to a framework.
         available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
-        if (available.allocatableTo(role).empty()) {
+        if (available.empty()) {
           break; // Nothing left for the role.
         }
 
@@ -2224,7 +2224,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // First, reservations are always allocated. This also includes the
         // roles ancestors' reservations.
-        Resources toAllocate = available.allocatableTo(role).reserved();
+        Resources toAllocate = available.reserved();
 
         // Second, unreserved scalar resources are subject to quota limits
         // and global headroom enforcement.
