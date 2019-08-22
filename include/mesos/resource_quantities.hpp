@@ -19,7 +19,8 @@
 
 #include <string>
 #include <utility>
-#include <vector>
+
+#include <boost/container/small_vector.hpp>
 
 #include <mesos/mesos.hpp>
 
@@ -118,10 +119,10 @@ public:
   ResourceQuantities& operator=(const ResourceQuantities& that) = default;
   ResourceQuantities& operator=(ResourceQuantities&& that) = default;
 
-  typedef std::vector<std::pair<std::string, Value::Scalar>>::const_iterator
-    iterator;
-  typedef std::vector<std::pair<std::string, Value::Scalar>>::const_iterator
-    const_iterator;
+  typedef boost::container::small_vector_base<
+      std::pair<std::string, Value::Scalar> >::const_iterator iterator;
+  typedef boost::container::small_vector_base<
+      std::pair<std::string, Value::Scalar> >::const_iterator const_iterator;
 
   // NOTE: Non-`const` `iterator`, `begin()` and `end()` are __intentionally__
   // defined with `const` semantics in order to prevent mutation during
@@ -159,7 +160,12 @@ private:
 
   // List of name quantity pairs sorted by name.
   // Arithmetic and comparison operations benefit from this sorting.
-  std::vector<std::pair<std::string, Value::Scalar>> quantities;
+  //
+  // Pre-allocate space for first-class resources, plus some margins.
+  // This needs to be updated as introduce more first-class resources.
+  // [cpus, disk, gpus, mem, ports]
+  boost::container::small_vector<std::pair<std::string, Value::Scalar>, 7>
+    quantities;
 };
 
 
@@ -212,10 +218,10 @@ public:
   ResourceLimits& operator=(const ResourceLimits& that) = default;
   ResourceLimits& operator=(ResourceLimits&& that) = default;
 
-  typedef std::vector<std::pair<std::string, Value::Scalar>>::const_iterator
-    iterator;
-  typedef std::vector<std::pair<std::string, Value::Scalar>>::const_iterator
-    const_iterator;
+  typedef boost::container::small_vector_base<
+      std::pair<std::string, Value::Scalar> >::const_iterator iterator;
+  typedef boost::container::small_vector_base<
+      std::pair<std::string, Value::Scalar> >::const_iterator const_iterator;
 
   // NOTE: Non-`const` `iterator`, `begin()` and `end()` are __intentionally__
   // defined with `const` semantics in order to prevent mutation during
@@ -258,7 +264,12 @@ private:
 
   // List of name limit pairs sorted by name.
   // Arithmetic and comparison operations benefit from this sorting.
-  std::vector<std::pair<std::string, Value::Scalar>> limits;
+  //
+  // Pre-allocate space for first-class resources, plus some margins.
+  // This needs to be updated as introduce more first-class resources.
+  // [cpus, disk, gpus, mem, ports]
+  boost::container::small_vector<std::pair<std::string, Value::Scalar>, 7>
+    limits;
 };
 
 
