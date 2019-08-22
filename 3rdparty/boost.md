@@ -34,7 +34,7 @@ See: http://www.boost.org/doc/libs/1_65_0/tools/bcp/doc/html/index.html
 # Update 3rdparty/cmake/Versions.cmake with the new version and
 #  its SHA-256 hash. You can obtain the hash as follows, make sure
 #  to do this on the stripped release:
-  $ openssl sha -sha256 3rdparty/boost-1.65.0.tar.gz
+  $ openssl sha256 3rdparty/boost-1.65.0.tar.gz
 
 
 # Update this README if needed.
