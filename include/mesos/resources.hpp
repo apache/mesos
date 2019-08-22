@@ -821,6 +821,15 @@ hashmap<Key, Resources> operator+(
 }
 
 
+// Tests if `right` is contained in `left`, note that most
+// callers should just make use of `Resources::contains(...)`.
+// However, if dealing only with singular `Resource` objects,
+// this has lower overhead.
+//
+// NOTE: `left` and `right` must be valid resource objects.
+bool contains(const Resource& left, const Resource& right);
+
+
 /**
  * Represents a resource conversion, usually as a result of an offer
  * operation. See more details in `Resources::apply` method.

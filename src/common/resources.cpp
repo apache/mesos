@@ -562,29 +562,6 @@ static bool subtractable(const Resource& left, const Resource& right)
 }
 
 
-// Tests if "right" is contained in "left".
-static bool contains(const Resource& left, const Resource& right)
-{
-  // NOTE: This is a necessary condition for 'contains'.
-  // 'subtractable' will verify name, role, type, ReservationInfo,
-  // DiskInfo, SharedInfo, RevocableInfo, and ResourceProviderID
-  // compatibility.
-  if (!subtractable(left, right)) {
-    return false;
-  }
-
-  if (left.type() == Value::SCALAR) {
-    return right.scalar() <= left.scalar();
-  } else if (left.type() == Value::RANGES) {
-    return right.ranges() <= left.ranges();
-  } else if (left.type() == Value::SET) {
-    return right.set() <= left.set();
-  } else {
-    return false;
-  }
-}
-
-
 /**
  * Checks that a Resources object is valid for command line specification.
  *
@@ -1314,19 +1291,30 @@ bool Resources::shrink(Resource* resource, const Value::Scalar& target)
     return true; // Already within target.
   }
 
-  Resource copy = *resource;
-  copy.mutable_scalar()->CopyFrom(target);
+  // Some `disk` resources (e.g. MOUNT disk) are indivisible.
+  // We use a containement check to verify this. Specifically,
+  // if it contains a smaller version of itself, then it can
+  // safely be chopped into a smaller amount.
+  //
+  // NOTE: If additional types of resources become indivisible,
+  // this code needs updating!
+  if (resource->has_disk()) {
+    Resource original = *resource;
 
-  // Some resources (e.g. MOUNT disk) are indivisible. We use
-  // a containement check to verify this. Specifically, if a
-  // contains a smaller version of itself, then it can safely
-  // be chopped into a smaller amount.
-  if (Resources(*resource).contains(copy)) {
-    resource->CopyFrom(copy);
-    return true;
+    Value::Scalar oldScalar = resource->scalar();
+    *resource->mutable_scalar() = target;
+
+    if (mesos::contains(original, *resource)) {
+      return true;
+    }
+
+    // Restore the old value.
+    *resource->mutable_scalar() = std::move(oldScalar);
+    return false;
   }
 
-  return false;
+  *resource->mutable_scalar() = target;
+  return true;
 }
 
 
@@ -1370,7 +1358,7 @@ bool Resources::Resource_::contains(const Resource_& that) const
   }
 
   // For non-shared resources just compare the protobufs.
-  return internal::contains(resource, that.resource);
+  return mesos::contains(resource, that.resource);
 }
 
 
@@ -2655,6 +2643,28 @@ ostream& operator<<(
     const google::protobuf::RepeatedPtrField<Resource>& resources)
 {
   return stream << JSON::protobuf(resources);
+}
+
+
+bool contains(const Resource& left, const Resource& right)
+{
+  // NOTE: This is a necessary condition for 'contains'.
+  // 'subtractable' will verify name, role, type, ReservationInfo,
+  // DiskInfo, SharedInfo, RevocableInfo, and ResourceProviderID
+  // compatibility.
+  if (!internal::subtractable(left, right)) {
+    return false;
+  }
+
+  if (left.type() == Value::SCALAR) {
+    return right.scalar() <= left.scalar();
+  } else if (left.type() == Value::RANGES) {
+    return right.ranges() <= left.ranges();
+  } else if (left.type() == Value::SET) {
+    return right.set() <= left.set();
+  } else {
+    return false;
+  }
 }
 
 
