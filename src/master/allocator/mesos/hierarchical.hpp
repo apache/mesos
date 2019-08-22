@@ -600,12 +600,14 @@ protected:
   bool isFiltered(
       const Framework& framework,
       const std::string& role,
-      const SlaveID& slaveId,
+      const Slave& slave,
       const Resources& resources) const;
 
   // Returns true if there is an inverse offer filter for this framework
   // on this slave.
-  bool isFiltered(const Framework& framework, const SlaveID& slaveID) const;
+  bool isFiltered(
+      const Framework& framework,
+      const Slave& slave) const;
 
   bool allocatable(
       const Resources& resources,
@@ -727,6 +729,11 @@ private:
   bool isFrameworkTrackedUnderRole(
       const FrameworkID& frameworkId,
       const std::string& role) const;
+
+  Option<Slave*> getSlave(const SlaveID& slaveId) const;
+  Option<Framework*> getFramework(const FrameworkID& frameworkId) const;
+
+  Option<Sorter*> getFrameworkSorter(const std::string& role) const;
 
   const Quota& getQuota(const std::string& role) const;
 
