@@ -929,7 +929,7 @@ Resources shrinkResources(const Resources& resources, ResourceQuantities target)
     CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
 
     if (Resources::shrink(&resource, scalar)) {
-      target -= ResourceQuantities::fromScalarResources(resource);
+      target -= ResourceQuantities::fromScalarResource(resource);
       result += std::move(resource);
     }
   }
@@ -963,7 +963,7 @@ Resources shrinkResources(const Resources& resources, ResourceLimits target)
     CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
 
     if (Resources::shrink(&resource, *limit)) {
-      target -= ResourceQuantities::fromScalarResources(resource);
+      target -= ResourceQuantities::fromScalarResource(resource);
       result += std::move(resource);
     }
   }

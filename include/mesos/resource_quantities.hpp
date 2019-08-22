@@ -83,6 +83,10 @@ public:
   // be triggered.
   static ResourceQuantities fromScalarResources(const Resources& resources);
 
+  // Same as above, but takes a single Resource that must be valid
+  // and of scalar type.
+  static ResourceQuantities fromScalarResource(const Resource& resource);
+
   // Take `Resources` and combine them into `ResourceQuantities`. This function
   // assumes that the provided resources have already been validated; for
   // example, it assumes that ranges do not overlap and that sets do not contain

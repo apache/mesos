@@ -88,6 +88,19 @@ ResourceQuantities ResourceQuantities::fromScalarResources(
 }
 
 
+ResourceQuantities ResourceQuantities::fromScalarResource(
+  const Resource& resource)
+{
+  ResourceQuantities result;
+
+  CHECK_EQ(Value::SCALAR, resource.type()) << " Resource: " << resource;
+
+  result.add(resource.name(), resource.scalar());
+
+  return result;
+}
+
+
 ResourceQuantities ResourceQuantities::fromResources(const Resources& resources)
 {
   ResourceQuantities result;
