@@ -5418,6 +5418,8 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
     taskStatusUpdateManager->update(update, info.id())
       .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
+
+    return;
   }
 
   Executor* executor = framework->getExecutor(status.task_id());
