@@ -24,6 +24,11 @@ export MESOS_SYSTEMD_ENABLE_SUPPORT=false
 export MESOS_ISOLATION='disk/du'
 export MESOS_ENFORCE_CONTAINER_DISK_QUOTA=1
 export MESOS_RESOURCES="cpus:1;mem:96;disk:50"
+export MESOS_CONTAINER_DISK_WATCH_INTERVAL="100ms"
+
+# Lower the authentication timeout to speed up the test (the master
+# may drop the authentication message while it is recovering).
+export MESOS_AUTHENTICATION_TIMEOUT=200ms
 
 # The main event!
 "${MESOS_HELPER_DIR}"/disk-full-framework \
