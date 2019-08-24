@@ -46,6 +46,7 @@
 #include <stout/recordio.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "common/http.hpp"
@@ -195,6 +196,69 @@ TEST_P(ResourceProviderManagerHttpApiTest, MalformedContent)
     case ContentType::RECORDIO:
       break;
   }
+}
+
+
+// Confirm that the resource provider manager performs call validation
+// taking into account the resource provider info of the caller. The
+// validation is tested in detail in `resource_provider_validation_tests.cpp`.
+TEST_F(ResourceProviderManagerHttpApiTest, CallProviderValidation)
+{
+  Clock::pause();
+
+  // Start master and agent.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::TestResourceProvider resourceProvider(resourceProviderInfo);
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*resourceProvider.process, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed));
+
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
+
+  AWAIT_READY(subscribed);
+
+  Call call;
+  call.set_type(Call::UPDATE_STATE);
+  call.mutable_resource_provider_id()->CopyFrom(subscribed->provider_id());
+
+  Call::UpdateState* updateState = call.mutable_update_state();
+  updateState->mutable_resource_version_uuid()->set_value(
+      id::UUID::random().toBytes());
+
+  // Add a single resource with unset `provider_id`. This will be
+  // caught by call validation in the resource provider manager.
+  v1::Resource* resource = updateState->add_resources();
+  resource->CopyFrom(*v1::Resources::parse("disk", "32", "*"));
+
+  Future<Nothing> send = resourceProvider.send(call);
+  AWAIT_FAILED(send);
+  EXPECT_TRUE(strings::contains(send.failure(), BadRequest().status))
+    << send.failure();
 }
 
 

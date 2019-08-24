@@ -16,6 +16,9 @@
 
 #include "resource_provider/validation.hpp"
 
+#include <mesos/type_utils.hpp>
+
+#include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/unreachable.hpp>
 
@@ -69,12 +72,32 @@ Option<Error> validate(
         return Error("Expecting 'update_operation_status' to be present");
       }
 
+      if (resourceProviderInfo.isSome() && resourceProviderInfo->has_id()) {
+        const Call::UpdateOperationStatus& updateOperationStatus =
+          call.update_operation_status();
+        if (!updateOperationStatus.status().has_resource_provider_id() ||
+            updateOperationStatus.status().resource_provider_id() !=
+              resourceProviderInfo->id()) {
+          return Error(
+              "Inconsistent resource provider ID in 'update_operation_status'");
+        }
+      }
+
       return None();
     }
 
     case Call::UPDATE_STATE: {
       if (!call.has_update_state()) {
         return Error("Expecting 'update_state' to be present");
+      }
+
+      if (resourceProviderInfo.isSome() && resourceProviderInfo->has_id()) {
+        foreach (const Resource& resource, call.update_state().resources()) {
+          if (!resource.has_provider_id() ||
+              resource.provider_id() != resourceProviderInfo->id()) {
+            return Error("Inconsistent resource provider ID in 'update_state'");
+          }
+        }
       }
 
       return None();
