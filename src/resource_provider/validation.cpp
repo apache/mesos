@@ -27,7 +27,8 @@ namespace resource_provider {
 namespace validation {
 namespace call {
 
-Option<Error> validate(const Call& call)
+Option<Error> validate(
+    const Call& call, const Option<ResourceProviderInfo>& resourceProviderInfo)
 {
   if (!call.IsInitialized()) {
     return Error("Not initialized: " + call.InitializationErrorString());

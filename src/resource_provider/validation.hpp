@@ -28,7 +28,9 @@ namespace resource_provider {
 namespace validation {
 namespace call {
 
-Option<Error> validate(const mesos::resource_provider::Call& call);
+Option<Error> validate(
+    const mesos::resource_provider::Call& call,
+    const Option<ResourceProviderInfo>& resourceProviderInfo);
 
 } // namespace call {
 } // namespace validation {

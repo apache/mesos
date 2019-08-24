@@ -45,7 +45,7 @@ namespace {
 Option<Error> validate(const mesos::v1::resource_provider::Call& call)
 {
   return mesos::internal::resource_provider::validation::call::validate(
-      mesos::internal::devolve(call));
+      mesos::internal::devolve(call), None());
 }
 
 } // namespace {

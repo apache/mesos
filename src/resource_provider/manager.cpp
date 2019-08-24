@@ -356,7 +356,7 @@ Future<http::Response> ResourceProviderManagerProcess::api(
 
         Call call = devolve(v1Call);
 
-        Option<Error> error = validate(call);
+        Option<Error> error = validate(call, None());
         if (error.isSome()) {
           return BadRequest(
               "Failed to validate resource_provider::Call: " + error->message);
