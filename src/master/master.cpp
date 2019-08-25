@@ -390,7 +390,7 @@ Master::Master(
 Master::~Master() {}
 
 
-hashset<string> Master::misingMinimumCapabilities(
+hashset<string> Master::missingMinimumCapabilities(
     const MasterInfo& masterInfo, const Registry& registry)
 {
   if (registry.minimum_capabilities().size() == 0) {
@@ -1676,7 +1676,7 @@ Future<Nothing> Master::recover()
 Future<Nothing> Master::_recover(const Registry& registry)
 {
   hashset<string> missingCapabilities =
-    misingMinimumCapabilities(info_, registry);
+    missingMinimumCapabilities(info_, registry);
 
   if (!missingCapabilities.empty()) {
     LOG(ERROR) << "Master is missing the following minimum capabilities: "

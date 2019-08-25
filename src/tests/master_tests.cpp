@@ -2956,13 +2956,15 @@ TEST_F(MasterTest, RecoverWithMinimumCapability)
       MasterInfo::Capability::Type_Name(MasterInfo::Capability::AGENT_UPDATE));
 
   EXPECT_TRUE(
-      Master::misingMinimumCapabilities(master.get()->getMasterInfo(), registry)
+      Master::missingMinimumCapabilities(
+          master.get()->getMasterInfo(), registry)
         .empty());
 
   registry.add_minimum_capabilities()->set_capability("SUPER_POWER");
 
   hashset<string> result =
-    Master::misingMinimumCapabilities(master->get()->getMasterInfo(), registry);
+    Master::missingMinimumCapabilities(
+        master->get()->getMasterInfo(), registry);
 
   hashset<string> expected = {"SUPER_POWER"};
 
