@@ -66,6 +66,7 @@ const char FORKED_PID_FILE[] = "forked.pid";
 const char TASK_INFO_FILE[] = "task.info";
 const char TASK_UPDATES_FILE[] = "task.updates";
 const char RESOURCE_STATE_FILE[] = "resources_and_operations.state";
+const char RESOURCE_STATE_TARGET_FILE[] = "resources_and_operations.target";
 const char RESOURCES_INFO_FILE[] = "resources.info";
 const char RESOURCES_TARGET_FILE[] = "resources.target";
 const char RESOURCE_PROVIDER_STATE_FILE[] = "resource_provider.state";
@@ -642,6 +643,12 @@ string getSlaveOperationUpdatesPath(
 string getResourceStatePath(const string& rootDir)
 {
   return path::join(rootDir, "resources", RESOURCE_STATE_FILE);
+}
+
+
+string getResourceStateTargetPath(const string& rootDir)
+{
+  return path::join(rootDir, "resources", RESOURCE_STATE_TARGET_FILE);
 }
 
 

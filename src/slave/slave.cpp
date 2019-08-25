@@ -4381,22 +4381,34 @@ void Slave::checkpointResourceState(
     totalResources = _totalResources.get();
   }
 
-  // Store the target checkpoint resources. We commit the checkpoint
-  // only after all operations are successful. If any of the operations
-  // fail, the agent exits and the update to checkpointed resources
+  // Store the target checkpoint resources. We commit the checkpoint by renaming
+  // the target file only after all operations are successful. If any of the
+  // operations fail, the agent exits and the update to checkpointed resources
   // is re-attempted after the agent restarts before agent reregistration.
   //
   // Since we commit the checkpoint after all operations are successful,
   // we avoid a case of inconsistency between the master and the agent if
-  // the agent restarts during handling of CheckpointResourcesMessage.
+  // the agent restarts during handling of `CheckpointResourcesMessage`.
+  //
+  // NOTE: Since the addition of operation feedback on the agent, the resources
+  // are checkpointed in two formats:
+  // 1) Pre-operation-feedback, where only resources are written to a target
+  //    file, then moved to the final checkpoint location once any persistent
+  //    volumes have been committed to disk.
+  // 2) Post-operation-feedback, where both resources and operations are written
+  //    to a target file, then moved to the final checkpoint location once any
+  //    persistent volumes have been committed to disk.
+  //
+  // Both of these formats continue to be written to disk in order to permit
+  // agent downgrades.
 
   CHECK_SOME(state::checkpoint(
-      paths::getResourceStatePath(metaDir),
+      paths::getResourceStateTargetPath(metaDir),
       resourceState,
       false,
       false))
     << "Failed to checkpoint resources " << resourceState.resources()
-    << " and operations " << resourceState.operations();
+    << " and operations " << resourceState.operations() << "to target file";
 
   if (resourcesToCheckpoint != checkpointedResources) {
     CHECK_SOME(state::checkpoint(
@@ -4430,6 +4442,22 @@ void Slave::checkpointResourceState(
               << resourcesToCheckpoint;
 
     checkpointedResources = std::move(resourcesToCheckpoint);
+  }
+
+  // At this point, `syncCheckpointedResources()` has ensured that any change in
+  // checkpointed resources (e.g. persistent volumes) is now reflected on disk.
+  // We rename the target resource state file to the actual resource state file,
+  // which is our source of truth for the current state of the agent resources.
+  Try<Nothing> renameResult = os::rename(
+      paths::getResourceStateTargetPath(metaDir),
+      paths::getResourceStatePath(metaDir));
+
+  if (renameResult.isError()) {
+    // Exit the agent since the checkpoint could not be committed.
+    EXIT(EXIT_FAILURE)
+      << "Failed to move target resources " << resourceState.resources()
+      << " and operations " << resourceState.operations()
+      << ": " << renameResult.error();
   }
 
   if (operationsToCheckpoint != checkpointedOperations) {
@@ -7557,14 +7585,31 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
             syncResult.error());
       }
 
-      // Rename the target checkpoint to the committed checkpoint.
+      // At this point, `syncCheckpointedResources()` has ensured that any
+      // change in checkpointed resources (e.g. persistent volumes) is now
+      // reflected on disk. We rename the target resource state file to the
+      // actual resource state file, which is our source of truth for the
+      // current state of the agent resources.
       Try<Nothing> renameResult = os::rename(
+          paths::getResourceStateTargetPath(metaDir),
+          paths::getResourceStatePath(metaDir));
+
+      if (renameResult.isError()) {
+        return Failure(
+            "Failed to rename target resources " +
+            stringify(targetResources) + " and associated operations: " +
+            renameResult.error());
+      }
+
+      // The following rename call handles the pre-operation-feedback
+      // checkpoint format for backward compatibility.
+      renameResult = os::rename(
           paths::getResourcesTargetPath(metaDir),
           paths::getResourcesInfoPath(metaDir));
 
       if (renameResult.isError()) {
         return Failure(
-            "Failed to checkpoint resources " +
+            "Failed to rename target resources " +
             stringify(targetResources) + ": " +
             renameResult.error());
       }

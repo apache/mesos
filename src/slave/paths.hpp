@@ -415,6 +415,10 @@ std::string getResourceStatePath(
     const std::string& rootDir);
 
 
+std::string getResourceStateTargetPath(
+    const std::string& rootDir);
+
+
 std::string getResourcesInfoPath(
     const std::string& rootDir);
 
