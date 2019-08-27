@@ -14,19 +14,22 @@ This release contains the following highlights:
 
   * Containerization:
 
-    * [MESOS-9760] - A new `--docker_ignore_runtime` flag has been
-      added. This causes the agent to ignore any runtime configuration
-      present in Docker images.
+    * A new `--docker_ignore_runtime` flag has been added. This causes the agent
+      to ignore any runtime configuration present in Docker images. (MESOS-9760)
 
-    * [MESOS-9770] - Add no-new-privileges isolator. An additional
-      Linux isolator has been added to support enabling the no_new_privs
-      process control flag.
+    * Add no-new-privileges isolator. A new Linux isolator has been added to
+      support enabling the no_new_privs process control flag. (MESOS-9770)
 
-    * [MESOS-9771] - The Mesos containerizer now masks sensitive paths
-      in `/proc` for containers that do not share the host's PID namespace.
+    * The Mesos containerizer now masks sensitive paths in `/proc` for
+      containers that do not share the host's PID namespace. (MESOS-9771)
 
-    * [MESOS-9900] - The Mesos containerizer now includes ephemeral
-      overlayfs storage in the task disk quota as well as sandbox storage.
+    * The Mesos containerizer now supports configurable IPC namespace and
+      /dev/shm. Container can be configured to have a private IPC namespace
+      and /dev/shm or share them from its parent, and the size of its private
+      /dev/shm is also configurable. (MESOS-9795)
+
+    * The Mesos containerizer now includes ephemeral overlayfs storage in the
+      task disk quota as well as sandbox storage. (MESOS-9900)
 
 Additional API Changes:
 
