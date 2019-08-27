@@ -51,17 +51,21 @@ We categorize the changes as follows:
       <li>A <a href="#1-9-x-linux-nnp-isolator">Linux NNP isolator</a></li>
       <li>A <a href="#1-9-x-hostname-validation-scheme">hostname_validation_scheme</a></li>
       <li>C <a href="#1-9-x-client-certificate-verification">TLS certificate verification behaviour</a></li>
+      <li>C <a href="#1-9-x-configurable-ipc">Configurable IPC namespace and /dev/shm</a></li>
     </ul>
  </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
       <li>A <a href="#1-9-x-docker-ignore-runtime">docker_ignore_runtime</a></li>
+      <li>A <a href="#1-9-x-configurable-ipc">disallow_sharing_agent_ipc_namespace</a></li>
+      <li>A <a href="#1-9-x-configurable-ipc">default_container_shm_size</a></li>
     </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-9-x-configurable-ipc">LinuxInfo.ipc_mode and LinuxInfo.shm_size</a></li>
     </ul>
   </td>
 
@@ -532,6 +536,8 @@ We categorize the changes as follows:
     would have been successfull. Users that rely on incoming connection requests presenting valid TLS certificates should make sure that
     the `LIBPROCESS_SSL_REQUIRE_CERT` option is set to true.
 
+<a name="1-9-x-configurable-ipc"></a>
+* The Mesos containerizer now supports configurable IPC namespace and /dev/shm. Container can be configured to have a private IPC namespace and /dev/shm or share them from its parent via the field `LinuxInfo.ipc_mode`, and the size of its private /dev/shm is also configurable via the field `LinuxInfo.shm_size`. Operators can control whether it is allowed to share host's IPC namespace and /dev/shm with top level containers via the agent flag `--disallow_sharing_agent_ipc_namespace`, and specify the default size of the /dev/shm for the container which has a private /dev/shm via the agent flag `--default_container_shm_size`.
 
 ## Upgrading from 1.7.x to 1.8.x ##
 
