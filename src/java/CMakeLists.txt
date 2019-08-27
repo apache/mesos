@@ -42,7 +42,7 @@ configure_file(mesos.pom.in mesos.pom)
 add_custom_command(
   COMMENT "Building ${MESOS_JAR} using Maven..."
   OUTPUT ${MESOS_JAR}
-  COMMAND mvn -e -X -B -f mesos.pom clean package
+  COMMAND mvn -B -f mesos.pom clean package
   DEPENDS ${MESOS_JAR_SRC} ${JAVA_PROTOBUF_SRC})
 
 add_custom_target(mesos-jar DEPENDS ${MESOS_JAR} mesos-protobufs)
