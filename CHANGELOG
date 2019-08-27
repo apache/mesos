@@ -1,5 +1,5 @@
-Release Notes - Mesos - Version 1.9.0 (WIP)
--------------------------------------------
+Release Notes - Mesos - Version 1.9.0
+-------------------------------------
 This release contains the following highlights:
 
   * Security
@@ -42,6 +42,194 @@ Additional API Changes:
 
     NOTE: This new overload is only available when libprocess is compiled
     with `--enable-ssl`.
+
+ Unresolved Critical Issues:
+  * MESOS-9889 - Master CPU high due to unexpected foreachkey behaviour in Master::__reregisterSlave
+  * MESOS-9697 - Release RPMs are not uploaded to bintray
+  * MESOS-9579 - ExecutorHttpApiTest.HeartbeatCalls is flaky.
+  * MESOS-9536 - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable `MESOS_SANDBOX`
+  * MESOS-9520 - IOTest.Read hangs on Windows
+  * MESOS-9500 - spark submit with docker image on mesos cluster fails.
+  * MESOS-9426 - ZK master detection can become forever pending.
+  * MESOS-9393 - Fetcher crashes extracting archives with non-ASCII filenames.
+  * MESOS-9365 - Windows - GET_CONTAINERS API call causes the Mesos agent to fail
+  * MESOS-9355 - Persistence volume does not unmount correctly with wrong artifact URI
+  * MESOS-9352 - Data in persistent volume deleted accidentally when using Docker container and Persistent volume
+  * MESOS-9053 - Network ports isolator can falsely trigger while destroying containers.
+  * MESOS-9006 - The agent's GET_AGENT leaks resource information when using authorization
+  * MESOS-8877 - Docker container's resources will be wrongly enlarged in cgroups after agent recovery
+  * MESOS-8840 - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * MESOS-8803 - Libprocess deadlocks in a test.
+  * MESOS-8679 - If the first KILL stuck in the default executor, all other KILLs will be ignored.
+  * MESOS-8608 - RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
+  * MESOS-8257 - Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
+  * MESOS-8256 - Libprocess can silently deadlock due to worker thread exhaustion.
+  * MESOS-8096 - Enqueueing events in MockHTTPScheduler can lead to segfaults.
+  * MESOS-8038 - Launching GPU task sporadically fails.
+  * MESOS-7971 - PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
+  * MESOS-7911 - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * MESOS-7748 - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * MESOS-7721 - Master's agent removal rate limit also applies to agent unreachability.
+  * MESOS-7566 - Master crash due to failed check in DRFSorter::remove
+  * MESOS-7386 - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * MESOS-6285 - Agents may OOM during recovery if there are too many tasks or executors
+  * MESOS-5989 - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+
+All Resolved Issues:
+
+** Bug
+  * [MESOS-2842] - Master crashes when framework changes principal on re-registration
+  * [MESOS-5804] - ExamplesTest.DynamicReservationFramework is flaky
+  * [MESOS-6382] - Add option to enable parallel test runner for cmake builds
+  * [MESOS-6605] - configure looks for wrong header file for elfio
+  * [MESOS-8968] - Wire `UPDATE_QUOTA` call.
+  * [MESOS-9353] - libprocess triggers deprecation warnings when built against openssl 1.1.
+  * [MESOS-9395] - Check failure on `StorageLocalResourceProviderProcess::applyCreateDisk`.
+  * [MESOS-9482] - Resource provider manager can crash on invalid data from resource providers
+  * [MESOS-9560] - ContentType/AgentAPITest.MarkResourceProviderGone/1 is flaky
+  * [MESOS-9594] - Test `StorageLocalResourceProviderTest.RetryRpcWithExponentialBackoff` is flaky.
+  * [MESOS-9609] - Master check failure when marking agent unreachable
+  * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
+  * [MESOS-9667] - Check failure when executor for task using resource provider resources subscribes before agent is registered
+  * [MESOS-9698] - DroppedOperationStatusUpdate test is flaky
+  * [MESOS-9707] - Calling link::lo() may cause runtime error
+  * [MESOS-9711] - Avoid shutting down executors registering before a required resource provider.
+  * [MESOS-9712] - StorageLocalResourceProviderTest.CsiPluginRpcMetrics is flaky.
+  * [MESOS-9719] - Test `AgentFailoverHTTPExecutorUsingResourceProviderResources` is flaky.
+  * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors
+  * [MESOS-9733] - Random sorter generates non-uniform result for hierarchical roles.
+  * [MESOS-9750] - Agent V1 GET_STATE response may report a complete executor's tasks as non-terminal after a graceful agent shutdown
+  * [MESOS-9765] - Test `ROOT_CreateDestroyPersistentMountVolumeWithReboot` is flaky.
+  * [MESOS-9766] - /__processes__ endpoint can hang.
+  * [MESOS-9779] - `UPDATE_RESOURCE_PROVIDER_CONFIG` agent call returns 404 ambiguously.
+  * [MESOS-9782] - Random sorter fails to clear removed clients.
+  * [MESOS-9785] - Frameworks recovered from reregistered agents are not reported to master `/api/v1` subscribers.
+  * [MESOS-9786] - Race between two REMOVE_QUOTA calls crashes the master.
+  * [MESOS-9803] - Memory leak caused by an infinite chain of futures in `UriDiskProfileAdaptor`.
+  * [MESOS-9808] - libprocess can deadlock on termination (cleanup() vs use() + terminate())
+  * [MESOS-9811] - Don't use reverse DNS for hostname validation
+  * [MESOS-9831] - Master should not report disconnected resource providers.
+  * [MESOS-9835] - `QuotaRoleAllocateNonQuotaResource` is failing.
+  * [MESOS-9836] - Docker containerizer overwrites `/mesos/slave` cgroups.
+  * [MESOS-9852] - Slow memory growth in master due to deferred deletion of offer filters and timers.
+  * [MESOS-9854] - /roles endpoint should return both guarantees and limits.
+  * [MESOS-9856] - REVIVE call with specified role(s) clears filters for all roles of a framework.
+  * [MESOS-9861] - Make PushGauges support floating point stats.
+  * [MESOS-9870] - Simultaneous adding/removal of a role from framework's roles and its suppressed roles crashes the master.
+  * [MESOS-9875] - Mesos did not respond correctly when operations should fail
+  * [MESOS-9881] - StorageLocalResourceProviderTest.RetryOperationStatusUpdateAfterRecovery is flaky.
+  * [MESOS-9882] - Mesos.UpdateFrameworkV0Test.SuppressedRoles is flaky.
+  * [MESOS-9886] - RoleTest.RolesEndpointContainsConsumedQuota is flaky.
+  * [MESOS-9887] - Race condition between two terminal task status updates for Docker/Command executor.
+  * [MESOS-9888] - /roles and GET_ROLES do not expose roles with only static reservations
+  * [MESOS-9890] - /roles and GET_ROLES does not always expose parent roles.
+  * [MESOS-9893] - `volume/secret` isolator should cleanup the stored secret from runtime directory when the container is destroyed
+  * [MESOS-9894] - Mesos failed to build due to fatal error C1083 on Windows using MSVC.
+  * [MESOS-9895] - SlaveTest.DrainingAgentRejectLaunch is flaky
+  * [MESOS-9901] - jsonify uses non-standard mapping for protobuf map fields.
+  * [MESOS-9902] - Mesos failed to build due to error C2280 on windows with MSVC
+  * [MESOS-9906] - Libprocess tests hangs on arm
+  * [MESOS-9909] - Mesos agent crashes after recovery when there is nested container joins a CNI network
+  * [MESOS-9922] - MasterQuotaTest.RescindOffersEnforcingLimits is flaky
+  * [MESOS-9925] - Default executor takes a couple of seconds to start and subscribe Mesos agent
+  * [MESOS-9930] - DRF sorter may omit clients in sorting after removing an inactive leaf node.
+  * [MESOS-9934] - Master does not handle returning unreachable agents as draining/deactivated
+  * [MESOS-9935] - The agent crashes after the disk du isolator supporting rootfs checks.
+  * [MESOS-9952] - ExampleTest.DiskFullFramework is slow
+
+** Epic
+  * [MESOS-9534] - CSI Spec v1.0 Support.
+  * [MESOS-9784] - Client side SSL certificate verification in Libprocess.
+  * [MESOS-9795] - Support configurable /dev/shm and IPC namespace.
+
+** Improvement
+  * [MESOS-7258] - Provide scheduler calls to subscribe to additional roles and unsubscribe from roles.
+  * [MESOS-8456] - Allocator should allow roles to burst above guarantees but below limits.
+  * [MESOS-8789] - /roles and webui roles table should display distinct offered and allocated resources.
+  * [MESOS-9254] - Make SLRP be able to update its volumes and storage pools.
+  * [MESOS-9545] - Marking an unreachable agent as gone should transition the tasks to terminal state
+  * [MESOS-9618] - Display quota consumption in the webui.
+  * [MESOS-9640] - Add authorization support for `UPDATE_QUOTA` call.
+  * [MESOS-9668] - Add authorization support for the new `GET_QUOTA` call.
+  * [MESOS-9669] - Deprecate v0 quota calls.
+  * [MESOS-9695] - Remove the duplicate pid check in Docker containerizer
+  * [MESOS-9701] - Allocator's roles map should track reservations.
+  * [MESOS-9724] - Flatten the weighted shuffling in the random sorter.
+  * [MESOS-9758] - Take ports out of the GET_ROLES endpoints.
+  * [MESOS-9759] - Log required quota headroom and available quota headroom in the allocator.
+  * [MESOS-9760] - Decouple Docker runtime isolator manifest configuration from image provider
+  * [MESOS-9769] - Add direct containerized support for filesystem operations.
+  * [MESOS-9770] - Add no-new-privileges isolator.
+  * [MESOS-9771] - Mask sensitive procfs paths.
+  * [MESOS-9778] - Randomized the agents in the second allocation stage.
+  * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
+  * [MESOS-9791] - Libprocess does not support server only SSL certificate verification.
+  * [MESOS-9799] - Adopt container file operations in secrets volumes.
+  * [MESOS-9802] - Remove quota role sorter in the allocator.
+  * [MESOS-9805] - Run cgroup subsystems before moving the target PID.
+  * [MESOS-9806] - Address allocator performance regression due to the addition of quota limits.
+  * [MESOS-9807] - Introduce a `struct Quota` wrapper.
+  * [MESOS-9812] - Add achievability validation for update quota call.
+  * [MESOS-9820] - Add `updateQuota()` method to the allocator.
+  * [MESOS-9833] - Introduce an agent flag for the default `/dev/shm` size
+  * [MESOS-9876] - Use geteuid to determine subprocess' user when launching task.
+  * [MESOS-9878] - Enable libprocess users to pass a custom SSL context when using Socket
+  * [MESOS-9900] - Include overlayfs upperdir in disk quota accounting.
+  * [MESOS-9908] - Introduce a new agent flag and support docker volume chown to task user.
+  * [MESOS-9917] - Store a role tree in the allocator.
+  * [MESOS-9932] - Removal of a role from the suppression list should be equivalent to REVIVE.
+
+** Task
+  * [MESOS-8486] - Webui should display role limits.
+  * [MESOS-9485] - Unit test for master operation authorization.
+  * [MESOS-9565] - Unit tests for creating and destroying persistent volumes in SLRP.
+  * [MESOS-9598] - Update GET `/quota` to return both guarantees and limits.
+  * [MESOS-9599] - Update `GET_QUOTA` to return both guarantees and limits.
+  * [MESOS-9600] - Deprecate `SET_QUOTA` and `REMOVE_QUOTA` calls in favor of `UPDATE_QUOTA`.
+  * [MESOS-9601] - Persist `QuotaConfig`s in the registry.
+  * [MESOS-9602] - Provide backward compatibility for old quota configurations.
+  * [MESOS-9603] - Add quota limits metrics.
+  * [MESOS-9627] - Test CSI v1 in SLRP unit tests.
+  * [MESOS-9699] - Pull in glog 0.4.0
+  * [MESOS-9710] - Add tests to ensure random sorter performs correct weighted sorting.
+  * [MESOS-9715] - Support specifying output file name for curl fetcher plugin
+  * [MESOS-9754] - Design doc for agent draining
+  * [MESOS-9757] - Design doc for container debug endpoint.
+  * [MESOS-9775] - Design doc for UCR shared memory.
+  * [MESOS-9788] - Configurable IPC namespace and shared memory in `namespaces/ipc` isolator
+  * [MESOS-9793] - Implement UPDATE_FRAMEWORK call in V0 API for C++/Java
+  * [MESOS-9809] - Use OpenSSL built-in functions for hostname validation
+  * [MESOS-9810] - Reject certificate-less ciphers when certificate verification is enabled
+  * [MESOS-9814] - Implement DrainAgent master/operator call with associated registry actions
+  * [MESOS-9816] - Add draining state information to master state endpoints
+  * [MESOS-9817] - Add minimum master capability for draining and deactivation states
+  * [MESOS-9818] - Implement minimal agent-side draining handler
+  * [MESOS-9821] - Agent kills all tasks when draining
+  * [MESOS-9822] - Agent recovery code for task draining
+  * [MESOS-9823] - Agent should modify status updates while draining
+  * [MESOS-9825] - Introduce an agent flag to disallow sharing the IPC namespace from the host.
+  * [MESOS-9826] - Set up `/dev/shm` in `filesystem/linux` isolator only when `namespaces/ipc` isolator is not enabled
+  * [MESOS-9827] - Introduce the configurable shm protobuf API.
+  * [MESOS-9828] - Document the IPC namespace and shm on UCR.
+  * [MESOS-9829] - Implement the container debug endpoint on slave/http.cpp
+  * [MESOS-9837] - Implement `FutureTracker` class along with helper functions.
+  * [MESOS-9839] - Implement `IsolatorTracker` class.
+  * [MESOS-9840] - Implement `LauncherTracker` class.
+  * [MESOS-9841] - Integrate `IsolatorTracker` and `LinuxLauncher` with Mesos containerizer.
+  * [MESOS-9842] - Implement tests for the `FutureTracker` class and for its helper functions.
+  * [MESOS-9845] - Add docs for automatic agent draining
+  * [MESOS-9846] - Update UI for agent draining
+  * [MESOS-9849] - Add support for per-role REVIVE / SUPPRESS to V0 scheduler driver.
+  * [MESOS-9853] - Update Docker executor to allow kill policy overrides
+  * [MESOS-9860] - Agent should erase DrainInfo when draining complete
+  * [MESOS-9862] - Agent should fail task launches while draining
+  * [MESOS-9871] - Expose quota consumption in /roles endpoint.
+  * [MESOS-9874] - Add environment variable `MESOS_ALLOCATION_ROLE` to the task/container.
+  * [MESOS-9892] - Test various agent state transitions involving agent draining
+  * [MESOS-9907] - Retain agent draining start time in master
+
+** Documentation
+  * [MESOS-9427] - Revisit quota documentation.
 
 
 Release Notes - Mesos - Version 1.8.2 (WIP)
