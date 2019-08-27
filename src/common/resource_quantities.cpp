@@ -131,7 +131,12 @@ ResourceQuantities ResourceQuantities::fromResources(const Resources& resources)
 }
 
 
-ResourceQuantities::ResourceQuantities() {}
+ResourceQuantities::ResourceQuantities()
+{
+  // Pre-reserve space for first-class resources.
+  // [cpus, disk, gpus, mem, ports]
+  quantities.reserve(5u);
+}
 
 
 ResourceQuantities::ResourceQuantities(
@@ -147,15 +152,17 @@ ResourceQuantities::ResourceQuantities(
 
 ResourceQuantities::const_iterator ResourceQuantities::begin()
 {
-  const auto& self = *this;
-  return self.begin();
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+             quantities)
+    .begin();
 }
 
 
 ResourceQuantities::const_iterator ResourceQuantities::end()
 {
-  const auto& self = *this;
-  return self.end();
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+             quantities)
+    .end();
 }
 
 
@@ -400,7 +407,12 @@ Try<ResourceLimits> ResourceLimits::fromString(const string& text)
 }
 
 
-ResourceLimits::ResourceLimits() {}
+ResourceLimits::ResourceLimits()
+{
+  // Pre-reserve space for first-class resources.
+  // [cpus, disk, gpus, mem, ports]
+  limits.reserve(5u);
+}
 
 
 ResourceLimits::ResourceLimits(
@@ -416,15 +428,17 @@ ResourceLimits::ResourceLimits(
 
 ResourceLimits::const_iterator ResourceLimits::begin()
 {
-  const auto& self = *this;
-  return self.begin();
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+           limits)
+    .begin();
 }
 
 
 ResourceLimits::const_iterator ResourceLimits::end()
 {
-  const auto& self = *this;
-  return self.end();
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+           limits)
+    .end();
 }
 
 
