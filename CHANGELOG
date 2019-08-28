@@ -48,6 +48,10 @@ Additional API Changes:
     NOTE: This new overload is only available when libprocess is compiled
     with `--enable-ssl`.
 
+  * Added new APIs to support automatic node draining via operator APIs.
+    This serves as an alternative to framework-assisted draining using
+    maintenance primitives. (MESOS-9753)
+
  Unresolved Critical Issues:
   * MESOS-9889 - Master CPU high due to unexpected foreachkey behaviour in Master::__reregisterSlave
   * MESOS-9697 - Release RPMs are not uploaded to bintray
