@@ -2,6 +2,12 @@ Release Notes - Mesos - Version 1.9.0
 -------------------------------------
 This release contains the following highlights:
 
+  * Maintenance:
+
+    * Added new APIs to support automatic node draining via operator APIs.
+      This serves as an alternative to framework-assisted draining using
+      maintenance primitives. (MESOS-9753)
+
   * Resource Management:
 
     * Support for quota limits has been added. The existing quota guarantees
@@ -52,10 +58,6 @@ Additional API Changes:
 
     NOTE: This new overload is only available when libprocess is compiled
     with `--enable-ssl`.
-
-  * Added new APIs to support automatic node draining via operator APIs.
-    This serves as an alternative to framework-assisted draining using
-    maintenance primitives. (MESOS-9753)
 
  Unresolved Critical Issues:
   * MESOS-9889 - Master CPU high due to unexpected foreachkey behaviour in Master::__reregisterSlave
