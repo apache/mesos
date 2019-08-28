@@ -36,6 +36,11 @@ This release contains the following highlights:
     * The Mesos containerizer now includes ephemeral overlayfs storage in the
       task disk quota as well as sandbox storage. (MESOS-9900)
 
+    * A new `/containerizer/debug` HTTP endpoint has been added. This endpoint
+      exposes debug information for the Mesos containerizer. At the moment, it
+      returns a list of pending operations related to Isolators and Launchers.
+      (MESOS-9756)
+
 Additional API Changes:
 
   * Mesos components will now forego TLS certificate validation for incoming
