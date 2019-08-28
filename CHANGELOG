@@ -153,6 +153,7 @@ All Resolved Issues:
 
 ** Epic
   * [MESOS-9534] - CSI Spec v1.0 Support.
+  * [MESOS-9756] - Introduce a container debug endpoint.
   * [MESOS-9784] - Client side SSL certificate verification in Libprocess.
   * [MESOS-9795] - Support configurable /dev/shm and IPC namespace.
 
