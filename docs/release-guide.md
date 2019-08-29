@@ -193,8 +193,10 @@ This guide describes the process of doing an official release of Mesos.
 
 ## Preparing a New Release Candidate
 
-1. If the vote does not pass (any -1s or showstopper bugs), track the issues
-   as new JIRAs for the release.
+1. If the vote does not pass (any -1s or showstopper bugs)
+   1. Send a reply to the original VOTE email with subject "[RESULT][VOTE] Release Apache Mesos X.Y.Z (rcN)" and mention that the vote is canceled.
+   2. Go to https://repository.apache.org/#stagingRepositories and "Drop" the staging repository containing the JAR (you can find the link to the staging repository in the original VOTE email).
+   3. Track the issues as new JIRAs for the release.
 
 2. When all known issues are resolved, update the `CHANGELOG` with the newly
    fixed JIRAs.
