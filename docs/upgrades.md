@@ -48,6 +48,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-9-x-quota-guarantees">Quota Limits</a></li>
       <li>A <a href="#1-9-x-linux-nnp-isolator">Linux NNP isolator</a></li>
       <li>A <a href="#1-9-x-hostname-validation-scheme">hostname_validation_scheme</a></li>
       <li>C <a href="#1-9-x-client-certificate-verification">TLS certificate verification behaviour</a></li>
@@ -78,6 +79,10 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <ul style="padding-left:10px;">
+      <li>D <a href="#1-9-x-update-quota">SET_QUOTA and REMOVE QUOTA deprecated
+            in favor of UPDATE_QUOTA</a></li>
+      <li>D <a href="#1-9-x-quota-guarantees">Quota guarantees deprecated in favor
+            of using quota limits</a></li>
     </ul>
   </td>
 </tr>
@@ -516,6 +521,7 @@ We categorize the changes as follows:
 ## Upgrading from 1.8.x to 1.9.x ##
 
 <a name="1-9-x-automatic-agent-draining"></a>
+
   * A new `DRAINING` state has been added to Mesos agents. Once an agent is draining, all tasks running on that agent are gracefully
     killed and no offers for that agent are sent to schedulers, preventing the launching of new tasks.
     Operators can put an agent into `DRAINING` state by using the `DRAIN_AGENT` operator API call.
@@ -525,17 +531,21 @@ We categorize the changes as follows:
 * The Mesos agent now requires the new `AGENT_DRAINING` feature. This capability is set by default, but if the `--agent_features` flag is specified explicitly, `AGENT_DRAINING` must be included.
 
 <a name="1-9-x-linux-nnp-isolator"></a>
+
   * A new [`linux/nnp`](isolators/linux-nnp.md) isolator has been added. The isolator supports setting of the `no_new_privs` bit in the container, preventing tasks from acquiring additional privileges.
 
 <a name="1-9-x-docker-ignore-runtime"></a>
+
   * A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
 
 <a name="1-9-x-hostname-validation-scheme"></a>
+
 * A new libprocess TLS flag `--hostname_validation_scheme` along with the corresponding environment variable `LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME`
   has been added. Using this flag, users can configure the way libprocess performs hostname validation for TLS connections.
   See [`docs/ssl`](ssl.md) for details.
 
 <a name="1-9-x-client-certificate-verification"></a>
+
 * The semantics of the libprocess environment variables `LIBPROCESS_SSL_VERIFY_CERT` and `LIBPROCESS_SSL_REQUIRE_CERT` have been slightly updated such that
   the former now only applies to client-mode and the latter only to server-mode connections. As part of this re-adjustment, the following two changes have
   been introduced that might require changes for operators running Mesos in unusual TLS configurations.
@@ -548,7 +558,18 @@ We categorize the changes as follows:
     the `LIBPROCESS_SSL_REQUIRE_CERT` option is set to true.
 
 <a name="1-9-x-configurable-ipc"></a>
+
 * The Mesos containerizer now supports configurable IPC namespace and /dev/shm. Container can be configured to have a private IPC namespace and /dev/shm or share them from its parent via the field `LinuxInfo.ipc_mode`, and the size of its private /dev/shm is also configurable via the field `LinuxInfo.shm_size`. Operators can control whether it is allowed to share host's IPC namespace and /dev/shm with top level containers via the agent flag `--disallow_sharing_agent_ipc_namespace`, and specify the default size of the /dev/shm for the container which has a private /dev/shm via the agent flag `--default_container_shm_size`.
+
+<a name="1-9-x-update-quota"></a>
+
+* The `SET_QUOTA` and `REMOVE QUOTA` master calls are deprecated in favor of a new `UPDATE_QUOTA` master call.
+
+<a name="#1-9-x-quota-guarantees"></a>
+
+* Prior to Mesos 1.9, the quota related APIs only exposed quota "guarantees" which ensured a minimum amount of resources would be available to a role. Setting guarantees also set implicit quota limits. In Mesos 1.9+, quota limits are now exposed directly.
+  * Quota guarantees are now deprecated in favor of using only quota limits. Enforcement of quota guarantees required that Mesos holds back enough resources to meet all of the unsatisfied quota guarantees. Since Mesos is moving towards an optimistic offer model (to improve multi-role / multi- scheduler scalability, see MESOS-1607), it will become no longer possible to enforce quota guarantees by holding back resources. In such a model, quota limits are simple to enforce, but quota guarantees would require a complex "effective limit" propagation model to leave space for unsatisfied guarantees.
+  * For these reasons, quota guarantees, while still functional in Mesos 1.9, are now deprecated. A combination of limits and priority based preemption will be simpler in an optimistic offer model.
 
 ## Upgrading from 1.7.x to 1.8.x ##
 
