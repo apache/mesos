@@ -275,10 +275,6 @@ message Call {
     required AgentID agent_id = 1;
   }
 
-  // EXPERIMENTAL DO NOT USE.
-  //
-  // This feature is not implementation complete.
-  //
   // Updates quota given the provided quota configurations, these configurations
   // are applied in an all-or-nothing manner.
   message UpdateQuota {
