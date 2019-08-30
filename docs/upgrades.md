@@ -522,21 +522,22 @@ We categorize the changes as follows:
 
 <a name="1-9-x-automatic-agent-draining"></a>
 
-  * A new `DRAINING` state has been added to Mesos agents. Once an agent is draining, all tasks running on that agent are gracefully
-    killed and no offers for that agent are sent to schedulers, preventing the launching of new tasks.
-    Operators can put an agent into `DRAINING` state by using the `DRAIN_AGENT` operator API call.
-    See [`docs/maintenance`](maintenance.md) for details.
+* A new `DRAINING` state has been added to Mesos agents. Once an agent is draining, all tasks running on that agent are gracefully
+  killed and no offers for that agent are sent to schedulers, preventing the launching of new tasks.
+  Operators can put an agent into `DRAINING` state by using the `DRAIN_AGENT` operator API call.
+  See [`docs/maintenance`](maintenance.md) for details.
 
 <a name="1-9-x-agent-features"></a>
+
 * The Mesos agent now requires the new `AGENT_DRAINING` feature. This capability is set by default, but if the `--agent_features` flag is specified explicitly, `AGENT_DRAINING` must be included.
 
 <a name="1-9-x-linux-nnp-isolator"></a>
 
-  * A new [`linux/nnp`](isolators/linux-nnp.md) isolator has been added. The isolator supports setting of the `no_new_privs` bit in the container, preventing tasks from acquiring additional privileges.
+* A new [`linux/nnp`](isolators/linux-nnp.md) isolator has been added. The isolator supports setting of the `no_new_privs` bit in the container, preventing tasks from acquiring additional privileges.
 
 <a name="1-9-x-docker-ignore-runtime"></a>
 
-  * A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
+* A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
 
 <a name="1-9-x-hostname-validation-scheme"></a>
 
