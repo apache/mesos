@@ -173,7 +173,7 @@ This guide describes the process of doing an official release of Mesos.
    scheme. `R` is release candidate version that starts with 1.
 
 4. Tag the release externally and deploy the corresponding JAR to the
-   [Apache maven repository](https://repository.apache.org). It is recommended
+   [Apache Maven repository](https://repository.apache.org). It is recommended
    to use the `support/vote.sh` script to accomplish this.
 
         $ ./support/vote.sh X.Y.Z R
@@ -195,7 +195,7 @@ This guide describes the process of doing an official release of Mesos.
 
 1. If the vote does not pass (any -1s or showstopper bugs)
    1. Send a reply to the original VOTE email with subject "[RESULT][VOTE] Release Apache Mesos X.Y.Z (rcN)" and mention that the vote is canceled.
-   2. Go to https://repository.apache.org/#stagingRepositories and "Drop" the staging repository containing the JAR (you can find the link to the staging repository in the original VOTE email).
+   2. Go to [Apache Maven staging repositories](https://repository.apache.org/#stagingRepositories) and "Drop" the staging repository containing the JAR (you can find the exact link to the staging repository in the original VOTE email).
    3. Track the issues as new JIRAs for the release.
 
 2. When all known issues are resolved, update the `CHANGELOG` with the newly
