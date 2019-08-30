@@ -62,7 +62,7 @@ This guide describes the process of doing an official release of Mesos.
 ## Preparation
 
 1. If this is a regular release, create a new release branch (<major>.<minor>.x)
-   based off the current master
+   based off the current master.
 
         $ git checkout origin/master -b X.Y.x
 
@@ -132,26 +132,28 @@ This guide describes the process of doing an official release of Mesos.
    the release. Do not forget to remove "(WIP)" suffix from the release notes'
    title.
 
-5. Run `make && support/generate-endpoint-help.py` and commit any resulting
-   changes.
-
-6. Update and commit `docs/configuration.md` to reflect the current state of
+5. Update and commit `docs/configuration.md` to reflect the current state of
    the master, agent, and configure flags. Update it on master branch and then
    cherry pick onto the release branch.
 
-7. If this is a regular release, update and commit `docs/upgrades.md` with
+6. If this is a regular release, update and commit `docs/upgrades.md` with
    instructions about how to upgrade a live cluster from the previous release
-   version to this release version.
+   version to this release version. Update it on master branch and then cherry
+   pick onto the release branch.
 
-8. If this is a regular release, please ensure that user documentation has been
+7. If this is a regular release, please ensure that user documentation has been
    added for any new features.
 
-9. Make sure that for any updates of the API, specifically the scheduler API,
+8. Make sure that for any updates of the API, specifically the scheduler API,
    the public mesos protobuf definitions are part of both, `include/mesos` as
    well as `include/mesos/v1`.
 
    **NOTE:** This might actually demand code updates if any omissions were
    identified.
+
+9. Push your changes on master branch and the new release branch if this is a
+   regular release, push your changes on the existing release branch if this is
+   a patch release.
 
 
 ## Tagging and Voting the Release Candidate
@@ -208,7 +210,7 @@ This guide describes the process of doing an official release of Mesos.
         $ git checkout X.Y.x
         $ git cherry-pick abcdefgh...
 
-4. Now go back up to the "Tagging the Release Candidate" section and repeat.
+4. Now go back up to the "Tagging and Voting the Release Candidate" section and repeat.
 
 
 ## Releasing the Release Candidate
