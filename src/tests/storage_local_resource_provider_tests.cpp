@@ -1374,6 +1374,115 @@ TEST_P(StorageLocalResourceProviderTest, RecoverDiskWithChangedMetadata)
 }
 
 
+// This test verifies that the storage local resource provider can properly
+// handle duplicated volumes. This is a regression test for MESOS-9965.
+TEST_P(StorageLocalResourceProviderTest, RecoverDuplicatedVolumes)
+{
+  const string mockCsiEndpoint =
+    "unix://" + path::join(sandbox.get(), "mock_csi.sock");
+
+  MockCSIPlugin plugin;
+  ASSERT_SOME(plugin.startup(mockCsiEndpoint));
+
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  if (GetParam() == csi::v0::API_VERSION) {
+    EXPECT_CALL(plugin, ListVolumes(_, _, A<csi::v0::ListVolumesResponse*>()))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v0::ListVolumesRequest* request,
+          csi::v0::ListVolumesResponse* response) {
+        csi::v0::Volume volume;
+        volume.set_capacity_bytes(Gigabytes(2).bytes());
+        volume.set_id("volume1");
+
+        // Report duplicated volumes.
+        *response->add_entries()->mutable_volume() = volume;
+        *response->add_entries()->mutable_volume() = volume;
+
+        return grpc::Status::OK;
+      }));
+  } else {
+    EXPECT_CALL(plugin, ListVolumes(_, _, A<csi::v1::ListVolumesResponse*>()))
+      .WillRepeatedly(Invoke([&](
+          grpc::ServerContext* context,
+          const csi::v1::ListVolumesRequest* request,
+          csi::v1::ListVolumesResponse* response) {
+        csi::v1::Volume volume;
+        volume.set_capacity_bytes(Gigabytes(2).bytes());
+        volume.set_volume_id("volume1");
+
+        // Report duplicated volumes.
+        *response->add_entries()->mutable_volume() = volume;
+        *response->add_entries()->mutable_volume() = volume;
+
+        return grpc::Status::OK;
+      }));
+  }
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Register a framework to exercise operations.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage/role");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have wanted
+  // resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline unwanted offers. The master can send such offers before the
+  // resource provider receives profile updates.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      &Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  // Restart the agent.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  slave.get()->terminate();
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      &Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Wait for an offer to verify that the resource provider comes back.
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  Offer offer = offers->at(0);
+
+  Resources resourceProviderResources =
+    Resources(offer.resources()).filter(&Resources::hasResourceProvider);
+
+  EXPECT_SOME_EQ(Gigabytes(2), resourceProviderResources.disk());
+}
+
+
 // This test verifies that a framework cannot create a volume during and after
 // the profile disappears, and destroying a volume with a stale profile will
 // recover the freed disk with another appeared profile.
