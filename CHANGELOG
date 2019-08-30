@@ -152,6 +152,7 @@ All Resolved Issues:
   * [MESOS-9934] - Master does not handle returning unreachable agents as draining/deactivated
   * [MESOS-9935] - The agent crashes after the disk du isolator supporting rootfs checks.
   * [MESOS-9952] - ExampleTest.DiskFullFramework is slow
+  * [MESOS-9956] - CSI plugins reporting duplicated volumes will crash the agent.
 
 ** Epic
   * [MESOS-9534] - CSI Spec v1.0 Support.
