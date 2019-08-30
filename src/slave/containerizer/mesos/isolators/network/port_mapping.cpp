@@ -2284,6 +2284,50 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         " maximum ingress rate.");
   }
 
+  Option<Bytes> egressRatePerCpu;
+  if (flags.egress_rate_per_cpu.isSome()) {
+    if (flags.egress_rate_per_cpu.get() == "auto") {
+      // Extract the number of CPUs from the resources flag.
+      const uint64_t cpus = resources->cpus().getOrElse(0);
+      if (cpus == 0) {
+        return Error(
+            "CPUs resource has to be specified to determine per CPU egress "
+            "rate limit");
+      }
+
+      // Link speed may be provided by the operator. If not, we can try to read
+      // the self-reported speed.
+      Result<Bytes> speed = flags.network_link_speed;
+      if (speed.isNone()) {
+        speed = getLinkSpeed(eth0.get());
+        if (!speed.isSome()) {
+          return Error(
+              "Failed to determine per CPU egress rate limit: "
+              "Failed to determine link speed of " + eth0.get() + ": " +
+              (speed.isError() ? speed.error() : "Not supported"));
+        }
+      }
+
+      egressRatePerCpu = speed.get() / cpus;
+
+      LOG(INFO) << "Using " << egressRatePerCpu.get()
+                << " per CPU egress rate limit"
+                << " (" << speed.get() << "/" << cpus << ")";
+    } else {
+      Try<Bytes> limit = Bytes::parse(flags.egress_rate_per_cpu.get());
+      if (limit.isError()) {
+        return Error(
+            "Bad option for 'egress_rate_per_cpu' flag: " + limit.error());
+      }
+
+      egressRatePerCpu = limit.get();
+
+      LOG(INFO) << "Using " << egressRatePerCpu.get()
+                << " per CPU egress rate limit";
+    }
+    CHECK_SOME(egressRatePerCpu);
+  }
+
   Option<Bytes> ingressRatePerCpu;
   if (flags.ingress_rate_per_cpu.isSome()) {
     if (flags.ingress_rate_per_cpu.get() == "auto") {
@@ -2807,6 +2851,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           ephemeralPortsAllocator,
           freeFlowIds,
           ratesCollector,
+          egressRatePerCpu,
           ingressRatePerCpu)));
 }
 
@@ -2826,6 +2871,7 @@ PortMappingIsolatorProcess::PortMappingIsolatorProcess(
     const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
     const std::set<uint16_t>& _flowIDs,
     const Owned<RatesCollector>& _ratesCollector,
+    const Option<Bytes>& _egressRatePerCpu,
     const Option<Bytes>& _ingressRatePerCpu)
   : ProcessBase(process::ID::generate("mesos-port-mapping-isolator")),
     flags(_flags),
@@ -2842,6 +2888,7 @@ PortMappingIsolatorProcess::PortMappingIsolatorProcess(
     ephemeralPortsAllocator(_ephemeralPortsAllocator),
     freeFlowIds(_flowIDs),
     ratesCollector(_ratesCollector),
+    egressRatePerCpu(_egressRatePerCpu),
     ingressRatePerCpu(_ingressRatePerCpu)
 {}
 
@@ -5018,9 +5065,8 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::egressHTBConfig(
   Bytes rate(0);
   if (flags.egress_rate_limit_per_container.isSome()) {
     rate = flags.egress_rate_limit_per_container.get();
-  } else if (flags.egress_rate_per_cpu.isSome()) {
-    rate = flags.egress_rate_per_cpu.get() *
-           floor(resources.cpus().getOrElse(0));
+  } else if (egressRatePerCpu.isSome()) {
+    rate = egressRatePerCpu.get() * floor(resources.cpus().getOrElse(0));
   } else {
     return None();
   }

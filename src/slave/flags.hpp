@@ -153,7 +153,7 @@ public:
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
-  Option<Bytes> egress_rate_per_cpu;
+  Option<std::string> egress_rate_per_cpu;
   Option<Bytes> minimum_egress_rate_limit;
   Option<Bytes> maximum_egress_rate_limit;
   Option<Bytes> egress_ceil_limit;

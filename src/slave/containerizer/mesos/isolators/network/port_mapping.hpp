@@ -343,6 +343,7 @@ private:
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
       const std::set<uint16_t>& _flowIDs,
       const process::Owned<RatesCollector>& _ratesCollector,
+      const Option<Bytes>& _egressRatePerCpu,
       const Option<Bytes>& _ingressRatePerCpu);
 
   // Continuations.
@@ -424,6 +425,7 @@ private:
 
   process::Owned<RatesCollector> ratesCollector;
 
+  const Option<Bytes> egressRatePerCpu;
   const Option<Bytes> ingressRatePerCpu;
 };
 
