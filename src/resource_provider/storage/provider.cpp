@@ -673,8 +673,10 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
         }
       }
 
-      LOG(INFO) << "Finished recovery for resource provider with type '"
-                << info.type() << "' and name '" << info.name() << "'";
+      LOG(INFO)
+        << "Recovered resources '" << totalResources << "' and "
+        << operations.size() << " operations for resource provider with type '"
+        << info.type() << "' and name '" << info.name() << "'";
 
       state = DISCONNECTED;
 
@@ -1081,45 +1083,73 @@ StorageLocalResourceProviderProcess::getExistingVolumes()
 
   return volumeManager->listVolumes()
     .then(defer(self(), [=](const vector<VolumeInfo>& volumeInfos) {
+      // If a volume is duplicated or a volume context has been changed by a
+      // non-conforming CSI plugin, we need to construct a resources conversion
+      // to remove the duplicate and update the metadata, so we maintain the
+      // resources to be removed and those to be added here.
+      Resources toRemove;
+      Resources toAdd;
+
       // Since we only support "exclusive" (MOUNT or BLOCK) disks, there should
       // be only one checkpointed resource for each volume ID.
       hashmap<string, Resource> checkpointedMap;
       foreach (const Resource& resource, totalResources) {
         if (resource.disk().source().has_id()) {
-          CHECK(!checkpointedMap.contains(resource.disk().source().id()));
-          checkpointedMap.put(resource.disk().source().id(), resource);
+          // If the checkpointed resources contain duplicated volumes because of
+          // a non-conforming CSI plugin, remove the duplicate.
+          if (checkpointedMap.contains(resource.disk().source().id())) {
+            LOG(WARNING) << "Removing duplicated volume '" << resource
+                         << "' from the total resources";
+
+            toRemove += resource;
+          } else {
+            checkpointedMap.put(resource.disk().source().id(), resource);
+          }
         }
       }
 
       // The "discovered" resources consist of RAW disk resources, one for each
       // volume reported by the CSI plugin.
       Resources discovered;
-
-      // If any volume context has been changed by a non-conforming CSI plugin,
-      // we need to construct a resources conversion to reflect the
-      // corresponding metadata changes, so we maintain the resources to be
-      // removed and those to be added here.
-      Resources metadataToRemove;
-      Resources metadataToAdd;
+      hashset<string> discoveredVolumeIds;
 
       foreach (const VolumeInfo& volumeInfo, volumeInfos) {
-        Option<string> profile;
-        Option<Labels> metadata = volumeInfo.context.empty()
+        const Option<string> profile =
+          checkpointedMap.contains(volumeInfo.id) &&
+          checkpointedMap.at(volumeInfo.id).disk().source().has_profile()
+            ? checkpointedMap.at(volumeInfo.id).disk().source().profile()
+            : Option<string>::none();
+
+        const Option<Labels> metadata = volumeInfo.context.empty()
           ? Option<Labels>::none()
           : convertStringMapToLabels(volumeInfo.context);
 
+        const Resource resource = createRawDiskResource(
+            info,
+            volumeInfo.capacity,
+            profile,
+            vendor,
+            volumeInfo.id,
+            metadata);
+
+        if (discoveredVolumeIds.contains(volumeInfo.id)) {
+          LOG(WARNING) << "Dropping duplicated volume '" << resource
+                       << "' from the discovered resources";
+
+          continue;
+        }
+
+        discovered += resource;
+        discoveredVolumeIds.insert(volumeInfo.id);
+
         if (checkpointedMap.contains(volumeInfo.id)) {
           const Resource& resource = checkpointedMap.at(volumeInfo.id);
-
-          if (resource.disk().source().has_profile()) {
-            profile = resource.disk().source().profile();
-          }
 
           // If the volume context has been changed by a non-conforming CSI
           // plugin, the changes will be reflected in a resource conversion.
           if (resource.disk().source().metadata() !=
               metadata.getOrElse(Labels())) {
-            metadataToRemove += resource;
+            toRemove += resource;
 
             Resource changed = resource;
             if (metadata.isSome()) {
@@ -1129,21 +1159,13 @@ StorageLocalResourceProviderProcess::getExistingVolumes()
               changed.mutable_disk()->mutable_source()->clear_metadata();
             }
 
-            metadataToAdd += changed;
+            toAdd += changed;
           }
         }
-
-        discovered += createRawDiskResource(
-            info,
-            volumeInfo.capacity,
-            profile,
-            vendor,
-            volumeInfo.id,
-            metadata);
       }
 
       ResourceConversion metadataConversion(
-          std::move(metadataToRemove), std::move(metadataToAdd));
+          std::move(toRemove), std::move(toAdd));
 
       Resources checkpointed = CHECK_NOTERROR(
           totalResources.filter([](const Resource& resource) {
