@@ -61,6 +61,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-9-x-docker-ignore-runtime">docker_ignore_runtime</a></li>
       <li>A <a href="#1-9-x-configurable-ipc">disallow_sharing_agent_ipc_namespace</a></li>
       <li>A <a href="#1-9-x-configurable-ipc">default_container_shm_size</a></li>
+      <li>C <a href="#1-9-x-agent-features">agent_features</a></li>
     </ul>
   </td>
 
@@ -519,6 +520,9 @@ We categorize the changes as follows:
     killed and no offers for that agent are sent to schedulers, preventing the launching of new tasks.
     Operators can put an agent into `DRAINING` state by using the `DRAIN_AGENT` operator API call.
     See [`docs/maintenance`](maintenance.md) for details.
+
+<a name="1-9-x-agent-features"></a>
+* The Mesos agent now requires the new `AGENT_DRAINING` feature. This capability is set by default, but if the `--agent_features` flag is specified explicitly, `AGENT_DRAINING` must be included.
 
 <a name="1-9-x-linux-nnp-isolator"></a>
   * A new [`linux/nnp`](isolators/linux-nnp.md) isolator has been added. The isolator supports setting of the `no_new_privs` bit in the container, preventing tasks from acquiring additional privileges.
