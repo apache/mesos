@@ -566,7 +566,7 @@ We categorize the changes as follows:
 
 * The `SET_QUOTA` and `REMOVE QUOTA` master calls are deprecated in favor of a new `UPDATE_QUOTA` master call.
 
-<a name="#1-9-x-quota-guarantees"></a>
+<a name="1-9-x-quota-guarantees"></a>
 
 * Prior to Mesos 1.9, the quota related APIs only exposed quota "guarantees" which ensured a minimum amount of resources would be available to a role. Setting guarantees also set implicit quota limits. In Mesos 1.9+, quota limits are now exposed directly.
   * Quota guarantees are now deprecated in favor of using only quota limits. Enforcement of quota guarantees required that Mesos holds back enough resources to meet all of the unsatisfied quota guarantees. Since Mesos is moving towards an optimistic offer model (to improve multi-role / multi- scheduler scalability, see MESOS-1607), it will become no longer possible to enforce quota guarantees by holding back resources. In such a model, quota limits are simple to enforce, but quota guarantees would require a complex "effective limit" propagation model to leave space for unsatisfied guarantees.
