@@ -313,7 +313,7 @@ field which we can use to specify the resources to be unreserved.
 The unreserved resources may now be offered to other frameworks.
 
 <a name="offer-operation-reserve-reservation-refinement"></a>
-#### `Offer::Operation::Reserve` (__with__ `RESERVATION_REFNEMENT`)
+#### `Offer::Operation::Reserve` (__with__ `RESERVATION_REFINEMENT`)
 
 A framework that wants to create a refined reservation needs to enable
 the `RESERVATION_REFINEMENT` capability. Doing so will allow the framework
