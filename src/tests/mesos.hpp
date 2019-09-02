@@ -119,6 +119,87 @@ constexpr char DEFAULT_JWT_SECRET_KEY[] =
 class MockExecutor;
 
 
+struct SlaveOptions
+{
+  SlaveOptions(
+      mesos::master::detector::MasterDetector* detector,
+      bool mock = false)
+    : detector(detector), mock(mock)
+  {}
+
+  SlaveOptions& withFlags(const Option<slave::Flags>& flags)
+  {
+    this->flags = flags;
+    return *this;
+  }
+
+  SlaveOptions& withId(const Option<std::string>& id)
+  {
+    this->id = id;
+    return *this;
+  }
+
+  SlaveOptions& withContainerizer(
+      const Option<slave::Containerizer*>& containerizer)
+  {
+    this->containerizer = containerizer;
+    return *this;
+  }
+
+  SlaveOptions& withGc(const Option<slave::GarbageCollector*>& gc)
+  {
+    this->gc = gc;
+    return *this;
+  }
+
+  SlaveOptions& withTaskStatusUpdateManager(
+      const Option<slave::TaskStatusUpdateManager*>& taskStatusUpdateManager)
+  {
+    this->taskStatusUpdateManager = taskStatusUpdateManager;
+    return *this;
+  }
+
+  SlaveOptions& withResourceEstimator(
+      const Option<mesos::slave::ResourceEstimator*>& resourceEstimator)
+  {
+    this->resourceEstimator = resourceEstimator;
+    return *this;
+  }
+
+  SlaveOptions& withQosController(
+      const Option<mesos::slave::QoSController*>& qosController)
+  {
+    this->qosController = qosController;
+    return *this;
+  }
+
+  SlaveOptions& withSecretGenerator(
+      const Option<mesos::SecretGenerator*>& secretGenerator)
+  {
+    this->secretGenerator = secretGenerator;
+    return *this;
+  }
+
+  SlaveOptions& withAuthorizer(const Option<Authorizer*>& authorizer)
+  {
+    this->authorizer = authorizer;
+    return *this;
+  }
+
+  mesos::master::detector::MasterDetector* detector;
+  bool mock;
+  Option<slave::Flags> flags;
+  Option<std::string> id;
+  Option<slave::Containerizer*> containerizer;
+  Option<slave::GarbageCollector*> gc;
+  Option<slave::TaskStatusUpdateManager*> taskStatusUpdateManager;
+  Option<mesos::slave::ResourceEstimator*> resourceEstimator;
+  Option<mesos::slave::QoSController*> qosController;
+  Option<mesos::SecretGenerator*> secretGenerator;
+  Option<Authorizer*> authorizer;
+};
+
+
 // NOTE: `SSLTemporaryDirectoryTest` exists even when SSL is not compiled into
 // Mesos.  In this case, the class is an alias of `TemporaryDirectoryTest`.
 class MesosTest : public SSLTemporaryDirectoryTest
@@ -157,24 +238,11 @@ protected:
       const std::shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
       const Option<master::Flags>& flags = None());
 
-  // TODO(bmahler): Consider adding a builder style interface, e.g.
-  //
-  // Try<PID<Slave>> slave =
-  //   Slave().With(flags)
-  //          .With(executor)
-  //          .With(containerizer)
-  //          .With(detector)
-  //          .With(gc)
-  //          .Start();
-  //
-  // Or options:
-  //
-  // Injections injections;
-  // injections.executor = executor;
-  // injections.containerizer = containerizer;
-  // injections.detector = detector;
-  // injections.gc = gc;
-  // Try<PID<Slave>> slave = StartSlave(injections);
+  // Starts a slave with the specified options.
+  // NOTE: This is a preferred method to start a slave.
+  // The other overloads of `StartSlave` are DEPRECATED!
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      const SlaveOptions& options);
 
   // Starts a slave with the specified detector and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
