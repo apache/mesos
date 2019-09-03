@@ -253,12 +253,12 @@ public:
       const protobuf::slave::Capabilities& _capabilities,
       bool _activated,
       const Resources& _total,
-      const Resources& _allocated)
+      const Resources& _offeredOrAllocated)
     : info(_info),
       capabilities(_capabilities),
       activated(_activated),
       total(_total),
-      allocated(_allocated),
+      offeredOrAllocated(_offeredOrAllocated),
       shared(_total.shared()),
       hasGpu_(_total.gpus().getOrElse(0) > 0)
   {
@@ -267,7 +267,7 @@ public:
 
   const Resources& getTotal() const { return total; }
 
-  const Resources& getAllocated() const { return allocated; }
+  const Resources& getOfferedOrAllocated() const { return offeredOrAllocated; }
 
   const Resources& getAvailable() const { return available; }
 
@@ -281,16 +281,16 @@ public:
     updateAvailable();
   }
 
-  void allocate(const Resources& toAllocate)
+  void decreaseAvailable(const Resources& offeredOrAllocated_)
   {
-    allocated += toAllocate;
+    offeredOrAllocated += offeredOrAllocated_;
 
     updateAvailable();
   }
 
-  void unallocate(const Resources& toUnallocate)
+  void increaseAvailable(const Resources& offeredOrAllocated_)
   {
-    allocated -= toUnallocate;
+    offeredOrAllocated -= offeredOrAllocated_;
 
     updateAvailable();
   }
@@ -345,8 +345,8 @@ private:
   void updateAvailable() {
     // In order to subtract from the total,
     // we strip the allocation information.
-    Resources allocated_ = allocated;
-    allocated_.unallocate();
+    Resources offeredOrAllocated_ = offeredOrAllocated;
+    offeredOrAllocated_.unallocate();
 
     // Calling `nonShared()` currently copies the underlying resources
     // and is therefore rather expensive. We avoid it in the common
@@ -357,18 +357,19 @@ private:
     // `nonShared()` performs no copying and instead points to a
     // subset of the original `Resource` objects.
     if (shared.empty()) {
-      available = total - allocated_;
+      available = total - offeredOrAllocated_;
     } else {
       // Since shared resources are offerable even when they are in use, we
       // always include them as part of available resources.
-      available = (total.nonShared() - allocated_.nonShared()) + shared;
+      available =
+        (total.nonShared() - offeredOrAllocated_.nonShared()) + shared;
     }
   }
 
   // Total amount of regular *and* oversubscribed resources.
   Resources total;
 
-  // Regular *and* oversubscribed resources that are allocated.
+  // Regular *and* oversubscribed resources that are offered or allocated.
   //
   // NOTE: We maintain multiple copies of each shared resource allocated
   // to a slave, where the number of copies represents the number of times
@@ -379,7 +380,7 @@ private:
   // having that information in sorters. This is because the
   // information in sorters is not accurate if some framework
   // hasn't reregistered. See MESOS-2919 for details.
-  Resources allocated;
+  Resources offeredOrAllocated;
 
   // We track the total and allocated resources on the slave to
   // avoid calculating it in place every time.

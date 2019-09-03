@@ -851,9 +851,10 @@ void HierarchicalAllocatorProcess::addSlave(
     resume();
   }
 
-  LOG(INFO) << "Added agent " << slaveId << " (" << slave.info.hostname() << ")"
-            << " with " << slave.getTotal()
-            << " (allocated: " << slave.getAllocated() << ")";
+  LOG(INFO)
+    << "Added agent " << slaveId << " (" << slave.info.hostname() << ")"
+    << " with " << slave.getTotal()
+    << " (offered or allocated: " << slave.getOfferedOrAllocated() << ")";
 
   allocate(slaveId);
 }
@@ -986,7 +987,7 @@ void HierarchicalAllocatorProcess::addResourceProvider(
 
   Slave& slave = *CHECK_NOTNONE(getSlave(slaveId));
   updateSlaveTotal(slaveId, slave.getTotal() + total);
-  slave.allocate(Resources::sum(used));
+  slave.decreaseAvailable(Resources::sum(used));
 
   VLOG(1)
     << "Grew agent " << slaveId << " by "
@@ -1113,8 +1114,8 @@ void HierarchicalAllocatorProcess::updateAllocation(
   const Resources& updatedOfferedResources = _updatedOfferedResources.get();
 
   // Update the per-slave allocation.
-  slave.unallocate(offeredResources);
-  slave.allocate(updatedOfferedResources);
+  slave.increaseAvailable(offeredResources);
+  slave.decreaseAvailable(updatedOfferedResources);
 
   // Update the allocation in the framework sorter.
   frameworkSorter->update(
@@ -1441,15 +1442,16 @@ void HierarchicalAllocatorProcess::recoverResources(
   Option<Slave*> slave = getSlave(slaveId);
 
   if (slave.isSome()) {
-    CHECK((*slave)->getAllocated().contains(resources))
+    CHECK((*slave)->getOfferedOrAllocated().contains(resources))
       << "agent " << slaveId << " resources "
-      << (*slave)->getAllocated() << " do not contain " << resources;
+      << (*slave)->getOfferedOrAllocated() << " do not contain " << resources;
 
-    (*slave)->unallocate(resources);
+    (*slave)->increaseAvailable(resources);
 
     VLOG(1) << "Recovered " << resources
             << " (total: " << (*slave)->getTotal()
-            << ", allocated: " << (*slave)->getAllocated() << ")"
+            << ", offered or allocated: "
+            << (*slave)->getOfferedOrAllocated() << ")"
             << " on agent " << slaveId
             << " from framework " << frameworkId;
   }
@@ -2166,7 +2168,7 @@ void HierarchicalAllocatorProcess::__allocate()
           ResourceQuantities::fromScalarResources(guaranteesAllocation);
         availableHeadroom -= increasedQuotaConsumption;
 
-        slave.allocate(toAllocate);
+        slave.decreaseAvailable(toAllocate);
 
         trackAllocatedResources(slaveId, frameworkId, toAllocate);
       }
@@ -2313,7 +2315,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         availableHeadroom -= increasedQuotaConsumption;
 
-        slave.allocate(toAllocate);
+        slave.decreaseAvailable(toAllocate);
 
         trackAllocatedResources(slaveId, frameworkId, toAllocate);
       }
@@ -2652,7 +2654,7 @@ double HierarchicalAllocatorProcess::_resources_offered_or_allocated(
 
   foreachvalue (const Slave& slave, slaves) {
     Option<Value::Scalar> value =
-      slave.getAllocated().get<Value::Scalar>(resource);
+      slave.getOfferedOrAllocated().get<Value::Scalar>(resource);
 
     if (value.isSome()) {
       offered_or_allocated += value->value();
