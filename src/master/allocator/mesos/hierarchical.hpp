@@ -253,12 +253,13 @@ public:
       const protobuf::slave::Capabilities& _capabilities,
       bool _activated,
       const Resources& _total,
-      const Resources& _offeredOrAllocated)
+      const hashmap<FrameworkID, Resources>& _offeredOrAllocated)
     : info(_info),
       capabilities(_capabilities),
       activated(_activated),
       total(_total),
       offeredOrAllocated(_offeredOrAllocated),
+      totalOfferedOrAllocated(Resources::sum(_offeredOrAllocated)),
       shared(_total.shared()),
       hasGpu_(_total.gpus().getOrElse(0) > 0)
   {
@@ -267,7 +268,15 @@ public:
 
   const Resources& getTotal() const { return total; }
 
-  const Resources& getOfferedOrAllocated() const { return offeredOrAllocated; }
+  const hashmap<FrameworkID, Resources>& getOfferedOrAllocated() const
+  {
+    return offeredOrAllocated;
+  }
+
+  const Resources& getTotalOfferedOrAllocated() const
+  {
+    return totalOfferedOrAllocated;
+  }
 
   const Resources& getAvailable() const { return available; }
 
@@ -281,16 +290,30 @@ public:
     updateAvailable();
   }
 
-  void decreaseAvailable(const Resources& offeredOrAllocated_)
+  void increaseAvailable(
+      const FrameworkID& frameworkId, const Resources& offeredOrAllocated_)
   {
-    offeredOrAllocated += offeredOrAllocated_;
+    // Increasing available is to subtract offered or allocated.
+
+    Resources& resources = offeredOrAllocated.at(frameworkId);
+    resources -= offeredOrAllocated_;
+    if (resources.empty()) {
+      offeredOrAllocated.erase(frameworkId);
+    }
+
+    totalOfferedOrAllocated -= offeredOrAllocated_;
 
     updateAvailable();
   }
 
-  void increaseAvailable(const Resources& offeredOrAllocated_)
+  void decreaseAvailable(
+      const FrameworkID& frameworkId, const Resources& offeredOrAllocated_)
   {
-    offeredOrAllocated -= offeredOrAllocated_;
+    // Decreasing available is to add offered or allocated.
+
+    offeredOrAllocated[frameworkId] += offeredOrAllocated_;
+
+    totalOfferedOrAllocated += offeredOrAllocated_;
 
     updateAvailable();
   }
@@ -342,45 +365,42 @@ public:
   Option<Maintenance> maintenance;
 
 private:
-  void updateAvailable() {
+  void updateAvailable()
+  {
     // In order to subtract from the total,
     // we strip the allocation information.
-    Resources offeredOrAllocated_ = offeredOrAllocated;
-    offeredOrAllocated_.unallocate();
+    Resources totalOfferedOrAllocated_ = totalOfferedOrAllocated;
+    totalOfferedOrAllocated_.unallocate();
 
-    // Calling `nonShared()` currently copies the underlying resources
-    // and is therefore rather expensive. We avoid it in the common
-    // case that there are no shared resources.
-    //
-    // TODO(mzhu): Ideally there would be a single logical path here.
-    // One solution is to have `Resources` be copy-on-write such that
-    // `nonShared()` performs no copying and instead points to a
-    // subset of the original `Resource` objects.
+    // This is hot path. We avoid the unnecessary resource traversals
+    // in the common case where there are no shared resources.
     if (shared.empty()) {
-      available = total - offeredOrAllocated_;
+      available = total - totalOfferedOrAllocated_;
     } else {
       // Since shared resources are offerable even when they are in use, we
       // always include them as part of available resources.
       available =
-        (total.nonShared() - offeredOrAllocated_.nonShared()) + shared;
+        (total.nonShared() - totalOfferedOrAllocated_.nonShared()) + shared;
     }
   }
 
   // Total amount of regular *and* oversubscribed resources.
   Resources total;
 
-  // Regular *and* oversubscribed resources that are offered or allocated.
-  //
-  // NOTE: We maintain multiple copies of each shared resource allocated
-  // to a slave, where the number of copies represents the number of times
-  // this shared resource has been allocated to (and has not been recovered
-  // from) a specific framework.
-  //
   // NOTE: We keep track of the slave's allocated resources despite
   // having that information in sorters. This is because the
   // information in sorters is not accurate if some framework
   // hasn't reregistered. See MESOS-2919 for details.
-  Resources offeredOrAllocated;
+  //
+  // This includes both regular *and* oversubscribed resources.
+  //
+  // An entry is erased if a framework no longer has any
+  // offered or allocated on the agent.
+  hashmap<FrameworkID, Resources> offeredOrAllocated;
+
+  // Sum of all offered or allocated resources on the agent. This should equal
+  // to sum of `offeredOrAllocated` (including all the meta-data).
+  Resources totalOfferedOrAllocated;
 
   // We track the total and allocated resources on the slave to
   // avoid calculating it in place every time.
