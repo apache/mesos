@@ -2101,7 +2101,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         // We need to allocate guarantees unconditionally here so that
         // even the cluster is overcommitted by guarantees (thus deficit in
         // headroom), this role's guarantees can still be allocated.
-        Resources toAllocate = guaranteesAllocation +
+        Resources toOffer = guaranteesAllocation +
                                available.filter([&](const Resource& resource) {
                                  return Resources::isReserved(resource, role) ||
                                         resource.type() != Value::SCALAR ||
@@ -2135,22 +2135,22 @@ void HierarchicalAllocatorProcess::__generateOffers()
               additionalScalarAllocation, availableHeadroom - requiredHeadroom);
         }
 
-        toAllocate += additionalScalarAllocation;
+        toOffer += additionalScalarAllocation;
 
         // If the framework filters these resources, ignore.
-        if (!allocatable(toAllocate, role, framework) ||
-            isFiltered(framework, role, slave, toAllocate)) {
+        if (!allocatable(toOffer, role, framework) ||
+            isFiltered(framework, role, slave, toOffer)) {
           continue;
         }
 
-        VLOG(2) << "Allocating " << toAllocate << " on agent " << slaveId
+        VLOG(2) << "Offering " << toOffer << " on agent " << slaveId
                 << " to role " << role << " of framework " << frameworkId
                 << " as part of its role quota";
 
-        toAllocate.allocate(role);
+        toOffer.allocate(role);
 
-        offerable[frameworkId][role][slaveId] += toAllocate;
-        offeredSharedResources[slaveId] += toAllocate.shared();
+        offerable[frameworkId][role][slaveId] += toOffer;
+        offeredSharedResources[slaveId] += toOffer.shared();
 
         // Update role consumed quota and quota headroom.
 
@@ -2168,9 +2168,9 @@ void HierarchicalAllocatorProcess::__generateOffers()
           ResourceQuantities::fromScalarResources(guaranteesAllocation);
         availableHeadroom -= increasedQuotaConsumption;
 
-        slave.decreaseAvailable(toAllocate);
+        slave.decreaseAvailable(toOffer);
 
-        trackAllocatedResources(slaveId, frameworkId, toAllocate);
+        trackAllocatedResources(slaveId, frameworkId, toOffer);
       }
     }
   }
@@ -2243,7 +2243,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
         // Reservations (including the roles ancestors' reservations),
         // non-scalar resources and revocable resources are always allocated.
-        Resources toAllocate = available.filter([&](const Resource& resource) {
+        Resources toOffer = available.filter([&](const Resource& resource) {
           return Resources::isReserved(resource) ||
                  resource.type() != Value::SCALAR ||
                  Resources::isRevocable(resource);
@@ -2285,21 +2285,21 @@ void HierarchicalAllocatorProcess::__generateOffers()
           }
         }
 
-        toAllocate += additionalScalarAllocation;
+        toOffer += additionalScalarAllocation;
 
         // If the framework filters these resources, ignore.
-        if (!allocatable(toAllocate, role, framework) ||
-            isFiltered(framework, role, slave, toAllocate)) {
+        if (!allocatable(toOffer, role, framework) ||
+            isFiltered(framework, role, slave, toOffer)) {
           continue;
         }
 
-        VLOG(2) << "Allocating " << toAllocate << " on agent " << slaveId
+        VLOG(2) << "Offering " << toOffer << " on agent " << slaveId
                 << " to role " << role << " of framework " << frameworkId;
 
-        toAllocate.allocate(role);
+        toOffer.allocate(role);
 
-        offerable[frameworkId][role][slaveId] += toAllocate;
-        offeredSharedResources[slaveId] += toAllocate.shared();
+        offerable[frameworkId][role][slaveId] += toOffer;
+        offeredSharedResources[slaveId] += toOffer.shared();
 
         // Update role consumed quota and quota headroom
 
@@ -2315,9 +2315,9 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
         availableHeadroom -= increasedQuotaConsumption;
 
-        slave.decreaseAvailable(toAllocate);
+        slave.decreaseAvailable(toOffer);
 
-        trackAllocatedResources(slaveId, frameworkId, toAllocate);
+        trackAllocatedResources(slaveId, frameworkId, toOffer);
       }
     }
   }
