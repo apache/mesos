@@ -484,7 +484,7 @@ void HierarchicalAllocatorProcess::initialize(
         return after(allocationInterval);
       },
       [_self](const Nothing&) {
-        return dispatch(_self, &HierarchicalAllocatorProcess::allocate)
+        return dispatch(_self, &HierarchicalAllocatorProcess::generateOffers)
           .then([]() -> ControlFlow<Nothing> { return Continue(); });
       });
 }
@@ -605,7 +605,7 @@ void HierarchicalAllocatorProcess::addFramework(
   LOG(INFO) << "Added framework " << frameworkId;
 
   if (active) {
-    allocate();
+    generateOffers();
   } else {
     deactivateFramework(frameworkId);
   }
@@ -680,7 +680,7 @@ void HierarchicalAllocatorProcess::activateFramework(
 
   LOG(INFO) << "Activated framework " << frameworkId;
 
-  allocate();
+  generateOffers();
 }
 
 
@@ -856,7 +856,7 @@ void HierarchicalAllocatorProcess::addSlave(
     << " with " << slave.getTotal()
     << " (offered or allocated: " << slave.getOfferedOrAllocated() << ")";
 
-  allocate(slaveId);
+  generateOffers(slaveId);
 }
 
 
@@ -952,7 +952,7 @@ void HierarchicalAllocatorProcess::updateSlave(
   }
 
   if (updated) {
-    allocate(slaveId);
+    generateOffers(slaveId);
   }
 }
 
@@ -1268,7 +1268,7 @@ void HierarchicalAllocatorProcess::updateUnavailability(
     slave.maintenance = Slave::Maintenance(unavailability.get());
   }
 
-  allocate(slaveId);
+  generateOffers(slaveId);
 }
 
 
@@ -1606,7 +1606,7 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
   reviveRoles(framework, roles.empty() ? framework.roles : roles);
 
-  allocate();
+  generateOffers();
 }
 
 
@@ -1664,21 +1664,21 @@ void HierarchicalAllocatorProcess::resume()
 }
 
 
-Future<Nothing> HierarchicalAllocatorProcess::allocate()
+Future<Nothing> HierarchicalAllocatorProcess::generateOffers()
 {
-  return allocate(slaves.keys());
+  return generateOffers(slaves.keys());
 }
 
 
-Future<Nothing> HierarchicalAllocatorProcess::allocate(
+Future<Nothing> HierarchicalAllocatorProcess::generateOffers(
     const SlaveID& slaveId)
 {
   hashset<SlaveID> slaves({slaveId});
-  return allocate(slaves);
+  return generateOffers(slaves);
 }
 
 
-Future<Nothing> HierarchicalAllocatorProcess::allocate(
+Future<Nothing> HierarchicalAllocatorProcess::generateOffers(
     const hashset<SlaveID>& slaveIds)
 {
   if (paused) {
@@ -1689,16 +1689,16 @@ Future<Nothing> HierarchicalAllocatorProcess::allocate(
 
   allocationCandidates |= slaveIds;
 
-  if (allocation.isNone() || !allocation->isPending()) {
+  if (offerGeneration.isNone() || !offerGeneration->isPending()) {
     metrics.allocation_run_latency.start();
-    allocation = dispatch(self(), &Self::_allocate);
+    offerGeneration = dispatch(self(), &Self::_generateOffers);
   }
 
-  return allocation.get();
+  return offerGeneration.get();
 }
 
 
-Nothing HierarchicalAllocatorProcess::_allocate()
+Nothing HierarchicalAllocatorProcess::_generateOffers()
 {
   metrics.allocation_run_latency.stop();
 
@@ -1714,12 +1714,12 @@ Nothing HierarchicalAllocatorProcess::_allocate()
   stopwatch.start();
   metrics.allocation_run.start();
 
-  __allocate();
+  __generateOffers();
 
   // NOTE: For now, we implement maintenance inverse offers within the
   // allocator. We leverage the existing timer/cycle of offers to also do any
-  // "deallocation" (inverse offers) necessary to satisfy maintenance needs.
-  deallocate();
+  // inverse offers generation necessary to satisfy maintenance needs.
+  generateInverseOffers();
 
   metrics.allocation_run.stop();
 
@@ -1734,7 +1734,7 @@ Nothing HierarchicalAllocatorProcess::_allocate()
 
 
 // TODO(alexr): Consider factoring out the quota allocation logic.
-void HierarchicalAllocatorProcess::__allocate()
+void HierarchicalAllocatorProcess::__generateOffers()
 {
   // Compute the offerable resources, per framework:
   //   (1) For reserved resources on the slave, allocate these to a
@@ -2341,7 +2341,7 @@ void HierarchicalAllocatorProcess::__allocate()
 }
 
 
-void HierarchicalAllocatorProcess::deallocate()
+void HierarchicalAllocatorProcess::generateInverseOffers()
 {
   // In this case, `offerable` is actually the slaves and/or resources that we
   // want the master to create `InverseOffer`s from.
@@ -2672,7 +2672,7 @@ double HierarchicalAllocatorProcess::_resources_total(
 }
 
 
-double HierarchicalAllocatorProcess::_quota_allocated(
+double HierarchicalAllocatorProcess::_quota_offered_or_allocated(
     const string& role,
     const string& resource)
 {

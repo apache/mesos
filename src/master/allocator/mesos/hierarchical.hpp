@@ -94,7 +94,7 @@ struct Framework
   protobuf::framework::Capabilities capabilities;
 
   // Offer filters are tied to the role the filtered
-  // resources were allocated to.
+  // resources were offered to.
   hashmap<std::string, hashmap<SlaveID, hashset<std::shared_ptr<OfferFilter>>>>
     offerFilters;
 
@@ -555,24 +555,21 @@ protected:
   typedef HierarchicalAllocatorProcess Self;
   typedef HierarchicalAllocatorProcess This;
 
-  // Allocate any allocatable resources from all known agents.
-  process::Future<Nothing> allocate();
+  // Generate offers from all known agents.
+  process::Future<Nothing> generateOffers();
 
-  // Allocate resources from the specified agent.
-  process::Future<Nothing> allocate(const SlaveID& slaveId);
+  // Generate offers from the specified agent.
+  process::Future<Nothing> generateOffers(const SlaveID& slaveId);
 
-  // Allocate resources from the specified agents. The allocation
-  // is deferred and batched with other allocation requests.
-  process::Future<Nothing> allocate(const hashset<SlaveID>& slaveIds);
+  // Generate offers from the specified agents. The offer generation is
+  // deferred and batched with other offer generation requests.
+  process::Future<Nothing> generateOffers(const hashset<SlaveID>& slaveIds);
 
-  // Method that performs allocation work.
-  Nothing _allocate();
+  Nothing _generateOffers();
 
-  // Helper for `_allocate()` that allocates resources for offers.
-  void __allocate();
+  void __generateOffers();
 
-  // Helper for `_allocate()` that deallocates resources for inverse offers.
-  void deallocate();
+  void generateInverseOffers();
 
   // Remove an offer filter for the specified role of the framework.
   void expire(
@@ -647,7 +644,7 @@ protected:
   double _resources_offered_or_allocated(
       const std::string& resource);
 
-  double _quota_allocated(
+  double _quota_offered_or_allocated(
       const std::string& role,
       const std::string& resource);
 
@@ -664,35 +661,35 @@ protected:
   RoleTree roleTree;
 
   // A set of agents that are kept as allocation candidates. Events
-  // may add or remove candidates to the set. When an allocation is
+  // may add or remove candidates to the set. When an offer generation is
   // processed, the set of candidates is cleared.
   hashset<SlaveID> allocationCandidates;
 
-  // Future for the dispatched allocation that becomes
-  // ready after the allocation run is complete.
-  Option<process::Future<Nothing>> allocation;
+  // Future for the dispatched offer generation that becomes
+  // ready after the offer generation run is complete.
+  Option<process::Future<Nothing>> offerGeneration;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
 
-  // There are two stages of allocation:
+  // There are two stages of offer generation:
   //
-  //   Stage 1: Allocate to satisfy quota guarantees.
+  //   Stage 1: Generate offers to satisfy quota guarantees.
   //
-  //   Stage 2: Allocate above quota guarantees up to quota limits.
+  //   Stage 2: Generate offers above quota guarantees up to quota limits.
   //            Note that we need to hold back enough "headroom"
   //            to ensure that any unsatisfied quota can be
   //            satisfied later.
   //
   // Each stage comprises two levels of sorting, hence "hierarchical".
   // Level 1 sorts across roles:
-  //   Currently, only the allocated portion of the reserved resources are
-  //   accounted for fairness calculation.
+  //   Currently, only the offered or allocated portion of the reserved
+  //   resources are accounted for fairness calculation.
   //
   // TODO(mpark): Reserved resources should be accounted for fairness
-  // calculation whether they are allocated or not, since they model a long or
-  // forever running task. That is, the effect of reserving resources is
-  // equivalent to launching a task in that the resources that make up the
+  // calculation whether they are offered/allocated or not, since they model
+  // a long or forever running task. That is, the effect of reserving resources
+  // is equivalent to launching a task in that the resources that make up the
   // reservation are not available to other roles as non-revocable.
   //
   // Level 2 sorts across frameworks within a particular role:
@@ -711,15 +708,15 @@ protected:
   // revocable resources.
 
   // A sorter for active roles. This sorter determines the order in which
-  // roles are allocated resources during Level 1 of the second stage.
+  // roles are offered resources during Level 1 of the second stage.
   // The total cluster resources are used as the resource pool.
   process::Owned<Sorter> roleSorter;
 
   // A collection of sorters, one per active role. Each sorter determines
-  // the order in which frameworks that belong to the same role are allocated
+  // the order in which frameworks that belong to the same role are offered
   // resources inside the role's share. These sorters are used during Level 2
   // for both the first and the second stages. Since frameworks are sharing
-  // the resources allocated to a role, the role's allocation is used as
+  // resources of a role, resources offered or allocated to the role are used as
   // the resource pool for each role specific framework sorter.
   hashmap<std::string, process::Owned<Sorter>> frameworkSorters;
 
@@ -777,17 +774,21 @@ private:
       const Resources& resources,
       const protobuf::framework::Capabilities& frameworkCapabilities) const;
 
-  // Helper to track allocated resources on an agent.
+  // Helper to track offered or allocated resources on an agent.
+  //
+  // TODO(asekretenko): rename `(un)trackAllocatedResources()` to reflect the
+  // fact that these methods do not distinguish between offered and allocated.
   void trackAllocatedResources(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
-      const Resources& allocated);
+      const Resources& offeredOrAllocated);
 
-  // Helper to untrack resources that are no longer allocated on an agent.
+  // Helper to untrack resources that are no longer offered or allocated
+  // on an agent.
   void untrackAllocatedResources(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
-      const Resources& allocated);
+      const Resources& offeredOrallocated);
 
   // Helper that removes all existing offer filters for the given slave
   // id.

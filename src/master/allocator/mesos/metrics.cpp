@@ -209,7 +209,7 @@ void Metrics::updateQuota(const string& role, const Quota& quota)
         "/resources/" + name +
         "/offered_or_allocated",
         defer(allocator,
-              &HierarchicalAllocatorProcess::_quota_allocated,
+              &HierarchicalAllocatorProcess::_quota_offered_or_allocated,
               role,
               name));
 
