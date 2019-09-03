@@ -1883,14 +1883,14 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
   // TODO(mzhu): make allocation tracking hierarchical, so that we only
   // need to look at the top-level node.
-  ResourceQuantities totalAllocatedReservation;
+  ResourceQuantities totalOfferedOrAllocatedReservation;
   foreachkey (const string& role, roleTree.roles()) {
     if (!roleSorter->contains(role)) {
       continue; // This role has no allocation.
     }
 
     foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
-      totalAllocatedReservation +=
+      totalOfferedOrAllocatedReservation +=
         ResourceQuantities::fromScalarResources(resources.reserved().scalars());
     }
   }
@@ -1898,7 +1898,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
   // Subtract total unallocated reservations.
   // unallocated reservations = total reservations - allocated reservations
   availableHeadroom -= roleTree.root()->reservationScalarQuantities() -
-                       totalAllocatedReservation;
+                       totalOfferedOrAllocatedReservation;
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
