@@ -2075,7 +2075,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
                    !Resources::isRevocable(resource);
           });
 
-        Resources guaranteesAllocation =
+        Resources guaranteesOffering =
           shrinkResources(quotaResources, unsatisfiedQuotaGuarantees);
 
         // We allocate this agent only if the role can make progress towards
@@ -2091,7 +2091,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         //
         // NOTE: Since we currently only support top-level roles to
         // have quota, there are no ancestor reservations involved here.
-        if (guaranteesAllocation.empty()) {
+        if (guaranteesOffering.empty()) {
           continue;
         }
 
@@ -2101,41 +2101,41 @@ void HierarchicalAllocatorProcess::__generateOffers()
         // We need to allocate guarantees unconditionally here so that
         // even the cluster is overcommitted by guarantees (thus deficit in
         // headroom), this role's guarantees can still be allocated.
-        Resources toOffer = guaranteesAllocation +
+        Resources toOffer = guaranteesOffering +
                                available.filter([&](const Resource& resource) {
                                  return Resources::isReserved(resource, role) ||
                                         resource.type() != Value::SCALAR ||
                                         Resources::isRevocable(resource);
                                });
 
-        Resources additionalScalarAllocation =
-          quotaResources - guaranteesAllocation;
+        Resources additionalScalarOffering =
+          quotaResources - guaranteesOffering;
 
         // Then, non-guaranteed quota resources are subject to quota limits
         // and global headroom enforcements.
 
         // Limits enforcement.
         if (!quotaLimits.empty()) {
-          additionalScalarAllocation = shrinkResources(
-              additionalScalarAllocation,
+          additionalScalarOffering = shrinkResources(
+              additionalScalarOffering,
               quotaLimits - CHECK_NOTNONE(rolesConsumedQuota.get(role)) -
-                ResourceQuantities::fromScalarResources(guaranteesAllocation));
+                ResourceQuantities::fromScalarResources(guaranteesOffering));
         }
 
         // Headroom enforcement.
         //
         // This check is only for performance optimization.
-        if (!requiredHeadroom.empty() && !additionalScalarAllocation.empty()) {
+        if (!requiredHeadroom.empty() && !additionalScalarOffering.empty()) {
           // Shrink down to surplus headroom.
           //
-          // Surplus headroom = (availableHeadroom - guaranteesAllocation) -
-          //                      (requiredHeadroom - guaranteesAllocation)
+          // Surplus headroom = (availableHeadroom - guaranteesOffering) -
+          //                      (requiredHeadroom - guaranteesOffering)
           //                  = availableHeadroom - requiredHeadroom
-          additionalScalarAllocation = shrinkResources(
-              additionalScalarAllocation, availableHeadroom - requiredHeadroom);
+          additionalScalarOffering = shrinkResources(
+              additionalScalarOffering, availableHeadroom - requiredHeadroom);
         }
 
-        toOffer += additionalScalarAllocation;
+        toOffer += additionalScalarOffering;
 
         // If the framework filters these resources, ignore.
         if (!allocatable(toOffer, role, framework) ||
@@ -2156,7 +2156,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
         ResourceQuantities increasedQuotaConsumption =
           ResourceQuantities::fromScalarResources(
-              guaranteesAllocation + additionalScalarAllocation);
+              guaranteesOffering + additionalScalarOffering);
 
         unsatisfiedQuotaGuarantees -= increasedQuotaConsumption;
         rolesConsumedQuota[role] += increasedQuotaConsumption;
@@ -2165,7 +2165,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         }
 
         requiredHeadroom -=
-          ResourceQuantities::fromScalarResources(guaranteesAllocation);
+          ResourceQuantities::fromScalarResources(guaranteesOffering);
         availableHeadroom -= increasedQuotaConsumption;
 
         slave.decreaseAvailable(toOffer);
@@ -2254,7 +2254,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         //
         // This is hot path, we use explicit filter calls to avoid
         // multiple traversal.
-        Resources additionalScalarAllocation =
+        Resources additionalScalarOffering =
           available.filter([&](const Resource& resource) {
             return resource.type() == Value::SCALAR &&
                    Resources::isUnreserved(resource) &&
@@ -2263,29 +2263,29 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
         // Limits enforcement.
         if (!quotaLimits.empty()) {
-          additionalScalarAllocation = shrinkResources(
-              additionalScalarAllocation,
+          additionalScalarOffering = shrinkResources(
+              additionalScalarOffering,
               quotaLimits - CHECK_NOTNONE(rolesConsumedQuota.get(role)));
         }
 
         // Headroom enforcement.
         //
         // This check is only for performance optimization.
-        if (!requiredHeadroom.empty() && !additionalScalarAllocation.empty()) {
+        if (!requiredHeadroom.empty() && !additionalScalarOffering.empty()) {
           Resources shrunk = shrinkResources(
-              additionalScalarAllocation, availableHeadroom - requiredHeadroom);
+              additionalScalarOffering, availableHeadroom - requiredHeadroom);
 
           // If resources are held back.
-          if (shrunk != additionalScalarAllocation) {
+          if (shrunk != additionalScalarOffering) {
             heldBackForHeadroom += ResourceQuantities::fromScalarResources(
-                additionalScalarAllocation - shrunk);
+                additionalScalarOffering - shrunk);
             ++heldBackAgentCount;
 
-            additionalScalarAllocation = std::move(shrunk);
+            additionalScalarOffering = std::move(shrunk);
           }
         }
 
-        toOffer += additionalScalarAllocation;
+        toOffer += additionalScalarOffering;
 
         // If the framework filters these resources, ignore.
         if (!allocatable(toOffer, role, framework) ||
@@ -2304,7 +2304,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         // Update role consumed quota and quota headroom
 
         ResourceQuantities increasedQuotaConsumption =
-          ResourceQuantities::fromScalarResources(additionalScalarAllocation);
+          ResourceQuantities::fromScalarResources(additionalScalarOffering);
 
         if (getQuota(role) != DEFAULT_QUOTA) {
           rolesConsumedQuota[role] += increasedQuotaConsumption;
