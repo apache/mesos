@@ -114,10 +114,6 @@ public:
       const std::string& client) const = 0;
   virtual const ResourceQuantities& allocationScalarQuantities() const = 0;
 
-  // Returns the clients that have allocations on this slave.
-  virtual hashmap<std::string, Resources> allocation(
-      const SlaveID& slaveId) const = 0;
-
   // Returns the given slave's resources that have been allocated to
   // this client.
   virtual Resources allocation(

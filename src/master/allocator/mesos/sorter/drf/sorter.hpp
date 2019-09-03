@@ -90,9 +90,6 @@ public:
   const ResourceQuantities& allocationScalarQuantities()
       const override;
 
-  hashmap<std::string, Resources> allocation(
-      const SlaveID& slaveId) const override;
-
   Resources allocation(
       const std::string& clientPath,
       const SlaveID& slaveId) const override;

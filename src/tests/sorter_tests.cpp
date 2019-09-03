@@ -737,14 +737,6 @@ TEST(DRFSorterTest, HierarchicalAllocation)
   EXPECT_EQ(vector<string>({"a", "b/d", "b/c"}), sorter.sort());
 
   {
-    hashmap<string, Resources> agentAllocation =
-      sorter.allocation(slaveId);
-
-    EXPECT_EQ(3u, agentAllocation.size());
-    EXPECT_EQ(aResources, agentAllocation.at("a"));
-    EXPECT_EQ(cResources, agentAllocation.at("b/c"));
-    EXPECT_EQ(dResources, agentAllocation.at("b/d"));
-
     EXPECT_EQ(aResources, sorter.allocation("a", slaveId));
     EXPECT_EQ(cResources, sorter.allocation("b/c", slaveId));
     EXPECT_EQ(dResources, sorter.allocation("b/d", slaveId));
@@ -1297,11 +1289,6 @@ TYPED_TEST(CommonSorterTest, AllocationForInactiveClient)
 
   sorter.allocated("a", slaveId, Resources::parse("cpus:2;mem:2").get());
   sorter.allocated("b", slaveId, Resources::parse("cpus:3;mem:3").get());
-
-  hashmap<string, Resources> clientAllocation = sorter.allocation(slaveId);
-  EXPECT_EQ(2u, clientAllocation.size());
-  EXPECT_EQ(Resources::parse("cpus:2;mem:2").get(), clientAllocation.at("a"));
-  EXPECT_EQ(Resources::parse("cpus:3;mem:3").get(), clientAllocation.at("b"));
 
   hashmap<SlaveID, Resources> agentAllocation1 = sorter.allocation("a");
   EXPECT_EQ(1u, agentAllocation1.size());

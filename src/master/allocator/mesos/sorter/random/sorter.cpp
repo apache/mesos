@@ -367,33 +367,6 @@ const ResourceQuantities& RandomSorter::allocationScalarQuantities() const
 }
 
 
-hashmap<string, Resources> RandomSorter::allocation(
-    const SlaveID& slaveId) const
-{
-  hashmap<string, Resources> result;
-
-  // We want to find the allocation that has been made to each client
-  // on a particular `slaveId`. Rather than traversing the tree
-  // looking for leaf nodes (clients), we can instead just iterate
-  // over the `clients` hashmap.
-  //
-  // TODO(jmlvanre): We can index the allocation by slaveId to make
-  // this faster.  It is a tradeoff between speed vs. memory. For now
-  // we use existing data structures.
-  foreachvalue (const Node* client, clients) {
-    if (client->allocation.resources.contains(slaveId)) {
-      // It is safe to use `at()` here because we've just checked the
-      // existence of the key. This avoids unnecessary copies.
-      string path = client->clientPath();
-      CHECK(!result.contains(path));
-      result.emplace(path, client->allocation.resources.at(slaveId));
-    }
-  }
-
-  return result;
-}
-
-
 Resources RandomSorter::allocation(
     const string& clientPath,
     const SlaveID& slaveId) const

@@ -2348,74 +2348,63 @@ void HierarchicalAllocatorProcess::generateInverseOffers()
   // want the master to create `InverseOffer`s from.
   hashmap<FrameworkID, hashmap<SlaveID, UnavailableResources>> offerable;
 
-  // For maintenance, we use the framework sorters to determine which frameworks
-  // have (1) reserved and / or (2) unreserved resource on the specified
-  // slaveIds. This way we only send inverse offers to frameworks that have the
-  // potential to lose something. We keep track of which frameworks already have
-  // an outstanding inverse offer for the given slave in the
-  // UnavailabilityStatus of the specific slave using the `offerOutstanding`
-  // flag. This is equivalent to the accounting we do for resources when we send
-  // regular offers. If we didn't keep track of outstanding offers then we would
-  // keep generating new inverse offers even though the framework had not
-  // responded yet.
+  // For maintenance, we only send inverse offers to frameworks that have the
+  // potential to lose something (i.e. it has resources offered or allocated on
+  // a given agent). We keep track of which frameworks already have an
+  // outstanding inverse offer for the given slave in the UnavailabilityStatus
+  // of the specific slave using the `offerOutstanding` flag. This is equivalent
+  // to the accounting we do for resources when we send regular offers. If we
+  // didn't keep track of outstanding offers then we would keep generating new
+  // inverse offers even though the framework had not responded yet.
+  //
+  // TODO(mzhu): Need to consider reservations as well.
+  foreach (const SlaveID& slaveId, allocationCandidates) {
+    Slave& slave = *CHECK_NOTNONE(getSlave(slaveId));
 
-  foreachvalue (const Owned<Sorter>& frameworkSorter, frameworkSorters) {
-    foreach (const SlaveID& slaveId, allocationCandidates) {
-      Slave& slave = *CHECK_NOTNONE(getSlave(slaveId));
+    if (slave.maintenance.isSome()) {
+      // We use a reference by alias because we intend to modify the
+      // `maintenance` and to improve readability.
+      Slave::Maintenance& maintenance = slave.maintenance.get();
 
-      if (slave.maintenance.isSome()) {
-        // We use a reference by alias because we intend to modify the
-        // `maintenance` and to improve readability.
-        Slave::Maintenance& maintenance = slave.maintenance.get();
+      foreachkey (
+          const FrameworkID& frameworkId, slave.getOfferedOrAllocated()) {
+        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
-        hashmap<string, Resources> allocation =
-          frameworkSorter->allocation(slaveId);
+        // No need to deallocate for an inactive framework as the master
+        // will not send it inverse offers.
+        if (!framework.active) {
+          continue;
+        }
 
-        foreachkey (const string& frameworkId_, allocation) {
-          FrameworkID frameworkId;
-          frameworkId.set_value(frameworkId_);
-
-          const Framework& framework =
-            *CHECK_NOTNONE(getFramework(frameworkId));
-
-          // No need to deallocate for an inactive framework as the master
-          // will not send it inverse offers.
-          if (!framework.active) {
-            continue;
-          }
-
-          // If this framework doesn't already have inverse offers for the
-          // specified slave.
-          if (!offerable[frameworkId].contains(slaveId)) {
-            // If there isn't already an outstanding inverse offer to this
-            // framework for the specified slave.
-            if (!maintenance.offersOutstanding.contains(frameworkId)) {
-              // Ignore in case the framework filters inverse offers for this
-              // slave.
-              //
-              // NOTE: Since this specific allocator implementation only sends
-              // inverse offers for maintenance primitives, and those are at the
-              // whole slave level, we only need to filter based on the
-              // time-out.
-              if (isFiltered(framework, slave)) {
-                continue;
-              }
-
-              const UnavailableResources unavailableResources =
-                UnavailableResources{
-                    Resources(),
-                    maintenance.unavailability};
-
-              // For now we send inverse offers with empty resources when the
-              // inverse offer represents maintenance on the machine. In the
-              // future we could be more specific about the resources on the
-              // host, as we have the information available.
-              offerable[frameworkId][slaveId] = unavailableResources;
-
-              // Mark this framework as having an offer outstanding for the
-              // specified slave.
-              maintenance.offersOutstanding.insert(frameworkId);
+        // If this framework doesn't already have inverse offers for the
+        // specified slave.
+        if (!offerable[frameworkId].contains(slaveId)) {
+          // If there isn't already an outstanding inverse offer to this
+          // framework for the specified slave.
+          if (!maintenance.offersOutstanding.contains(frameworkId)) {
+            // Ignore in case the framework filters inverse offers for this
+            // slave.
+            //
+            // NOTE: Since this specific allocator implementation only sends
+            // inverse offers for maintenance primitives, and those are at the
+            // whole slave level, we only need to filter based on the
+            // time-out.
+            if (isFiltered(framework, slave)) {
+              continue;
             }
+
+            const UnavailableResources unavailableResources =
+              UnavailableResources{Resources(), maintenance.unavailability};
+
+            // For now we send inverse offers with empty resources when the
+            // inverse offer represents maintenance on the machine. In the
+            // future we could be more specific about the resources on the
+            // host, as we have the information available.
+            offerable[frameworkId][slaveId] = unavailableResources;
+
+            // Mark this framework as having an offer outstanding for the
+            // specified slave.
+            maintenance.offersOutstanding.insert(frameworkId);
           }
         }
       }
