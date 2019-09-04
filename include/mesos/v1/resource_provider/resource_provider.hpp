@@ -41,6 +41,14 @@ inline std::ostream& operator<<(
   return stream << Event::Type_Name(eventType);
 }
 
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Call::Type& callType)
+{
+  return stream << Call::Type_Name(callType);
+}
+
 } // namespace resource_provider {
 } // namespace v1 {
 } // namespace mesos {
