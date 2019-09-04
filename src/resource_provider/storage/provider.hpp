@@ -48,9 +48,6 @@ public:
       const Option<std::string>& authToken,
       bool strict);
 
-  static Try<process::http::authentication::Principal> principal(
-      const ResourceProviderInfo& info);
-
   static Option<Error> validate(const ResourceProviderInfo& info);
 
   ~StorageLocalResourceProvider() override;
