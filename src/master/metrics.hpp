@@ -307,7 +307,7 @@ struct FrameworkMetrics
   template <typename T> void addMetric(const T& metric);
   template <typename T> void removeMetric(const T& metric);
 
-  const FrameworkInfo frameworkInfo;
+  const std::string metricPrefix;
 
   bool publishPerFrameworkMetrics;
 

@@ -717,24 +717,16 @@ void Metrics::transitionOperationState(
 FrameworkMetrics::FrameworkMetrics(
     const FrameworkInfo& _frameworkInfo,
     bool _publishPerFrameworkMetrics)
-  : frameworkInfo(_frameworkInfo),
+  : metricPrefix(getFrameworkMetricPrefix(_frameworkInfo)),
     publishPerFrameworkMetrics(_publishPerFrameworkMetrics),
-    subscribed(
-        getFrameworkMetricPrefix(frameworkInfo) + "subscribed"),
-    calls(
-        getFrameworkMetricPrefix(frameworkInfo) + "calls"),
-    events(
-        getFrameworkMetricPrefix(frameworkInfo) + "events"),
-    offers_sent(
-        getFrameworkMetricPrefix(frameworkInfo) + "offers/sent"),
-    offers_accepted(
-        getFrameworkMetricPrefix(frameworkInfo) + "offers/accepted"),
-    offers_declined(
-        getFrameworkMetricPrefix(frameworkInfo) + "offers/declined"),
-    offers_rescinded(
-        getFrameworkMetricPrefix(frameworkInfo) + "offers/rescinded"),
-    operations(
-        getFrameworkMetricPrefix(frameworkInfo) + "operations")
+    subscribed(metricPrefix + "subscribed"),
+    calls(metricPrefix + "calls"),
+    events(metricPrefix + "events"),
+    offers_sent(metricPrefix + "offers/sent"),
+    offers_accepted(metricPrefix + "offers/accepted"),
+    offers_declined(metricPrefix + "offers/declined"),
+    offers_rescinded(metricPrefix + "offers/rescinded"),
+    operations(metricPrefix + "operations")
 {
   addMetric(subscribed);
   addMetric(offers_sent);
@@ -758,8 +750,7 @@ FrameworkMetrics::FrameworkMetrics(
     }
 
     Counter counter = Counter(
-        getFrameworkMetricPrefix(frameworkInfo) + "calls/" +
-        strings::lower(descriptor->name()));
+        metricPrefix + "calls/" + strings::lower(descriptor->name()));
 
     call_types.put(type, counter);
     addMetric(counter);
@@ -781,8 +772,7 @@ FrameworkMetrics::FrameworkMetrics(
     }
 
     Counter counter = Counter(
-        getFrameworkMetricPrefix(frameworkInfo) + "events/" +
-        strings::lower(descriptor->name()));
+        metricPrefix + "events/" + strings::lower(descriptor->name()));
 
     event_types.put(type, counter);
     addMetric(counter);
@@ -797,14 +787,14 @@ FrameworkMetrics::FrameworkMetrics(
 
     if (protobuf::isTerminalState(state)) {
       Counter counter = Counter(
-          getFrameworkMetricPrefix(frameworkInfo) + "tasks/terminal/" +
+          metricPrefix + "tasks/terminal/" +
           strings::lower(descriptor->name()));
 
       terminal_task_states.put(state, counter);
       addMetric(counter);
     } else {
       PushGauge gauge = PushGauge(
-          getFrameworkMetricPrefix(frameworkInfo) + "tasks/active/" +
+          metricPrefix + "tasks/active/" +
           strings::lower(TaskState_Name(state)));
 
       active_task_states.put(state, gauge);
@@ -827,9 +817,8 @@ FrameworkMetrics::FrameworkMetrics(
       continue;
     }
 
-    Counter counter =
-      Counter(getFrameworkMetricPrefix(frameworkInfo) +
-      "operations/" + strings::lower(descriptor->name()));
+    Counter counter = Counter(
+        metricPrefix + "operations/" + strings::lower(descriptor->name()));
 
     operation_types.put(type, counter);
     addMetric(counter);
