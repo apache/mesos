@@ -1055,6 +1055,8 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
 
 // This test ensures that agents which are scheduled for maintenance are
 // properly sent inverse offers after they have accepted or reserved resources.
+// It also verifies that the frameworks declined the offer should get no
+// inverse offers.
 TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
 {
   // Pausing the clock is not necessary, but ensures that the test
@@ -1064,40 +1066,71 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
 
   initialize();
 
-  // Create an agent.
-  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  // Create an agent which is about to enter maintenance.
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(
-      agent.id(),
-      agent,
+      agent1.id(),
+      agent1,
       AGENT_CAPABILITIES(),
       None(),
-      agent.resources(),
+      agent1.resources(),
       {});
 
   // This framework will be offered all of the resources.
-  FrameworkInfo framework = createFrameworkInfo({"*"});
-  allocator->addFramework(framework.id(), framework, {}, true, {});
+  FrameworkInfo framework1 = createFrameworkInfo({"*"});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
 
   // Check that the resources go to the framework.
   Allocation expected = Allocation(
-      framework.id(),
-      {{"*", {{agent.id(), agent.resources()}}}});
+      framework1.id(),
+      {{"*", {{agent1.id(), agent1.resources()}}}});
 
   AWAIT_EXPECT_EQ(expected, allocations.get());
 
+  // Create another agent and framework.
+  //
+  // This framework will be offered all of 2nd agent resources.
+  FrameworkInfo framework2 = createFrameworkInfo({"*"});
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Check that the resources go to the framework.
+  expected =
+    Allocation(framework2.id(), {{"*", {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Recover the offer allocated to framework2.
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+
+  allocator->recoverResources(
+      framework2.id(),
+      agent2.id(),
+      allocatedResources(agent2.resources(), "*"),
+      filter1day);
+
   const process::Time start = Clock::now() + Seconds(60);
 
-  // Give the agent some unavailability.
+  // Give both agents some unavailability.
   allocator->updateUnavailability(
-      agent.id(),
-      protobuf::maintenance::createUnavailability(
-          start));
+      agent1.id(), protobuf::maintenance::createUnavailability(start));
+  allocator->updateUnavailability(
+      agent2.id(), protobuf::maintenance::createUnavailability(start));
 
   // Check the resources get inverse offered.
   Future<Deallocation> deallocation = deallocations.get();
   AWAIT_READY(deallocation);
-  EXPECT_EQ(framework.id(), deallocation->frameworkId);
-  EXPECT_TRUE(deallocation->resources.contains(agent.id()));
+  EXPECT_EQ(framework1.id(), deallocation->frameworkId);
+  EXPECT_TRUE(deallocation->resources.contains(agent1.id()));
 
   foreachvalue (
       const UnavailableResources& unavailableResources,
@@ -1110,6 +1143,9 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
         start.duration(),
         Nanoseconds(unavailableResources.unavailability.start().nanoseconds()));
   }
+
+  // Ensure only one offer should be deallocated.
+  EXPECT_TRUE(deallocations.get().isPending());
 }
 
 
