@@ -303,9 +303,6 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
     // Rescind all outstanding offers from the given agent.
     bool agentVisited = false;
     foreach (Offer* offer, utils::copy(slave->offers)) {
-      master->allocator->recoverResources(
-          offer->framework_id(), offer->slave_id(), offer->resources(), None());
-
       auto unallocated = [](const Resources& resources) {
         Resources result = resources;
         result.unallocate();
@@ -313,7 +310,7 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
       };
 
       rescinded += unallocated(offer->resources());
-      master->removeOffer(offer, true);
+      master->rescindOffer(offer);
       agentVisited = true;
     }
 
@@ -644,12 +641,7 @@ Future<http::Response> Master::QuotaHandler::_update(
             consumedAndOffered -=
               ResourceQuantities::fromResources(offer->resources());
 
-            master->allocator->recoverResources(
-                offer->framework_id(),
-                offer->slave_id(),
-                offer->resources(),
-                None());
-            master->removeOffer(offer, true);
+            master->rescindOffer(offer);
           }
         }
 
@@ -685,13 +677,7 @@ Future<http::Response> Master::QuotaHandler::_update(
             }
 
             rescinded += ResourceQuantities::fromResources(offer->resources());
-
-            master->allocator->recoverResources(
-                offer->framework_id(),
-                offer->slave_id(),
-                offer->resources(),
-                None());
-            master->removeOffer(offer, true);
+            master->rescindOffer(offer);
           }
         }
       }

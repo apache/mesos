@@ -303,13 +303,7 @@ void Master::WeightsHandler::rescindOffers(
   if (rescind) {
     foreachvalue (const Slave* slave, master->slaves.registered) {
       foreach (Offer* offer, utils::copy(slave->offers)) {
-        master->allocator->recoverResources(
-            offer->framework_id(),
-            offer->slave_id(),
-            offer->resources(),
-            None());
-
-        master->removeOffer(offer, true);
+        master->rescindOffer(offer);
       }
     }
   }

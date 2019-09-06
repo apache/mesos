@@ -986,8 +986,23 @@ protected:
   // Remove an offer after specified timeout
   void offerTimeout(const OfferID& offerId);
 
-  // Remove an offer and optionally rescind the offer as well.
-  void removeOffer(Offer* offer, bool rescind = false);
+  // Methods for removing an offer and handling associated resources.
+  // Both recover the resources in the allocator (optionally setting offer
+  // filters) and remove the offer in the master. `rescindOffer` further
+  // notifies the framework about the rescind.
+  //
+  // NOTE: the `filters` field in `rescindOffers` is needed only as
+  // a workaround for the race between the master and the allocator
+  // which happens when the master tries to free up resources to satisfy
+  // operator initiated operations.
+  void rescindOffer(Offer* offer, const Option<Filters>& filters = None());
+  void discardOffer(Offer* offer, const Option<Filters>& filters = None());
+
+  // Helper for rescindOffer() /  discardOffer() / _accept().
+  // Do not use directly.
+  //
+  // The offer must belong to the framework.
+  void _removeOffer(Framework* framework, Offer* offer);
 
   // Remove an inverse offer after specified timeout
   void inverseOfferTimeout(const OfferID& inverseOfferId);
