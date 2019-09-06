@@ -1096,7 +1096,6 @@ private:
   void _accept(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const Resources& offeredResources,
       mesos::scheduler::Call::Accept&& accept,
       const process::Future<
           std::vector<process::Future<bool>>>& authorizations);
