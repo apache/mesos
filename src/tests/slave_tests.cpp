@@ -63,6 +63,7 @@
 #endif // USE_SSL_SOCKET
 
 #include "common/build.hpp"
+#include "common/future_tracker.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 
@@ -83,6 +84,8 @@
 #include "slave/containerizer/fetcher_process.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/isolator_tracker.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 
 #include "tests/active_user_test_helper.hpp"
 #include "tests/containerizer.hpp"
@@ -94,6 +97,7 @@
 #include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
+#include "tests/containerizer/isolator.hpp"
 #include "tests/containerizer/mock_containerizer.hpp"
 
 using namespace mesos::internal::slave;
@@ -112,7 +116,9 @@ using mesos::master::detector::StandaloneMasterDetector;
 using mesos::v1::resource_provider::Event;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerTermination;
+using mesos::slave::Isolator;
 
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Mesos;
@@ -2781,6 +2787,158 @@ TEST_F(SlaveTest, ContainersEndpoint)
     .Times(AtMost(1));
   EXPECT_CALL(exec2, shutdown(_))
     .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that `/containerizer/debug` endpoint returns a non-empty
+// list of pending futures when an isolator becomes unresponsive during
+// container launch.
+TEST_F(SlaveTest, ROOT_ContainerizerDebugEndpoint)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Launcher*> _launcher = SubprocessLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+
+  Owned<Launcher> launcher(_launcher.get());
+
+  MockIsolator* mockIsolator = new MockIsolator();
+
+  Future<Nothing> prepare;
+  Promise<Option<ContainerLaunchInfo>> promise;
+
+  EXPECT_CALL(*mockIsolator, recover(_, _))
+    .WillOnce(Return(Nothing()));
+
+  // Simulate a long prepare from the isolator.
+  EXPECT_CALL(*mockIsolator, prepare(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&prepare),
+                    Return(promise.future())));
+
+  EXPECT_CALL(*mockIsolator, update(_, _))
+    .WillOnce(Return(Nothing()));
+
+  // Wrap `mockIsolator` in `PendingFutureTracker`.
+  Try<PendingFutureTracker*> _futureTracker = PendingFutureTracker::create();
+  ASSERT_SOME(_futureTracker);
+
+  Owned<PendingFutureTracker> futureTracker(_futureTracker.get());
+
+  Owned<Isolator> isolator = Owned<Isolator>(new IsolatorTracker(
+      Owned<Isolator>(mockIsolator), "MockIsolator", futureTracker.get()));
+
+  Fetcher fetcher(flags);
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher,
+      nullptr,
+      launcher,
+      provisioner->share(),
+      {isolator});
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(SlaveOptions(detector.get())
+                 .withContainerizer(containerizer.get())
+                 .withFutureTracker(futureTracker.get()));
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Launch a task and wait until it is in RUNNING status.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      SLEEP_COMMAND(1000));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(prepare);
+
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "containerizer/debug",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    ASSERT_FALSE(parse->at<JSON::Array>("pending")->values.empty());
+    ASSERT_TRUE(strings::contains(response->body, "MockIsolator::prepare"));
+  }
+
+  // Once the future returned by the `prepare` method becomes ready,
+  // the task should start successfully and no pending futures should be
+  // contained in the output returned by `/containerizer/debug` endpoint.
+  promise.set(Option<ContainerLaunchInfo>(ContainerLaunchInfo()));
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "containerizer/debug",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    ASSERT_TRUE(parse->at<JSON::Array>("pending")->values.empty());
+  }
 
   driver.stop();
   driver.join();
