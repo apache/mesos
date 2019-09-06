@@ -170,6 +170,7 @@ public:
       const Option<mesos::slave::QoSController*>& qosController = None(),
       const Option<mesos::SecretGenerator*>& secretGenerator = None(),
       const Option<Authorizer*>& authorizer = None(),
+      const Option<PendingFutureTracker*>& futureTracker = None(),
       bool mock = false);
 
   ~Slave();
@@ -226,6 +227,10 @@ private:
   // because the cleanup logic acts upon the containerizer (regardless
   // of who created it).
   slave::Containerizer* containerizer = nullptr;
+
+  // Pending future tracker must be destroyed last since there may be
+  // pending requests related to the dependant objects declared below.
+  process::Owned<PendingFutureTracker> futureTracker;
 
   // Dependencies that are created by the factory method.
   process::Owned<Authorizer> authorizer;

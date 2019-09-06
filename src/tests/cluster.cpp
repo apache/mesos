@@ -416,6 +416,7 @@ Try<process::Owned<Slave>> Slave::create(
     const Option<mesos::slave::QoSController*>& qosController,
     const Option<mesos::SecretGenerator*>& secretGenerator,
     const Option<Authorizer*>& providedAuthorizer,
+    const Option<PendingFutureTracker*>& futureTracker,
     bool mock)
 {
   process::Owned<Slave> slave(new Slave());
@@ -447,10 +448,15 @@ Try<process::Owned<Slave>> Slave::create(
   }
 #endif // __WINDOWS__
 
-  Try<PendingFutureTracker*> futureTracker = PendingFutureTracker::create();
-  if (futureTracker.isError()) {
-    return Error(
-        "Failed to create pending future tracker: " + futureTracker.error());
+  // If the future tracker is not provided, create a default one.
+  if (futureTracker.isNone()) {
+    Try<PendingFutureTracker*> _futureTracker = PendingFutureTracker::create();
+    if (_futureTracker.isError()) {
+      return Error(
+          "Failed to create pending future tracker: " + _futureTracker.error());
+    }
+
+    slave->futureTracker.reset(_futureTracker.get());
   }
 
   // If the containerizer is not provided, create a default one.
@@ -468,7 +474,7 @@ Try<process::Owned<Slave>> Slave::create(
           gc.getOrElse(slave->gc.get()),
           nullptr,
           volumeGidManager,
-          futureTracker.get());
+          futureTracker.getOrElse(slave->futureTracker.get()));
 
     if (_containerizer.isError()) {
       return Error("Failed to create containerizer: " + _containerizer.error());
@@ -621,7 +627,7 @@ Try<process::Owned<Slave>> Slave::create(
         qosController.getOrElse(slave->qosController.get()),
         secretGenerator.getOrElse(slave->secretGenerator.get()),
         volumeGidManager,
-        futureTracker.get(),
+        futureTracker.getOrElse(slave->futureTracker.get()),
         authorizer));
   } else {
     slave->slave.reset(new slave::Slave(
@@ -636,7 +642,7 @@ Try<process::Owned<Slave>> Slave::create(
         qosController.getOrElse(slave->qosController.get()),
         secretGenerator.getOrElse(slave->secretGenerator.get()),
         volumeGidManager,
-        futureTracker.get(),
+        futureTracker.getOrElse(slave->futureTracker.get()),
         authorizer));
   }
 

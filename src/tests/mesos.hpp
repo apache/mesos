@@ -186,6 +186,13 @@ struct SlaveOptions
     return *this;
   }
 
+  SlaveOptions& withFutureTracker(
+      const Option<PendingFutureTracker*>& futureTracker)
+  {
+    this->futureTracker = futureTracker;
+    return *this;
+  }
+
   mesos::master::detector::MasterDetector* detector;
   bool mock;
   Option<slave::Flags> flags;
@@ -197,6 +204,7 @@ struct SlaveOptions
   Option<mesos::slave::QoSController*> qosController;
   Option<mesos::SecretGenerator*> secretGenerator;
   Option<Authorizer*> authorizer;
+  Option<PendingFutureTracker*> futureTracker;
 };
 
 

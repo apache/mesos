@@ -347,6 +347,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(const SlaveOptions& options)
       options.qosController,
       options.secretGenerator,
       options.authorizer,
+      options.futureTracker,
       options.mock);
 
   if (slave.isSome() && !options.mock) {
