@@ -433,6 +433,9 @@ TEST_F(MasterAuthorizationTest, KillTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   // Now kill the task.
   driver.killTask(task.task_id());
 
@@ -440,9 +443,6 @@ TEST_F(MasterAuthorizationTest, KillTask)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH, status->reason());
-
-  Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -556,6 +556,9 @@ TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
   AWAIT_READY(authorize1);
   AWAIT_READY(authorize2);
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   // Now kill task1.
   driver.killTask(task1.task_id());
 
@@ -565,9 +568,6 @@ TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
       task1Status->message(), "Killed before delivery to the agent"));
   EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
             task1Status->reason());
-
-  Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorizations for task1 and task2.
   promise1.set(true);
@@ -651,6 +651,9 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   // Stop the slave with explicit shutdown as otherwise with
   // checkpointing the master will wait for the slave to reconnect.
   slave.get()->shutdown();
@@ -661,9 +664,6 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
-
-  Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -756,6 +756,9 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   // Stop the slave with explicit shutdown as otherwise with
   // checkpointing the master will wait for the slave to reconnect.
   slave.get()->shutdown();
@@ -766,9 +769,6 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
-
-  Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -856,14 +856,14 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   Future<Nothing> removeFramework =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   // Now stop the framework.
   driver.stop();
   driver.join();
 
   AWAIT_READY(removeFramework);
-
-  Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
