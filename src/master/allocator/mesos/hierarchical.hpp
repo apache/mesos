@@ -122,6 +122,11 @@ public:
     return reservationScalarQuantities_;
   }
 
+  const Resources& offeredOrAllocatedScalars() const
+  {
+    return offeredOrAllocatedScalars_;
+  }
+
   const hashset<FrameworkID>& frameworks() const { return frameworks_; }
 
   const Quota& quota() const { return quota_; }
@@ -165,6 +170,13 @@ private:
 
   // IDs of the frameworks subscribed to the role, if any.
   hashset<FrameworkID> frameworks_;
+
+  // Total allocated or offered scalar resources to this role, including
+  // meta data. This field dose not affect role's lifecycle. However, since
+  // any offered or allocated resources should be tied to a framework,
+  // an empty role (that has no registered framework) must have
+  // empty offeredOrAllocated resources.
+  Resources offeredOrAllocatedScalars_;
 
   // Aggregated reserved scalar resource quantities on all agents tied to this
   // role, if any. This includes both its own reservations as well as
@@ -217,10 +229,16 @@ public:
 
   void updateWeight(const std::string& role, double weight);
 
+  void trackOfferedOrAllocated(const Resources& resources);
+  void untrackOfferedOrAllocated(const Resources& resources);
+
   // Dump the role tree state in JSON format for debugging.
   std::string toJSON() const;
 
 private:
+  // Private helper to get non-const pointers.
+  Option<Role*> get_(const std::string& role);
+
   // Lookup or add the role struct associated with the role. Ancestor roles
   // along the tree path will be created if necessary.
   Role& operator[](const std::string& role);
@@ -798,6 +816,8 @@ private:
   //
   // TODO(asekretenko): rename `(un)trackAllocatedResources()` to reflect the
   // fact that these methods do not distinguish between offered and allocated.
+  //
+  // TODO(mzhu): replace this with `RoleTree::trackOfferedOrAllocated`.
   void trackAllocatedResources(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
@@ -805,6 +825,8 @@ private:
 
   // Helper to untrack resources that are no longer offered or allocated
   // on an agent.
+  //
+  // TODO(mzhu): replace this with `RoleTree::untrackOfferedOrAllocated`.
   void untrackAllocatedResources(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,

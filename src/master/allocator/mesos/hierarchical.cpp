@@ -249,6 +249,18 @@ Option<const Role*> RoleTree::get(const std::string& role) const
 }
 
 
+Option<Role*> RoleTree::get_(const std::string& role)
+{
+  auto found = roles_.find(role);
+
+  if (found == roles_.end()) {
+    return None();
+  } else {
+    return &(found->second);
+  }
+}
+
+
 Role& RoleTree::operator[](const std::string& rolePath)
 {
   if (roles_.contains(rolePath)) {
@@ -311,6 +323,9 @@ bool RoleTree::tryRemove(const std::string& role)
       (*metrics)->removeRole(current->role);
     }
 
+    CHECK(current->offeredOrAllocatedScalars_.empty())
+      << " role: " << role
+      << " offeredOrAllocated: " << current->offeredOrAllocatedScalars_;
     roles_.erase(current->role);
 
     current = parent;
@@ -401,6 +416,47 @@ void RoleTree::updateWeight(const string& role, double weight)
 }
 
 
+void RoleTree::trackOfferedOrAllocated(const Resources& resources_)
+{
+  // TODO(mzhu): avoid building a map by traversing `resources`
+  // and look for the allocation role of individual resource.
+  // However, due to MESOS-9242, this currently does not work
+  // as traversing resources would lose the shared count.
+  foreachpair (
+      const string& role,
+      const Resources& resources,
+      resources_.scalars().allocations()) {
+    // Track it hierarchically up to the root.
+    for (Role* current = CHECK_NOTNONE(get_(role)); current != nullptr;
+         current = current->parent) {
+      current->offeredOrAllocatedScalars_ += resources;
+    }
+  }
+}
+
+
+void RoleTree::untrackOfferedOrAllocated(const Resources& resources_)
+{
+  // TODO(mzhu): avoid building a map by traversing `resources`
+  // and look for the allocation role of individual resource.
+  // However, due to MESOS-9242, this currently does not work
+  // as traversing resources would lose the shared count.
+  foreachpair (
+      const string& role,
+      const Resources& resources,
+      resources_.scalars().allocations()) {
+    // Untrack it hierarchically up to the root.
+    for (Role* current = CHECK_NOTNONE(get_(role)); current != nullptr;
+         current = current->parent) {
+      CHECK_CONTAINS(current->offeredOrAllocatedScalars_, resources)
+        << " Role: " << current->role
+        << " offeredOrAllocated: " << current->offeredOrAllocatedScalars_;
+      current->offeredOrAllocatedScalars_ -= resources;
+    }
+  }
+}
+
+
 std::string RoleTree::toJSON() const
 {
   std::function<void(JSON::ObjectWriter*, const Role*)> json =
@@ -412,6 +468,8 @@ std::string RoleTree::toJSON() const
       writer->field("limits", role->quota_.limits);
       writer->field(
           "reservation_quantities", role->reservationScalarQuantities_);
+      writer->field(
+          "offered_or_allocated_scalars", role->offeredOrAllocatedScalars_);
 
       writer->field("frameworks", [&](JSON::ArrayWriter* writer) {
         foreach (const FrameworkID& id, role->frameworks_) {
@@ -1108,14 +1166,15 @@ void HierarchicalAllocatorProcess::updateAllocation(
   //  foreach (const ResourceConversion& conversion, conversions) {
   //    CHECK_NONE(validateConversionOnAllocatedResources(conversion));
   //  }
-  Try<Resources> _updatedOfferedResources = offeredResources.apply(conversions);
-  CHECK_SOME(_updatedOfferedResources);
-
-  const Resources& updatedOfferedResources = _updatedOfferedResources.get();
+  Resources updatedOfferedResources =
+    CHECK_NOTERROR(offeredResources.apply(conversions));
 
   // Update the per-slave allocation.
   slave.increaseAvailable(frameworkId, offeredResources);
   slave.decreaseAvailable(frameworkId, updatedOfferedResources);
+
+  roleTree.untrackOfferedOrAllocated(offeredResources);
+  roleTree.trackOfferedOrAllocated(updatedOfferedResources);
 
   // Update the allocation in the framework sorter.
   frameworkSorter->update(
@@ -1804,7 +1863,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
   //
   //   Consumed Quota = reservations + unreserved allocation
 
-  // First add reservations.
+  // Add reservations and unreserved offeredOrAllocated.
   //
   // Currently, only top level roles can have quota set and thus
   // we only track consumed quota for top level roles.
@@ -1813,34 +1872,10 @@ void HierarchicalAllocatorProcess::__generateOffers()
     // these as metrics.
     if (r->quota() != DEFAULT_QUOTA) {
       logHeadroomInfo = true;
-      // Note, `reservationScalarQuantities` in `struct role`
-      // is hierarchical aware, thus it also includes subrole reservations.
-      rolesConsumedQuota[r->role] += r->reservationScalarQuantities();
-    }
-  }
-
-  // Then add the unreserved allocation.
-  //
-  // TODO(mzhu): make allocation tracking hierarchical, so that we only
-  // need to look at the top-level node.
-  foreachpair (const string& role, const Role& r, roleTree.roles()) {
-    if (r.frameworks().empty()) {
-      continue;
-    }
-
-    const string& topLevelRole =
-      strings::contains(role, "/") ? role.substr(0, role.find('/')) : role;
-
-    if (getQuota(topLevelRole) == DEFAULT_QUOTA) {
-      continue;
-    }
-
-    if (roleSorter->contains(role)) {
-      foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
-        rolesConsumedQuota[topLevelRole] +=
-          ResourceQuantities::fromScalarResources(
-              resources.unreserved().nonRevocable().scalars());
-      }
+      rolesConsumedQuota[r->role] +=
+        r->reservationScalarQuantities() +
+        ResourceQuantities::fromScalarResources(
+            r->offeredOrAllocatedScalars().unreserved().nonRevocable());
     }
   }
 
@@ -1882,24 +1917,12 @@ void HierarchicalAllocatorProcess::__generateOffers()
   // Subtract allocated resources from the total.
   availableHeadroom -= roleSorter->allocationScalarQuantities();
 
-  // TODO(mzhu): make allocation tracking hierarchical, so that we only
-  // need to look at the top-level node.
-  ResourceQuantities totalOfferedOrAllocatedReservation;
-  foreachkey (const string& role, roleTree.roles()) {
-    if (!roleSorter->contains(role)) {
-      continue; // This role has no allocation.
-    }
-
-    foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
-      totalOfferedOrAllocatedReservation +=
-        ResourceQuantities::fromScalarResources(resources.reserved().scalars());
-    }
-  }
-
   // Subtract total unallocated reservations.
   // unallocated reservations = total reservations - allocated reservations
-  availableHeadroom -= roleTree.root()->reservationScalarQuantities() -
-                       totalOfferedOrAllocatedReservation;
+  availableHeadroom -=
+    roleTree.root()->reservationScalarQuantities() -
+    ResourceQuantities::fromScalarResources(
+        roleTree.root()->offeredOrAllocatedScalars().reserved());
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
@@ -2948,6 +2971,8 @@ void HierarchicalAllocatorProcess::trackAllocatedResources(
     CHECK_CONTAINS(*frameworkSorter, frameworkId.value())
       << " for role " << role;
 
+    roleTree.trackOfferedOrAllocated(allocation);
+
     roleSorter->allocated(role, slaveId, allocation);
     frameworkSorter->allocated(
         frameworkId.value(), slaveId, allocation);
@@ -2979,6 +3004,8 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
 
     CHECK_CONTAINS(*frameworkSorter, frameworkId.value())
       << "for role " << role;
+
+    roleTree.untrackOfferedOrAllocated(allocation);
 
     frameworkSorter->unallocated(
         frameworkId.value(), slaveId, allocation);
