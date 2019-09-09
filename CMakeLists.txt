@@ -67,31 +67,6 @@ endif ()
 
 # PACKAGING.
 ############
-# List of sources we will ignore when generating a source package.
-# We assume there are no artifacts from an autotools build.
-#
-# NOTE: An in-source build is not supported. The build directory
-# must be different than the source directory.
-set(CPACK_SOURCE_IGNORE_FILES
-  .clang-format;
-  .gitignore;
-  .reviewboardrc;
-  bootstrap.bat;
-  bootstrap;
-  configure.ac;
-  Doxyfile;
-  mesos.pc.in;
-  /.git/;
-  /docs/;
-  /m4/;
-  /mpi/;
-  /site/;
-  /support/;
-  ${CMAKE_BINARY_DIR};)
-
-# Convert the ignore list to a string (as required by CPack).
-set(CPACK_SOURCE_IGNORE_FILES "${CPACK_SOURCE_IGNORE_FILES}")
-
 # Set the basename of any packages to 'mesos-<version>'.
 set(CPACK_PACKAGE_FILE_NAME "mesos-${MESOS_PACKAGE_VERSION}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
@@ -120,3 +95,6 @@ option(CPACK_SOURCE_TZ   "Enable to build TZ source packages"   OFF)
 option(CPACK_SOURCE_ZIP  "Enable to build ZIP source packages"  OFF)
 
 include(CPack)
+
+add_custom_target(dist
+  COMMAND ${CMAKE_SOURCE_DIR}/cmake/dist.sh ${MESOS_PACKAGE_VERSION})
