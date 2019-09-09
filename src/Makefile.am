@@ -2938,6 +2938,8 @@ if ENABLE_NEW_CLI
 	source $(builddir)/.virtualenv/bin/activate;		\
 	source $(builddir)/.virtualenv/bin/postactivate;	\
 	PATH=$(builddir):$$PATH mesos-cli-tests
+
+	tox -c $(srcdir)/python/lib/tox.ini
 endif
 
 if INSTALL_TESTS

@@ -181,6 +181,12 @@ if (ENABLE_NEW_CLI)
     endif ()
   endif ()
 
+  # Find `tox` for testing `src/python/lib/`.
+  find_program(TOX tox)
+  if (NOT TOX)
+    message(FATAL_ERROR "'tox' is required in order to run Mesos Python library tests.")
+  endif ()
+
   execute_process(
     COMMAND ${PYTHON_3} -c
       "import sys; print('%d.%d' % (sys.version_info[0], sys.version_info[1]))"

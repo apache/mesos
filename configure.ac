@@ -2499,6 +2499,12 @@ You may wish to set the PYTHON_3 environment variable to make sure
 that the right Python executable is found.
 -------------------------------------------------------------------
   ])])
+
+  # Find `tox` for testing `src/python/lib/`.
+  AC_CHECK_PROGS([tox], [tox])
+  if test "x$tox" = "x"; then
+    AC_MSG_ERROR(['tox' is required in order to run Mesos Python library tests.])
+  fi
 fi
 
 if test "x$enable_python" = "xyes"; then
