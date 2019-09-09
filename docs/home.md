@@ -59,6 +59,7 @@ layout: documentation
 * [Container Sandboxes](sandbox.md)
 * [Container Volumes](container-volume.md)
 * [Nested Container and Task Group (Pod)](nested-container-and-task-group.md)
+* [Standalone Containers](standalone-containers.md)
 
 ## Networking
 * [Networking Overview](networking.md)

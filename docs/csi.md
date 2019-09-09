@@ -80,7 +80,7 @@ More details about SLRP can be found in the following [section](#storage-local-r
 
 CSI plugins are long-running [gRPC](https://grpc.io/) services, like daemons.
 Those CSI plugins are packaged as containers, and are launched by SLRPs using
-the [standalone containers](standalone-container.md) API from the agent.
+the [standalone containers](standalone-containers.md) API from the agent.
 Standalone containers can be launched without any tasks or executors. They use
 the same isolation mechanism provided by the agent for task and executor
 containers.
