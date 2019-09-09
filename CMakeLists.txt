@@ -98,3 +98,7 @@ include(CPack)
 
 add_custom_target(dist
   COMMAND ${CMAKE_SOURCE_DIR}/cmake/dist.sh ${MESOS_PACKAGE_VERSION})
+
+add_custom_target(distcheck
+  COMMAND ${CMAKE_SOURCE_DIR}/cmake/distcheck.sh ${MESOS_PACKAGE_VERSION}
+  DEPENDS dist)
