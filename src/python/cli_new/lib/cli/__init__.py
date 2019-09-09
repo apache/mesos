@@ -18,7 +18,9 @@
 Mesos CLI Module
 """
 
+# pylint: disable=cyclic-import
 from . import config
-from . import exceptions
 from . import plugins
+
+from . import exceptions
 from . import util
