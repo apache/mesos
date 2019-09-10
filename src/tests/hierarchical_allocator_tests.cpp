@@ -3651,11 +3651,12 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
 
 // When a role has limits set, its frameworks allocations are restricted based
 // on its quota limits.
+// We set quota on the default "*" role as a regression test for MESOS-3938.
 TEST_F(HierarchicalAllocatorTest, QuotaProvidesLimit)
 {
   Clock::pause();
 
-  const string QUOTA_ROLE{"quota-limits-role"};
+  const string QUOTA_ROLE{"*"};
   const string NO_QUOTA_ROLE{"no-quota-role"};
 
   initialize();

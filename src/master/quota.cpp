@@ -158,12 +158,6 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
     return Error("QuotaInfo with invalid role: " + roleError->message);
   }
 
-  // Disallow quota for '*' role.
-  // TODO(alexr): Consider allowing setting quota for '*' role, see MESOS-3938.
-  if (quotaInfo.role() == "*") {
-    return Error("QuotaInfo must not specify the default '*' role");
-  }
-
   // Check that `QuotaInfo` contains at least one guarantee.
   // TODO(alexr): Relaxing this may make sense once quota is the
   // only way that we offer non-revocable resources. Setting quota
@@ -218,13 +212,6 @@ Option<Error> validate(const QuotaConfig& config)
   Option<Error> error = roles::validate(config.role());
   if (error.isSome()) {
     return Error("Invalid 'QuotaConfig.role': " + error->message);
-  }
-
-  // Disallow quota for '*' role.
-  if (config.role() == "*") {
-    return Error(
-      "Invalid 'QuotaConfig.role': setting quota for the"
-      " default '*' role is not supported");
   }
 
   // Validate scalar values.

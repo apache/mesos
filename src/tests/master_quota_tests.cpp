@@ -414,6 +414,8 @@ TEST_F(MasterQuotaTest, UpdateAndGetQuota)
 
 // This ensures that `UPDATE_QUOTA` call with multiple quota configs are
 // updated all-or-nothing.
+// The second role is intentionally set to the default `*` role as a regression
+// test for MESOS-3938.
 TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
 {
   MockAuthorizer authorizer;
@@ -427,7 +429,7 @@ TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
   string request = createUpdateQuotaRequestBody(
       {
         createQuotaConfig(ROLE1, "cpus:1;mem:1024", "cpus:2;mem:2048"),
-        createQuotaConfig(ROLE2, "cpus:1;mem:1024", "cpus:2;mem:2048"),
+        createQuotaConfig("*", "cpus:1;mem:1024", "cpus:2;mem:2048"),
       },
       true);
 
@@ -502,7 +504,7 @@ TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
         "      \"cpus\": 1.0,"
         "      \"mem\":  1024.0"
         "    },"
-        "    \"role\": \"role1\""
+        "    \"role\": \"*\""
         "  }"
         "}");
 
@@ -518,7 +520,7 @@ TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
         "      \"cpus\": 1.0,"
         "      \"mem\":  1024.0"
         "    },"
-        "    \"role\": \"role2\""
+        "    \"role\": \"role1\""
         "  }"
         "}");
 

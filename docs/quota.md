@@ -223,9 +223,9 @@ documentation: [https://github.com/apache/mesos/blob/1.8.0/docs/quota.md](https:
 
 ## Implementation Notes
 
-* Quota is not supported for the default `*` role.
 * Quota is not supported on nested roles (e.g. `eng/prod`).
 * During failover, in order to correctly enforce limits, the allocator
   will be paused and will not issue offers until at least 80% agents
   re-register or 10 minutes elapses. These parameters will be made
   configurable: [MESOS-4073](https://issues.apache.org/jira/browse/MESOS-4073)
+* Quota is SUPPORTED for the default `*` role now [MESOS-3938](https://issues.apache.org/jira/browse/MESOS-3938).

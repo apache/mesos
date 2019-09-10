@@ -118,19 +118,13 @@ TEST(MasterCallValidationTest, UpdateQuota)
   EXPECT_TRUE(strings::contains(error->message, "Invalid 'QuotaConfig.role'"))
     << error->message;
 
-  config.set_role("*");
-
-  error = mesos::internal::master::quota::validate(config);
-  ASSERT_SOME(error);
-  EXPECT_TRUE(strings::contains(
-      error->message,
-      "Invalid 'QuotaConfig.role':"
-      " setting quota for the default '*' role is not supported"))
-    << error->message;
-
   // Once a role is set, it is valid to have no guarantee and no limit.
   config.set_role("role");
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_NONE(error);
 
+  // Setting quota on "*" role is allowed.
+  config.set_role("*");
   error = mesos::internal::master::quota::validate(config);
   ASSERT_NONE(error);
 
