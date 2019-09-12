@@ -321,8 +321,12 @@ public:
       const FrameworkID& frameworkId, const Resources& offeredOrAllocated_)
   {
     // Increasing available is to subtract offered or allocated.
+    if (offeredOrAllocated_.empty()) {
+      return;
+    }
 
     Resources& resources = offeredOrAllocated.at(frameworkId);
+    CHECK_CONTAINS(resources, offeredOrAllocated_);
     resources -= offeredOrAllocated_;
     if (resources.empty()) {
       offeredOrAllocated.erase(frameworkId);
@@ -336,6 +340,10 @@ public:
   void decreaseAvailable(
       const FrameworkID& frameworkId, const Resources& offeredOrAllocated_)
   {
+    if (offeredOrAllocated_.empty()) {
+      return;
+    }
+
     // Decreasing available is to add offered or allocated.
 
     offeredOrAllocated[frameworkId] += offeredOrAllocated_;

@@ -675,6 +675,15 @@ void HierarchicalAllocatorProcess::removeFramework(
 {
   CHECK(initialized);
 
+  // Free up resources on agents if any.
+  foreachvalue (Slave& slave, slaves) {
+    slave.increaseAvailable(
+        frameworkId,
+        slave.getOfferedOrAllocated().get(frameworkId).getOrElse(Resources()));
+  }
+
+  // Update tracking in the role tree and sorters.
+
   Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
   foreach (const string& role, framework.roles) {
@@ -926,11 +935,13 @@ void HierarchicalAllocatorProcess::removeSlave(
   {
     const Slave& slave = *CHECK_NOTNONE(getSlave(slaveId));
 
-    // TODO(bmahler): Per MESOS-621, this should remove the allocations
-    // that any frameworks have on this slave. Otherwise the caller may
-    // "leak" allocated resources accidentally if they forget to recover
-    // all the resources. Fixing this would require more information
-    // than what we currently track in the allocator.
+    // Untrack resources in roleTree and sorter.
+    foreachpair (
+        const FrameworkID& frameworkId,
+        const Resources& resources,
+        slave.getOfferedOrAllocated()) {
+      untrackAllocatedResources(slaveId, frameworkId, resources);
+    }
 
     roleSorter->remove(slaveId, slave.getTotal());
 
@@ -1459,6 +1470,22 @@ void HierarchicalAllocatorProcess::recoverResources(
     return;
   }
 
+  Option<Framework*> framework = getFramework(frameworkId);
+  Option<Slave*> slave = getSlave(slaveId);
+
+  // No work to do if either the framework or the agent no longer exists.
+  //
+  // The framework may not exist if we dispatched Master::offer before we
+  // received MesosAllocatorProcess::removeFramework or
+  // MesosAllocatorProcess::deactivateFramework, in which case we will
+  // have already recovered all of its resources).
+  //
+  // The agent may not exist if we dispatched Master::offer before we
+  // received `removeSlave`.
+  if (framework.isNone() || slave.isNone()) {
+    return;
+  }
+
   // For now, we require that resources are recovered within a single
   // allocation role (since filtering in the same manner across roles
   // seems undesirable).
@@ -1472,41 +1499,26 @@ void HierarchicalAllocatorProcess::recoverResources(
 
   string role = allocations.begin()->first;
 
-  // Updated resources allocated to framework (if framework still
-  // exists, which it might not in the event that we dispatched
-  // Master::offer before we received
-  // MesosAllocatorProcess::removeFramework or
-  // MesosAllocatorProcess::deactivateFramework, in which case we will
-  // have already recovered all of its resources).
-  Option<Framework*> framework = getFramework(frameworkId);
+  // Update resources on the agent.
 
-  if (framework.isSome()) {
-    Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
+  CHECK((*slave)->getTotalOfferedOrAllocated().contains(resources))
+    << "agent " << slaveId << " resources "
+    << (*slave)->getTotalOfferedOrAllocated() << " do not contain "
+    << resources;
 
-    if (frameworkSorter->contains(frameworkId.value())) {
-      untrackAllocatedResources(slaveId, frameworkId, resources);
-    }
-  }
+  (*slave)->increaseAvailable(frameworkId, resources);
 
-  // Update resources allocated on slave (if slave still exists,
-  // which it might not in the event that we dispatched Master::offer
-  // before we received Allocator::removeSlave).
-  Option<Slave*> slave = getSlave(slaveId);
+  VLOG(1) << "Recovered " << resources << " (total: " << (*slave)->getTotal()
+          << ", offered or allocated: "
+          << (*slave)->getTotalOfferedOrAllocated() << ")"
+          << " on agent " << slaveId << " from framework " << frameworkId;
 
-  if (slave.isSome()) {
-    CHECK((*slave)->getTotalOfferedOrAllocated().contains(resources))
-      << "agent " << slaveId << " resources "
-      << (*slave)->getTotalOfferedOrAllocated() << " do not contain "
-      << resources;
+  // Update role tree and sorter.
 
-    (*slave)->increaseAvailable(frameworkId, resources);
+  Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
-    VLOG(1) << "Recovered " << resources
-            << " (total: " << (*slave)->getTotal()
-            << ", offered or allocated: "
-            << (*slave)->getTotalOfferedOrAllocated() << ")"
-            << " on agent " << slaveId
-            << " from framework " << frameworkId;
+  if (frameworkSorter->contains(frameworkId.value())) {
+    untrackAllocatedResources(slaveId, frameworkId, resources);
   }
 
   // No need to install the filter if 'filters' is none.
@@ -1514,10 +1526,7 @@ void HierarchicalAllocatorProcess::recoverResources(
     return;
   }
 
-  // No need to install the filter if slave/framework does not exist.
-  if (framework.isNone() || slave.isNone()) {
-    return;
-  }
+  // Update filters.
 
   // Create a refused resources filter.
   Try<Duration> timeout = Duration::create(Filters().refuse_seconds());

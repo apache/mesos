@@ -11640,12 +11640,6 @@ void Master::_removeSlave(
 
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
-  //
-  // NOTE: Removing the slave is not sufficient for recovering the
-  // resources in the allocator, because the "Sorters" are updated
-  // only within recoverResources() (see MESOS-621). The calls to
-  // recoverResources() below are therefore required, even though
-  // the slave is already removed.
   allocator->removeSlave(slave->id);
 
   // Transition the tasks to lost and remove them.
@@ -11774,12 +11768,6 @@ void Master::__removeSlave(
 {
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
-  //
-  // NOTE: Removing the slave is not sufficient for recovering the
-  // resources in the allocator, because the "Sorters" are updated
-  // only within recoverResources() (see MESOS-621). The calls to
-  // recoverResources() below are therefore required, even though
-  // the slave is already removed.
   allocator->removeSlave(slave->id);
 
   // Transition tasks to TASK_UNREACHABLE/TASK_GONE_BY_OPERATOR/TASK_LOST
