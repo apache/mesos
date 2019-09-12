@@ -3066,6 +3066,80 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
 }
 
 
+// This is a regression test for MESOS-621. It ensures that when removing
+// an agent, its resources are fully recovered.
+TEST_F(HierarchicalAllocatorTest, RemoveSlaveRecoverResources)
+{
+  // Per MESOS-621, removing an agent was a two step process.
+  // Resources in the Slave struct is immediately recovered.
+  // But states in the role tree or the sorter would require
+  // an additional recoverResources call.
+  // We verify the fix by:
+  //  - Allocating a larger agent1 to framework1
+  //  - Allocating a smaller agent2 to framework2
+  //  - Remove agent1 (without calling recoverResources)
+  //  - Add agent3
+  //
+  // Agent3 should be allocated to framework1 since it has no resources
+  // (verfiying that the sorter states are correctly updated
+  // after the agent1 is removed).
+
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo slave1 = createSlaveInfo("cpus:2;mem:200");
+  allocator->addSlave(
+      slave1.id(),
+      slave1,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave1.resources(),
+      {});
+
+  FrameworkInfo framework1 = createFrameworkInfo({"role"});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  Allocation expected = Allocation(
+      framework1.id(), {{"role", {{slave1.id(), slave1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  FrameworkInfo framework2 = createFrameworkInfo({"role"});
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  SlaveInfo slave2 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      slave2.id(),
+      slave2,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave2.resources(),
+      {});
+
+  expected = Allocation(
+      framework2.id(), {{"role", {{slave2.id(), slave2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  allocator->removeSlave(slave1.id());
+
+  SlaveInfo slave3 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      slave3.id(),
+      slave3,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave3.resources(),
+      {});
+
+  expected = Allocation(
+      framework1.id(), {{"role", {{slave3.id(), slave3.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
+
 // This is a white-box test to ensure that MESOS-9554 is fixed.
 // It ensures that if a framework is not capable of receiving
 // any resources on an agent, we still proceed to try allocating
