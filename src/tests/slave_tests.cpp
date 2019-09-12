@@ -12040,10 +12040,16 @@ TEST_F(SlaveTest, DrainAgentKillsRunningTask)
 
   AWAIT_READY(updateSlaveMessage);
 
+  // Set the partition-aware capability to ensure that the terminal update state
+  // is TASK_GONE_BY_OPERATOR, since we will set `mark_gone = true`.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::PARTITION_AWARE);
+
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
 
   Future<v1::scheduler::Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -12160,10 +12166,16 @@ TEST_F(SlaveTest, DrainAgentKillsQueuedTask)
 
   AWAIT_READY(updateSlaveMessage);
 
+  // Set the partition-aware capability to ensure that the terminal update state
+  // is TASK_GONE_BY_OPERATOR, since we will set `mark_gone = true`.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::PARTITION_AWARE);
+
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
 
   Future<v1::scheduler::Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -12351,7 +12363,9 @@ TEST_F(SlaveTest, DrainAgentKillsPendingTask)
 
   AWAIT_READY(killedUpdate);
 
-  EXPECT_EQ(v1::TASK_GONE_BY_OPERATOR, killedUpdate->status().state());
+  // The terminal update state in this case should be TASK_KILLED because the
+  // scheduler is not partition-aware.
+  EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
   EXPECT_EQ(
       v1::TaskStatus::REASON_AGENT_DRAINING, killedUpdate->status().reason());
 }
