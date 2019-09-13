@@ -4697,7 +4697,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_AllocationRoleEnvironmentVariable)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
+#ifdef __WINDOWS__
+      "if %MESOS_ALLOCATION_ROLE% == \"role1\" (exit 1)");
+#else
       "if [ \"$MESOS_ALLOCATION_ROLE\" != \"role1\" ]; then exit 1; fi");
+#endif // __WINDOWS__
 
   // TODO(tnachen): Use local image to test if possible.
   task.mutable_container()->CopyFrom(createDockerInfo(DOCKER_TEST_IMAGE));

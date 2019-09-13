@@ -466,7 +466,11 @@ TEST_P(CommandExecutorTest, AllocationRoleEnvironmentVariable)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
+#ifdef __WINDOWS__
+      "if %MESOS_ALLOCATION_ROLE% == \"role1\" (exit 1)");
+#else
       "if [ \"$MESOS_ALLOCATION_ROLE\" != \"role1\" ]; then exit 1; fi");
+#endif // __WINDOWS__
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
