@@ -509,6 +509,7 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), agentFlags1);
+  ASSERT_SOME(slave1);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -556,6 +557,7 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   agentFlags2.launcher = "posix";
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), agentFlags2);
+  ASSERT_SOME(slave2);
 
   AWAIT_READY(task2Launched);
 
@@ -580,6 +582,7 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   agentFlags3.launcher = "posix";
 
   Try<Owned<cluster::Slave>> slave3 = StartSlave(detector.get(), agentFlags3);
+  ASSERT_SOME(slave3);
 
   AWAIT_READY(offer);
 
