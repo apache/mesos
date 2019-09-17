@@ -1846,14 +1846,52 @@ mesos_resolve_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_resolve_LDADD = libmesos.la $(LDADD)
 
 bin_PROGRAMS += mesos
+
+NEW_CLI_PLUGINS = \
+	python/cli_new/lib/cli/plugins/agent/__init__.py		\
+	python/cli_new/lib/cli/plugins/agent/main.py			\
+	python/cli_new/lib/cli/plugins/config/__init__.py		\
+	python/cli_new/lib/cli/plugins/config/main.py			\
+	python/cli_new/lib/cli/plugins/task/__init__.py			\
+	python/cli_new/lib/cli/plugins/task/main.py			\
+	python/cli_new/lib/cli/plugins/__init__.py			\
+	python/cli_new/lib/cli/plugins/base.py
+
+NEW_CLI = \
+	python/cli_new/bin/main.py					\
+	python/cli_new/bin/mesos					\
+	python/cli_new/bin/mesos-cli-tests				\
+	python/cli_new/bin/settings.py					\
+	python/cli_new/activate						\
+	python/cli_new/deactivate					\
+	python/cli_new/lib/cli/__init__.py				\
+	python/cli_new/lib/cli/constants.py				\
+	python/cli_new/lib/cli/tests/tests.py				\
+	python/cli_new/lib/cli/tests/__init__.py			\
+	python/cli_new/lib/cli/tests/agent.py				\
+	python/cli_new/lib/cli/tests/base.py				\
+	python/cli_new/lib/cli/tests/constants.py			\
+	python/cli_new/lib/cli/tests/data/lorem-ipsum.txt		\
+	python/cli_new/lib/cli/tests/task.py				\
+	python/cli_new/lib/cli/config.py				\
+	python/cli_new/lib/cli/docopt.py				\
+	python/cli_new/lib/cli/exceptions.py				\
+	python/cli_new/lib/cli/http.py					\
+	python/cli_new/lib/cli/mesos.py					\
+	python/cli_new/lib/cli/util.py					\
+	python/cli_new/mesos.bash_completion				\
+	python/cli_new/tests/default_config.toml			\
+	python/cli_new/tests/CMakeLists.txt				\
+	python/cli_new/tests/__init__.py				\
+	python/cli_new/tests/main.py					\
+	python/cli_new/CMakeLists.txt					\
+	python/cli_new/README.md					\
+	python/cli_new/bootstrap					\
+	python/cli_new/pip-requirements.txt
+
 if ENABLE_NEW_CLI
 MESOS_CLI_SRCDIR = $(srcdir)/python/cli_new
 MESOS_CLI_BUILDDIR = $(builddir)/cli
-MESOS_CLI_HIDDEN_IMPORTS =					\
-	$(patsubst %, --hidden-import cli.plugins.%,		\
-		$(notdir $(shell find				\
-			   $(MESOS_CLI_SRCDIR)/lib/cli/plugins	\
-			     -mindepth 1 -maxdepth 1 -type d)))
 
 mesos: $(shell git ls-files $(MESOS_CLI_SRCDIR))
 	@echo "Building the CLI ..."
@@ -1864,7 +1902,7 @@ mesos: $(shell git ls-files $(MESOS_CLI_SRCDIR))
 		> $(MESOS_CLI_BUILDDIR)/version.py &&	\
 	source $(builddir)/.virtualenv/bin/activate &&	\
 	pyinstaller -p $(MESOS_CLI_SRCDIR)/lib		\
-		$(MESOS_CLI_HIDDEN_IMPORTS)		\
+		$(NEW_CLI_PLUGINS)			\
 		--specpath $(MESOS_CLI_BUILDDIR)	\
 		--workpath $(MESOS_CLI_BUILDDIR)/work	\
 		--distpath $(builddir)			\
@@ -1873,6 +1911,9 @@ mesos: $(shell git ls-files $(MESOS_CLI_SRCDIR))
 		--onefile				\
 		$(MESOS_CLI_SRCDIR)/bin/main.py
 check_PROGRAMS += mesos
+
+EXTRA_DIST += cli/mesos.cpp
+
 else
 mesos_SOURCES = cli/mesos.cpp
 mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1885,6 +1926,22 @@ dist_bin_SCRIPTS +=							\
   cli/mesos-scp								\
   cli/mesos-tail
 endif
+
+EXTRA_DIST += \
+	$(NEW_CLI)							\
+	$(NEW_CLI_PLUGINS)						\
+	python/lib/mesos/__init__.py					\
+	python/lib/mesos/exceptions.py					\
+	python/lib/mesos/http.py					\
+	python/lib/mesos/recordio.py					\
+	python/lib/tests/__init__.py					\
+	python/lib/tests/conftest.py					\
+	python/lib/tests/test_exceptions.py				\
+	python/lib/tests/test_http.py					\
+	python/lib/tests/test_mesos.py					\
+	python/lib/tests/test_recordio.py				\
+	python/lib/requirements.in					\
+	python/lib/setup.py
 
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the
