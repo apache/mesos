@@ -840,7 +840,7 @@ Try<Nothing> verify(
   // the peer hostname using a reverse DNS lookup.
   Option<std::string> peer_hostname = hostname;
   if (ip.isSome()) {
-    VLOG(1) << "Doing rDNS lookup for 'libprocess' hostname validation";
+    VLOG(1) << "Doing rDNS lookup for 'legacy' hostname validation";
     Stopwatch watch;
 
     watch.start();
