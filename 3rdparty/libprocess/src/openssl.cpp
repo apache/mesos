@@ -110,14 +110,29 @@ Flags::Flags()
       "key_file",
       "Path to key.");
 
+  // NOTE: We're not using the libprocess built-in `DeprecatedName` mechanism
+  // for these aliases. This is to prevent the situation where a task
+  // configuration specifies the old value and the agent configuration
+  // specifies the new value, causing a program crash at startup when
+  // libprocess parses the environment for flags.
   add(&Flags::verify_cert,
       "verify_cert",
+      "Legacy alias for `verify_server_cert`.",
+      false);
+
+  add(&Flags::verify_server_cert,
+      "verify_server_cert",
       "Whether or not to require and verify server certificates for "
       "connections in client mode.",
       false);
 
   add(&Flags::require_cert,
       "require_cert",
+      "Legacy alias for `require_client_cert",
+      false);
+
+  add(&Flags::require_client_cert,
+      "require_client_cert",
       "Whether or not to require and verify client certificates for "
       "connections in server mode.",
       false);
@@ -531,9 +546,23 @@ void reinitialize()
       "Failed SSL connections will be downgraded to a non-SSL socket";
   }
 
+  // TODO(bevers): Remove the deprecated names for these flags after an
+  // appropriate amount of time. (MESOS-9973)
+  if (ssl_flags->verify_cert) {
+    LOG(WARNING) << "Usage of LIBPROCESS_SSL_VERIFY_CERT is deprecated; "
+                    "it was renamed to LIBPROCESS_SSL_VERIFY_SERVER_CERT";
+    ssl_flags->verify_server_cert = true;
+  }
+
+  if (ssl_flags->require_cert) {
+    LOG(WARNING) << "Usage of LIBPROCESS_SSL_REQUIRE_CERT is deprecated; "
+                    "it was renamed to LIBPROCESS_SSL_REQUIRE_CLIENT_CERT";
+    ssl_flags->require_client_cert = true;
+  }
+
   // Print an additional warning if certificate verification is enabled while
   // supporting downgrades, since this is most likely a misconfiguration.
-  if ((ssl_flags->require_cert || ssl_flags->verify_cert) &&
+  if ((ssl_flags->require_client_cert || ssl_flags->verify_server_cert) &&
       ssl_flags->support_downgrade) {
     LOG(WARNING)
       << "TLS certificate verification was enabled by setting one of"
@@ -563,7 +592,7 @@ void reinitialize()
               << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
   }
 
-  if (ssl_flags->require_cert) {
+  if (ssl_flags->require_client_cert) {
     LOG(INFO) << "Will require client certificates for incoming TLS "
               << "connections.";
   }
@@ -573,7 +602,7 @@ void reinitialize()
 #if defined(_EVENT_HAVE_EPOLL) && \
     defined(_EVENT_NUMERIC_VERSION) && \
     _EVENT_NUMERIC_VERSION < 0x02010400L
-  if (ssl_flags->require_cert &&
+  if (ssl_flags->require_client_cert &&
       ssl_flags->hostname_validation_scheme == "legacy") {
     LOG(WARNING) << "Enabling client certificate validation with the "
                  << "'legacy' hostname validation scheme is known to "
@@ -587,24 +616,26 @@ void reinitialize()
               << "certificate extension.";
   }
 
-  if (ssl_flags->require_cert && !ssl_flags->verify_cert) {
+  if (ssl_flags->require_client_cert && !ssl_flags->verify_server_cert) {
     // For backwards compatibility, `require_cert` implies `verify_cert`.
     //
-    // NOTE: Even without backwards compatility considerations, this would
-    // be a reasonable requirement on the configuration.
-    ssl_flags->verify_cert = true;
+    // NOTE: Even without backwards compatibility considerations, this is
+    // a reasonable requirement on the configuration so we apply the
+    // same logic even when the modern names `require_client_cert` and
+    // `verify_server_cert` are used.
+    ssl_flags->verify_server_cert = true;
 
     LOG(INFO) << "LIBPROCESS_SSL_REQUIRE_CERT implies "
               << "server certificate verification.\n"
               << "LIBPROCESS_SSL_VERIFY_CERT set to true";
   }
 
-  if (ssl_flags->verify_cert) {
+  if (ssl_flags->verify_server_cert) {
     LOG(INFO) << "Will verify server certificates for outgoing TLS "
               << "connections.";
   } else {
     LOG(INFO) << "Will not verify server certificates!\n"
-              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
+              << "NOTE: Set LIBPROCESS_SSL_VERIFY_SERVER_CERT=1 to enable "
               << "peer certificate verification";
   }
 
@@ -626,7 +657,7 @@ void reinitialize()
 
   // Initialize OpenSSL if we've been asked to do verification of peer
   // certificates.
-  if (ssl_flags->verify_cert) {
+  if (ssl_flags->verify_server_cert) {
     // Set CA locations.
     if (ssl_flags->ca_file.isSome() || ssl_flags->ca_dir.isSome()) {
       const char* ca_file =
@@ -801,11 +832,11 @@ Try<Nothing> verify(
     const Option<net::IP>& ip)
 {
   // Return early if we don't need to verify.
-  if (mode == Mode::CLIENT && !ssl_flags->verify_cert) {
+  if (mode == Mode::CLIENT && !ssl_flags->verify_server_cert) {
     return Nothing();
   }
 
-  if (mode == Mode::SERVER && !ssl_flags->require_cert) {
+  if (mode == Mode::SERVER && !ssl_flags->require_client_cert) {
     return Nothing();
   }
 
@@ -866,7 +897,7 @@ Try<Nothing> verify(
 
   if (!ssl_flags->verify_ipadd && peer_hostname.isNone()) {
     X509_free(cert);
-    return ssl_flags->require_cert
+    return ssl_flags->require_client_cert
       ? Error("Cannot verify peer certificate: peer hostname unknown")
       : Try<Nothing>(Nothing());
   }
@@ -1008,14 +1039,14 @@ Try<Nothing> configure_socket(
     const Address& peer_address,
     const Option<std::string>& peer_hostname)
 {
-  if (mode == Mode::CLIENT && ssl_flags->verify_cert) {
+  if (mode == Mode::CLIENT && ssl_flags->verify_server_cert) {
     SSL_set_verify(
         ssl,
         SSL_VERIFY_PEER,
         &verify_callback);
   }
 
-  if (mode == Mode::SERVER && ssl_flags->require_cert) {
+  if (mode == Mode::SERVER && ssl_flags->require_client_cert) {
     SSL_set_verify(
         ssl,
         SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
@@ -1039,7 +1070,7 @@ Try<Nothing> configure_socket(
       return Nothing();
     }
 
-    if (mode == openssl::Mode::CLIENT && !ssl_flags->verify_cert) {
+    if (mode == openssl::Mode::CLIENT && !ssl_flags->verify_server_cert) {
       return Nothing();
     }
 
