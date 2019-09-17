@@ -39,7 +39,9 @@ public:
   Option<std::string> cert_file;
   Option<std::string> key_file;
   bool verify_cert;
+  bool verify_server_cert;
   bool require_cert;
+  bool require_client_cert;
   bool verify_ipadd;
   unsigned int verification_depth;
   Option<std::string> ca_dir;
