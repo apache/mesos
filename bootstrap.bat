@@ -56,6 +56,10 @@ if not exist .clang-format (
   mklink .clang-format support\clang-format
 )
 
+if not exist CPPLINT.cfg (
+  mklink CPPLINT.cfg support\CPPLINT.cfg
+)
+
 goto:eof
 
 

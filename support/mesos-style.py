@@ -259,35 +259,11 @@ class CppLinter(LinterBase):
 
         http://google-styleguide.googlecode.com/svn/trunk/cpplint/cpplint.py
         """
-
-        # See cpplint.py for full list of rules.
-        active_rules = [
-            'build/class',
-            'build/deprecated',
-            'build/endif_comment',
-            'readability/todo',
-            'readability/namespace',
-            'runtime/vlog',
-            'whitespace/blank_line',
-            'whitespace/comma',
-            'whitespace/end_of_line',
-            'whitespace/ending_newline',
-            'whitespace/forcolon',
-            'whitespace/indent',
-            'whitespace/line_length',
-            'whitespace/operators',
-            'whitespace/semicolon',
-            'whitespace/tab',
-            'whitespace/comments',
-            'whitespace/todo']
-
-        rules_filter = '--filter=-,+' + ',+'.join(active_rules)
-
         # We do not use a version of cpplint available through pip as
         # we use a custom version (see cpplint.path) to lint C++ files.
         process = subprocess.Popen(
-            [sys.executable, 'support/cpplint.py', '--extensions=hpp,cpp',
-             rules_filter] + source_paths,
+            [sys.executable, 'support/cpplint.py', '--extensions=hpp,cpp'] +
+            source_paths,
             stderr=subprocess.PIPE,
             close_fds=True)
 

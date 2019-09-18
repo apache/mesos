@@ -80,6 +80,10 @@ if test ! -e .clang-tidy; then
   ln -s support/clang-tidy .clang-tidy
 fi
 
+if test ! -e CPPLINT.cfg; then
+  ln -s support/CPPLINT.cfg CPPLINT.cfg
+fi
+
 if [ -n "$AUTOMAKE" ] || [ -n "$ACLOCAL" ] ; then
     if [ -z "$ACLOCAL" ] || [ -z "$AUTOMAKE" ] ; then
         _present="AUTOMAKE"
