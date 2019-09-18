@@ -24,8 +24,8 @@ SRCDIR=/tmp/SRC
 # Prepare sources
 git clone --depth 1 file:///SRC "${SRCDIR}"
 
-# We require this in order to populate the `.clang-tidy` file at the top-level.
-(cd "${SRCDIR}" && ./bootstrap)
+# Populate the `.clang-tidy` at the top-level.
+cp "${SRCDIR}"/support/clang-tidy "${SRCDIR}"/.clang-tidy
 
 # Configure sources
 cmake -DCMAKE_BUILD_TYPE=Release \
