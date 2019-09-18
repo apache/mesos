@@ -58,8 +58,6 @@ def find_project(filename):
 def main():
     """
     Expects a list of filenames on the command line.
-
-    See `support/hooks/pre-commit` for the canonical usage of this method.
     """
     touched_projects = defaultdict(list)
     for filename in sys.argv[1:]:

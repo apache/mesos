@@ -7,7 +7,7 @@ layout: documentation
 
 The Mesos codebase follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) with some notable differences, as described below.
 
-Note that the [clang-format](clang-format.md) tool can be helpful to ensure that some of the mechanical style rules are obeyed. Commits should be checked with the script `support/mesos-style.py` for high-level conformance, or with `support/mesos-tidy.sh` for conformance to low-level expectations.
+Note that the [clang-format](clang-format.md) tool can be helpful to ensure that some of the mechanical style rules are obeyed. Commits should be checked with the command `pre-commit run cpplint` for high-level conformance, or with `support/mesos-tidy.sh` for conformance to low-level expectations.
 
 ## Scoping
 
