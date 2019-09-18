@@ -1230,6 +1230,22 @@ TYPED_TEST(CommonSorterTest, UpdateAllocation)
   EXPECT_EQ(
       CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10;mem:10;disk:10")),
       sorter.allocationScalarQuantities());
+
+  // Test update allocation to empty.
+  Resources resourcesC =
+    CHECK_NOTERROR(Resources::parse("cpus:10;mem:10;disk:10"));
+
+  SlaveID slaveId2;
+  slaveId.set_value("agentId2");
+
+  sorter.add("c");
+  sorter.activate("c");
+
+  sorter.add(slaveId, resourcesC);
+
+  sorter.allocated("c", slaveId2, resourcesC);
+  sorter.update("c", slaveId2, resourcesC, Resources());
+  EXPECT_TRUE(sorter.allocation("c").empty());
 }
 
 
