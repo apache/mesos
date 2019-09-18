@@ -5,6 +5,7 @@
 .clang-format
 .clang-tidy
 .reviewboardrc
+.gitlint
 CPPLINT.cfg
 Makefile.in
 aclocal.m4

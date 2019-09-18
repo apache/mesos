@@ -84,6 +84,10 @@ if test ! -e CPPLINT.cfg; then
   ln -s support/CPPLINT.cfg CPPLINT.cfg
 fi
 
+if test ! -e .gitlint; then
+  ln -s support/gitlint .gitlint
+fi
+
 if [ -n "$AUTOMAKE" ] || [ -n "$ACLOCAL" ] ; then
     if [ -z "$ACLOCAL" ] || [ -z "$AUTOMAKE" ] ; then
         _present="AUTOMAKE"

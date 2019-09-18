@@ -60,6 +60,10 @@ if not exist CPPLINT.cfg (
   mklink CPPLINT.cfg support\CPPLINT.cfg
 )
 
+if not exist .gitlint (
+  mklink .gitlint support\gitlint
+)
+
 goto:eof
 
 
