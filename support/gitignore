@@ -23,6 +23,7 @@ missing
 # Files created by ./support/setup-dev.sh
 .clang-format
 .clang-tidy
+.pre-commit-config.yaml
 .reviewboardrc
 .gitlint
 CPPLINT.cfg

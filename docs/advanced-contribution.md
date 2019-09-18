@@ -15,6 +15,7 @@ If you'd like to make significant contributions to Mesos, then you'll want to be
 <br/><br/>
 * Required installations
     + RBtools (0.7.10 is known to work, 1.0.1 appears to have an issue)
+    + [pre-commit](https://pre-commit.com/#install)
 
 ## Issue Tracking, Code Review, and Mailing Lists
 
@@ -64,7 +65,7 @@ Here is the standard procedure for proposing and making changes to Mesos:
 1. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)). Before you start coding, make sure these test cases all fail.
     1. The [testing patterns](testing-patterns.md) page has some suggestions for writing test cases.
 2. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
-    1. Before beginning, please read the [Mesos C++ Style Guide](c++-style-guide.md). It is recommended to use the git pre-commit hook (`support/hooks/pre-commit`) to automatically check for style errors. See the hook script for instructions to enable it.
+    1. Before beginning, please read the [Mesos C++ Style Guide](c++-style-guide.md). It is recommended to use the git pre-commit hook to automatically check for style errors. The hooks are set up by invoking `./support/setup_dev.sh`.
     2. Most of your changes will probably be to files inside of `BASE_MESOS_DIR`
     3. From inside of the root Mesos directory: `./bootstrap` and `./support/setup-dev.sh`.
     4. To build, we recommend that you don't build inside of the src directory. We recommend you do the following:

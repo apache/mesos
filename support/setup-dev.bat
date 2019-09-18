@@ -35,15 +35,6 @@ fsutil reparsepoint query "support" | find "Symbolic Link" >nul && (
   goto not_in_root
 )
 
-:: Install mesos default hooks and gitignore template.
-if not exist .git\hooks\pre-commit (
-  mklink .git\hooks\pre-commit ..\..\support\hooks\pre-commit
-)
-
-if not exist .git\hooks\post-rewrite (
-  mklink .git\hooks\post-rewrite ..\..\support\hooks\post-rewrite
-)
-
 if not exist .gitignore (
   mklink .gitignore support\gitignore
 )
@@ -63,6 +54,15 @@ if not exist CPPLINT.cfg (
 if not exist .gitlint (
   mklink .gitlint support\gitlint
 )
+
+if not exist .pre-commit-config.yaml (
+  mklink .pre-commit-config.yaml support\pre-commit-config.yaml
+)
+
+:: Install mesos default hooks and gitignore template.
+pre-commit install-hooks
+pre-commit install --hook-type pre-commit
+pre-commit install --hook-type commit-msg
 
 goto:eof
 

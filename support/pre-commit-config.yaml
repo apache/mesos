@@ -1,0 +1,48 @@
+default_stages: [commit]
+repos:
+- repo: local
+  hooks:
+  - id: split
+    name: Check that commits are split by project
+    entry: python ./support/mesos-split.py
+    language: python
+    language_version: 'python3'
+    stages: [commit]
+    require_serial: true
+  - id: license
+    name: Check required license headers
+    description: license
+    language: python
+    language_version: 'python3'
+    entry: python ./support/check-license.py
+    types: [text]
+    files: '.*\.(cpp|hpp|py)$' # TODO(bbannier): also check shell scripts.
+  - id: cpplint
+    name: cpplint
+    entry: python ./support/cpplint.py
+    language: python
+    language_version: 'python2'
+    types: [c++]
+    args: ['--extensions=hpp,cpp']
+- repo: https://github.com/jorisroovers/gitlint
+  rev:  v0.12.0
+  hooks:
+  - id: gitlint
+    stages: [commit-msg]
+- repo: https://github.com/pre-commit/mirrors-pylint
+  rev: v2.3.1
+  hooks:
+  - id: pylint
+    args: ['--score=n', '--rcfile=support/pylint.config']
+    files: '(support).*'
+- repo: https://github.com/pre-commit/mirrors-eslint
+  rev: v6.3.0
+  hooks:
+  - id: eslint
+    args: ['-c', 'support/.eslintrc.js']
+    exclude: '^(site/source/assets/js/|src/webui/assets/libs/)'
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 1.11.0
+  hooks:
+    - id: require-ascii
+      exclude: '^(docs/(committers.md|contributors.yaml))|(site|src/webui)/'
