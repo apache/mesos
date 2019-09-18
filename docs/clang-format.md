@@ -36,8 +36,9 @@ layout: documentation
 
 By default, ClangFormat uses the configuration defined in a `.clang-format` or
 `_clang-format` file located in the nearest parent directory of the input file.
-The `bootstrap` script creates a `.clang-format` symlink at the top-level
-directory which points to `support/clang-format` for ClangFormat to find.
+The `./support/setup-dev.sh` script creates a `.clang-format` symlink at the
+top-level directory which points to `support/clang-format` for ClangFormat to
+find.
 
 
 ### Editor Integration

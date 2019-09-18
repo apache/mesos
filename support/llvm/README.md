@@ -28,9 +28,9 @@ and format selected regions of code.
 ### Configuration
 
 By default, [ClangFormat] uses the configuration defined in a `.clang-format`
-file located in the nearest parent directory of the input file.
-The `bootstrap` script creates a `.clang-format` symlink at `<MESOS_DIR>`
-which points to `support/clang-format` for [ClangFormat] to find.
+file located in the nearest parent directory of the input file. The
+`support/setup-dev.sh` script creates a `.clang-format` symlink at
+`<MESOS_DIR>` which points to `support/clang-format` for [ClangFormat] to find.
 
 ### Integration
 
@@ -55,10 +55,10 @@ Refer to https://clang.llvm.org/docs/ClangFormat.html#vim-integration
 
 ### Configuration
 
-By default, [ClangTidy] uses the configuration defined in a `.clang-tidy`
-file located in the nearest parent directory of the input file.
-The `bootstrap` script creates a `.clang-tidy` symlink at `<MESOS_DIR>`
-which points to `support/clang-tidy` for [ClangTidy] to find.
+By default, [ClangTidy] uses the configuration defined in a `.clang-tidy` file
+located in the nearest parent directory of the input file. The
+`./support/setup-dev.sh` script creates a `.clang-tidy` symlink at
+`<MESOS_DIR>` which points to `support/clang-tidy` for [ClangTidy] to find.
 
 ### Invocation
 

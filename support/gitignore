@@ -2,11 +2,6 @@
 .gitignore
 
 # Files created by ./bootstrap.
-.clang-format
-.clang-tidy
-.reviewboardrc
-.gitlint
-CPPLINT.cfg
 Makefile.in
 aclocal.m4
 ar-lib
@@ -24,6 +19,13 @@ ltsugar.m4
 ltversion.m4
 lt~obsolete.m4
 missing
+
+# Files created by ./support/setup-dev.sh
+.clang-format
+.clang-tidy
+.reviewboardrc
+.gitlint
+CPPLINT.cfg
 
 # Recommended build directory.
 /build/

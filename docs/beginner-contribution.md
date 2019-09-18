@@ -19,7 +19,7 @@ First, download the latest development version of the Mesos codebase. In order t
 
 If you're proposing a documentation-only change, then you don't need to build Mesos to get started.
 
-If you're making a functional change to the code, then you should build Mesos first. Once you have the Mesos source code on your local machine, you can install the necessary dependencies and build it. Instructions for this process can be found in the [building](building.md) page. Note that the `bootstrap` script in the repository's root directory will install git hooks which will help you adhere to Mesos style when committing.
+If you're making a functional change to the code, then you should build Mesos first. Once you have the Mesos source code on your local machine, you can install the necessary dependencies and build it. Instructions for this process can be found in the [building](building.md) page. Note that the `./support/setup-dev.sh` script will install git hooks which will help you adhere to Mesos style when committing.
 
 ## Find a Problem to Solve
 

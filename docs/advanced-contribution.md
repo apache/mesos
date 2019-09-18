@@ -66,7 +66,7 @@ Here is the standard procedure for proposing and making changes to Mesos:
 2. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
     1. Before beginning, please read the [Mesos C++ Style Guide](c++-style-guide.md). It is recommended to use the git pre-commit hook (`support/hooks/pre-commit`) to automatically check for style errors. See the hook script for instructions to enable it.
     2. Most of your changes will probably be to files inside of `BASE_MESOS_DIR`
-    3. From inside of the root Mesos directory: `./bootstrap` (Only required if building from git repository).
+    3. From inside of the root Mesos directory: `./bootstrap` and `./support/setup-dev.sh`.
     4. To build, we recommend that you don't build inside of the src directory. We recommend you do the following:
         1. From inside of the root Mesos directory: `mkdir build && cd build`
         2. `../configure`

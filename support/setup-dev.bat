@@ -70,7 +70,7 @@ goto:eof
 :: If we are not in the root directory, print error and exit.
 :not_in_root
 echo. 1>&2
-echo You must run bootstrap from the root of the distribution. 1>&2
+echo You must run support/setup-dev.bat from the root of the distribution. 1>&2
 echo. 1>&2
 
 exit /b 1
