@@ -2919,10 +2919,12 @@ void MesosContainerizerProcess::______destroy(
 
       CHECK(containers_.contains(rootContainerId));
 
-      const string sandboxPath = containerizer::paths::getSandboxPath(
-        containers_[rootContainerId]->directory.get(), containerId);
+      if (containers_[rootContainerId]->directory.isSome()) {
+        const string sandboxPath = containerizer::paths::getSandboxPath(
+          containers_[rootContainerId]->directory.get(), containerId);
 
-      garbageCollect(sandboxPath);
+        garbageCollect(sandboxPath);
+      }
     }
   } else if (os::exists(runtimePath)) {
     Try<Nothing> rmdir = os::rmdir(runtimePath);
@@ -3039,21 +3041,23 @@ Future<Nothing> MesosContainerizerProcess::remove(
     }
   }
 
-  const string sandboxPath = containerizer::paths::getSandboxPath(
-      containers_[rootContainerId]->directory.get(), containerId);
+  if (containers_[rootContainerId]->directory.isSome()) {
+    const string sandboxPath = containerizer::paths::getSandboxPath(
+        containers_[rootContainerId]->directory.get(), containerId);
 
-  if (os::exists(sandboxPath)) {
-    // Unschedule the nested container sandbox from garbage collection
-    // to prevent potential double-deletion in future.
-    if (flags.gc_non_executor_container_sandboxes) {
-      CHECK_NOTNULL(gc);
-      gc->unschedule(sandboxPath);
-    }
+    if (os::exists(sandboxPath)) {
+      // Unschedule the nested container sandbox from garbage collection
+      // to prevent potential double-deletion in future.
+      if (flags.gc_non_executor_container_sandboxes) {
+        CHECK_NOTNULL(gc);
+        gc->unschedule(sandboxPath);
+      }
 
-    Try<Nothing> rmdir = os::rmdir(sandboxPath);
-    if (rmdir.isError()) {
-      return Failure(
-          "Failed to remove the sandbox directory: " + rmdir.error());
+      Try<Nothing> rmdir = os::rmdir(sandboxPath);
+      if (rmdir.isError()) {
+        return Failure(
+            "Failed to remove the sandbox directory: " + rmdir.error());
+      }
     }
   }
 
