@@ -46,3 +46,9 @@ repos:
   hooks:
     - id: require-ascii
       exclude: '^(docs/(committers.md|contributors.yaml))|(site|src/webui)/'
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v2.3.0
+  hooks:
+  - id: check-yaml
+  - id: check-json
+  - id: check-executables-have-shebangs
