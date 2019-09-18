@@ -96,9 +96,14 @@ option(CPACK_SOURCE_ZIP  "Enable to build ZIP source packages"  OFF)
 
 include(CPack)
 
-add_custom_target(dist
-  COMMAND ${CMAKE_SOURCE_DIR}/cmake/dist.sh ${MESOS_PACKAGE_VERSION})
+if (NOT WIN32)
+  # These targets are intended to mirror the same targets of the Autotools
+  # build. Because these are written as Shell scripts, they cannot be
+  # run on Windows.
+  add_custom_target(dist
+    COMMAND ${CMAKE_SOURCE_DIR}/cmake/dist.sh ${MESOS_PACKAGE_VERSION})
 
-add_custom_target(distcheck
-  COMMAND ${CMAKE_SOURCE_DIR}/cmake/distcheck.sh ${MESOS_PACKAGE_VERSION}
-  DEPENDS dist)
+  add_custom_target(distcheck
+    COMMAND ${CMAKE_SOURCE_DIR}/cmake/distcheck.sh ${MESOS_PACKAGE_VERSION}
+    DEPENDS dist)
+endif ()
