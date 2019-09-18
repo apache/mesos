@@ -356,7 +356,7 @@ struct DRFSorter::Node
 
       totals -= quantitiesToRemove;
 
-      if (resources[slaveId].empty()) {
+      if (resources.at(slaveId).empty()) {
         resources.erase(slaveId);
       }
     }
@@ -381,6 +381,12 @@ struct DRFSorter::Node
 
       resources[slaveId] -= oldAllocation;
       resources[slaveId] += newAllocation;
+
+      // It is possible that allocations can be updated to empty.
+      // See MESOS-9015 and MESOS-9975.
+      if (resources.at(slaveId).empty()) {
+        resources.erase(slaveId);
+      }
 
       totals -= oldAllocationQuantities;
       totals += newAllocationQuantities;
