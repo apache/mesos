@@ -168,7 +168,16 @@ private:
   // By default, weights == DEFAULT_WEIGHT == 1.0.
   double weight_;
 
-  // IDs of the frameworks subscribed to the role, if any.
+  // IDs of the frameworks tracked under the role, if any.
+  // A framework is tracked under the role if the framework:
+  //
+  // (1) is subscribed to the role;
+  // *OR*
+  // (2) has resources allocated under the role.
+  //
+  // NOTE: (2) could be true without (1). This is because the allocator
+  // interface allows for a framework role to be removed without recovering
+  // resources offered or allocated to this role.
   hashset<FrameworkID> frameworks_;
 
   // Total allocated or offered scalar resources to this role, including
@@ -773,13 +782,17 @@ private:
 
   const Quota& getQuota(const std::string& role) const;
 
+  // Helpers to track and untrack a framework under a role.
+  // Frameworks should be tracked under a role either if it subscribes to the
+  // role *OR* it has resources allocated/offered to that role. when neither
+  // conditions are met, it should be untracked.
+  //
+  // `tryUntrackFrameworkUnderRole` returns true if the framework is untracked
+  // under the role.
   void trackFrameworkUnderRole(
-      const FrameworkID& frameworkId,
-      const std::string& role);
-
-  void untrackFrameworkUnderRole(
-      const FrameworkID& frameworkId,
-      const std::string& role);
+      const Framework& framework, const std::string& role);
+  bool tryUntrackFrameworkUnderRole(
+      const Framework& framework, const std::string& role);
 
   void suppressRoles(Framework& framework, const std::set<std::string>& roles);
   void reviveRoles(Framework& framework, const std::set<std::string>& roles);

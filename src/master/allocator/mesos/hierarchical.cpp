@@ -633,7 +633,7 @@ void HierarchicalAllocatorProcess::addFramework(
   const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
   foreach (const string& role, framework.roles) {
-    trackFrameworkUnderRole(frameworkId, role);
+    trackFrameworkUnderRole(framework, role);
 
     Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
@@ -699,7 +699,10 @@ void HierarchicalAllocatorProcess::removeFramework(
       untrackAllocatedResources(slaveId, frameworkId, allocated);
     }
 
-    untrackFrameworkUnderRole(frameworkId, role);
+    CHECK(tryUntrackFrameworkUnderRole(framework, role))
+      << " Framework: " << frameworkId
+      << " role: " << role
+      << " allocation: " << allocation;
   }
 
   // Transfer ownership of this framework's metrics to
@@ -790,7 +793,8 @@ void HierarchicalAllocatorProcess::updateFramework(
     // under the role because a framework can unsubscribe from a role
     // while it still has resources allocated to the role.
     if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
-      trackFrameworkUnderRole(frameworkId, role);
+      // TODO(mzhu): `CHECK` the above case.
+      trackFrameworkUnderRole(framework, role);
     }
 
     frameworkSorters.at(role)->activate(frameworkId.value());
@@ -801,11 +805,7 @@ void HierarchicalAllocatorProcess::updateFramework(
 
     frameworkSorter->deactivate(frameworkId.value());
 
-    // Stop tracking the framework under this role if there are
-    // no longer any resources allocated to it.
-    if (frameworkSorter->allocation(frameworkId.value()).empty()) {
-      untrackFrameworkUnderRole(frameworkId, role);
-    }
+    tryUntrackFrameworkUnderRole(framework, role);
 
     if (framework.offerFilters.contains(role)) {
       framework.offerFilters.erase(role);
@@ -1485,13 +1485,6 @@ void HierarchicalAllocatorProcess::recoverResources(
 
     if (frameworkSorter->contains(frameworkId.value())) {
       untrackAllocatedResources(slaveId, frameworkId, resources);
-
-      // Stop tracking the framework under this role if it's no longer
-      // subscribed and no longer has resources allocated to the role.
-      if ((*framework)->roles.count(role) == 0 &&
-          frameworkSorter->allocation(frameworkId.value()).empty()) {
-        untrackFrameworkUnderRole(frameworkId, role);
-      }
     }
   }
 
@@ -2768,7 +2761,7 @@ const Quota& HierarchicalAllocatorProcess::getQuota(const string& role) const
 
 
 void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
-    const FrameworkID& frameworkId, const string& role)
+    const Framework& framework, const string& role)
 {
   CHECK(initialized);
 
@@ -2792,28 +2785,32 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     }
   }
 
-  roleTree.trackFramework(frameworkId, role);
+  roleTree.trackFramework(framework.frameworkId, role);
 
   Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
-  CHECK_NOT_CONTAINS(*frameworkSorter, frameworkId.value())
+  CHECK_NOT_CONTAINS(*frameworkSorter, framework.frameworkId.value())
     << " for role " << role;
-  frameworkSorter->add(frameworkId.value());
+  frameworkSorter->add(framework.frameworkId.value());
 }
 
 
-void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
-    const FrameworkID& frameworkId, const string& role)
+bool HierarchicalAllocatorProcess::tryUntrackFrameworkUnderRole(
+    const Framework& framework, const string& role)
 {
   CHECK(initialized);
 
-  roleTree.untrackFramework(frameworkId, role);
-
   Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
-
-  CHECK_CONTAINS(*frameworkSorter, frameworkId.value())
+  CHECK_CONTAINS(*frameworkSorter, framework.frameworkId.value())
     << " for role " << role;
-  frameworkSorter->remove(frameworkId.value());
+
+  if (!frameworkSorter->allocation(framework.frameworkId.value()).empty()) {
+    return false;
+  }
+
+  roleTree.untrackFramework(framework.frameworkId, role);
+
+  frameworkSorter->remove(framework.frameworkId.value());
 
   if (roleTree.get(role).isNone() ||
       (*roleTree.get(role))->frameworks().empty()) {
@@ -2821,6 +2818,8 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
     roleSorter->remove(role);
     frameworkSorters.erase(role);
   }
+
+  return true;
 }
 
 
@@ -2961,7 +2960,7 @@ void HierarchicalAllocatorProcess::trackAllocatedResources(
     // or may not be subscribed to the role. Either way, we need to
     // track the framework under the role.
     if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
-      trackFrameworkUnderRole(frameworkId, role);
+      trackFrameworkUnderRole(*CHECK_NOTNONE(getFramework(frameworkId)), role);
     }
 
     CHECK_CONTAINS(*roleSorter, role);
@@ -2991,7 +2990,7 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
   // But currently, a slave is removed first via `removeSlave()`
   // and later a call to `recoverResources()` occurs to recover
   // the framework's resources.
-  CHECK_CONTAINS(frameworks, frameworkId);
+  Framework* framework = CHECK_NOTNONE(getFramework(frameworkId));
 
   // TODO(bmahler): Calling allocations() is expensive since it has
   // to construct a map. Avoid this.
@@ -3007,10 +3006,15 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
 
     roleTree.untrackOfferedOrAllocated(allocation);
 
-    frameworkSorter->unallocated(
-        frameworkId.value(), slaveId, allocation);
+    frameworkSorter->unallocated(frameworkId.value(), slaveId, allocation);
 
     roleSorter->unallocated(role, slaveId, allocation);
+
+    // If the framework is no longer subscribed to the role, we can try to
+    // untrack the framework under the role.
+    if (framework->roles.count(role) == 0) {
+      tryUntrackFrameworkUnderRole(*framework, role);
+    }
   }
 }
 
