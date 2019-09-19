@@ -129,6 +129,47 @@ time:hover {
   cursor: pointer;
 }
 
+ul.tree {
+  list-style-type: none;
+  padding-left: 1em;
+}
+
+ul.tree-root {
+  list-style-type: none;
+  padding-left: 0em;
+}
+
+div.tree-internal {
+  border-bottom: 1px #999 dashed;
+  display: inline-block;
+}
+
+div.tree-collapsed:hover,
+div.tree-expanded:hover {
+  cursor:pointer;
+}
+
+div.tree-collapsed:before,
+div.tree-expanded:before,
+div.tree-leaf:before {
+ width: 1em;
+ padding-right: 0.3em;
+ display: inline-block;
+ text-align: right;
+}
+
+div.tree-collapsed:before {
+  content: "▹";
+}
+
+div.tree-expanded:before {
+  content: "▿";
+}
+
+div.tree-leaf:before {
+  content: "•";
+}
+
 .inline .btn-toggle,
 .table-condensed .btn-toggle {
   margin-bottom: -2px;

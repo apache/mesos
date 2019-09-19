@@ -23,13 +23,11 @@
         <dd ng-show="framework.webui_url"><a href="{{framework.webui_url}}">{{framework.webui_url}}</a></dd>
         <dt>User:</dt>
         <dd>{{framework.user}}</dd>
-        <!-- TODO(bmahler): Consider having a break between each role
-             in order to increase readability. Also, this doesn't
-             display well when there are a lot of roles (e.g. a large
-             organization with a lot of teams & services, using roles
-             like /engineering/frontend/webserver, etc). -->
         <dt>Roles:</dt>
-        <dd>{{framework.roles.toString()}}</dd>
+        <dd>
+          <m-framework-roles framework-id="framework.id" roles="framework.roles">
+          </m-framework-roles>
+        </dd>
         <dt>Principal:</dt>
         <dd>{{framework.principal}}</dd>
         <dt>Registered:</dt>

@@ -1,0 +1,16 @@
+<ul ng-class="node.path ? 'tree' : 'tree-root'">
+  <li ng-repeat="node in node.children">
+    <div ng-if="node.children.length == 0" class="tree-leaf">
+      {{ node.name }}
+    </div>
+
+    <div ng-if="node.children.length > 0" ng-click="toggle(node.path)" ng-class="visible[node.path] ? 'tree-expanded': 'tree-collapsed'">
+      <div class="tree-internal">
+        {{ node.name }}
+      </div>
+    </div>
+
+    <ng-include ng-if="node.children.length > 0 && visible[node.path]" src="'app/frameworks/roles-tree.html'">
+    </ng-include>
+  </li>
+</ul>

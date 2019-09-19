@@ -1,0 +1,7 @@
+<div ng-click="toggle('')" ng-class="visible[''] ? 'tree-expanded': 'tree-collapsed'">
+  <div class="tree-internal">
+    {{ roles.length }} roles
+  </div>
+</div>
+
+<ng-include ng-if="visible['']" src="'app/frameworks/roles-tree.html'"></ng-include>

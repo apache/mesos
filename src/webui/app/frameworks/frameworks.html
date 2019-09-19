@@ -45,11 +45,10 @@
       </td>
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
-      <!-- TODO(bmahler): This doesn't display well when there are a lot
-           of roles (e.g. a large organization with a lot of teams &
-           services, using roles like /engineering/frontend/webserver, etc).
-           Figure out a way to display this without bloating the table. -->
-      <td>{{framework.roles.toString()}}</td>
+      <td>
+        <m-framework-roles framework-id="framework.id" roles="framework.roles">
+        </m-framework-roles>
+      </td>
       <td>{{framework.principal}}</td>
       <td>{{framework.tasks.length}}</td>
       <td>{{framework.used_resources.cpus | number}}</td>
@@ -108,11 +107,10 @@
     </td>
     <td>{{framework.user}}</td>
     <td>{{framework.name}}</td>
-    <!-- TODO(bmahler): This doesn't display well when there are a lot
-         of roles (e.g. a large organization with a lot of teams &
-         services, using roles like /engineering/frontend/webserver, etc).
-         Figure out a way to display this without bloating the table. -->
-    <td>{{framework.roles.toString()}}</td>
+    <td>
+      <m-framework-roles framework-id="framework.id" roles="framework.roles">
+      </m-framework-roles>
+    </td>
     <td>{{framework.principal}}</td>
     <td>{{framework.tasks.length}}</td>
     <td>{{framework.used_resources.cpus | number}}</td>
@@ -162,11 +160,10 @@
       <td>{{framework.hostname}}</td>
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
-      <!-- TODO(bmahler): This doesn't display well when there are a lot
-           of roles (e.g. a large organization with a lot of teams &
-           services, using roles like /engineering/frontend/webserver, etc).
-           Figure out a way to display this without bloating the table. -->
-      <td>{{framework.roles.toString()}}</td>
+      <td>
+        <m-framework-roles framework-id="framework.id" roles="framework.roles">
+        </m-framework-roles>
+      </td>
       <td>{{framework.principal}}</td>
       <td>
         <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
