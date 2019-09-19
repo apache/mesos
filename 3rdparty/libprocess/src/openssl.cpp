@@ -724,23 +724,23 @@ void reinitialize()
       << "(OpenSSL error #" << stringify(error) << "): " << error_string(error);
   }
 
+  long ssl_options =
+    SSL_OP_NO_SSLv2 |
+    SSL_OP_NO_SSLv3 |
+    SSL_OP_NO_TLSv1 |
+    SSL_OP_NO_TLSv1_1 |
+#if defined(SSL_OP_NO_TLSv1_3)
+    SSL_OP_NO_TLSv1_3 |
+#endif
+    SSL_OP_NO_TLSv1_2;
+
   // Clear all the protocol options. They will be reset if needed
   // below. We do this because 'SSL_CTX_set_options' only augments, it
   // does not do an overwrite.
-  SSL_CTX_clear_options(
-      ctx,
-      SSL_OP_NO_SSLv2 |
-      SSL_OP_NO_SSLv3 |
-      SSL_OP_NO_TLSv1 |
-      SSL_OP_NO_TLSv1_1 |
-      SSL_OP_NO_TLSv1_2
-#if defined(SSL_OP_NO_TLSv1_3)
-      | SSL_OP_NO_TLSv1_3
-#endif
-      );
+  SSL_CTX_clear_options(ctx, ssl_options);
 
   // Use server preference for cipher.
-  long ssl_options = SSL_OP_CIPHER_SERVER_PREFERENCE;
+  ssl_options = SSL_OP_CIPHER_SERVER_PREFERENCE;
 
   // Always disable SSLv2. We do this because most systems have
   // disabled SSLv2 at compilation due to having so many security
