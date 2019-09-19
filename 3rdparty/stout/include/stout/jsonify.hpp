@@ -557,7 +557,7 @@ class WriterProxy
 {
 public:
   WriterProxy(rapidjson::Writer<rapidjson::StringBuffer>* writer)
-    : writer_(writer) {}
+    : writer_(writer), type_(NULL_WRITER) {}
 
   ~WriterProxy()
   {
