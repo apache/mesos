@@ -517,7 +517,7 @@ Future<ProvisionInfo> ProvisionerProcess::provision(
       }
 
       // Get and then provision image layers from the store.
-      return stores.get(image.type()).get()->get(image, defaultBackend)
+      return stores.at(image.type())->get(image, defaultBackend)
         .then(defer(
             self(),
             &Self::_provision,
@@ -570,7 +570,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       containerId,
       backend);
 
-  return backends.get(backend).get()->provision(
+  return backends.at(backend)->provision(
       imageInfo.layers,
       rootfs,
       backendDir)
@@ -704,7 +704,7 @@ Future<bool> ProvisionerProcess::_destroy(
                 << "' for container " << containerId;
 
       futures.push_back(
-          backends.get(backend).get()->destroy(rootfs, backendDir));
+          backends.at(backend)->destroy(rootfs, backendDir));
     }
   }
 

@@ -864,8 +864,8 @@ void FrameworkMetrics::incrementCall(const scheduler::Call::Type& callType)
 {
   CHECK(call_types.contains(callType));
 
-  call_types.get(callType).get()++;
-  calls++;
+  ++call_types.at(callType);
+  ++calls;
 }
 
 
@@ -873,10 +873,10 @@ void FrameworkMetrics::incrementTaskState(const TaskState& state)
 {
   if (protobuf::isTerminalState(state)) {
     CHECK(terminal_task_states.contains(state));
-    terminal_task_states.get(state).get()++;
+    ++terminal_task_states.at(state);
   } else {
     CHECK(active_task_states.contains(state));
-    active_task_states.get(state).get() += 1;
+    ++active_task_states.at(state);
   }
 }
 
@@ -885,7 +885,7 @@ void FrameworkMetrics::decrementActiveTaskState(const TaskState& state)
 {
   CHECK(active_task_states.contains(state));
 
-  active_task_states.get(state).get() -= 1;
+  active_task_states.at(state) -= 1;
 }
 
 
@@ -893,8 +893,8 @@ void FrameworkMetrics::incrementOperation(const Offer::Operation& operation)
 {
   CHECK(operation_types.contains(operation.type()));
 
-  operation_types.get(operation.type()).get()++;
-  operations++;
+  ++operation_types.at(operation.type());
+  ++operations;
 }
 
 

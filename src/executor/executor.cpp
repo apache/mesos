@@ -210,7 +210,7 @@ public:
     hashmap<string, string> env(mesosEnvironment);
 
     // Check if this is local (for example, for testing).
-    local = env.get("MESOS_LOCAL").isSome();
+    local = env.contains("MESOS_LOCAL");
 
     Option<string> value;
 

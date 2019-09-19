@@ -755,7 +755,7 @@ Status MesosExecutorDriver::start()
     hashmap<string, string> env(environment);
 
     // Check if this is local (for example, for testing).
-    local = env.get("MESOS_LOCAL").isSome();
+    local = env.contains("MESOS_LOCAL");
 
     // Get slave PID from environment.
     value = env.get("MESOS_SLAVE_PID");

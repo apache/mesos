@@ -566,7 +566,7 @@ Future<bool> LogStorageProcess::___set(
   // use the returned position (i.e., do nothing).
   if (diffs > 0) {
     CHECK(snapshots.contains(entry.name()));
-    position = snapshots.get(entry.name())->position;
+    position = snapshots.at(entry.name()).position;
   }
 
   Snapshot snapshot(position.get(), entry, diffs);

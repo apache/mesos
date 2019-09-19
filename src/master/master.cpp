@@ -1463,7 +1463,7 @@ void Master::consume(MessageEvent&& event)
     // If the framework has a principal, the counter must exist.
     CHECK(metrics->frameworks.contains(principal.get()));
     Counter messages_received =
-      metrics->frameworks.get(principal.get()).get()->messages_received;
+      metrics->frameworks.at(principal.get())->messages_received;
     ++messages_received;
   }
 
@@ -1611,7 +1611,7 @@ void Master::_consume(MessageEvent&& event)
   // this principal.
   if (principal.isSome() && metrics->frameworks.contains(principal.get())) {
     Counter messages_processed =
-      metrics->frameworks.get(principal.get()).get()->messages_processed;
+      metrics->frameworks.at(principal.get())->messages_processed;
     ++messages_processed;
   }
 }
@@ -12506,7 +12506,7 @@ void Master::_apply(
 
     const UUID resourceVersion = resourceProviderId.isNone()
       ? slave->resourceVersion.get()
-      : slave->resourceProviders.get(resourceProviderId.get())->resourceVersion;
+      : slave->resourceProviders.at(resourceProviderId.get()).resourceVersion;
 
     Operation* operation = new Operation(protobuf::createOperation(
         operationInfo,
@@ -13741,7 +13741,7 @@ bool Slave::hasExecutor(const FrameworkID& frameworkId,
                         const ExecutorID& executorId) const
 {
   return executors.contains(frameworkId) &&
-    executors.get(frameworkId)->contains(executorId);
+         executors.at(frameworkId).contains(executorId);
 }
 
 

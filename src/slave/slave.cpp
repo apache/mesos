@@ -7918,8 +7918,9 @@ Future<Nothing> Slave::__recoverOperations(
     if (operation->latest_status().state() == OPERATION_PENDING) {
       // The agent failed over before the checkpoint of the
       // `OPERATION_FINISHED` update completed.
-      CHECK(state->streams.get(operationUuid).isNone() ||
-            state->streams.get(operationUuid)->isNone());
+      CHECK(
+          !state->streams.contains(operationUuid) ||
+          state->streams.at(operationUuid).isNone());
 
       Option<OperationID> operationId =
         operation->info().has_id()
@@ -9491,13 +9492,13 @@ Future<bool> Slave::authorizeSandboxAccess(
           ObjectApprover::Object object;
 
           if (frameworks.contains(frameworkId)) {
-            Framework* framework = frameworks.get(frameworkId).get();
+            Framework* framework = frameworks.at(frameworkId);
 
             object.framework_info = &(framework->info);
 
             if (framework->executors.contains(executorId)) {
               object.executor_info =
-                &(framework->executors.get(executorId).get()->info);
+                &(framework->executors.at(executorId)->info);
             }
           }
 

@@ -1497,7 +1497,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   ASSERT_TRUE(state->slave->frameworks.contains(frameworkId.get()));
 
   slave::state::FrameworkState frameworkState =
-    state->slave->frameworks.get(frameworkId.get()).get();
+    state->slave->frameworks.at(frameworkId.get());
 
   ASSERT_EQ(1u, frameworkState.executors.size());
 
@@ -4012,7 +4012,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   ASSERT_TRUE(state->slave->frameworks.contains(frameworkId.get()));
 
   slave::state::FrameworkState frameworkState =
-    state->slave->frameworks.get(frameworkId.get()).get();
+    state->slave->frameworks.at(frameworkId.get());
 
   ASSERT_EQ(1u, frameworkState.executors.size());
 
