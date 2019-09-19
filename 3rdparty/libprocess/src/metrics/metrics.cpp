@@ -196,7 +196,7 @@ Future<http::Response> MetricsProcess::_snapshot(
   Option<Duration> timeout;
 
   if (request.url.query.contains("timeout")) {
-    string parameter = request.url.query.get("timeout").get();
+    string parameter = request.url.query.at("timeout");
 
     Try<Duration> duration = Duration::parse(parameter);
 
