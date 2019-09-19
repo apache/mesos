@@ -20,6 +20,7 @@ google-*,\
 -google-default-arguments,\
 -google-explicit-constructor,\
 -google-global-names-in-headers,\
+-google-readability-avoid-underscore-in-googletest-name,\
 -google-readability-namespace-comments,\
 -google-runtime-int,\
 -google-runtime-member-string-references,\
