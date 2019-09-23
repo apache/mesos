@@ -1614,11 +1614,9 @@ TEST_P(HTTPTest, CaseInsensitiveHeaders)
 
 TEST_P(HTTPTest, WWWAuthenticateHeader)
 {
-  http::Headers headers;
-  headers["Www-Authenticate"] = "Basic realm=\"basic-realm\"";
-
   Result<http::header::WWWAuthenticate> header =
-    headers.get<http::header::WWWAuthenticate>();
+    http::Headers({{"Www-Authenticate", "Basic realm=\"basic-realm\""}})
+      .get<http::header::WWWAuthenticate>();
 
   ASSERT_SOME(header);
 
@@ -1626,17 +1624,14 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
   EXPECT_EQ(1u, header->authParam().size());
   EXPECT_EQ("basic-realm", header->authParam()["realm"]);
 
-  headers.clear();
-  header = headers.get<http::header::WWWAuthenticate>();
+  EXPECT_NONE(http::Headers().get<http::header::WWWAuthenticate>());
 
-  EXPECT_NONE(header);
-
-  headers["Www-Authenticate"] =
-    "Bearer realm=\"https://auth.docker.io/token\","
-    "service=\"registry.docker.io\","
-    "scope=\"repository:gilbertsong/inky:pull\"";
-
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = http::Headers(
+      {{"Www-Authenticate",
+        "Bearer realm=\"https://auth.docker.io/token\","
+        "service=\"registry.docker.io\","
+        "scope=\"repository:gilbertsong/inky:pull\""}})
+    .get<http::header::WWWAuthenticate>();
 
   ASSERT_SOME(header);
 
@@ -1646,35 +1641,41 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
   EXPECT_EQ("registry.docker.io", header->authParam()["service"]);
   EXPECT_EQ("repository:gilbertsong/inky:pull", header->authParam()["scope"]);
 
-  headers["Www-Authenticate"] = "";
-  header = headers.get<http::header::WWWAuthenticate>();
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            ""}})
+        .get<http::header::WWWAuthenticate>());
 
-  EXPECT_ERROR(header);
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            " "}})
+        .get<http::header::WWWAuthenticate>());
 
-  headers["Www-Authenticate"] = " ";
-  header = headers.get<http::header::WWWAuthenticate>();
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Digest"}})
+        .get<http::header::WWWAuthenticate>());
 
-  EXPECT_ERROR(header);
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Digest ="}})
+        .get<http::header::WWWAuthenticate>());
 
-  headers["Www-Authenticate"] = "Digest";
-  header = headers.get<http::header::WWWAuthenticate>();
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Digest ,,"}})
+        .get<http::header::WWWAuthenticate>());
 
-  EXPECT_ERROR(header);
-
-  headers["Www-Authenticate"] = "Digest =";
-  header = headers.get<http::header::WWWAuthenticate>();
-
-  EXPECT_ERROR(header);
-
-  headers["Www-Authenticate"] = "Digest ,,";
-  header = headers.get<http::header::WWWAuthenticate>();
-
-  EXPECT_ERROR(header);
-
-  headers["Www-Authenticate"] = "Digest uri=\"/dir/index.html\",qop=auth";
-  header = headers.get<http::header::WWWAuthenticate>();
-
-  EXPECT_ERROR(header);
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Digest uri=\"/dir/index.html\",qop=auth"}})
+        .get<http::header::WWWAuthenticate>());
 }
 
 
