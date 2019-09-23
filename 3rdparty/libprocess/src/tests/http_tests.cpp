@@ -1628,7 +1628,7 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
 
   header = http::Headers(
       {{"Www-Authenticate",
-        "Bearer realm=\"https://auth.docker.io/token\","
+        "Bearer realm=\"https://auth.docker.io/token\", "
         "service=\"registry.docker.io\","
         "scope=\"repository:gilbertsong/inky:pull\""}})
     .get<http::header::WWWAuthenticate>();
@@ -1676,6 +1676,35 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
           {{"Www-Authenticate",
             "Digest uri=\"/dir/index.html\",qop=auth"}})
         .get<http::header::WWWAuthenticate>());
+
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Bearer =\"https://https://example.com\""}})
+        .get<http::header::WWWAuthenticate>());
+
+  // authParam keys cannot be quoted strings.
+  EXPECT_ERROR(
+      http::Headers(
+          {{"Www-Authenticate",
+            "Bearer \"realm\"=\"https://example.com\""}})
+        .get<http::header::WWWAuthenticate>());
+
+  // We do not incorrectly split if authParam values contain `=`
+  // delimiters inside quotes. This is a regression test for MESOS-9968.
+  header = http::Headers(
+               {{"Www-Authenticate",
+                 "Bearer realm="
+                 "\"https://nvcr.io/proxy_auth?scope="
+                 "repository:nvidia/tensorflow:pull,push\""}})
+             .get<http::header::WWWAuthenticate>();
+
+  ASSERT_SOME(header);
+  EXPECT_EQ("Bearer", header->authScheme());
+  ASSERT_EQ(hashset<string>{"realm"}, header->authParam().keys());
+  EXPECT_EQ(
+      "https://nvcr.io/proxy_auth?scope=repository:nvidia/tensorflow:pull,push",
+      header->authParam()["realm"]);
 }
 
 
