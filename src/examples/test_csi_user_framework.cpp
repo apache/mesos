@@ -18,6 +18,8 @@
 #include <queue>
 #include <string>
 
+#include <mesos/authorizer/acls.hpp>
+
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/resources.hpp>
 #include <mesos/v1/scheduler.hpp>
@@ -38,9 +40,12 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/status_utils.hpp"
+
+#include "examples/flags.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
@@ -82,17 +87,11 @@ class HTTPScheduler : public process::Process<HTTPScheduler>
 public:
   HTTPScheduler(
       const FrameworkInfo& _framework,
-      const string& _master)
-    : framework(_framework),
-      master(_master),
-      state(INITIALIZING) {}
-
-  HTTPScheduler(
-      const FrameworkInfo& _framework,
       const string& _master,
-      const Credential& credential)
+      const Option<Credential>& _credential)
     : framework(_framework),
       master(_master),
+      credential(_credential),
       state(INITIALIZING) {}
 
   ~HTTPScheduler() override {}
@@ -209,7 +208,7 @@ protected:
             process::defer(self(), &Self::connected),
             process::defer(self(), &Self::disconnected),
             process::defer(self(), &Self::received, lambda::_1),
-            None()));
+            credential));
   }
 
 private:
@@ -350,6 +349,7 @@ private:
 
   FrameworkInfo framework;
   string master;
+  Option<Credential> credential;
   process::Owned<scheduler::Mesos> mesos;
 
   enum State
@@ -361,37 +361,16 @@ private:
 };
 
 
-class Flags : public virtual mesos::internal::logging::Flags
-{
-public:
-  Flags()
-  {
-    add(&Flags::role, "role", "Role to use when registering", "*");
-
-    add(&Flags::master, "master", "ip:port of master to connect");
-
-    add(&Flags::checkpoint,
-        "checkpoint",
-        "Whether this framework should be checkpointed.",
-        false);
-
-    add(&Flags::principal,
-        "principal",
-        "Authentication principal of the framework");
-  }
-
-  string role;
-  string master;
-  string principal;
-  bool checkpoint;
-};
+class Flags : public virtual mesos::internal::examples::Flags,
+              public virtual mesos::internal::logging::Flags
+{};
 
 
 int main(int argc, char** argv)
 {
   Flags flags;
 
-  Try<flags::Warnings> load = flags.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
 
   if (flags.help) {
     cout << flags.usage() << endl;
@@ -411,7 +390,9 @@ int main(int argc, char** argv)
   }
 
   FrameworkInfo framework;
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
+  framework.set_checkpoint(flags.checkpoint);
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
@@ -422,11 +403,36 @@ int main(int argc, char** argv)
 
   CHECK_SOME(user);
   framework.set_user(user.get());
-  framework.set_checkpoint(flags.checkpoint);
-  framework.set_principal(flags.principal);
+
+  Option<Credential> credential = None();
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Enabling authentication for the framework";
+
+    Credential credential_;
+    credential_.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential_.set_secret(flags.secret.get());
+    }
+    credential = credential_;
+  }
+
+  if (flags.master == "local") {
+    // Configure master.
+    os::setenv(
+        "MESOS_AUTHENTICATE_HTTP_FRAMEWORKS", stringify(flags.authenticate));
+
+    os::setenv("MESOS_HTTP_FRAMEWORK_AUTHENTICATORS", "basic");
+
+    mesos::ACLs acls;
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->add_values("*");
+    os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
+  }
 
   process::Owned<HTTPScheduler> scheduler(
-      new HTTPScheduler(framework, flags.master));
+      new HTTPScheduler(framework, flags.master, credential));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
