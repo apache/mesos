@@ -353,14 +353,17 @@ public:
       return;
     }
 
+    // It is possible that the reference of `offeredOrAllocated_`
+    // points to the same object as `resources` below. We must
+    // do subtraction here before any mutation on the object.
+    totalOfferedOrAllocated -= offeredOrAllocated_;
+
     Resources& resources = offeredOrAllocated.at(frameworkId);
     CHECK_CONTAINS(resources, offeredOrAllocated_);
     resources -= offeredOrAllocated_;
     if (resources.empty()) {
       offeredOrAllocated.erase(frameworkId);
     }
-
-    totalOfferedOrAllocated -= offeredOrAllocated_;
 
     updateAvailable();
   }

@@ -712,43 +712,38 @@ void HierarchicalAllocatorProcess::removeFramework(
 {
   CHECK(initialized);
 
-  // Free up resources on agents if any.
+  // To free up offered or allocated resources of a framework, we need to
+  // do two things: update available resources in the agent and update
+  // tracking info in the role tree and role sorter.
+  // We do both at the same time.
   foreachvalue (Slave& slave, slaves) {
-    slave.increaseAvailable(
-        frameworkId,
-        slave.getOfferedOrAllocated().get(frameworkId).getOrElse(Resources()));
-  }
+    const hashmap<FrameworkID, Resources>& offeredOrAllocated =
+      slave.getOfferedOrAllocated();
+    auto frameworkResources = offeredOrAllocated.find(frameworkId);
 
-  // Update tracking in the role tree and sorters.
-
-  Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
-
-  foreach (const string& role, framework.roles) {
-    // Might not be in 'frameworkSorters[role]' because it
-    // was previously deactivated and never re-added.
-    //
-    // TODO(mzhu): This check may no longer be necessary.
-    Option<Sorter*> frameworkSorter = getFrameworkSorter(role);
-
-    if (frameworkSorter.isNone() ||
-        !(*frameworkSorter)->contains(frameworkId.value())) {
+    if (frameworkResources == offeredOrAllocated.end()) {
       continue;
     }
 
-    hashmap<SlaveID, Resources> allocation =
-      (*frameworkSorter)->allocation(frameworkId.value());
+    VLOG(1) << "Recovering " << frameworkResources->second
+            << " from removing framework " << frameworkId
+            << " (agent total: " << slave.getTotal() << ","
+            << " offered or allocated: "
+            << slave.getTotalOfferedOrAllocated() << ")";
 
-    // Update the allocation for this framework.
-    foreachpair (const SlaveID& slaveId,
-                 const Resources& allocated,
-                 allocation) {
-      untrackAllocatedResources(slaveId, frameworkId, allocated);
-    }
+    untrackAllocatedResources(
+        slave.id, frameworkId, frameworkResources->second);
 
+    // Note: this method might mutate `offeredOrAllocated`.
+    slave.increaseAvailable(frameworkId, frameworkResources->second);
+  }
+
+  Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
+
+  // Untack framework from roles.
+  foreach (const string& role, framework.roles) {
     CHECK(tryUntrackFrameworkUnderRole(framework, role))
-      << " Framework: " << frameworkId
-      << " role: " << role
-      << " allocation: " << allocation;
+      << " Framework: " << frameworkId << " role: " << role;
   }
 
   // Transfer ownership of this framework's metrics to
