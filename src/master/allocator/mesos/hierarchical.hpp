@@ -306,7 +306,8 @@ public:
       bool _activated,
       const Resources& _total,
       const hashmap<FrameworkID, Resources>& _allocated)
-    : info(_info),
+    : id(_info.id()),
+      info(_info),
       capabilities(_capabilities),
       activated(_activated),
       totalAllocated(Resources::sum(_allocated)),
@@ -316,6 +317,7 @@ public:
       shared(_total.shared()),
       hasGpu_(_total.gpus().getOrElse(0) > 0)
   {
+    CHECK(_info.has_id());
     updateAvailable();
   }
 
@@ -378,6 +380,8 @@ public:
 
     updateAvailable();
   }
+
+  const SlaveID id;
 
   // The `SlaveInfo` that was passed to the allocator when the slave was added
   // or updated. Currently only two fields are used: `hostname` for host
