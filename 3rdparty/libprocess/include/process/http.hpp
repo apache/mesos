@@ -431,7 +431,7 @@ public:
     : authScheme_(authScheme),
       authParam_(authParam) {}
 
-  static Try<WWWAuthenticate> create(const std::string& value);
+  static Try<WWWAuthenticate> create(const std::string& input);
 
   std::string authScheme();
   hashmap<std::string, std::string> authParam();
