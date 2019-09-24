@@ -33,9 +33,9 @@ agent node. The value of this flag must be a file path or a JSON dictionary
 with the key `fault_domain` and subkeys `region` and `zone` mapping to
 arbitrary strings:
 
-    mesos-master --domain='{"fault_domain": {"region": "eu", "zone": "rack1"}}'
+    mesos-master --domain='{"fault_domain": {"region": {"name":"eu"}, "zone": { "name":"rack1"}}}'
 
-    mesos-agent  --domain='{"fault_domain": {"region": "eu", "zone": "rack2"}}'
+    mesos-agent  --domain='{"fault_domain": {"region": {"name":"eu"}, "zone": {"name":"rack2"}}}'
 
 Frameworks can learn about the domain of an agent by inspecting the `domain`
 field in the received offer, which contains a `DomainInfo` that has the
