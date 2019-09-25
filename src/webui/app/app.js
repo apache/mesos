@@ -277,11 +277,11 @@
       function buildTree(roles) {
         var root = {};
 
-        for (var path of roles) {
-          const tokens = path.split('/');
+        for (var roleIndex = 0; roleIndex < roles.length; roleIndex += 1) {
+          var tokens = roles[roleIndex].split('/');
           var i = 0;
           var node = root;
-          for (i = 0; i < tokens.length && (tokens[i] in node); ++i) {
+          for (i = 0; i < tokens.length && (tokens[i] in node); i += 1) {
             node = node[tokens[i]];
           }
 
@@ -289,24 +289,25 @@
             node['.'] = {};
           }
 
-          for (; i < tokens.length; ++i) {
+          for (; i < tokens.length; i += 1) {
             node[tokens[i]] = {};
             node = node[tokens[i]];
           }
         }
 
         return root;
-      };
+      }
 
       function prepareTree(path, name, node) {
-        const prefix = path ? path + '/' : '';
+        var prefix = path ? path + '/' : '';
         return {
-          "children": Object.keys(node).sort().map(
-              k => prepareTree(prefix + k, k, node[k])),
+          "children": Object.keys(node).sort().map(function(k) {
+              return prepareTree(prefix + k, k, node[k]);
+            }),
           "name": name,
           "path": path
           }
-      };
+      }
 
       return {
         restrict: 'E',
