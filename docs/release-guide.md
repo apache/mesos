@@ -254,6 +254,10 @@ This guide describes the process of doing an official release of Mesos.
 
    * Mention the blog post in `site/data/releases.yml`.
 
+5. Post a tweet from the https://twitter.com/apachemesos account, please contact
+   the PMC if you need the account password (or want someone to post the tweet on
+   your behalf).
+
 
 ## Removing Old Releases from svn
 
