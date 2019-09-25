@@ -17,8 +17,8 @@ and assigns `cpu` and `cpuacct` cgroups to each container launched by
 Mesos Containerizer.
 
 Cgroups `cpu` subsystem provides 2 mechanisms of limiting the amount
-of CPU time used by cgroups: [CFS shares](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-design-CFS.txt)
-and [CFS bandwidth](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-bwc.txt)
+of CPU time used by cgroups: [CFS shares](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-design-CFS.rst)
+and [CFS bandwidth](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-bwc.rst)
 control. The first one can guarantee some minimum number of CPU
 "shares" to a cgroup when the system is under heavy load. It, however,
 does not limit the amount of CPU time available to a cgroup when the
