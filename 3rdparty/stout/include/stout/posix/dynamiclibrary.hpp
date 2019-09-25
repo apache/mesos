@@ -15,6 +15,7 @@
 
 #include <dlfcn.h>
 
+#include <memory>
 #include <string>
 
 #include <stout/nothing.hpp>
@@ -28,20 +29,17 @@
 class DynamicLibrary
 {
 public:
-  DynamicLibrary() : handle_(nullptr) { }
+  DynamicLibrary()
+    : handle_(nullptr, [](void* handle) {
+        if (handle == nullptr) {
+          return 0;
+        }
 
-  // Since this class manages a naked handle it cannot be copy- or
-  // move-constructed.
-  // TODO(bbannier): Allow for move-construction.
-  DynamicLibrary(const DynamicLibrary&) = delete;
-  DynamicLibrary(DynamicLibrary&&) = delete;
+        return dlclose(handle);
+      })
+  {}
 
-  virtual ~DynamicLibrary()
-  {
-    if (handle_ != nullptr) {
-      close();
-    }
-  }
+  virtual ~DynamicLibrary() = default;
 
   Try<Nothing> open(const std::string& path)
   {
@@ -50,7 +48,7 @@ public:
       return Error("Library already opened");
     }
 
-    handle_ = dlopen(path.c_str(), RTLD_NOW);
+    handle_.reset(dlopen(path.c_str(), RTLD_NOW));
 
     if (handle_ == nullptr) {
       return Error("Could not load library '" + path + "': " + dlerror());
@@ -67,11 +65,16 @@ public:
       return Error("Could not close library; handle was already `nullptr`");
     }
 
-    if (dlclose(handle_) != 0) {
+    if (dlclose(handle_.get()) != 0) {
       return Error(
           "Could not close library '" +
           (path_.isSome() ? path_.get() : "") + "': " + dlerror());
     }
+
+    // Release the handle so the default `dlclose` operation is not
+    // invoked anymore as after successful explicit `dlclose` it does
+    // not point to an open shared object anymore.
+    handle_.release();
 
     handle_ = nullptr;
     path_ = None();
@@ -86,7 +89,7 @@ public:
           "Could not get symbol '" + name + "'; library handle was `nullptr`");
     }
 
-    void* symbol = dlsym(handle_, name.c_str());
+    void* symbol = dlsym(handle_.get(), name.c_str());
 
     if (symbol == nullptr) {
       return Error(
@@ -98,7 +101,7 @@ public:
   }
 
 private:
-  void* handle_;
+  std::unique_ptr<void, int (*)(void*)> handle_;
   Option<std::string> path_;
 };
 
