@@ -2172,7 +2172,7 @@ endif
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	$(MKDIR_P) examples/java
-	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
+	$(JAVA_HOME)/bin/javac -source 1.7 -target 1.7			\
           -cp ../$(ZOOKEEPER_JAR):@PROTOBUF_JAR@:$(MESOS_JAR):$(srcdir)/examples/java	\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java

@@ -17480,7 +17480,7 @@ python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 @HAS_JAVA_TRUE@$(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 @HAS_JAVA_TRUE@	@echo "Building examples.jar ..."
 @HAS_JAVA_TRUE@	$(MKDIR_P) examples/java
-@HAS_JAVA_TRUE@	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
+@HAS_JAVA_TRUE@	$(JAVA_HOME)/bin/javac -source 1.7 -target 1.7			\
 @HAS_JAVA_TRUE@          -cp ../$(ZOOKEEPER_JAR):@PROTOBUF_JAR@:$(MESOS_JAR):$(srcdir)/examples/java	\
 @HAS_JAVA_TRUE@          -sourcepath $(srcdir)/examples/java -d examples/java	        \
 @HAS_JAVA_TRUE@          $(srcdir)/examples/java/*.java
