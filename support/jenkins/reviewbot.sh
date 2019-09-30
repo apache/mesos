@@ -24,6 +24,24 @@ MESOS_DIR=$(git rev-parse --show-toplevel)
 : "${USERNAME:?"Environment variable 'USERNAME' must be set to the username of the 'Mesos Reviewbot' Reviewboard account."}"
 : "${PASSWORD:?"Environment variable 'PASSWORD' must be set to the password of the 'Mesos Reviewbot' Reviewboard account."}"
 
+. "$MESOS_DIR"/support/atexit.sh
+
+REVIEWS=$(mktemp -t reviewbot.XXXXXX)
+atexit "rm ${REVIEWS}"
+
+# Early exit if no reviews require validation.
+"${MESOS_DIR}"/support/verify-reviews.py \
+  -u "${USERNAME}" \
+  -p "${PASSWORD}" \
+  -r 1 \
+  --skip-verify \
+  --out-file "${REVIEWS}"
+
+if [ ! -s "${REVIEWS}" ]; then
+  echo "No reviews require verification"
+  exit 0
+fi
+
 # Build the HEAD first to ensure that there are no errors prior to applying
 # the review chain. We do not run tests at this stage.
 export OS='ubuntu:16.04'
@@ -34,4 +52,7 @@ export ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1 GTEST_FILTER='
 "${MESOS_DIR}"/support/jenkins/buildbot.sh
 
 # NOTE: The script sets up its own environment.
-"${MESOS_DIR}"/support/verify-reviews.py -u "${USERNAME}" -p "${PASSWORD}" -r 1
+"${MESOS_DIR}"/support/verify-reviews.py \
+  -u "${USERNAME}" \
+  -p "${PASSWORD}" \
+  -r 1
