@@ -1953,7 +1953,7 @@ void Master::_doRegistryGc(
         Framework* framework = getFramework(frameworkId);
         if (framework != nullptr) {
           foreach (const TaskID& taskId,
-                   slaves.unreachableTasks.at(slaveId).get(frameworkId)) {
+                   slaves.unreachableTasks.at(slaveId).at(frameworkId)) {
             framework->unreachableTasks.erase(taskId);
           }
         }
@@ -7870,12 +7870,12 @@ void Master::__reregisterSlave(
   // All tasks from this agent are now reachable so clean them up from
   // the master's unreachable task records.
   if (slaves.unreachableTasks.contains(slaveInfo.id())) {
-    foreachkey (FrameworkID frameworkId,
-               slaves.unreachableTasks.at(slaveInfo.id())) {
+    foreachkey (const FrameworkID& frameworkId,
+                slaves.unreachableTasks.at(slaveInfo.id())) {
       Framework* framework = getFramework(frameworkId);
       if (framework != nullptr) {
-        foreach (TaskID taskId,
-                 slaves.unreachableTasks.at(slaveInfo.id()).get(frameworkId)) {
+        foreach (const TaskID& taskId,
+                 slaves.unreachableTasks.at(slaveInfo.id()).at(frameworkId)) {
           framework->unreachableTasks.erase(taskId);
         }
       }
@@ -9553,7 +9553,7 @@ void Master::markGone(const SlaveID& slaveId, const TimeInfo& goneTime)
         }
 
         foreach (const TaskID& taskId,
-                 slaves.unreachableTasks.at(slaveId).get(frameworkId)) {
+                 slaves.unreachableTasks.at(slaveId).at(frameworkId)) {
           if (framework->unreachableTasks.contains(taskId)) {
             const Owned<Task>& task = framework->unreachableTasks.at(taskId);
 
@@ -12105,8 +12105,8 @@ void Master::removeTask(Task* task, bool unreachable)
   }
 
   if (unreachable) {
-    slaves.unreachableTasks[slave->id].put(
-        task->framework_id(), task->task_id());
+    slaves.unreachableTasks[slave->id][task->framework_id()]
+      .push_back(task->task_id());
   }
 
   // Remove from framework.
