@@ -2198,7 +2198,8 @@ private:
     // agent reregisters. This map is bounded by the same GC behavior as
     // `unreachable`. When the agent is GC'd from unreachable it's also
     // erased from `unreachableTasks`.
-    hashmap<SlaveID, multihashmap<FrameworkID, TaskID>> unreachableTasks;
+    hashmap<SlaveID, hashmap<FrameworkID, std::vector<TaskID>>>
+      unreachableTasks;
 
     // Slaves that have been marked gone. We recover this from the
     // registry, so it includes slaves marked as gone by other instances
