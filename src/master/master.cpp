@@ -13781,7 +13781,7 @@ bool Slave::hasExecutor(const FrameworkID& frameworkId,
                         const ExecutorID& executorId) const
 {
   return executors.contains(frameworkId) &&
-    executors.get(frameworkId)->contains(executorId);
+    executors.at(frameworkId).contains(executorId);
 }
 
 
