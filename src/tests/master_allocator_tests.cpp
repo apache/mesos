@@ -257,7 +257,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"));
 
   Future<Nothing> recoverResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
                     FutureSatisfy(&recoverResources)));
 
@@ -300,7 +300,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   Future<Nothing> shutdown;
@@ -374,7 +374,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   // framework has terminated or is inactive.
   Future<SlaveID> slaveId;
   Future<Resources> savedResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     // "Catches" the recoverResources call from the master, so
     // that it doesn't get processed until we redispatch it after
     // the removeFramework trigger.
@@ -395,7 +395,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   AWAIT_READY(slaveId);
   AWAIT_READY(savedResources);
 
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoDefault()); // For the re-dispatch.
 
   // Re-dispatch the recoverResources call which we "caught"
@@ -405,7 +405,8 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
       frameworkId1.get(),
       slaveId.get(),
       savedResources.get(),
-      None());
+      None(),
+      false);
 
   // TODO(benh): Seems like we should wait for the above
   // recoverResources to be executed.
@@ -435,7 +436,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   AWAIT_READY(resourceOffers);
 
   // Called when driver2 stops.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
   EXPECT_CALL(allocator, deactivateFramework(_))
     .WillRepeatedly(DoDefault());
@@ -510,7 +511,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(InvokeRecoverResourcesWithFilters(&allocator, 0))
     // For subsequent offers.
     .WillRepeatedly(InvokeRecoverResourcesWithFilters(&allocator, 0));
@@ -569,7 +570,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
     .Times(AtMost(1));
 
   // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator, deactivateFramework(_))
@@ -645,7 +646,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   // The framework does not use all the resources.
   Future<Nothing> recoverResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
                     FutureSatisfy(&recoverResources)));
 
@@ -683,7 +684,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   // The framework 2 does not use all the resources.
   Future<Nothing> recoverResources2;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
                     FutureSatisfy(&recoverResources2)));
 
@@ -700,7 +701,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   // Shutdown framework 1; framework 2 should then be offered the
   // resources that were consumed by framework 1.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   Future<Nothing> removeFramework;
@@ -785,7 +786,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
   Future<Nothing> recoverResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
                     FutureSatisfy(&recoverResources)));
 
@@ -812,7 +813,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   // 'recoverResources' should be called twice, once for the task
   // and once for the executor.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .Times(2);
 
   Future<Nothing> removeSlave;
@@ -855,7 +856,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
                 DEFAULT_FRAMEWORK_INFO.roles(0)));
 
   // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   driver.stop();
@@ -917,7 +918,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   // on slave1 from the task launch won't get reoffered
   // immediately and will get combined with slave2's
   // resources for a single offer.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(InvokeRecoverResourcesWithFilters(&allocator, 0.1))
     .WillRepeatedly(InvokeRecoverResourcesWithFilters(&allocator, 0));
 
@@ -955,7 +956,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
     .Times(AtMost(1));
 
   // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   driver.stop();
@@ -1017,7 +1018,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   // allocator knows about the unused resources so that it can
   // aggregate them with the resources from the finished task.
   Future<Nothing> recoverResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoAll(InvokeRecoverResources(&allocator),
                           FutureSatisfy(&recoverResources)));
 
@@ -1046,7 +1047,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   status.mutable_task_id()->MergeFrom(taskInfo.task_id());
   status.set_state(TASK_FINISHED);
 
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _));
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _));
 
   // After the first task gets killed.
   Future<Nothing> resourceOffers;
@@ -1061,7 +1062,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
     .Times(AtMost(1));
 
   // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   driver.stop();
@@ -1521,7 +1522,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
       .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
       .WillRepeatedly(DeclineOffers());
 
-    EXPECT_CALL(allocator, recoverResources(_, _, _, _));
+    EXPECT_CALL(allocator, recoverResources(_, _, _, _, _));
 
     EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1545,7 +1546,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     // that it doesn't try to retry the update after master failover.
     AWAIT_READY(_statusUpdateAcknowledgement);
 
-    EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
   }
 
@@ -1640,7 +1641,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     ASSERT_SOME(slave);
 
     EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
-    EXPECT_CALL(allocator, recoverResources(_, _, _, _));
+    EXPECT_CALL(allocator, recoverResources(_, _, _, _, _));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1672,7 +1673,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     // that it doesn't try to retry the update after master failover.
     AWAIT_READY(_statusUpdateAcknowledgement);
 
-    EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
   }
 
@@ -1848,7 +1849,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   EXPECT_CALL(sched1, offerRescinded(&driver1, _)).Times(3);
 
   Future<Resources> recoverResources1, recoverResources2, recoverResources3;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _, _))
     .WillOnce(DoAll(FutureArg<2>(&recoverResources1),
                     InvokeRecoverResources(&allocator)))
     .WillOnce(DoAll(FutureArg<2>(&recoverResources2),

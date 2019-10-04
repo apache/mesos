@@ -444,7 +444,8 @@ TEST_F(BENCHMARK_HierarchicalAllocations, MultiFrameworkAllocations)
           frameworkId,
           offer.slaveId,
           remainingResources,
-          None());
+          None(),
+          false);
 
       offer_ = offers.get();
     }

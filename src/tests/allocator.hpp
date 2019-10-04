@@ -180,7 +180,7 @@ ACTION_P(InvokeGetInverseOfferStatuses, allocator)
 
 ACTION_P(InvokeRecoverResources, allocator)
 {
-  allocator->real->recoverResources(arg0, arg1, arg2, arg3);
+  allocator->real->recoverResources(arg0, arg1, arg2, arg3, arg4);
 }
 
 
@@ -189,7 +189,7 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
   Filters filters;
   filters.set_refuse_seconds(timeout);
 
-  allocator->real->recoverResources(arg0, arg1, arg2, filters);
+  allocator->real->recoverResources(arg0, arg1, arg2, filters, false);
 }
 
 
@@ -356,9 +356,9 @@ public:
     EXPECT_CALL(*this, getInverseOfferStatuses())
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, recoverResources(_, _, _, _))
+    ON_CALL(*this, recoverResources(_, _, _, _, _))
       .WillByDefault(InvokeRecoverResources(this));
-    EXPECT_CALL(*this, recoverResources(_, _, _, _))
+    EXPECT_CALL(*this, recoverResources(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, suppressOffers(_, _))
@@ -489,11 +489,12 @@ public:
           FrameworkID,
           mesos::allocator::InverseOfferStatus>>>());
 
-  MOCK_METHOD4(recoverResources, void(
+  MOCK_METHOD5(recoverResources, void(
       const FrameworkID&,
       const SlaveID&,
       const Resources&,
-      const Option<Filters>& filters));
+      const Option<Filters>& filters,
+      bool isAllocated));
 
   MOCK_METHOD2(suppressOffers, void(
       const FrameworkID&,

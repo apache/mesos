@@ -861,7 +861,8 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
       framework.id(),
       agent.id(),
       allocation->resources.at(ROLE).at(agent.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   // Ensure the offer filter timeout is set before advancing the clock.
   Clock::settle();
@@ -987,7 +988,8 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
       framework2.id(),
       agent2.id(),
       allocation->resources.at(ROLE).at(agent2.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   // Total cluster resources (2 agents): cpus=2, mem=1024.
   // ROLE1 share = 0.5 (cpus=1, mem=512)
@@ -1028,7 +1030,8 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
       framework1.id(),
       agent2.id(),
       allocation->resources.at(ROLE).at(agent2.id()),
-      None());
+      None(),
+      false);
 
   // Total cluster resources (2 agents): cpus=2, mem=1024.
   // ROLE1 share = 0.5 (cpus=1, mem=512)
@@ -1111,7 +1114,8 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
       framework.id(),
       agent2.id(),
       allocatedResources(agent2.resources(), "*"),
-      filter1day);
+      filter1day,
+      false);
 
   const process::Time start = Clock::now() + Seconds(60);
   // Give both agents some unavailability.
@@ -1195,12 +1199,15 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
       framework1.id(),
       slave1.id(),
       allocation->resources.at("role1").at(slave1.id()),
-      None());
+      None(),
+      false);
+
   allocator->recoverResources(
       framework1.id(),
       slave2.id(),
       allocation->resources.at("role1").at(slave2.id()),
-      None());
+      None(),
+      false);
 
   // Now add the second framework, we expect there to be 2 subsequent
   // allocations, each framework being allocated a full slave.
@@ -1283,7 +1290,8 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
         allocation->frameworkId,
         slave.id(),
         allocation->resources.at("*").at(slave.id()),
-        None());
+        None(),
+        false);
 
     Clock::advance(flags.allocation_interval);
   }
@@ -1361,7 +1369,8 @@ TEST_P(HierarchicalAllocatorTestWithReservations, ReservationUnallocated)
       framework1.id(),
       agent1.id(),
       allocatedResources(reserved, QUOTA_ROLE),
-      filter1day);
+      filter1day,
+      false);
 
   // Add another agent with unreserved resources.
   // This will trigger a batch allocation.
@@ -1532,7 +1541,8 @@ TEST_P(HierarchicalAllocatorTestWithReservations,
       framework1.id(),
       agent1.id(),
       allocatedResources(unreserved, QUOTA_ROLE),
-      filter1day);
+      filter1day,
+      false);
 
   // Create `framework2` which belongs to the `NON_QUOTA_ROLE`
   // and is entitled to its reserved resources.
@@ -1657,7 +1667,8 @@ TEST_P(HierarchicalAllocatorTestWithReservations,
       framework.id(),
       agent1.id(),
       recover,
-      None());
+      None(),
+      false);
 
   // Quota: "cpus:3;mem:2048;disk:100".
   // Allocated quota: "cpus:1;mem:512;disk:50".
@@ -2056,7 +2067,8 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
       allocation->frameworkId,
       slave.id(),
       reserved,
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2072,7 +2084,8 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
       allocation->frameworkId,
       slave.id(),
       unreserved,
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2486,7 +2499,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
       framework.id(),
       slave.id(),
       updated.get(),
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2557,7 +2571,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationRemoveResources)
       framework.id(),
       slave.id(),
       updated.get(),
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2633,7 +2648,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
       framework.id(),
       slave.id(),
       update.get(),
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2669,7 +2685,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
       framework.id(),
       slave.id(),
       update.get(),
-      None());
+      None(),
+      false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -2740,7 +2757,8 @@ TEST_F(HierarchicalAllocatorTest, SharedResourcesCapability)
       framework1.id(),
       slave.id(),
       update.get(),
-      None());
+      None(),
+      false);
 
   // Shared volume not offered to `framework1` since it has not
   // opted in for SHARED_RESOURCES.
@@ -2758,7 +2776,8 @@ TEST_F(HierarchicalAllocatorTest, SharedResourcesCapability)
       framework1.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      None());
+      None(),
+      false);
 
   // Create `framework2` with opting in for SHARED_RESOURCES.
   FrameworkInfo framework2 = createFrameworkInfo(
@@ -2990,7 +3009,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveTotalResources)
       agent.id(),
       expected1.resources.at("role1").at(agent.id()) +
         expected2.resources.at("role1").at(agent.id()),
-      None());
+      None(),
+      false);
 
   // Advance the clock to trigger allocation of
   // the available `agentResources2` resources.
@@ -3354,7 +3374,8 @@ TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
   recovered += Resources::parse("cpus:2").get();
   recovered.allocate("role1");
 
-  allocator->recoverResources(framework.id(), slave.id(), recovered, None());
+  allocator->recoverResources(
+      framework.id(), slave.id(), recovered, None(), false);
 
   Clock::advance(flags.allocation_interval);
 
@@ -3611,7 +3632,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
       framework1.id(),
       agent2.id(),
       allocation->resources.at(QUOTA_ROLE).at(agent2.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   // Total cluster resources: cpus=2, mem=1024.
   // QUOTA_ROLE share = 0.5 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
@@ -3805,7 +3827,8 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
       framework1.id(),
       agent1.id(),
       allocatedResources(agent1.resources(), QUOTA_ROLE),
-      None());
+      None(),
+      false);
 
   // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
@@ -3957,7 +3980,8 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
       framework1a.id(),
       agent3.id(),
       allocatedResources(agent3.resources(), QUOTA_ROLE),
-      filter5s);
+      filter5s,
+      false);
 
   // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
@@ -4537,7 +4561,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       framework2.id(),
       agent2.id(),
       allocatedResources(agent2.resources(), NO_QUOTA_ROLE),
-      filter0s);
+      filter0s,
+      false);
 
   // Total cluster resources (2 identical agents): cpus=2, mem=1024.
   // QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
@@ -4559,7 +4584,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       framework2.id(),
       agent2.id(),
       allocatedResources(agent2.resources(), NO_QUOTA_ROLE),
-      filter0s);
+      filter0s,
+      false);
 
   // We set quota for the "starving" `QUOTA_ROLE` role.
   const Quota quota = createQuota("cpus:2;mem:1024");
@@ -4962,7 +4988,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaSetAsideReservedResources)
       agent1.id(),
       allocatedResources(
           CHECK_NOTERROR(Resources::parse(quotaResourcesString)), QUOTA_ROLE),
-      longFilter);
+      longFilter,
+      false);
 
   // Trigger a batch allocation for good measure, but don't expect any
   // allocations.
@@ -4990,7 +5017,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaSetAsideReservedResources)
       framework2.id(),
       agent2.id(),
       allocatedResources(dynamicallyReserved, NO_QUOTA_ROLE),
-      longFilter);
+      longFilter,
+      false);
 
   // No more resource offers should be made until the filters expire:
   // `framework1` should not be offered the resources at `agent2`
@@ -5044,7 +5072,8 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
       framework.id(),
       agent.id(),
       allocatedResources(agent.resources(), "role1"),
-      None());
+      None(),
+      false);
 
   // Suppress offers and disconnect framework.
   allocator->suppressOffers(framework.id(), {});
@@ -5120,7 +5149,8 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
       framework.id(),
       agent.id(),
       allocatedResources(agent.resources(), "role1"),
-      None());
+      None(),
+      false);
 
   allocator->suppressOffers(framework.id(), {});
 
@@ -5574,7 +5604,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       allocation->frameworkId,
       agent.id(),
       allocation->resources.at("roleA").at(agent.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   JSON::Object expected;
   expected.values = {
@@ -5599,7 +5630,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       allocation->frameworkId,
       agent.id(),
       allocation->resources.at("roleB").at(agent.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   expected.values = {
       {"allocator/mesos/offer_filters/roles/roleA/active", 1},
@@ -5624,7 +5656,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       allocation->frameworkId,
       agent.id(),
       allocation->resources.at("roleA").at(agent.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   expected.values = {
       {"allocator/mesos/offer_filters/roles/roleA/active", 2},
@@ -5679,7 +5712,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, DominantShareMetrics)
       allocation->frameworkId,
       agent1.id(),
       allocation->resources.at("roleA").at(agent1.id()),
-      None());
+      None(),
+      false);
+
   Clock::settle();
 
   expected.values = {
@@ -5860,11 +5895,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
           foreachpair (const SlaveID& slaveId,
                        const Resources& resources,
                        allocation->resources.at(role)) {
-          allocator->recoverResources(
-              allocation->frameworkId,
-              slaveId,
-              resources,
-              None());
+            allocator->recoverResources(
+                allocation->frameworkId, slaveId, resources, None(), false);
           }
         }
       }
@@ -6081,7 +6113,8 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
       framework.id(),
       agent.id(),
       allocatedResources(agent.resources(), "role1"),
-      filter1000s);
+      filter1000s,
+      false);
 
   // Advance the clock to trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
@@ -6140,7 +6173,8 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
       framework.id(),
       agent.id(),
       allocatedResources(agent.resources(), "role2"),
-      filter1day);
+      filter1day,
+      false);
 
   // Advance the clock to trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
@@ -6163,7 +6197,8 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
       framework.id(),
       agent.id(),
       allocatedResources(agent.resources(), "role1"),
-      filter1day);
+      filter1day,
+      false);
 
   // Advance the clock to trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
@@ -6735,7 +6770,8 @@ TEST_F(HierarchicalAllocatorTest, DISABLED_NestedRoleQuota)
       framework1.id(),
       agent.id(),
       allocatedResources(agent.resources(), PARENT_ROLE),
-      longFilter);
+      longFilter,
+      false);
 
   // Create `framework2` in CHILD_ROLE1, which is a child role of
   // PARENT_ROLE. CHILD_ROLE1 does not have quota. In the current
@@ -7062,7 +7098,8 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       framework1.id(),
       slave.id(),
       updated.get() - allocatedResources(task.resources(), "role1"),
-      None());
+      None(),
+      false);
 
   // The offer to 'framework2` should contain the shared volume.
   Clock::advance(flags.allocation_interval);
@@ -7277,10 +7314,7 @@ TEST_P(HierarchicalAllocations_BENCHMARK_Test, PersistentVolumes)
   for (size_t count = 0; count < allocationsCount; count++) {
     foreach (const OfferedResources& offer, offers) {
       allocator->recoverResources(
-          offer.frameworkId,
-          offer.slaveId,
-          offer.resources,
-          None());
+          offer.frameworkId, offer.slaveId, offer.resources, None(), false);
     }
 
     Clock::settle();
@@ -7550,7 +7584,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 
       filters.set_refuse_seconds(INT_MAX);
       allocator->recoverResources(
-          offer.frameworkId, offer.slaveId, offer.resources, filters);
+          offer.frameworkId, offer.slaveId, offer.resources, filters, false);
     }
 
     declinedOfferCount += offers.size();
@@ -7747,7 +7781,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 
       filters.set_refuse_seconds(INT_MAX);
       allocator->recoverResources(
-          offer.frameworkId, offer.slaveId, offer.resources, filters);
+          offer.frameworkId, offer.slaveId, offer.resources, filters, false);
     }
 
     declinedOfferCount += offers.size();
@@ -7889,10 +7923,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
     // effect of suppression alone.
     foreach (const OfferedResources& offer, offers) {
       allocator->recoverResources(
-          offer.frameworkId,
-          offer.slaveId,
-          offer.resources,
-          None());
+          offer.frameworkId, offer.slaveId, offer.resources, None(), false);
     }
 
     // Wait for all declined offers to be processed.
@@ -8053,10 +8084,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ExtremeSuppressOffers)
     // effect of suppression alone.
     foreach (const OfferedResources& offer, offers) {
       allocator->recoverResources(
-          offer.frameworkId,
-          offer.slaveId,
-          offer.resources,
-          None());
+          offer.frameworkId, offer.slaveId, offer.resources, None(), false);
     }
 
     // Wait for all declined offers to be processed.
@@ -8205,7 +8233,8 @@ TEST_F(HierarchicalAllocatorTest, RemoveFilters)
       framework.id(),
       agent.id(),
       allocation->resources.at(ROLE).at(agent.id()),
-      offerFilter);
+      offerFilter,
+      false);
 
   // There should be no allocation due to the offer filter.
   Clock::advance(flags.allocation_interval);

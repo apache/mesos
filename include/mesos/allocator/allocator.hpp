@@ -376,10 +376,12 @@ public:
    * Recovers resources.
    *
    * Used to update the set of available resources for a specific agent. This
-   * method is invoked to inform the allocator about allocated resources that
-   * have been refused or are no longer in use. Allocated resources will have
-   * an `allocation_info.role` assigned and callers are expected to only call
-   * this with resources allocated to a single role.
+   * method is invoked to inform the allocator about offered resources that
+   * have been refused or allocated (i.e. used for launching tasks) resources
+   * that are no longer in use. The resources will have an
+   * `allocation_info.role` assigned and callers are expected to only call this
+   * with resources allocated to a single role.
+   *
    *
    * TODO(bmahler): We could allow resources allocated to multiple roles
    * within a single call here, but filtering them in the same way does
@@ -389,7 +391,8 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
-      const Option<Filters>& filters) = 0;
+      const Option<Filters>& filters,
+      bool isAllocated) = 0;
 
   /**
    * Suppresses offers.

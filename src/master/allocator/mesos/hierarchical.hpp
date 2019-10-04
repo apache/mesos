@@ -584,7 +584,8 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
-      const Option<Filters>& filters) override;
+      const Option<Filters>& filters,
+      bool isAllocated) override;
 
   void suppressOffers(
       const FrameworkID& frameworkId,

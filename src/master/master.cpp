@@ -6133,13 +6133,13 @@ void Master::_accept(
   // resources should not be implicitly declined.
   if (!speculativelyConverted.empty()) {
     allocator->recoverResources(
-        frameworkId, slaveId, speculativelyConverted, None());
+        frameworkId, slaveId, speculativelyConverted, None(), false);
   }
 
   // Tell the allocator about the implicitly declined resources.
   if (!implicitlyDeclined.empty()) {
     allocator->recoverResources(
-        frameworkId, slaveId, implicitlyDeclined, accept.filters());
+        frameworkId, slaveId, implicitlyDeclined, accept.filters(), false);
   }
 
   allocator->resume();
@@ -10202,7 +10202,8 @@ void Master::offer(
       foreachpair (const SlaveID& slaveId,
                    const Resources& offered,
                    resources.at(role)) {
-        allocator->recoverResources(frameworkId, slaveId, offered, None());
+        allocator->recoverResources(
+            frameworkId, slaveId, offered, None(), false);
       }
     }
     return;
@@ -10234,7 +10235,9 @@ void Master::offer(
           << "Master returning resources offered to framework " << *framework
           << " because agent " << slaveId << " is not valid";
 
-        allocator->recoverResources(frameworkId, slaveId, offered, None());
+        allocator->recoverResources(
+            frameworkId, slaveId, offered, None(), false);
+
         continue;
       }
 
@@ -10245,7 +10248,9 @@ void Master::offer(
           << "Master returning resources offered because agent " << *slave
           << " is " << (slave->connected ? "deactivated" : "disconnected");
 
-        allocator->recoverResources(frameworkId, slaveId, offered, None());
+        allocator->recoverResources(
+            frameworkId, slaveId, offered, None(), false);
+
         continue;
       }
 
@@ -10269,7 +10274,8 @@ void Master::offer(
           // Pass a default filter to avoid getting this same offer immediately
           // from the allocator. Note that a default-constructed `Filters`
           // object has its `refuse_seconds` offer filter set to 5 seconds.
-          allocator->recoverResources(frameworkId, slaveId, offered, Filters());
+          allocator->recoverResources(
+              frameworkId, slaveId, offered, Filters(), false);
           continue;
         }
       }
@@ -12012,7 +12018,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
         task->framework_id(),
         task->slave_id(),
         task->resources(),
-        None());
+        None(),
+        true);
 
     // The slave owns the Task object and cannot be nullptr.
     Slave* slave = slaves.registered.get(task->slave_id());
@@ -12094,7 +12101,8 @@ void Master::removeTask(Task* task, bool unreachable)
         task->framework_id(),
         task->slave_id(),
         resources,
-        None());
+        None(),
+        true);
   } else {
     // Note that we use `Resources` for output as it's faster than
     // logging raw protobuf data.
@@ -12142,7 +12150,7 @@ void Master::removeExecutor(
             << "' with resources " << resources
             << " of framework " << frameworkId << " on agent " << *slave;
 
-  allocator->recoverResources(frameworkId, slave->id, resources, None());
+  allocator->recoverResources(frameworkId, slave->id, resources, None(), true);
 
   Framework* framework = getFramework(frameworkId);
   if (framework != nullptr) { // The framework might not be reregistered yet.
@@ -12344,7 +12352,8 @@ void Master::updateOperation(
               operation->framework_id(),
               operation->slave_id(),
               converted,
-              None());
+              None(),
+              false);
 
           Resources consumedUnallocated = consumed.get();
           consumedUnallocated.unallocate();
@@ -12359,7 +12368,8 @@ void Master::updateOperation(
               operation->framework_id(),
               operation->slave_id(),
               consumed.get(),
-              None());
+              None(),
+              false);
         }
 
         break;
@@ -12374,7 +12384,8 @@ void Master::updateOperation(
             operation->framework_id(),
             operation->slave_id(),
             consumed.get(),
-            None());
+            None(),
+            false);
 
         break;
       }
@@ -12454,7 +12465,8 @@ void Master::removeOperation(Operation* operation)
         operation->framework_id(),
         operation->slave_id(),
         consumed.get(),
-        None());
+        None(),
+        false);
   }
 
   delete operation;
@@ -12627,7 +12639,11 @@ void Master::rescindOffer(Offer* offer, const Option<Filters>& filters)
   framework->send(message);
 
   allocator->recoverResources(
-      offer->framework_id(), offer->slave_id(), offer->resources(), filters);
+      offer->framework_id(),
+      offer->slave_id(),
+      offer->resources(),
+      filters,
+      false);
 
   _removeOffer(framework, offer);
 }
@@ -12641,7 +12657,11 @@ void Master::discardOffer(Offer* offer, const Option<Filters>& filters)
     << " in the offer " << offer->id();
 
   allocator->recoverResources(
-      offer->framework_id(), offer->slave_id(), offer->resources(), filters);
+      offer->framework_id(),
+      offer->slave_id(),
+      offer->resources(),
+      filters,
+      false);
 
   _removeOffer(framework, offer);
 }

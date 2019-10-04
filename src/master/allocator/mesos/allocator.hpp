@@ -148,7 +148,8 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
-      const Option<Filters>& filters) override;
+      const Option<Filters>& filters,
+      bool isAllocated) override;
 
   void suppressOffers(
       const FrameworkID& frameworkId,
@@ -292,7 +293,8 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
-      const Option<Filters>& filters) = 0;
+      const Option<Filters>& filters,
+      bool isAllocated) = 0;
 
   virtual void suppressOffers(
       const FrameworkID& frameworkId,
@@ -632,7 +634,8 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
-    const Option<Filters>& filters)
+    const Option<Filters>& filters,
+    bool isAllocated)
 {
   process::dispatch(
       process,
@@ -640,7 +643,8 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
       frameworkId,
       slaveId,
       resources,
-      filters);
+      filters,
+      isAllocated);
 }
 
 

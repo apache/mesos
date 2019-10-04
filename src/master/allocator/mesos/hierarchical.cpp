@@ -1462,13 +1462,17 @@ void HierarchicalAllocatorProcess::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
-    const Option<Filters>& filters)
+    const Option<Filters>& filters,
+    bool isAllocated)
 {
   CHECK(initialized);
 
   if (resources.empty()) {
     return;
   }
+
+  // TODO(asekretenko): untrack allocated resources in the roles tree
+  // if recovering actually used resources (isAllocated==true)
 
   Option<Framework*> framework = getFramework(frameworkId);
   Option<Slave*> slave = getSlave(slaveId);
