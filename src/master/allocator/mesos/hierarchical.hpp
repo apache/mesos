@@ -267,6 +267,14 @@ private:
   // along the tree path will be created if necessary.
   Role& operator[](const std::string& role);
 
+  // Helper for modifying a role and all its ancestors.
+  template<class UnaryFunction>
+  static void applyToRoleAndAncestors(Role* role, UnaryFunction f) {
+    for (; role != nullptr; role = role->parent) {
+      f(role);
+    }
+  }
+
   // Try to remove the role associated with the given role.
   // The role must exist. The role and its ancestors will be removed
   // if they become "empty". See "Role:isEmpty()".

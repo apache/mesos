@@ -354,16 +354,13 @@ void RoleTree::trackReservations(const Resources& resources)
     CHECK(Resources::isReserved(r));
 
     const string& reservationRole = Resources::reservationRole(r);
-
-    Role* current = &(*this)[reservationRole];
     ResourceQuantities quantities = ResourceQuantities::fromScalarResources(r);
 
-    // Track it hierarchically up to the root.
-    // Create new role tree node if necessary.
-    for (; current != nullptr; current = current->parent) {
+    // NOTE: If necessary, a new role tree node is created.
+    applyToRoleAndAncestors(&(*this)[reservationRole], [&](Role* current) {
       current->reservationScalarQuantities_ += quantities;
       updateQuotaConsumedMetric(current);
-    }
+    });
   }
 }
 
@@ -374,17 +371,14 @@ void RoleTree::untrackReservations(const Resources& resources)
     CHECK(Resources::isReserved(r));
 
     const string& reservationRole = Resources::reservationRole(r);
-    CHECK_CONTAINS(roles_, reservationRole);
-
     ResourceQuantities quantities = ResourceQuantities::fromScalarResources(r);
 
-    // Track it hierarchically up to the root.
-    for (Role* current = &(roles_.at(reservationRole)); current != nullptr;
-         current = current->parent) {
-      CHECK_CONTAINS(current->reservationScalarQuantities_, quantities);
-      current->reservationScalarQuantities_ -= quantities;
-      updateQuotaConsumedMetric(current);
-    }
+    applyToRoleAndAncestors(
+      CHECK_NOTNONE(get_(reservationRole)), [&](Role* current) {
+        CHECK_CONTAINS(current->reservationScalarQuantities_, quantities);
+        current->reservationScalarQuantities_ -= quantities;
+        updateQuotaConsumedMetric(current);
+      });
 
     tryRemove(reservationRole);
   }
@@ -397,14 +391,10 @@ void RoleTree::trackAllocated(const Resources& resources_)
       const string& role,
       const Resources& resources,
       resources_.scalars().allocations()) {
-    CHECK_CONTAINS(roles_, role);
-
-    // Track it hierarchically up to the root.
-    for (Role* current = &(roles_.at(role)); current != nullptr;
-         current = current->parent) {
+    applyToRoleAndAncestors(CHECK_NOTNONE(get_(role)), [&](Role* current) {
       current->allocatedScalars_ += resources;
       updateQuotaConsumedMetric(current);
-    }
+    });
   }
 }
 
@@ -415,15 +405,10 @@ void RoleTree::untrackAllocated(const Resources& resources_)
       const string& role,
       const Resources& resources,
       resources_.scalars().allocations()) {
-    CHECK_CONTAINS(roles_, role);
-
-    // Track it hierarchically up to the root.
-    for (Role* current = &(roles_.at(role)); current != nullptr;
-         current = current->parent) {
-      CHECK_CONTAINS(current->allocatedScalars_, resources);
+    applyToRoleAndAncestors(CHECK_NOTNONE(get_(role)), [&](Role* current) {
       current->allocatedScalars_ -= resources;
       updateQuotaConsumedMetric(current);
-    }
+    });
   }
 }
 
@@ -478,11 +463,10 @@ void RoleTree::trackOfferedOrAllocated(const Resources& resources_)
       const string& role,
       const Resources& resources,
       resources_.scalars().allocations()) {
-    // Track it hierarchically up to the root.
-    for (Role* current = CHECK_NOTNONE(get_(role)); current != nullptr;
-         current = current->parent) {
+    applyToRoleAndAncestors(
+        CHECK_NOTNONE(get_(role)), [&resources](Role* current) {
       current->offeredOrAllocatedScalars_ += resources;
-    }
+    });
   }
 }
 
@@ -497,14 +481,13 @@ void RoleTree::untrackOfferedOrAllocated(const Resources& resources_)
       const string& role,
       const Resources& resources,
       resources_.scalars().allocations()) {
-    // Untrack it hierarchically up to the root.
-    for (Role* current = CHECK_NOTNONE(get_(role)); current != nullptr;
-         current = current->parent) {
+    applyToRoleAndAncestors(
+        CHECK_NOTNONE(get_(role)), [&resources](Role* current) {
       CHECK_CONTAINS(current->offeredOrAllocatedScalars_, resources)
         << " Role: " << current->role
         << " offeredOrAllocated: " << current->offeredOrAllocatedScalars_;
       current->offeredOrAllocatedScalars_ -= resources;
-    }
+    });
   }
 }
 

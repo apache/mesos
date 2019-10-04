@@ -105,7 +105,8 @@ TEST_F(ConsumptionMetricsTest, Launch)
 
   Future<Event::Offers> offers;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Subscribe the framework.
   v1::scheduler::TestMesos mesos(
@@ -212,7 +213,8 @@ TEST_F(ConsumptionMetricsTest, ReservedResource)
 
   Future<Event::Offers> offers;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Subscribe the framework.
   v1::scheduler::TestMesos mesos(
