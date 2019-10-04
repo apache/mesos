@@ -2622,6 +2622,7 @@ mesos_tests_SOURCES =						\
   tests/cluster.hpp						\
   tests/command_executor_tests.cpp				\
   tests/common_validation_tests.cpp				\
+  tests/consumption_metrics_tests.cpp				\
   tests/container_daemon_tests.cpp				\
   tests/container_logger_tests.cpp				\
   tests/containerizer.cpp					\
