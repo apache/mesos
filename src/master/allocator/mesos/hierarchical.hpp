@@ -131,6 +131,13 @@ public:
 
   const Quota& quota() const { return quota_; }
 
+  ResourceQuantities quotaConsumed() const
+  {
+    return ResourceQuantities::fromScalarResources(
+               allocatedScalars_.unreserved().nonRevocable()) +
+           reservationScalarQuantities_;
+  }
+
   double weight() const { return weight_; }
 
   bool isEmpty() const
@@ -268,6 +275,8 @@ private:
   // gets updated, such as quota, weight, reservation and tracked frameworks.
   // Otherwise the "tracking only non-empty" tree invariant may break.
   bool tryRemove(const std::string& role);
+
+  void updateQuotaConsumedMetric(const Role* role);
 
   // Root node of the tree, its `basename` == `role` == "".
   Role* root_;

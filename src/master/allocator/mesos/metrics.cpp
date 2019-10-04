@@ -219,6 +219,13 @@ void Metrics::updateQuota(const string& role, const Quota& quota)
 }
 
 
+void Metrics::updateConsumed(
+  const string& role, const ResourceQuantities& consumed)
+{
+  quotaConsumed.update(role, consumed);
+}
+
+
 void Metrics::addRole(const string& role)
 {
   CHECK(!offer_filters_active.contains(role));

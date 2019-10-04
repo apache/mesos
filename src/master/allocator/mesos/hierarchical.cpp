@@ -340,6 +340,14 @@ bool RoleTree::tryRemove(const std::string& role)
 }
 
 
+void RoleTree::updateQuotaConsumedMetric(const Role* role)
+{
+  if (metrics.isSome()) {
+    (*metrics)->updateConsumed(role->role, role->quotaConsumed());
+  }
+}
+
+
 void RoleTree::trackReservations(const Resources& resources)
 {
   foreach (const Resource& r, resources.scalars()) {
@@ -354,6 +362,7 @@ void RoleTree::trackReservations(const Resources& resources)
     // Create new role tree node if necessary.
     for (; current != nullptr; current = current->parent) {
       current->reservationScalarQuantities_ += quantities;
+      updateQuotaConsumedMetric(current);
     }
   }
 }
@@ -374,6 +383,7 @@ void RoleTree::untrackReservations(const Resources& resources)
          current = current->parent) {
       CHECK_CONTAINS(current->reservationScalarQuantities_, quantities);
       current->reservationScalarQuantities_ -= quantities;
+      updateQuotaConsumedMetric(current);
     }
 
     tryRemove(reservationRole);
@@ -393,6 +403,7 @@ void RoleTree::trackAllocated(const Resources& resources_)
     for (Role* current = &(roles_.at(role)); current != nullptr;
          current = current->parent) {
       current->allocatedScalars_ += resources;
+      updateQuotaConsumedMetric(current);
     }
   }
 }
@@ -411,6 +422,7 @@ void RoleTree::untrackAllocated(const Resources& resources_)
          current = current->parent) {
       CHECK_CONTAINS(current->allocatedScalars_, resources);
       current->allocatedScalars_ -= resources;
+      updateQuotaConsumedMetric(current);
     }
   }
 }

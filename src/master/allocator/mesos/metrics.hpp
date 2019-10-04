@@ -68,6 +68,8 @@ struct Metrics
   ~Metrics();
 
   void updateQuota(const std::string& role, const Quota& quota);
+  void updateConsumed(
+    const std::string& role, const ResourceQuantities& consumed);
 
   void addRole(const std::string& role);
   void removeRole(const std::string& role);
@@ -117,6 +119,7 @@ private:
   // (Example of a name: allocator/mesos/quota/roles/roleA/resources/cpu/limit.)
   QuotaMetrics quotaGuarantees {"/guarantee"};
   QuotaMetrics quotaLimits {"/limit"};
+  QuotaMetrics quotaConsumed {"/consumed"};
 };
 
 
