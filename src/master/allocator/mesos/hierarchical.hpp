@@ -193,6 +193,10 @@ private:
   // Note that non-scalar resources, such as ports, are excluded.
   ResourceQuantities reservationScalarQuantities_;
 
+  // Scalar resources actually allocated (i.e. used for launching tasks) to this
+  // role and any of its subroles, both reserved and unreserved, on all agents.
+  Resources allocatedScalars_;
+
   hashmap<std::string, Role*> children_;
 };
 
@@ -228,6 +232,10 @@ public:
   // in the presence of unallocated reservations. See MESOS-4527.
   void trackReservations(const Resources& resources);
   void untrackReservations(const Resources& resources);
+
+  // We keep track of allocated resources which are actially used by frameworks.
+  void trackAllocated(const Resources& resources);
+  void untrackAllocated(const Resources& resources);
 
   void trackFramework(
     const FrameworkID& frameworkId, const std::string& role);
@@ -280,13 +288,14 @@ public:
       const protobuf::slave::Capabilities& _capabilities,
       bool _activated,
       const Resources& _total,
-      const hashmap<FrameworkID, Resources>& _offeredOrAllocated)
+      const hashmap<FrameworkID, Resources>& _allocated)
     : info(_info),
       capabilities(_capabilities),
       activated(_activated),
+      totalAllocated(Resources::sum(_allocated)),
       total(_total),
-      offeredOrAllocated(_offeredOrAllocated),
-      totalOfferedOrAllocated(Resources::sum(_offeredOrAllocated)),
+      offeredOrAllocated(_allocated),
+      totalOfferedOrAllocated(Resources::sum(_allocated)),
       shared(_total.shared()),
       hasGpu_(_total.gpus().getOrElse(0) > 0)
   {
@@ -398,6 +407,13 @@ public:
   // a given point in time, for an optional duration. This information is used
   // to send out `InverseOffers`.
   Option<Maintenance> maintenance;
+
+  // Sum of all allocated (i.e. occupied by running tasks) resources on the
+  // agent. This information is needed to untrack allocated resources when the
+  // agent is removed, because the master is not obligated to separately inform
+  // allocator that resources of the removed agent are not offered/allocated
+  // anymore.
+  Resources totalAllocated;
 
 private:
   void updateAvailable()

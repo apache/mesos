@@ -315,6 +315,11 @@ bool RoleTree::tryRemove(const std::string& role)
       break;
     }
 
+    CHECK(current->allocatedScalars_.empty())
+      << "An empty role " << current->role
+      << " has non-empty allocated scalar resources: "
+      << current->allocatedScalars_;
+
     Role* parent = CHECK_NOTNULL(current->parent);
 
     parent->removeChild(current);
@@ -372,6 +377,41 @@ void RoleTree::untrackReservations(const Resources& resources)
     }
 
     tryRemove(reservationRole);
+  }
+}
+
+
+void RoleTree::trackAllocated(const Resources& resources_)
+{
+  foreachpair (
+      const string& role,
+      const Resources& resources,
+      resources_.scalars().allocations()) {
+    CHECK_CONTAINS(roles_, role);
+
+    // Track it hierarchically up to the root.
+    for (Role* current = &(roles_.at(role)); current != nullptr;
+         current = current->parent) {
+      current->allocatedScalars_ += resources;
+    }
+  }
+}
+
+
+void RoleTree::untrackAllocated(const Resources& resources_)
+{
+  foreachpair (
+      const string& role,
+      const Resources& resources,
+      resources_.scalars().allocations()) {
+    CHECK_CONTAINS(roles_, role);
+
+    // Track it hierarchically up to the root.
+    for (Role* current = &(roles_.at(role)); current != nullptr;
+         current = current->parent) {
+      CHECK_CONTAINS(current->allocatedScalars_, resources);
+      current->allocatedScalars_ -= resources;
+    }
   }
 }
 
@@ -658,6 +698,8 @@ void HierarchicalAllocatorProcess::addFramework(
     // The slave struct will already be aware of the allocated
     // resources, so we only need to track them in the sorters.
     trackAllocatedResources(slaveId, frameworkId, resources);
+
+    roleTree.trackAllocated(resources);
   }
 
   LOG(INFO) << "Added framework " << frameworkId;
@@ -898,6 +940,8 @@ void HierarchicalAllocatorProcess::addSlave(
     }
 
     trackAllocatedResources(slaveId, frameworkId, allocation);
+
+    roleTree.trackAllocated(allocation);
   }
 
   // If we have just a number of recovered agents, we cannot distinguish
@@ -934,6 +978,10 @@ void HierarchicalAllocatorProcess::removeSlave(
 
   {
     const Slave& slave = *CHECK_NOTNONE(getSlave(slaveId));
+
+    // untrackAllocatedResources() potentially removes allocation roles, thus
+    // we need to untrack actually allocated resources in the roles tree first.
+    roleTree.untrackAllocated(slave.totalAllocated);
 
     // Untrack resources in roleTree and sorter.
     foreachpair (
@@ -1042,7 +1090,8 @@ void HierarchicalAllocatorProcess::addResourceProvider(
     // There are two cases here:
     //
     //   (1) The framework has already been added to the allocator.
-    //       In this case, we track the allocation in the sorters.
+    //       In this case, we track the allocation in the sorters
+    //       and the role tree.
     //
     //   (2) The framework has not yet been added to the allocator.
     //       We do not track the resources allocated to this
@@ -1457,10 +1506,13 @@ HierarchicalAllocatorProcess::getInverseOfferStatuses()
   return result;
 }
 
+
 void HierarchicalAllocatorProcess::transitionOfferedToAllocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
+  CHECK_NOTNONE(getSlave(slaveId))->totalAllocated += resources;
+  roleTree.trackAllocated(resources);
 }
 
 
@@ -1477,12 +1529,15 @@ void HierarchicalAllocatorProcess::recoverResources(
     return;
   }
 
-  // TODO(asekretenko): untrack allocated resources in the roles tree
-  // if recovering actually used resources (isAllocated==true)
-
-  Option<Framework*> framework = getFramework(frameworkId);
   Option<Slave*> slave = getSlave(slaveId);
 
+  if (isAllocated && slave.isSome()) {
+    CHECK_CONTAINS((*slave)->totalAllocated, resources);
+    (*slave)->totalAllocated -= resources;
+    roleTree.untrackAllocated(resources);
+  }
+
+  Option<Framework*> framework = getFramework(frameworkId);
   // No work to do if either the framework or the agent no longer exists.
   //
   // The framework may not exist if we dispatched Master::offer before we
