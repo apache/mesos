@@ -283,6 +283,9 @@ Release Notes - Mesos - Version 1.8.2 (WIP)
   * [MESOS-9925] - Default executor takes a couple of seconds to start and subscribe Mesos agent.
   * [MESOS-9966] - Agent crashes when trying to destroy orphaned nested container if root container is orphaned as well.
 
+** Improvement
+  * [MESOS-9948] - master::Slave::hasExecutor occupies 37% of a 150 second perf sample.
+
 
 Release Notes - Mesos - Version 1.8.1
 -------------------------------------
