@@ -333,7 +333,8 @@ struct DRFSorter::Node
 
     void subtract(const SlaveID& slaveId, const Resources& toRemove)
     {
-      CHECK(resources.contains(slaveId));
+      CHECK(resources.contains(slaveId))
+        << "Resources " << resources << " does not contain " << slaveId;
       CHECK(resources.at(slaveId).contains(toRemove))
         << "Resources " << resources.at(slaveId) << " at agent " << slaveId
         << " does not contain " << toRemove;
@@ -371,7 +372,8 @@ struct DRFSorter::Node
       const ResourceQuantities newAllocationQuantities =
         ResourceQuantities::fromScalarResources(newAllocation.scalars());
 
-      CHECK(resources.contains(slaveId));
+      CHECK(resources.contains(slaveId))
+        << "Resources " << resources << " does not contain " << slaveId;
       CHECK(resources[slaveId].contains(oldAllocation))
         << "Resources " << resources[slaveId] << " at agent " << slaveId
         << " does not contain " << oldAllocation;
