@@ -373,6 +373,13 @@ public:
     getInverseOfferStatuses() = 0;
 
   /**
+   * This method should be invoked when the offered resources has become
+   * actually allocated.
+   */
+  virtual void transitionOfferedToAllocated(
+      const SlaveID& slaveId, const Resources& resources) = 0;
+
+  /**
    * Recovers resources.
    *
    * Used to update the set of available resources for a specific agent. This

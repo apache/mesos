@@ -1457,6 +1457,12 @@ HierarchicalAllocatorProcess::getInverseOfferStatuses()
   return result;
 }
 
+void HierarchicalAllocatorProcess::transitionOfferedToAllocated(
+    const SlaveID& slaveId,
+    const Resources& resources)
+{
+}
+
 
 void HierarchicalAllocatorProcess::recoverResources(
     const FrameworkID& frameworkId,

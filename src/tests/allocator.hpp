@@ -178,6 +178,12 @@ ACTION_P(InvokeGetInverseOfferStatuses, allocator)
 }
 
 
+ACTION_P(InvokeTransitionOfferedToAllocated, allocator)
+{
+  allocator->real->transitionOfferedToAllocated(arg0, arg1);
+}
+
+
 ACTION_P(InvokeRecoverResources, allocator)
 {
   allocator->real->recoverResources(arg0, arg1, arg2, arg3, arg4);
@@ -356,6 +362,11 @@ public:
     EXPECT_CALL(*this, getInverseOfferStatuses())
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, transitionOfferedToAllocated(_, _))
+      .WillByDefault(InvokeTransitionOfferedToAllocated(this));
+    EXPECT_CALL(*this, transitionOfferedToAllocated(_, _))
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, recoverResources(_, _, _, _, _))
       .WillByDefault(InvokeRecoverResources(this));
     EXPECT_CALL(*this, recoverResources(_, _, _, _, _))
@@ -488,6 +499,10 @@ public:
       hashmap<SlaveID, hashmap<
           FrameworkID,
           mesos::allocator::InverseOfferStatus>>>());
+
+  MOCK_METHOD2(transitionOfferedToAllocated, void(
+      const SlaveID&,
+      const Resources&));
 
   MOCK_METHOD5(recoverResources, void(
       const FrameworkID&,

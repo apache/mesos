@@ -144,6 +144,9 @@ public:
               hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses() override;
 
+  void transitionOfferedToAllocated(
+     const SlaveID& slaveId, const Resources& resources) override;
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -288,6 +291,9 @@ public:
       hashmap<SlaveID,
               hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses() = 0;
+
+  virtual void transitionOfferedToAllocated(
+      const SlaveID& slaveId, const Resources& resources) = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -626,6 +632,18 @@ inline process::Future<
   return process::dispatch(
       process,
       &MesosAllocatorProcess::getInverseOfferStatuses);
+}
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::transitionOfferedToAllocated(
+    const SlaveID& slaveId,
+    const Resources& resources)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::transitionOfferedToAllocated,
+      slaveId,
+      resources);
 }
 
 

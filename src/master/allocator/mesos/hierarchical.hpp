@@ -580,6 +580,9 @@ public:
       hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses() override;
 
+  void transitionOfferedToAllocated(
+      const SlaveID& slaveId, const Resources& resources) override;
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,

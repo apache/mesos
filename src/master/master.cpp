@@ -5006,6 +5006,10 @@ void Master::_accept(
   // are removed from the remaining resources.
   Resources remainingResources = offeredResources;
 
+  // Allocator should be informed about resources allocated for tasks
+  /// and executors by LAUNCH/LAUNCH_GROUP operations.
+  Resources launchResources;
+
   // Converted resources from volume resizes. These converted resources are not
   // put into `remainingResources`, so no other operations can consume them.
   // TODO(zhitao): This will be unnecessary once `GROW_VOLUME` and
@@ -5660,6 +5664,7 @@ void Master::_accept(
             }
 
             remainingResources -= consumed;
+            launchResources += consumed;
 
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
@@ -5919,6 +5924,7 @@ void Master::_accept(
           << remainingResources << " does not contain " << totalResources;
 
         remainingResources -= totalResources;
+        launchResources += totalResources;
 
         // If the agent does not support reservation refinement, downgrade
         // the task and executor resources to the "pre-reservation-refinement"
@@ -6127,6 +6133,10 @@ void Master::_accept(
   Resources implicitlyDeclined = remainingResources - speculativelyConverted;
 
   // Prevent any allocations from occurring during resource recovery below.
+  //
+  // TODO(asekretenko): Ideally, we should be able to inform the allocator about
+  // all the resource state transitions in one call. This will obviate the need
+  // to pause/resume the allocator.
   allocator->pause();
 
   // Tell the allocator about the net speculatively converted resources. These
@@ -6140,6 +6150,10 @@ void Master::_accept(
   if (!implicitlyDeclined.empty()) {
     allocator->recoverResources(
         frameworkId, slaveId, implicitlyDeclined, accept.filters(), false);
+  }
+
+  if (!launchResources.empty()) {
+    allocator->transitionOfferedToAllocated(slaveId, launchResources);
   }
 
   allocator->resume();
