@@ -43,6 +43,53 @@ namespace master {
 namespace allocator {
 namespace internal {
 
+
+template<class Quantities>
+void QuotaMetrics::update(const string& role, const Quantities& quantities)
+{
+  hashmap<string, PushGauge>& gauges = metrics[role];
+
+  hashset<string> namesToRemove = gauges.keys();
+
+  for (const auto& quantity : quantities) {
+    const string& name = quantity.first;
+    const double value = quantity.second.value();
+
+    namesToRemove.erase(name);
+
+    if (gauges.contains(name)) {
+      gauges.at(name) = value;
+      continue;
+    }
+
+    PushGauge newGauge(
+        "allocator/mesos/quota/roles/" + role + "/resources/" + name + suffix);
+
+    newGauge = value;
+    process::metrics::add(newGauge);
+    gauges.put(name, newGauge);
+  }
+
+  for (const string& name : namesToRemove) {
+    process::metrics::remove(gauges.at(name));
+    gauges.erase(name);
+  }
+
+  if (gauges.empty()) {
+    metrics.erase(role);
+  }
+}
+
+
+QuotaMetrics::~QuotaMetrics() {
+  foreachkey(const string& role, metrics) {
+    foreachvalue(const PushGauge& gauge, metrics.at(role)) {
+      process::metrics::remove(gauge);
+    }
+  }
+}
+
+
 Metrics::Metrics(const HierarchicalAllocatorProcess& _allocator)
   : allocator(_allocator.self()),
     event_queue_dispatches(
@@ -116,18 +163,6 @@ Metrics::~Metrics()
     }
   }
 
-  foreachkey (const string& role, quota_guarantee) {
-    foreachvalue (const PushGauge& gauge, quota_guarantee.at(role)) {
-      process::metrics::remove(gauge);
-    }
-  }
-
-  foreachkey (const string& role, quota_limit) {
-    foreachvalue (const PushGauge& gauge, quota_limit.at(role)) {
-      process::metrics::remove(gauge);
-    }
-  }
-
   foreachvalue (const PullGauge& gauge, offer_filters_active) {
     process::metrics::remove(gauge);
   }
@@ -136,61 +171,25 @@ Metrics::~Metrics()
 
 void Metrics::updateQuota(const string& role, const Quota& quota)
 {
+  quotaGuarantees.update(role, quota.guarantees);
+  quotaLimits.update(role, quota.limits);
+
   // First remove the existing metrics.
   foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
     process::metrics::remove(gauge);
   }
   quota_allocated.erase(role);
 
-  foreachvalue (const PushGauge& gauge, quota_guarantee[role]) {
-    process::metrics::remove(gauge);
-  }
-  quota_guarantee.erase(role);
-
-  foreachvalue (const PushGauge& gauge, quota_limit[role]) {
-    process::metrics::remove(gauge);
-  }
-  quota_limit.erase(role);
-
   // This is the original quota "remove" case where the
   // role's quota is set to the default. We used to not
   // show the quota allocated_or_offered metric in this
   // case, so we keep this behavior for now.
   //
-  // TODO(mzhu): always expose the allocated gauge even
-  // if a role only has default quota.
+  // TODO(asekretenko): move offered_or_allocated to PushGauge-based
+  // QuotaMetrics. This also solves the problem of exposing consumption of
+  // roles with a default quota.
   if (quota == DEFAULT_QUOTA) {
     return;
-  }
-
-  // Now add the new metrics.
-
-  foreach (auto& quantity, quota.guarantees) {
-    PushGauge guarantee(
-        "allocator/mesos/quota"
-        "/roles/" + role +
-        "/resources/" + quantity.first +
-        "/guarantee");
-
-    guarantee = quantity.second.value();
-
-    process::metrics::add(guarantee);
-
-    quota_guarantee[role].put(quantity.first, guarantee);
-  }
-
-  foreach (auto& quantity, quota.limits) {
-    PushGauge limit(
-        "allocator/mesos/quota"
-        "/roles/" + role +
-        "/resources/" + quantity.first +
-        "/limit");
-
-    limit = quantity.second.value();
-
-    process::metrics::add(limit);
-
-    quota_limit[role].put(quantity.first, limit);
   }
 
   hashset<string> names;

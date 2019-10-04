@@ -23,6 +23,7 @@
 #include <mesos/quota/quota.hpp>
 
 #include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
 #include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/push_gauge.hpp>
 #include <process/metrics/timer.hpp>
@@ -39,6 +40,24 @@ namespace internal {
 
 // Forward declarations.
 class HierarchicalAllocatorProcess;
+
+
+class QuotaMetrics
+{
+public:
+  explicit QuotaMetrics(const std::string& suffix_) : suffix(suffix_){};
+  ~QuotaMetrics();
+
+  template <class Quantities>
+  void update(const std::string& role, const Quantities& quantities);
+
+private:
+  const std::string suffix;
+
+  hashmap<std::string, hashmap<std::string, process::metrics::PushGauge>>
+    metrics;
+};
+
 
 // Collection of metrics for the allocator; these begin
 // with the following prefix: `allocator/mesos/`.
@@ -92,6 +111,12 @@ struct Metrics
 
   // PullGauges for the per-role count of active offer filters.
   hashmap<std::string, process::metrics::PullGauge> offer_filters_active;
+
+private:
+  // NOTE: Quota metrics should have a suffix in singilar.
+  // (Example of a name: allocator/mesos/quota/roles/roleA/resources/cpu/limit.)
+  QuotaMetrics quotaGuarantees {"/guarantee"};
+  QuotaMetrics quotaLimits {"/limit"};
 };
 
 
