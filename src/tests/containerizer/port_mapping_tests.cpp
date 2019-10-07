@@ -1850,6 +1850,128 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPU)
 }
 
 
+// Test that egress rate limit scaling works correctly with high real-world
+// speeds.
+TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPULarge)
+{
+  flags.egress_rate_limit_per_container = None();
+  flags.egress_rate_per_cpu = "auto";
+
+  // Change available CPUs to be 64.
+  vector<string> resources = strings::split(flags.resources.get(), ";");
+  std::replace_if(
+      resources.begin(),
+      resources.end(),
+      [](const string& s) {return strings::startsWith(s, "cpus:");},
+      "cpus:64");
+  flags.resources = strings::join(";", resources);
+
+  const Bytes linkSpeed = 3125000000; // 25 Gbit/s
+  const Bytes ratePerCpu = linkSpeed / 64;
+  flags.network_link_speed = linkSpeed;
+
+  const Bytes minRate = 225000000; // 1.8 Gbit/s
+  flags.minimum_egress_rate_limit = minRate;
+
+  const Bytes maxRate = 2187500000; // 17.5 Gbit/s
+  flags.maximum_egress_rate_limit = maxRate;
+
+  // CPU high enough to be in linear scaling region and to trigger uint32_t
+  // overflow of scaled rate represented as bit/s: 16 * 3125000000 / 64 =
+  // 781250000 B/s or 6250000000 bits/s.
+  Try<Resources> linearCpu = Resources::parse("cpus:16;mem:1024;disk:1024");
+  ASSERT_SOME(linearCpu);
+
+  // CPU low enough for scaled network egress to be increased to the min limit:
+  // 4 * 3125000000 / 64 = 195312500 B/s
+  Try<Resources> lowCpu = Resources::parse("cpus:4;mem:1024;disk:1024");
+  ASSERT_SOME(lowCpu);
+
+  // CPU high enough for scaled network egress to be reduced to the max limit:
+  // 60 * 3125000000 / 64 = 2929687500 B/s.
+  Try<Resources> highCpu = Resources::parse("cpus:60;mem:1024;disk:1024");
+  ASSERT_SOME(highCpu);
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(linearCpu.get());
+
+  ContainerID containerId1;
+  containerId1.set_value(id::UUID::random().toString());
+
+  ContainerConfig containerConfig1;
+  containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig1.mutable_resources()->CopyFrom(executorInfo.resources());
+
+  Future<Option<ContainerLaunchInfo>> launchInfo1 =
+    isolator.get()->prepare(containerId1, containerConfig1);
+  AWAIT_READY(launchInfo1);
+  ASSERT_SOME(launchInfo1.get());
+  ASSERT_EQ(1, launchInfo1.get()->pre_exec_commands().size());
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId1,
+      "touch " + container1Ready + " && sleep 1000",
+      launchInfo1.get());
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int>> status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId1, pid.get()));
+
+  // Signal forked child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Wait for command to start to ensure all pre-exec scripts have
+  // executed.
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
+
+  Result<htb::cls::Config> config = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(config);
+  ASSERT_EQ(ratePerCpu * 16, config->rate);
+
+  // Reduce CPU to get to hit the min limit.
+  Future<Nothing> update = isolator.get()->update(containerId1, lowCpu.get());
+  AWAIT_READY(update);
+
+  config = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(config);
+  ASSERT_EQ(minRate, config->rate);
+
+  // Increase CPU to hit the max limit.
+  update = isolator.get()->update(containerId1, highCpu.get());
+  AWAIT_READY(update);
+
+  config = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(config);
+  ASSERT_EQ(maxRate, config->rate);
+
+  // Kill the container
+  AWAIT_READY(launcher.get()->destroy(containerId1));
+  AWAIT_READY(isolator.get()->cleanup(containerId1));
+
+  delete launcher.get();
+  delete isolator.get();
+}
+
+
 TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPUAutoConfig)
 {
   flags.egress_rate_limit_per_container = None();
