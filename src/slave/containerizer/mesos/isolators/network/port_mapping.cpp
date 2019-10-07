@@ -5077,7 +5077,8 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::egressHTBConfig(
   if (flags.egress_rate_limit_per_container.isSome()) {
     rate = flags.egress_rate_limit_per_container.get();
   } else if (egressRatePerCpu.isSome()) {
-    rate = egressRatePerCpu.get() * floor(resources.cpus().getOrElse(0));
+    rate = egressRatePerCpu.get() *
+      static_cast<uint64_t>(resources.cpus().getOrElse(0));
   } else {
     return None();
   }
@@ -5115,7 +5116,8 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::ingressHTBConfig(
   if (flags.ingress_rate_limit_per_container.isSome()) {
     rate = flags.ingress_rate_limit_per_container.get();
   } else if (ingressRatePerCpu.isSome()) {
-    rate = ingressRatePerCpu.get() * floor(resources.cpus().getOrElse(0));
+    rate = ingressRatePerCpu.get() *
+      static_cast<uint64_t>(resources.cpus().getOrElse(0));
   } else {
     return None();
   }
@@ -5292,10 +5294,11 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc class add dev " << eth0 << " parent "
            << CONTAINER_TX_HTB_HANDLE << " classid "
            << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
-           << info->egressConfig->rate * 8 << "bit";
+           << static_cast<uint64_t>(info->egressConfig->rate) * 8 << "bit";
     if (info->egressConfig->ceil.isSome()) {
       script << " ceil "
-             << info->egressConfig->ceil.get() * 8 << "bit";
+             << static_cast<uint64_t>(info->egressConfig->ceil.get()) * 8
+             << "bit";
       if (info->egressConfig->burst.isSome()) {
         // Use bytes here because tc command borks at bits.
         script << " burst " << info->egressConfig->burst.get() << "b";
