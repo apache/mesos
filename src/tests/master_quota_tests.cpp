@@ -536,6 +536,67 @@ TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
 }
 
 
+TEST_F(MasterQuotaTest, UpdateQuotaTooLarge)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Content-Type"] = "application/json";
+
+  // The quota endpoint only allows memory / disk up to
+  // 1 exabyte (in megabytes) or 1 trillion cores/ports/other.
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "/api/v1",
+      headers,
+      createUpdateQuotaRequestBody(
+          createQuotaConfig(ROLE1, "cpus:1000000000000", "cpus:1000000000001"),
+          true));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  EXPECT_TRUE(strings::contains(
+      response->body,
+      "Invalid 'QuotaConfig.limits': {'cpus': 1000000000001} is invalid:"
+      " values greater than 1 trillion (1000000000000) are not supported"))
+    << response->body;
+
+  response = process::http::post(
+      master.get()->pid,
+      "/api/v1",
+      headers,
+      createUpdateQuotaRequestBody(
+          createQuotaConfig(ROLE1, "mem:1099511627776", "mem:1099511627777"),
+          true));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  EXPECT_TRUE(strings::contains(
+      response->body,
+      "Invalid 'QuotaConfig.limits': {'mem': 1099511627777} is invalid:"
+      " values greater than 1 exabyte (1099511627776) are not supported"))
+    << response->body;
+
+  response = process::http::post(
+      master.get()->pid,
+      "/api/v1",
+      headers,
+      createUpdateQuotaRequestBody(
+          createQuotaConfig(ROLE1, "disk:1099511627777", ""),
+          true));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  EXPECT_TRUE(strings::contains(
+      response->body,
+      "Invalid 'QuotaConfig.guarantees': {'disk': 1099511627777} is invalid:"
+      " values greater than 1 exabyte (1099511627776) are not supported"))
+    << response->body;
+}
+
+
 // These are request validation tests. They verify JSON is well-formed,
 // convertible to corresponding protobufs, all necessary fields are present,
 // while irrelevant fields are not present.
