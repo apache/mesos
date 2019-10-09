@@ -5,16 +5,34 @@ layout: documentation
 
 # SSL in Mesos
 
-By default, all the messages that flow through the Mesos cluster are unencrypted, making it possible for anyone with access to the cluster to intercept and potentially control arbitrary tasks.
+By default, all the messages that flow through the Mesos cluster are
+unencrypted, making it possible for anyone with access to the cluster to
+intercept and potentially control arbitrary tasks.
 
-SSL/TLS support was added to libprocess in Mesos 0.23.0, which encypts the low-level communication that Mesos uses for network communication between Mesos components.  Additionally, HTTPS support was added to the Mesos WebUI.
+SSL/TLS support was added to libprocess in Mesos 0.23.0, which encrypts the
+data that Mesos uses for network communication between Mesos components.
+Additionally, HTTPS support was added to the Mesos WebUI.
 
 # Build Configuration
-There is currently only one implementation of the [libprocess socket interface](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/include/process/socket.hpp) that supports SSL. This implementation uses [libevent](https://github.com/libevent/libevent). Specifically it relies on the `libevent-openssl` library that wraps `openssl`.
 
-Before building Mesos 0.23.0 from source, assuming you have installed the required [Dependencies](#Dependencies), you can modify your configure line to enable SSL as follows:
+There are currently two implementations of the
+[libprocess socket interface](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/include/process/socket.hpp)
+that support SSL.
+
+The first implementation, added in Mesos 0.23.0, uses
+[libevent](https://github.com/libevent/libevent).
+Specifically it relies on the `libevent-openssl` library that wraps `openssl`.
+
+The second implementation, added in Mesos 1.10.0, is a generic socket
+wrapper which only relies on the OpenSSL (1.1+) library.
+
+Before building Mesos from source, assuming you have installed the
+required [Dependencies](#Dependencies), you can modify your configure line
+to enable SSL as follows:
 
 ~~~
+../configure --enable-ssl
+# Or:
 ../configure --enable-libevent --enable-ssl
 ~~~
 
@@ -206,7 +224,10 @@ since attackers that are able to forge a DNS or rDNS result can launch a success
 man-in-the-middle attack on the 'legacy' scheme.
 
 ### libevent
-We require the OpenSSL support from libevent. The suggested version of libevent is [`2.0.22-stable`](https://github.com/libevent/libevent/releases/tag/release-2.0.22-stable). As new releases come out we will try to maintain compatibility.
+If building with `--enable-libevent`, we require the OpenSSL support from
+libevent. The suggested version of libevent is
+[`2.0.22-stable`](https://github.com/libevent/libevent/releases/tag/release-2.0.22-stable).
+As new releases come out we will try to maintain compatibility.
 
 ~~~
 // For example, on OSX:
@@ -214,8 +235,19 @@ brew install libevent
 ~~~
 
 ### OpenSSL
-We require [OpenSSL](https://github.com/openssl/openssl). There are multiple branches of OpenSSL that are being maintained by the community. Since security requires being vigilant, we recommend reading the release notes for the current releases of OpenSSL and deciding on a version within your organization based on your security needs. Mesos is not too deeply dependent on specific OpenSSL versions, so there is room for you to make security decisions as an organization.
-Please ensure the `event2` and `openssl` headers are available for building Mesos.
+We require [OpenSSL](https://github.com/openssl/openssl).
+There are multiple branches of OpenSSL that are being maintained by the
+community. Since security requires being vigilant, we recommend reading
+the release notes for the current releases of OpenSSL and deciding on a
+version within your organization based on your security needs.
+
+When building with libevent, Mesos is not too deeply dependent on specific
+OpenSSL versions, so there is room for you to make security decisions as
+an organization. When building without libevent, OpenSSL 1.1+ is required,
+because Mesos makes use of APIs introduced in later versions of OpenSSL.
+
+Please ensure the `event2` (when building with libevent) and
+`openssl` headers are available for building Mesos.
 
 ~~~
 // For example, on OSX:

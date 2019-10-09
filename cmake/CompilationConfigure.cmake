@@ -260,12 +260,6 @@ if (WIN32 AND ENABLE_LIBEVENT)
     "See MESOS-8668 for context.")
 endif ()
 
-if (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))
-  message(
-    FATAL_ERROR
-    "'ENABLE_SSL' currently requires 'ENABLE_LIBEVENT'.")
-endif ()
-
 
 # SYSTEM CHECKS.
 ################
@@ -583,6 +577,10 @@ add_definitions(
 if (ENABLE_SSL)
   # TODO(andschwa): Make this non-global.
   add_definitions(-DUSE_SSL_SOCKET=1)
+endif ()
+
+if (ENABLE_LIBEVENT)
+  add_definitions(-DUSE_LIBEVENT=1)
 endif ()
 
 # Calculate some build information.

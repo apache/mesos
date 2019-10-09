@@ -232,8 +232,7 @@ layout: documentation
     </td>
     <td>
       Enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
-      communication. Note that <code>--enable-libevent</code> is currently
-      required for SSL functionality. [default=no]
+      communication. [default=no]
     </td>
   </tr>
   <tr>
