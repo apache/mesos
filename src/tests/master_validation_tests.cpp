@@ -128,8 +128,6 @@ TEST(MasterCallValidationTest, UpdateQuota)
   error = mesos::internal::master::quota::validate(config);
   ASSERT_NONE(error);
 
-  // Now test the guarantees <= limits validation.
-
   auto resourceMap = [](const vector<pair<string, double>>& vector)
     -> Map<string, Value::Scalar> {
     Map<string, Value::Scalar> result;
@@ -142,6 +140,85 @@ TEST(MasterCallValidationTest, UpdateQuota)
 
     return result;
   };
+
+  // The quota endpoint only allows memory / disk up to
+  // 1 exabyte (in megabytes) or 1 trillion cores/ports/other.
+  double largestMegabytes = 1024.0 * 1024.0 * 1024.0 * 1024.0;
+  double largestCpuPortsOrOther = 1000.0 * 1000.0 * 1000.0 * 1000.0;
+
+  *config.mutable_guarantees() = resourceMap({
+    {"disk", largestMegabytes},
+    {"mem", largestMegabytes},
+    {"cpus", largestCpuPortsOrOther},
+    {"ports", largestCpuPortsOrOther},
+    {"foobars", largestCpuPortsOrOther}
+  });
+  *config.mutable_limits() = resourceMap({
+    {"disk", largestMegabytes},
+    {"mem", largestMegabytes},
+    {"cpus", largestCpuPortsOrOther},
+    {"ports", largestCpuPortsOrOther},
+    {"foobars", largestCpuPortsOrOther},
+  });
+
+  error = mesos::internal::master::quota::validate(config);
+  EXPECT_NONE(error)
+    << error->message;
+
+  config.clear_guarantees();
+  *config.mutable_limits() = resourceMap({{"disk", largestMegabytes + 1.0}});
+
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "values greater than 1 exabyte (1099511627776) are not supported"))
+    << error->message;
+
+  config.clear_guarantees();
+  *config.mutable_limits() = resourceMap({{"mem", largestMegabytes + 1.0}});
+
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "values greater than 1 exabyte (1099511627776) are not supported"))
+    << error->message;
+
+  config.clear_limits();
+  *config.mutable_guarantees() = resourceMap({
+    {"cpus", largestCpuPortsOrOther + 1.0}});
+
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "values greater than 1 trillion (1000000000000) are not supported"))
+    << error->message;
+
+  config.clear_limits();
+  *config.mutable_guarantees() = resourceMap({
+    {"ports", largestCpuPortsOrOther + 1.0}});
+
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "values greater than 1 trillion (1000000000000) are not supported"))
+    << error->message;
+
+  config.clear_limits();
+  *config.mutable_guarantees() = resourceMap({
+    {"foobars", largestCpuPortsOrOther + 1.0}});
+
+  error = mesos::internal::master::quota::validate(config);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "values greater than 1 trillion (1000000000000) are not supported"))
+    << error->message;
+
+  // Now test the guarantees <= limits validation.
 
   // Guarantees > limits.
   Map<string, Value::Scalar> superset =
