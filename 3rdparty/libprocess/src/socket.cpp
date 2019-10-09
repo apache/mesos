@@ -27,8 +27,13 @@
 #include <stout/unreachable.hpp>
 
 #ifdef USE_SSL_SOCKET
+#ifdef USE_LIBEVENT
 #include "posix/libevent/libevent_ssl_socket.hpp"
-#endif
+#else
+#include "ssl/openssl_socket.hpp"
+#endif // USE_LIBEVENT
+#endif // USE_SSL_SOCKET
+
 #include "poll_socket.hpp"
 
 using std::string;
@@ -44,8 +49,12 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int_fd s, Kind kind)
       return PollSocketImpl::create(s);
 #ifdef USE_SSL_SOCKET
     case Kind::SSL:
+#ifdef USE_LIBEVENT
       return LibeventSSLSocketImpl::create(s);
-#endif
+#else
+      return OpenSSLSocketImpl::create(s);
+#endif // USE_LIBEVENT
+#endif // USE_SSL_SOCKET
   }
   UNREACHABLE();
 }

@@ -16,7 +16,9 @@
 #include <sys/param.h>
 #endif // __WINDOWS__
 
+#ifdef USE_LIBEVENT
 #include <event2/event-config.h>
+#endif // USE_LIBEVENT
 
 #include <openssl/err.h>
 #include <openssl/rand.h>

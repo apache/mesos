@@ -18,7 +18,14 @@
 # https://www.openssl.org
 ############################################
 if (ENABLE_SSL)
-  find_package(OpenSSL REQUIRED)
+  if (ENABLE_LIBEVENT)
+    find_package(OpenSSL REQUIRED)
+  else ()
+    # SSL without Libevent requires a more recent version of OpenSSL
+    # because of the APIs used by the implementation.
+    # TODO(josephw): Add compatibility for OpenSSL 1.0.
+    find_package(OpenSSL 1.1 REQUIRED)
+  endif ()
 endif ()
 
 
@@ -91,6 +98,9 @@ if (ENABLE_SSL)
   if (ENABLE_LIBEVENT)
     list(APPEND PROCESS_SRC
       posix/libevent/libevent_ssl_socket.cpp)
+  else ()
+    list(APPEND PROCESS_SRC
+      ssl/openssl_socket.cpp)
   endif ()
 endif ()
 

@@ -251,11 +251,20 @@ if ENABLE_SSL
 libprocess_la_SOURCES +=			\
   src/jwt.cpp					\
   src/jwt_authenticator.cpp			\
-  src/posix/libevent/libevent_ssl_socket.cpp	\
-  src/posix/libevent/libevent_ssl_socket.hpp	\
   src/openssl.cpp				\
   src/openssl.hpp				\
   src/ssl/utilities.cpp
+
+if ENABLE_LIBEVENT
+libprocess_la_SOURCES +=			\
+  src/posix/libevent/libevent_ssl_socket.cpp	\
+  src/posix/libevent/libevent_ssl_socket.hpp
+else
+libprocess_la_SOURCES +=			\
+  src/ssl/openssl_socket.cpp			\
+  src/ssl/openssl_socket.hpp
+endif
+
 endif
 
 
