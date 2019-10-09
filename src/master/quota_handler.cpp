@@ -575,7 +575,9 @@ Future<http::Response> Master::QuotaHandler::_update(
     ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // Currently, quota registry entry mutation never fails.
-      CHECK(result);
+      CHECK(result)
+          << "An invalid quota config was supplied to the registry "
+          << JSON::protobuf(configs);
 
       foreach (const QuotaConfig& config, configs) {
         master->quotas[config.role()] = Quota(config);
@@ -913,7 +915,9 @@ Future<http::Response> Master::QuotaHandler::__set(
     ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // See the top comment in "master/quota.hpp" for why this check is here.
-      CHECK(result);
+      CHECK(result)
+        << "An invalid quota config was supplied to the registry "
+        << JSON::protobuf(configs);
 
       master->allocator->updateQuota(quotaInfo.role(), quota);
 
@@ -1066,7 +1070,9 @@ Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
     ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // See the top comment in "master/quota.hpp" for why this check is here.
-      CHECK(result);
+      CHECK(result)
+        << "An invalid quota config was supplied to the registry "
+        << JSON::protobuf(configs);
 
       master->allocator->updateQuota(role, DEFAULT_QUOTA);
 
