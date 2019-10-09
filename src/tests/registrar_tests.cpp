@@ -73,6 +73,7 @@ using mesos::internal::log::Replica;
 using std::cout;
 using std::endl;
 using std::map;
+using std::pair;
 using std::set;
 using std::string;
 using std::vector;
@@ -84,6 +85,7 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
+using google::protobuf::Map;
 using google::protobuf::RepeatedPtrField;
 using google::protobuf::util::MessageDifferencer;
 
@@ -1704,6 +1706,49 @@ TEST_F(RegistrarTest, UpdateQuota)
     // The `QUOTA_V2` capability is removed because `quota_configs` is empty.
     EXPECT_EQ(0, registry->minimum_capabilities().size());
   }
+}
+
+
+// Tests that updating quota with an invalid config fails.
+TEST_F(RegistrarTest, UpdateQuotaInvalid)
+{
+  QuotaConfig config;
+  config.set_role("role1");
+
+  auto resourceMap = [](const vector<pair<string, double>>& vector)
+    -> Map<string, Value::Scalar> {
+    Map<string, Value::Scalar> result;
+
+    foreachpair (const string& name, double value, vector) {
+      Value::Scalar scalar;
+      scalar.set_value(value);
+      result[name] = scalar;
+    }
+
+    return result;
+  };
+
+  // The quota endpoint only allows memory / disk up to
+  // 1 exabyte (in megabytes) or 1 trillion cores/ports/other.
+  // For this test, we just check 1 invalid case via mem.
+  double largestMegabytes = 1024.0 * 1024.0 * 1024.0 * 1024.0;
+
+  *config.mutable_limits() = resourceMap({{"mem", largestMegabytes + 1.0}});
+
+  Registrar registrar(flags, state);
+  Future<Registry> registry = registrar.recover(master);
+  AWAIT_READY(registry);
+
+  EXPECT_EQ(0, registry->quota_configs().size());
+  EXPECT_EQ(0, registry->minimum_capabilities().size());
+
+  // Store quota for a role with default quota.
+  RepeatedPtrField<QuotaConfig> configs;
+  *configs.Add() = config;
+
+  AWAIT_FALSE(
+      registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
+
 }
 
 
