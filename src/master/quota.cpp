@@ -57,6 +57,24 @@ UpdateQuota::UpdateQuota(
 Try<bool> UpdateQuota::perform(
     Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
 {
+  // Sanity check that we're not writing any invalid configs.
+  foreach (const QuotaConfig& config, configs) {
+    Option<Error> error = validate(config);
+
+    if (error.isSome()) {
+      // We also log it since this error won't currently surface
+      // in logging or to the end client that is attempting the
+      // update.
+      LOG(ERROR) << "Invalid quota config"
+                 << " '" << jsonify(JSON::Protobuf(config)) << "'"
+                 << ": " + error->message;
+
+      return Error("Invalid quota config"
+                   " '" + string(jsonify(JSON::Protobuf(config))) + "'"
+                   ": " + error->message);
+    }
+  }
+
   google::protobuf::RepeatedPtrField<QuotaConfig>& registryConfigs =
     *registry->mutable_quota_configs();
 
