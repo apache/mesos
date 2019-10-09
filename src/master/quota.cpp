@@ -227,6 +227,63 @@ Option<Error> validate(const QuotaConfig& config)
       " default '*' role is not supported");
   }
 
+  // Before we validate the scalars, we need to check for
+  // our maximum supported quota values. Otherwise, they
+  // will surface as a generic overflow error in the scalar
+  // validation below.
+  //
+  // The underlying fixed precision logic used for
+  // Value::Scalar overflows between:
+  //
+  //   9,223,372,036,854,774 and (ditto) + 1.0
+  //
+  //   double d = 9223372036854774;
+  //   d += 1.0;
+  //   Value::scalar s, zero;
+  //   s.set_value(d);
+  //   s < zero == true; // overflow!
+  //
+  // This works out to ~9 zettabytes (given we use megabytes
+  // as the base unit), we set a limit of 1 exabyte, and we
+  // can increase this later if needed.
+  //
+  // We also impose a limit on cpu, ports and other types of
+  // 1 trillion.
+
+  const int64_t exabyteInMegabytes = 1024ll * 1024ll * 1024ll * 1024ll;
+  const int64_t otherLimit = 1000ll * 1000ll * 1000ll * 1000ll;
+
+  auto validateTooLarge = [&](
+      const Map<string, Value::Scalar>& m) -> Option<Error> {
+    foreach (auto&& pair, m) {
+      if (pair.first == "mem" || pair.first == "disk") {
+        if (pair.second.value() > exabyteInMegabytes) {
+          return Error(
+              "{'" + pair.first + "': " + stringify(pair.second) + "}"
+              " is invalid: values greater than 1 exabyte"
+              " (" + stringify(exabyteInMegabytes) + ") are not supported");
+        }
+      } else if (pair.second.value() > otherLimit) {
+        return Error(
+            "{'" + pair.first + "': " + stringify(pair.second) + "}"
+            " is invalid: values greater than 1 trillion"
+            " (" + stringify(otherLimit) + ") are not supported");
+      }
+    }
+
+    return None();
+  };
+
+  error = validateTooLarge(config.guarantees());
+  if (error.isSome()) {
+    return Error("Invalid 'QuotaConfig.guarantees': " + error->message);
+  }
+
+  error = validateTooLarge(config.limits());
+  if (error.isSome()) {
+    return Error("Invalid 'QuotaConfig.limits': " + error->message);
+  }
+
   // Validate scalar values.
   foreach (auto&& guarantee, config.guarantees()) {
     Option<Error> error =
