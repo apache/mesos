@@ -162,6 +162,16 @@ Future<Nothing> PollSocketImpl::connect(
 }
 
 
+#ifdef USE_SSL_SOCKET
+Future<Nothing> PollSocketImpl::connect(
+    const Address& address,
+    const openssl::TLSClientConfig& config)
+{
+  LOG(FATAL) << "TLS config was passed to a PollSocket.";
+}
+#endif
+
+
 Future<size_t> PollSocketImpl::recv(char* data, size_t size)
 {
   // Need to hold a copy of `this` so that the underlying socket
