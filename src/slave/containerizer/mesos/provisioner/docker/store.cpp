@@ -142,7 +142,6 @@ private:
 
   Owned<MetadataManager> metadataManager;
   Owned<Puller> puller;
-  hashmap<string, Owned<Promise<Image>>> pulling;
 
   // For executing path removals in a separated actor.
   process::Executor executor;
@@ -338,51 +337,30 @@ Future<Image> StoreProcess::_get(
     }
   }
 
-  // If there is already a pulling going on for the given 'name', we
-  // will skip the additional pulling.
-  const string name = stringify(reference);
+  Try<string> staging =
+    os::mkdtemp(paths::getStagingTempDir(flags.docker_store_dir));
 
-  if (!pulling.contains(name)) {
-    Try<string> staging =
-      os::mkdtemp(paths::getStagingTempDir(flags.docker_store_dir));
-
-    if (staging.isError()) {
-      return Failure(
-          "Failed to create a staging directory: " + staging.error());
-    }
-
-    Owned<Promise<Image>> promise(new Promise<Image>());
-
-    Future<Image> future = metrics.image_pull.time(puller->pull(
-        reference,
-        staging.get(),
-        backend,
-        config)
-      .then(defer(self(),
-                  &Self::moveLayers,
-                  staging.get(),
-                  lambda::_1,
-                  backend))
-      .then(defer(self(), [=](const Image& image) {
-        return metadataManager->put(image);
-      }))
-      .onAny(defer(self(), [=](const Future<Image>&) {
-        pulling.erase(name);
-
-        Try<Nothing> rmdir = os::rmdir(staging.get());
-        if (rmdir.isError()) {
-          LOG(WARNING) << "Failed to remove staging directory: "
-                       << rmdir.error();
-        }
-      })));
-
-    promise->associate(future);
-    pulling[name] = promise;
-
-    return promise->future();
+  if (staging.isError()) {
+    return Failure(
+        "Failed to create a staging directory: " + staging.error());
   }
 
-  return pulling[name]->future();
+  return metrics.image_pull.time(puller->pull(
+      reference,
+      staging.get(),
+      backend,
+      config)
+    .then(defer(self(), &Self::moveLayers, staging.get(), lambda::_1, backend))
+    .then(defer(self(), [=](const Image& image) {
+      return metadataManager->put(image);
+    }))
+    .onAny(defer(self(), [=](const Future<Image>& image) {
+      Try<Nothing> rmdir = os::rmdir(staging.get());
+      if (rmdir.isError()) {
+        LOG(WARNING) << "Failed to remove staging directory: "
+                     << rmdir.error();
+      }
+    })));
 }
 
 
@@ -551,11 +529,6 @@ Future<Nothing> StoreProcess::prune(
     const vector<mesos::Image>& excludedImages,
     const hashset<string>& activeLayerPaths)
 {
-  // All existing pulling should have finished.
-  if (!pulling.empty()) {
-    return Failure("Cannot prune and pull at the same time");
-  }
-
   vector<spec::ImageReference> imageReferences;
   imageReferences.reserve(excludedImages.size());
 
