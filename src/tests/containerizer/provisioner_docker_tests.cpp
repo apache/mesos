@@ -39,8 +39,6 @@
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 
 #include "tests/environment.hpp"
@@ -81,8 +79,6 @@ using mesos::slave::ContainerTermination;
 using slave::ImageInfo;
 using slave::Slave;
 
-using slave::docker::Puller;
-using slave::docker::RegistryPuller;
 using slave::docker::Store;
 
 using testing::WithParamInterface;
@@ -298,109 +294,6 @@ TEST_F(ProvisionerDockerLocalStoreTest, MissingLayer)
   imageInfo = store.get()->get(image, flags.image_provisioner_backend.get());
   AWAIT_READY(imageInfo);
   verifyLocalDockerImage(flags, imageInfo->layers);
-}
-
-
-class MockPuller : public Puller
-{
-public:
-  MockPuller()
-  {
-    EXPECT_CALL(*this, pull(_, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockPuller::unmocked_pull));
-  }
-
-  ~MockPuller() override {}
-
-  MOCK_METHOD4(
-      pull,
-      Future<slave::docker::Image>(
-          const spec::ImageReference&,
-          const string&,
-          const string&,
-          const Option<Secret>&));
-
-  Future<slave::docker::Image> unmocked_pull(
-      const spec::ImageReference& reference,
-      const string& directory,
-      const string& backend,
-      const Option<Secret>& config)
-  {
-    // TODO(gilbert): Allow return Image to be overridden.
-    return slave::docker::Image();
-  }
-};
-
-
-// This tests the store to pull the same image simultaneously.
-// This test verifies that the store only calls the puller once
-// when multiple requests for the same image is in flight.
-TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
-{
-  slave::Flags flags;
-  flags.docker_registry = path::join(os::getcwd(), "images");
-  flags.docker_store_dir = path::join(os::getcwd(), "store");
-
-  MockPuller* puller = new MockPuller();
-  Future<Nothing> pull;
-  Future<string> directory;
-  Promise<slave::docker::Image> promise;
-
-  EXPECT_CALL(*puller, pull(_, _, _, _))
-    .WillOnce(testing::DoAll(FutureSatisfy(&pull),
-                             FutureArg<1>(&directory),
-                             Return(promise.future())));
-
-  Try<Owned<slave::Store>> store =
-      slave::docker::Store::create(flags, Owned<Puller>(puller));
-  ASSERT_SOME(store);
-
-  Image mesosImage;
-  mesosImage.set_type(Image::DOCKER);
-  mesosImage.mutable_docker()->set_name("abc");
-
-  Future<slave::ImageInfo> imageInfo1 =
-    store.get()->get(mesosImage, COPY_BACKEND);
-
-  AWAIT_READY(pull);
-  AWAIT_READY(directory);
-
-  // TODO(gilbert): Need a helper method to create test layers
-  // which will allow us to set manifest so that we can add
-  // checks here.
-  const string layerPath = path::join(directory.get(), "456");
-
-  Try<Nothing> mkdir = os::mkdir(layerPath);
-  ASSERT_SOME(mkdir);
-
-  JSON::Value manifest = JSON::parse(
-        "{"
-        "  \"parent\": \"\""
-        "}").get();
-
-  ASSERT_SOME(
-      os::write(path::join(layerPath, "json"), stringify(manifest)));
-
-  ASSERT_TRUE(imageInfo1.isPending());
-  Future<slave::ImageInfo> imageInfo2 =
-    store.get()->get(mesosImage, COPY_BACKEND);
-
-  Try<spec::ImageReference> reference =
-    spec::parseImageReference(mesosImage.docker().name());
-
-  ASSERT_SOME(reference);
-
-  slave::docker::Image result;
-  result.mutable_reference()->CopyFrom(reference.get());
-  result.add_layer_ids("456");
-
-  ASSERT_TRUE(imageInfo2.isPending());
-  promise.set(result);
-
-  AWAIT_READY(imageInfo1);
-  AWAIT_READY(imageInfo2);
-
-  EXPECT_EQ(imageInfo1->layers, imageInfo2->layers);
 }
 
 

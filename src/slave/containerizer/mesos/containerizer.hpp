@@ -379,8 +379,8 @@ private:
     Option<process::Future<Option<int>>> status;
 
     // We keep track of the future for 'provisioner->provision' so
-    // that destroy will only start calling 'provisioner->destroy'
-    // after 'provisioner->provision' has finished.
+    // that we can discard the provisioning for the container which
+    // is destroyed when it is being provisioned.
     process::Future<ProvisionInfo> provisioning;
 
     // We keep track of the future that is waiting for all the

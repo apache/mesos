@@ -31,6 +31,7 @@
 #include <process/shared.hpp>
 
 #include <stout/net.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
@@ -43,6 +44,7 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
 
+#include "slave/containerizer/mesos/provisioner/backend.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #include "tests/environment.hpp"
@@ -58,6 +60,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::Backend;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::executorEnvironment;
 using mesos::internal::slave::Fetcher;
@@ -986,30 +989,71 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 }
 
 
-// This test verifies that there is no race (or leaked provisioned
-// directories) if the containerizer destroy a container while it
-// is provisioning an image.
-TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
+class MockBackend : public Backend
+{
+public:
+  MockBackend() {}
+  ~MockBackend() override {}
+
+  MOCK_METHOD3(
+      provision,
+      Future<Option<vector<Path>>>(
+          const vector<string>&,
+          const string&,
+          const string&));
+
+  MOCK_METHOD2(
+      destroy,
+      Future<bool>(
+          const string&,
+          const string&));
+};
+
+
+// This test verifies that when the containerizer destroys a container while
+// provisioner backend is provisioning rootfs for the container, backend
+// destroy will not be invoked until backend provision finishes.
+TEST_F(
+    MesosContainerizerProvisionerTest,
+    ROOT_INTERNET_CURL_DestroyWhileProvisioning)
 {
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
+  flags.isolation = "docker/runtime";
+  flags.image_providers = "docker";
 
   Try<Launcher*> launcher_ = SubprocessLauncher::create(flags);
   ASSERT_SOME(launcher_);
 
   Owned<Launcher> launcher(new TestLauncher(Owned<Launcher>(launcher_.get())));
 
-  MockProvisioner* provisioner = new MockProvisioner();
+  const string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
+  CHECK_SOME(os::mkdir(provisionerDir));
+  CHECK_SOME(os::realpath(provisionerDir));
 
   Future<Nothing> provision;
-  Promise<ProvisionInfo> promise;
+  Future<Nothing> destroy;
+  Promise<Option<vector<Path>>> promise;
 
-  EXPECT_CALL(*provisioner, provision(_, _))
+  MockBackend* backend = new MockBackend();
+  EXPECT_CALL(*backend, provision(_, _, _))
     .WillOnce(DoAll(FutureSatisfy(&provision),
                     Return(promise.future())));
 
-  EXPECT_CALL(*provisioner, destroy(_))
-    .WillOnce(Return(true));
+  EXPECT_CALL(*backend, destroy(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&destroy),
+                    Return(true)));
+
+  hashmap<string, Owned<Backend>> backends =
+    {{"MockBackend", Owned<Backend>(backend)}};
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(
+      flags,
+      provisionerDir,
+      "MockBackend",
+      backends);
+
+  ASSERT_SOME(provisioner);
 
   Fetcher fetcher(flags);
 
@@ -1019,7 +1063,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
       &fetcher,
       nullptr,
       launcher,
-      Shared<Provisioner>(provisioner),
+      provisioner->share(),
       vector<Owned<Isolator>>());
 
   Owned<MesosContainerizer> containerizer(_containerizer.get());
@@ -1030,7 +1074,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   Image image;
   image.set_type(Image::DOCKER);
   Image::Docker dockerImage;
-  dockerImage.set_name(id::UUID::random().toString());
+  dockerImage.set_name("alpine");
   image.mutable_docker()->CopyFrom(dockerImage);
 
   ContainerInfo::MesosInfo mesosInfo;
@@ -1059,12 +1103,18 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 
   AWAIT_READY(provision);
 
+  // Destroying container in `PROVISIONING` state will discard the container
+  // launch immediately.
   containerizer->destroy(containerId);
 
-  ASSERT_TRUE(wait.isPending());
-  promise.set(ProvisionInfo{"rootfs", None()});
+  AWAIT_DISCARDED(launch);
 
-  AWAIT_FAILED(launch);
+  ASSERT_TRUE(destroy.isPending());
+  ASSERT_TRUE(wait.isPending());
+
+  promise.set(Option<vector<Path>>::none());
+
+  AWAIT_READY(destroy);
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
 
@@ -1090,14 +1140,17 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   MockProvisioner* provisioner = new MockProvisioner();
 
   Future<Nothing> provision;
-  Promise<ProvisionInfo> promise;
+  Future<Nothing> destroy;
+  Promise<ProvisionInfo> provisionPromise;
+  Promise<bool> destroyPromise;
 
   EXPECT_CALL(*provisioner, provision(_, _))
     .WillOnce(DoAll(FutureSatisfy(&provision),
-                    Return(promise.future())));
+                    Return(provisionPromise.future())));
 
   EXPECT_CALL(*provisioner, destroy(_))
-    .WillOnce(Return(true));
+    .WillOnce(DoAll(FutureSatisfy(&destroy),
+                    Return(destroyPromise.future())));
 
   MockIsolator* isolator = new MockIsolator();
 
@@ -1153,10 +1206,16 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
 
   containerizer->destroy(containerId);
 
-  ASSERT_TRUE(wait.isPending());
-  promise.set(ProvisionInfo{"rootfs", None()});
+  AWAIT_READY(destroy);
 
-  AWAIT_FAILED(launch);
+  ASSERT_TRUE(wait.isPending());
+
+  provisionPromise.set(ProvisionInfo{"rootfs", None()});
+
+  AWAIT_DISCARDED(launch);
+
+  destroyPromise.set(true);
+
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
 
