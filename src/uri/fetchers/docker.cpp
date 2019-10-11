@@ -33,6 +33,7 @@
 
 #include <stout/os/constants.hpp>
 #include <stout/os/getenv.hpp>
+#include <stout/os/kill.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/write.hpp>
 
@@ -81,6 +82,15 @@ static set<string> schemes()
     "docker-blob"       // Fetch a single image blob.
   };
 }
+
+void commandDiscarded(const Subprocess& s, const string& cmd)
+{
+  if (s.status().isPending()) {
+    VLOG(1) << "'" << cmd << "' is being discarded";
+    os::kill(s.pid(), SIGKILL);
+  }
+}
+
 
 // TODO(jieyu): Move the following curl based utility functions to a
 // command utils common directory.
@@ -142,7 +152,8 @@ static Future<http::Response> curl(
 
   argv.push_back(strings::trim(uri));
 
-  // TODO(jieyu): Kill the process if discard is called.
+  string cmd = strings::join(" ", argv);
+
   Try<Subprocess> s = subprocess(
       "curl",
       argv,
@@ -223,7 +234,8 @@ static Future<http::Response> curl(
       // NOTE: We always return the last response because there might
       // be a '307 Temporary Redirect' response before that.
       return responses->back();
-    });
+    })
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
 
@@ -266,7 +278,8 @@ static Future<int> download(
 
   argv.push_back(uri);
 
-  // TODO(jieyu): Kill the process if discard is called.
+  string cmd = strings::join(" ", argv);
+
   Try<Subprocess> s = subprocess(
       "curl",
       argv,
@@ -341,7 +354,8 @@ static Future<int> download(
       }
 
       return code.get();
-    });
+    })
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
 

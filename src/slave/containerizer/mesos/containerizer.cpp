@@ -2679,20 +2679,11 @@ void MesosContainerizerProcess::_destroy(
   }
 
   if (previousState == PROVISIONING) {
-    VLOG(1) << "Waiting for the provisioner to complete provisioning "
-            << "before destroying container " << containerId;
+    VLOG(1) << "Discarding the provisioning for container " << containerId;
 
-    // Wait for the provisioner to finish provisioning before we
-    // start destroying the container.
-    container->provisioning
-      .onAny(defer(
-          self(),
-          &Self::_____destroy,
-          containerId,
-          termination,
-          vector<Future<Nothing>>()));
+    container->provisioning.discard();
 
-    return;
+    return _____destroy(containerId, termination, vector<Future<Nothing>>());
   }
 
   if (previousState == PREPARING) {
