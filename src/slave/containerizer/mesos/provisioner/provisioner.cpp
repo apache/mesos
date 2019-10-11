@@ -60,6 +60,7 @@ using std::vector;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Promise;
 using process::ReadWriteLock;
 
 using mesos::internal::slave::AUFS_BACKEND;
@@ -212,13 +213,6 @@ Try<Owned<Provisioner>> Provisioner::create(
 
   CHECK_SOME(rootDir); // Can't be None since we just created it.
 
-  Try<hashmap<Image::Type, Owned<Store>>> stores =
-    Store::create(flags, secretResolver);
-
-  if (stores.isError()) {
-    return Error("Failed to create image stores: " + stores.error());
-  }
-
   hashmap<string, Owned<Backend>> backends = Backend::create(flags);
   if (backends.empty()) {
     return Error("No usable provisioner backend created");
@@ -299,10 +293,33 @@ Try<Owned<Provisioner>> Provisioner::create(
 
   LOG(INFO) << "Using default backend '" << defaultBackend.get() << "'";
 
+  return Provisioner::create(
+      flags,
+      rootDir.get(),
+      defaultBackend.get(),
+      backends,
+      secretResolver);
+}
+
+
+Try<Owned<Provisioner>> Provisioner::create(
+    const Flags& flags,
+    const string& rootDir,
+    const string& defaultBackend,
+    const hashmap<string, Owned<Backend>>& backends,
+    SecretResolver* secretResolver)
+{
+  Try<hashmap<Image::Type, Owned<Store>>> stores =
+    Store::create(flags, secretResolver);
+
+  if (stores.isError()) {
+    return Error("Failed to create image stores: " + stores.error());
+  }
+
   return Owned<Provisioner>(new Provisioner(
       Owned<ProvisionerProcess>(new ProvisionerProcess(
-          rootDir.get(),
-          defaultBackend.get(),
+          rootDir,
+          defaultBackend,
           stores.get(),
           backends))));
 }
@@ -402,6 +419,7 @@ Future<Nothing> ProvisionerProcess::recover(
 
   foreach (const ContainerID& containerId, containers.get()) {
     Owned<Info> info = Owned<Info>(new Info());
+    info->provisioning = ProvisionInfo{};
 
     Try<hashmap<string, hashset<string>>> rootfses =
       provisioner::paths::listContainerRootfses(rootDir, containerId);
@@ -516,15 +534,35 @@ Future<ProvisionInfo> ProvisionerProcess::provision(
             "Unsupported container image type: " + stringify(image.type()));
       }
 
+      Owned<Promise<ProvisionInfo>> promise(new Promise<ProvisionInfo>());
+
       // Get and then provision image layers from the store.
-      return stores.at(image.type())->get(image, defaultBackend)
-        .then(defer(
-            self(),
-            &Self::_provision,
-            containerId,
-            image,
-            defaultBackend,
-            lambda::_1));
+      Future<ProvisionInfo> future =
+        stores.at(image.type())->get(image, defaultBackend)
+          .then(defer(
+              self(),
+              &Self::_provision,
+              containerId,
+              image,
+              defaultBackend,
+              lambda::_1))
+          .onAny(defer(self(), [=](const Future<ProvisionInfo>& provisionInfo) {
+            CHECK(!provisionInfo.isPending());
+
+            if (provisionInfo.isReady()) {
+              promise->set(provisionInfo);
+            } else if (provisionInfo.isDiscarded()) {
+              promise->discard();
+            } else {
+              promise->fail(provisionInfo.failure());
+            }
+          }));
+
+      return promise->future()
+        .onDiscard([promise, future]() mutable {
+          promise->discard();
+          future.discard();
+        });
     }))
     .onAny(defer(self(), [this](const Future<ProvisionInfo>&) {
       rwLock.read_unlock();
@@ -570,7 +608,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       containerId,
       backend);
 
-  return backends.at(backend)->provision(
+  infos[containerId]->provisioning = backends.at(backend)->provision(
       imageInfo.layers,
       rootfs,
       backendDir)
@@ -599,6 +637,8 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       return ProvisionInfo{
           rootfs, ephemeral, imageInfo.dockerManifest, imageInfo.appcManifest};
     }));
+
+  return infos[containerId]->provisioning;
 }
 
 
@@ -682,42 +722,70 @@ Future<bool> ProvisionerProcess::_destroy(
 
   const Owned<Info>& info = infos[containerId];
 
-  vector<Future<bool>> futures;
-  foreachkey (const string& backend, info->rootfses) {
-    if (!backends.contains(backend)) {
-      return Failure("Unknown backend '" + backend + "'");
-    }
+  info->provisioning
+    .onAny(defer(self(), [=](const Future<ProvisionInfo>&) -> void {
+      vector<Future<bool>> futures;
+      foreachkey (const string& backend, info->rootfses) {
+        if (!backends.contains(backend)) {
+          infos[containerId]->termination.fail(
+              "Unknown backend '" + backend + "'");
 
-    foreach (const string& rootfsId, info->rootfses[backend]) {
-      string rootfs = provisioner::paths::getContainerRootfsDir(
-          rootDir,
-          containerId,
-          backend,
-          rootfsId);
+          return;
+        }
 
-      string backendDir = provisioner::paths::getBackendDir(
-          rootDir,
-          containerId,
-          backend);
+        foreach (const string& rootfsId, info->rootfses[backend]) {
+          string rootfs = provisioner::paths::getContainerRootfsDir(
+              rootDir,
+              containerId,
+              backend,
+              rootfsId);
 
-      LOG(INFO) << "Destroying container rootfs at '" << rootfs
-                << "' for container " << containerId;
+          string backendDir = provisioner::paths::getBackendDir(
+              rootDir,
+              containerId,
+              backend);
 
-      futures.push_back(
-          backends.at(backend)->destroy(rootfs, backendDir));
-    }
-  }
+          LOG(INFO) << "Destroying container rootfs at '" << rootfs
+                    << "' for container " << containerId;
 
-  // TODO(xujyan): Revisit the usefulness of this return value.
-  return collect(futures)
-    .then(defer(self(), &ProvisionerProcess::__destroy, containerId));
+          futures.push_back(
+              backends.at(backend)->destroy(rootfs, backendDir));
+        }
+      }
+
+      await(futures)
+        .onAny(defer(
+            self(),
+            &ProvisionerProcess::__destroy,
+            containerId,
+            lambda::_1));
+    }));
+
+  return info->termination.future();
 }
 
 
-Future<bool> ProvisionerProcess::__destroy(const ContainerID& containerId)
+void ProvisionerProcess::__destroy(
+    const ContainerID& containerId,
+    const Future<vector<Future<bool>>>& futures)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->destroying);
+
+  CHECK_READY(futures);
+
+  vector<string> messages;
+  foreach (const Future<bool>& future, futures.get()) {
+    if (!future.isReady()) {
+      messages.push_back(
+          future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!messages.empty()) {
+    infos[containerId]->termination.fail(strings::join("\n", messages));
+    return;
+  }
 
   // This should be fairly cheap as the directory should only
   // contain a few empty sub-directories at this point.
@@ -740,8 +808,6 @@ Future<bool> ProvisionerProcess::__destroy(const ContainerID& containerId)
 
   infos[containerId]->termination.set(true);
   infos.erase(containerId);
-
-  return true;
 }
 
 
