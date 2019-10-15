@@ -50,10 +50,9 @@ Try<Nothing> PollSocketImpl::listen(int backlog)
 
 Future<std::shared_ptr<SocketImpl>> PollSocketImpl::accept()
 {
-  // Need to hold a copy of `this` so that the underlying socket
-  // doesn't end up getting reused before we return from the call to
-  // `io::poll` and end up accepting a socket incorrectly.
-  auto self = shared(this);
+  // Need to hold a copy of `this` so that we can detect if the underlying
+  // socket has changed (i.e. closed) before we return from `io::poll`.
+  std::weak_ptr<SocketImpl> weak_self(shared(this));
 
   Try<Address> address = network::address(get());
   if (address.isError()) {
@@ -76,13 +75,18 @@ Future<std::shared_ptr<SocketImpl>> PollSocketImpl::accept()
 
   int_fd accept_socket = accept_socket_.get();
 
-  return windows::accept(self->get(), accept_socket)
+  return windows::accept(get(), accept_socket)
     .onAny([accept_socket](const Future<Nothing> future) {
       if (!future.isReady()) {
         os::close(accept_socket);
       }
     })
-    .then([self, accept_socket]() -> Future<std::shared_ptr<SocketImpl>> {
+    .then([weak_self, accept_socket]() -> Future<std::shared_ptr<SocketImpl>> {
+      std::shared_ptr<SocketImpl> self(weak_self.lock());
+      if (self == nullptr) {
+        return Failure("Socket destroyed while accepting");
+      }
+
       SOCKET listen = self->get();
 
       // Inherit from the listening socket.

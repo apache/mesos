@@ -30,12 +30,16 @@
 
 #include <process/ssl/flags.hpp>
 
+#include <stout/net.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/unimplemented.hpp>
+#include <stout/unreachable.hpp>
 
 #include "openssl.hpp"
 
 #include "ssl/openssl_socket.hpp"
+
+using process::network::openssl::Mode;
 
 namespace process {
 namespace network {
@@ -281,19 +285,29 @@ static BIO* BIO_new_libprocess(int_fd socket)
 }
 
 
-Try<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::create(int_fd s)
+Try<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::create(int_fd socket)
 {
-  UNIMPLEMENTED;
+  openssl::initialize();
+
+  if (!openssl::flags().enabled) {
+    return Error("SSL is disabled");
+  }
+
+  return std::make_shared<OpenSSLSocketImpl>(socket);
 }
 
 
-OpenSSLSocketImpl::OpenSSLSocketImpl(int_fd _s)
-  : PollSocketImpl(_s) {}
+OpenSSLSocketImpl::OpenSSLSocketImpl(int_fd socket)
+  : PollSocketImpl(socket),
+    ssl(nullptr) {}
 
 
 OpenSSLSocketImpl::~OpenSSLSocketImpl()
 {
-  UNIMPLEMENTED;
+  if (ssl != nullptr) {
+    SSL_free(ssl);
+    ssl = nullptr;
+  }
 }
 
 
@@ -308,7 +322,91 @@ Future<Nothing> OpenSSLSocketImpl::connect(
     const Address& address,
     const openssl::TLSClientConfig& config)
 {
-  UNIMPLEMENTED;
+  if (client_config.isSome()) {
+    return Failure("Socket is already connecting or connected");
+  }
+
+  if (config.ctx == nullptr) {
+    return Failure("Invalid SSL context");
+  }
+
+  // NOTE: The OpenSSLSocketImpl destructor is responsible for calling
+  // `SSL_free` on this SSL object.
+  ssl = SSL_new(config.ctx);
+  if (ssl == nullptr) {
+    return Failure("Failed to connect: SSL_new");
+  }
+
+  client_config = config;
+
+  if (config.configure_socket) {
+    Try<Nothing> configured = config.configure_socket(
+        ssl, address, config.servername);
+
+    if (configured.isError()) {
+      return Failure("Failed to configure socket: " + configured.error());
+    }
+  }
+
+  // Set the SSL context in client mode.
+  SSL_set_connect_state(ssl);
+
+  if (address.family() == Address::Family::INET4 ||
+      address.family() == Address::Family::INET6) {
+    Try<inet::Address> inet_address = network::convert<inet::Address>(address);
+
+    if (inet_address.isError()) {
+      return Failure("Failed to convert address: " + inet_address.error());
+    }
+
+    // Determine the 'peer_ip' from the address we're connecting to in
+    // order to properly verify the certificate later.
+    peer_ip = inet_address->ip;
+  }
+
+  if (config.servername.isSome()) {
+    VLOG(2) << "Connecting to " << config.servername.get() << " at " << address;
+  } else {
+    VLOG(2) << "Connecting to " << address << " with no hostname specified";
+  }
+
+  // Hold a weak pointer since the connection (plus handshaking)
+  // might never complete.
+  std::weak_ptr<OpenSSLSocketImpl> weak_self(shared(this));
+
+  // Connect like a normal socket, then setup the I/O abstraction with OpenSSL
+  // and perform the TLS handshake.
+  return PollSocketImpl::connect(address)
+    .then([weak_self]() -> Future<size_t> {
+      std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+      if (self == nullptr) {
+        return Failure("Socket destroyed while connecting");
+      }
+
+      return self->set_ssl_and_do_handshake(self->ssl);
+    })
+    .then([weak_self]() -> Future<Nothing> {
+      std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+      if (self == nullptr) {
+        return Failure("Socket destroyed while connecting");
+      }
+
+      // Time to do post-verification.
+      CHECK(self->client_config.isSome());
+
+      if (self->client_config->verify) {
+        Try<Nothing> verify = self->client_config->verify(
+            self->ssl, self->client_config->servername, self->peer_ip);
+
+        if (verify.isError()) {
+          VLOG(1) << "Failed connect, verification error: " << verify.error();
+
+          return Failure(verify.error());
+        }
+      }
+
+      return Nothing();
+    });
 }
 
 
@@ -333,13 +431,269 @@ Future<size_t> OpenSSLSocketImpl::sendfile(
 
 Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
 {
-  UNIMPLEMENTED;
+  if (!accept_loop_started.once()) {
+    // Hold a weak pointer since we do not want this accept loop to extend
+    // the lifetime of `this` unnecessarily.
+    std::weak_ptr<OpenSSLSocketImpl> weak_self(shared(this));
+
+    // We start accepting incoming connections in a loop here because a socket
+    // must complete the SSL handshake (or be downgraded) before the socket is
+    // considered ready. In case the incoming socket never writes any data,
+    // we do not wait for the accept logic to complete before accepting a
+    // new socket.
+    process::loop(
+        None(),
+        [weak_self]() -> Future<std::shared_ptr<SocketImpl>> {
+          std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+
+          if (self != nullptr) {
+            return self->PollSocketImpl::accept();
+          }
+
+          return Failure("Socket destructed");
+        },
+        [weak_self](const std::shared_ptr<SocketImpl>& socket)
+            -> Future<ControlFlow<Nothing>> {
+          std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+
+          if (self == nullptr) {
+            return Break();
+          }
+
+          // Wrap this new socket up into our SSL wrapper class by releasing
+          // the FD and creating a new OpenSSLSocketImpl object with the FD.
+          const std::shared_ptr<OpenSSLSocketImpl> ssl_socket =
+            std::make_shared<OpenSSLSocketImpl>(socket->release());
+
+          // Set up SSL object.
+          SSL* accept_ssl = SSL_new(openssl::context());
+          if (accept_ssl == nullptr) {
+            self->accept_queue.put(Failure("Accept failed, SSL_new"));
+            return Continue();
+          }
+
+          Try<Address> peer_address = network::peer(ssl_socket->get());
+          if (!peer_address.isSome()) {
+            SSL_free(accept_ssl);
+            self->accept_queue.put(
+                Failure("Could not determine peer IP for connection"));
+            return Continue();
+          }
+
+          // NOTE: Right now, `openssl::configure_socket` does not do anything
+          // in server mode, but we still pass the correct peer address to
+          // enable modules to implement application-level logic in the future.
+          Try<Nothing> configured = openssl::configure_socket(
+              accept_ssl, Mode::SERVER, peer_address.get(), None());
+
+          if (configured.isError()) {
+            SSL_free(accept_ssl);
+            self->accept_queue.put(
+                Failure("Could not configure socket: " + configured.error()));
+            return Continue();
+          }
+
+          // Set the SSL context in server mode.
+          SSL_set_accept_state(accept_ssl);
+
+          // Pass ownership of `accept_ssl` to the newly accepted socket,
+          // and wtart the SSL handshake. When the SSL handshake completes,
+          // the listening socket will place the result (failure or success)
+          // onto the listening socket's `accept_queue`.
+          //
+          // TODO(josephw): Add a timeout to catch/close incoming sockets which
+          // never finish the SSL handshake.
+          ssl_socket->set_ssl_and_do_handshake(accept_ssl)
+            .onAny([weak_self, ssl_socket](Future<size_t> result) {
+              std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+
+              if (self == nullptr) {
+                return;
+              }
+
+              if (result.isFailed()) {
+                self->accept_queue.put(Failure(result.failure()));
+                return;
+              }
+
+              // For verification purposes, we need to grab the address (again).
+              Try<Address> address = network::address(ssl_socket->get());
+              if (address.isError()) {
+                self->accept_queue.put(
+                    Failure("Failed to get address: " + address.error()));
+                return;
+              }
+
+              Try<inet::Address> inet_address =
+                network::convert<inet::Address>(address.get());
+
+              Try<Nothing> verify = openssl::verify(
+                  ssl_socket->ssl,
+                  Mode::SERVER,
+                  None(),
+                  inet_address.isSome()
+                    ? Some(inet_address->ip)
+                    : Option<net::IP>::none());
+
+              if (verify.isError()) {
+                VLOG(1) << "Failed accept, verification error: "
+                        << verify.error();
+
+                self->accept_queue.put(Failure(verify.error()));
+                return;
+              }
+
+              self->accept_queue.put(ssl_socket);
+            });
+
+          return Continue();
+        });
+
+    accept_loop_started.done();
+  }
+
+  // NOTE: In order to not deadlock the libprocess socket manager, we must
+  // defer accepted sockets regardless of success or failure. This prevents
+  // the socket manager from recursively calling `on_accept` and deadlocking.
+  return accept_queue.get()
+    .repair(defer(
+        [](const Future<Future<std::shared_ptr<SocketImpl>>>& failure) {
+          return failure;
+        }))
+    .then(defer(
+        [](const Future<std::shared_ptr<SocketImpl>>& impl)
+            -> Future<std::shared_ptr<SocketImpl>> {
+          CHECK(!impl.isPending());
+          return impl;
+        }));
 }
 
 
 Try<Nothing, SocketError> OpenSSLSocketImpl::shutdown(int how)
 {
   UNIMPLEMENTED;
+}
+
+
+Future<size_t> OpenSSLSocketImpl::set_ssl_and_do_handshake(SSL* _ssl)
+{
+  // Save a reference to the SSL object.
+  ssl = _ssl;
+
+  // Construct the BIO wrapper for the underlying socket.
+  //
+  // NOTE: This transfers ownership of the BIO to the SSL object.
+  // The BIO will be freed upon calling `SSL_free(ssl)`.
+  BIO* bio = BIO_new_libprocess(get());
+  SSL_set_bio(ssl, bio, bio);
+
+  // Hold a weak pointer since the handshake may potentially never complete.
+  std::weak_ptr<OpenSSLSocketImpl> weak_self(shared(this));
+
+  return process::loop(
+      None(),
+      [weak_self]() -> Future<int> {
+        std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+        if (self == nullptr) {
+          return Failure("Socket destroyed while doing handshake");
+        }
+
+        ERR_clear_error();
+        return SSL_do_handshake(self->ssl);
+      },
+      [weak_self](int result) -> Future<ControlFlow<size_t>> {
+        std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+        if (self == nullptr) {
+          return Failure("Socket destroyed while doing handshake");
+        }
+
+        // Check if EOF has been reached.
+        BIO* bio = SSL_get_rbio(self->ssl);
+        if (BIO_eof(bio) == 1) {
+          return Failure("EOF while doing handshake");
+        }
+
+        return self->handle_ssl_return_result(result, false);
+      });
+}
+
+
+Future<ControlFlow<size_t>> OpenSSLSocketImpl::handle_ssl_return_result(
+    int result,
+    bool handle_as_read)
+{
+  if (result > 0) {
+    // Successful result, potentially meaning a connected/accepted socket
+    // or a completed send/recv request.
+    return Break(result);
+  }
+
+  // Not a success, so we'll need to have the BIO and associated data handy.
+  BIO* bio = SSL_get_rbio(ssl);
+  SocketBIOData* data = reinterpret_cast<SocketBIOData*>(BIO_get_data(bio));
+  CHECK_NOTNULL(data);
+
+  int error = SSL_get_error(ssl, result);
+  switch (error) {
+    case SSL_ERROR_WANT_READ: {
+      synchronized (data->lock) {
+        if (data->recv_request.get() != nullptr) {
+          return data->recv_request->future
+            .then([]() -> Future<ControlFlow<size_t>> {
+              return Continue();
+            });
+        }
+      }
+
+      return Continue();
+    }
+    case SSL_ERROR_WANT_WRITE: {
+      synchronized (data->lock) {
+        if (data->send_request.get() != nullptr) {
+          return data->send_request->future
+            .then([]() -> Future<ControlFlow<size_t>> {
+              return Continue();
+            });
+        }
+      }
+
+      return Continue();
+    }
+    case SSL_ERROR_WANT_CLIENT_HELLO_CB:
+    case SSL_ERROR_WANT_X509_LOOKUP:
+      return Failure("Not implemented");
+    case SSL_ERROR_ZERO_RETURN:
+      if (handle_as_read) {
+        return Break(0u);
+      } else {
+        return Failure("TLS connection has been closed");
+      }
+    case SSL_ERROR_WANT_ASYNC:
+    case SSL_ERROR_WANT_ASYNC_JOB:
+      // We do not use `SSL_MODE_ASYNC`.
+    case SSL_ERROR_WANT_CONNECT:
+    case SSL_ERROR_WANT_ACCEPT:
+      // We make sure the underlying socket is connected prior
+      // to any interaction with the OpenSSL library.
+      UNREACHABLE();
+    case SSL_ERROR_SSL:
+      return Failure("Protocol error");
+    case SSL_ERROR_SYSCALL:
+      // NOTE: If there is an error (`ERR_peek_error() != 0`),
+      // we fall through to the default error handling case.
+      if (ERR_peek_error() == 0) {
+        return Failure("TCP connection closed before SSL termination");
+      }
+    default: {
+      char buffer[1024] = {};
+      std::string error_strings;
+      while ((error = ERR_get_error())) {
+        ERR_error_string_n(error, buffer, sizeof(buffer));
+        error_strings += "\n" + stringify(buffer);
+      }
+      return Failure("Failed with error:" + error_strings);
+    }
+  };
 }
 
 } // namespace internal {

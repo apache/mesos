@@ -212,6 +212,12 @@ public:
 protected:
   explicit SocketImpl(int_fd _s) : s(_s) { CHECK(s >= 0); }
 
+#if defined(USE_SSL_SOCKET) && !defined(USE_LIBEVENT)
+  // Allows this class access to `release()` other types of sockets,
+  // like the `PollSocketImpl`.
+  friend class OpenSSLSocketImpl;
+#endif // USE_SSL_SOCKET && !USE_LIBEVENT
+
   /**
    * Releases ownership of the file descriptor. Not exposed
    * via the `Socket` interface as this is only intended to
