@@ -15,6 +15,12 @@
 
 #ifdef USE_SSL_SOCKET
 
+#ifdef __WINDOWS__
+// NOTE: This must be included before the OpenSSL headers as it includes
+// `WinSock2.h` and `Windows.h` in the correct order.
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
+
 #include <openssl/ssl.h>
 
 #include <stout/option.hpp>
