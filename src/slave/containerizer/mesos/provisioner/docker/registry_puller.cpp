@@ -305,9 +305,8 @@ Future<Image> RegistryPullerProcess::_pull(
         port);
   }
 
-  VLOG(1) << "Pulling image '" << normalizedRef
-          << "' from '" << manifestUri
-          << "' to '" << directory << "'";
+  LOG(INFO) << "Fetching manifest from '" << manifestUri << "' to '"
+            << directory << "' for image '" << normalizedRef << "'";
 
   // Pass the original 'reference' along to subsequent methods
   // because metadata manager may already has this reference in
@@ -423,6 +422,9 @@ Future<Image> RegistryPullerProcess::___pull(
   vector<string> layerIds;
   vector<Future<Nothing>> futures;
 
+  LOG(INFO) << "Extracting layers to '" << directory
+            << "' for image '" << reference << "'";
+
   // The order of `fslayers` should be [child, parent, ...].
   //
   // The content in the parent will be overwritten by the child if
@@ -454,8 +456,8 @@ Future<Image> RegistryPullerProcess::___pull(
     const string rootfs = paths::getImageLayerRootfsPath(layerPath, backend);
     const string json = paths::getImageLayerManifestPath(layerPath);
 
-    VLOG(1) << "Extracting layer tar ball '" << tar
-            << " to rootfs '" << rootfs << "'";
+    VLOG(1) << "Extracting layer tar ball '" << tar << " to rootfs '"
+            << rootfs << "' for image '" << reference << "'";
 
     // NOTE: This will create 'layerPath' as well.
     Try<Nothing> mkdir = os::mkdir(rootfs, true);
@@ -511,6 +513,9 @@ Future<Image> RegistryPullerProcess::____pull(
   vector<string> layerIds;
   vector<Future<Nothing>> futures;
 
+  LOG(INFO) << "Extracting layers to '" << directory
+            << "' for image '" << reference << "'";
+
   for (int i = 0; i < manifest.layers_size(); i++) {
     const string& digest = manifest.layers(i).digest();
     if (uniqueIds.contains(digest)) {
@@ -530,8 +535,8 @@ Future<Image> RegistryPullerProcess::____pull(
     const string tar = path::join(directory, digest + "-archive");
     const string rootfs = paths::getImageLayerRootfsPath(layerPath, backend);
 
-    VLOG(1) << "Moving layer tar ball '" << originalTar
-            << "' to '" << tar << "'";
+    VLOG(1) << "Moving layer tar ball '" << originalTar << "' to '"
+            << tar << "' for image '" << reference << "'";
 
     // Move layer tar ball to use its name for the extracted layer directory.
     Try<Nothing> rename = os::rename(originalTar, tar);
@@ -541,8 +546,8 @@ Future<Image> RegistryPullerProcess::____pull(
           "' to '" + tar + "': " + rename.error());
     }
 
-    VLOG(1) << "Extracting layer tar ball '" << tar
-            << "' to rootfs '" << rootfs << "'";
+    VLOG(1) << "Extracting layer tar ball '" << tar << "' to rootfs '"
+            << rootfs << "' for image '" << reference << "'";
 
     // NOTE: This will create 'layerPath' as well.
     Try<Nothing> mkdir = os::mkdir(rootfs, true);
@@ -565,7 +570,6 @@ Future<Image> RegistryPullerProcess::____pull(
         }
 
         const string tar = path::join(directory, digest + "-archive");
-
         Try<Nothing> rm = os::rm(tar);
         if (rm.isError()) {
           return Failure(
@@ -598,6 +602,9 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
   // just need to fetch one of them.
   hashset<string> blobSums;
 
+  LOG(INFO) << "Fetching blobs to '" << directory << "' for image '"
+            << normalizedRef << "'";
+
   for (int i = 0; i < manifest.fslayers_size(); i++) {
     CHECK(manifest.history(i).has_v1());
     const spec::v1::ImageManifest& v1 = manifest.history(i).v1();
@@ -611,8 +618,8 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
 
     const string& blobSum = manifest.fslayers(i).blobsum();
 
-    VLOG(1) << "Fetching blob '" << blobSum << "' for layer '"
-            << v1.id() << "' of image '" << normalizedRef << "'";
+    VLOG(1) << "Fetching blob '" << blobSum << "' for layer '" << v1.id()
+            << "' of image '" << normalizedRef << "' to '" << directory << "'";
 
     blobSums.insert(blobSum);
   }
@@ -636,11 +643,14 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
 
   const string& configDigest = manifest.config().digest();
   if (!os::exists(paths::getImageLayerPath(storeDir, configDigest))) {
-    VLOG(1) << "Fetching config '" << configDigest << "' for image '"
-            << normalizedRef << "'";
+    LOG(INFO) << "Fetching config '" << configDigest << "' to '" << directory
+              << "' for image '" << normalizedRef << "'";
 
     digests.insert(configDigest);
   }
+
+  LOG(INFO) << "Fetching layers to '" << directory << "' for image '"
+            << normalizedRef << "'";
 
   for (int i = 0; i < manifest.layers_size(); i++) {
     const string& digest = manifest.layers(i).digest();
@@ -651,8 +661,8 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
       continue;
     }
 
-    VLOG(1) << "Fetching layer '" << digest << "' for image '"
-            << normalizedRef << "'";
+    VLOG(1) << "Fetching layer '" << digest << "' to '" << directory
+            << "' for image '" << normalizedRef << "'";
 
     digests.insert(digest);
   }
