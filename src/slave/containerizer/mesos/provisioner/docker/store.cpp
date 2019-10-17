@@ -333,6 +333,7 @@ Future<Image> StoreProcess::_get(
     }
 
     if (!layerMissed) {
+      LOG(INFO) << "Using cached image '" << reference << "'";
       return image.get();
     }
   }
@@ -345,6 +346,8 @@ Future<Image> StoreProcess::_get(
         "Failed to create a staging directory: " + staging.error());
   }
 
+  LOG(INFO) << "Pulling image '" << reference << "'";
+
   return metrics.image_pull.time(puller->pull(
       reference,
       staging.get(),
@@ -352,13 +355,15 @@ Future<Image> StoreProcess::_get(
       config)
     .then(defer(self(), &Self::moveLayers, staging.get(), lambda::_1, backend))
     .then(defer(self(), [=](const Image& image) {
+      LOG(INFO) << "Caching image '" << reference << "'";
       return metadataManager->put(image);
     }))
     .onAny(defer(self(), [=](const Future<Image>& image) {
+      LOG(INFO) << "Removing staging directory '" << staging.get() << "'";
       Try<Nothing> rmdir = os::rmdir(staging.get());
       if (rmdir.isError()) {
-        LOG(WARNING) << "Failed to remove staging directory: "
-                     << rmdir.error();
+        LOG(WARNING) << "Failed to remove staging directory '" << staging.get()
+                     << "': " << rmdir.error();
       }
     })));
 }
@@ -422,6 +427,9 @@ Future<Image> StoreProcess::moveLayers(
     const Image& image,
     const string& backend)
 {
+  LOG(INFO) << "Moving layers from staging directory '" << staging
+            << "' to image store for image '" << image.reference() << "'";
+
   vector<Future<Nothing>> futures;
   foreach (const string& layerId, image.layer_ids()) {
     futures.push_back(moveLayer(staging, layerId, backend));
