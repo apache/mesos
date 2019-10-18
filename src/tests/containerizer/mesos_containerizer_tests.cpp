@@ -997,7 +997,7 @@ public:
 
   MOCK_METHOD3(
       provision,
-      Future<Option<vector<Path>>>(
+      Future<Nothing>(
           const vector<string>&,
           const string&,
           const string&));
@@ -1033,7 +1033,7 @@ TEST_F(
 
   Future<Nothing> provision;
   Future<Nothing> destroy;
-  Promise<Option<vector<Path>>> promise;
+  Promise<Nothing> promise;
 
   MockBackend* backend = new MockBackend();
   EXPECT_CALL(*backend, provision(_, _, _))
@@ -1112,7 +1112,7 @@ TEST_F(
   ASSERT_TRUE(destroy.isPending());
   ASSERT_TRUE(wait.isPending());
 
-  promise.set(Option<vector<Path>>::none());
+  promise.set(Nothing());
 
   AWAIT_READY(destroy);
   AWAIT_READY(wait);
