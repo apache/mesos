@@ -1169,8 +1169,9 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
             }
 
             if (hostname.isError()) {
-              VLOG(2) << "Could not determine hostname of peer: "
-                      << hostname.error();
+              LOG(WARNING) << "Reverse DNS lookup for"
+                           << " '" << request->ip.get() << "'"
+                           << " failed: " << hostname.error();
             } else {
               VLOG(2) << "Accepting from " << hostname.get();
               peer_hostname = hostname.get();
