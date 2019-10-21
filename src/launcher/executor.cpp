@@ -407,7 +407,7 @@ protected:
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
-  static pid_t launchTaskSubprocess(
+  static Subprocess launchTaskSubprocess(
       const CommandInfo& command,
       const string& launcherDir,
       const Environment& environment,
@@ -547,7 +547,7 @@ protected:
       ABORT("Failed to launch task subprocess: " + s.error());
     }
 
-    return s->pid();
+    return s.get();
   }
 
   void launch(const TaskInfo& task)
@@ -696,7 +696,7 @@ protected:
 
     LOG(INFO) << "Starting task " << taskId.get();
 
-    pid = launchTaskSubprocess(
+    Subprocess subprocess = launchTaskSubprocess(
         command,
         launcherDir,
         launchEnvironment,
@@ -708,6 +708,8 @@ protected:
         boundingCapabilities,
         ttySlavePath,
         taskLaunchInfo);
+
+    pid = subprocess.pid();
 
     LOG(INFO) << "Forked command at " << pid.get();
 
@@ -773,7 +775,7 @@ protected:
     }
 
     // Monitor this process.
-    process::reap(pid.get())
+    subprocess.status()
       .onAny(defer(self(), &Self::reaped, pid.get(), lambda::_1));
 
     TaskStatus status = createTaskStatus(taskId.get(), TASK_RUNNING);
