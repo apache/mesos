@@ -887,8 +887,8 @@ Try<Nothing> verify(
     }
 
     if (lookup.isError()) {
-      VLOG(2) << "Could not determine hostname of peer: "
-              << lookup.error();
+      LOG(WARNING) << "Reverse DNS lookup for '" << ip.get() << "'"
+                   << " failed: " << lookup.error();
     } else {
       VLOG(2) << "Accepting from " << lookup.get();
       peer_hostname = lookup.get();
