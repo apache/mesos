@@ -8367,6 +8367,215 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
        << " allocation runs" << endl;
 }
 
+
+struct ResourceParam
+{
+  ResourceParam(
+      const size_t _roleCount,
+      const size_t _reservationCount,
+      const size_t _portRangeCount)
+    : roleCount(_roleCount),
+      reservationCount(_reservationCount),
+      portRangeCount(_portRangeCount)
+  {}
+
+  ResourceParam() = default;
+
+  size_t roleCount;
+  size_t reservationCount;
+  size_t portRangeCount;
+};
+
+
+class HierarchicalAllocator__BENCHMARK_WithResourceParam
+  : public HierarchicalAllocatorTestBase,
+    public WithParamInterface<ResourceParam> {};
+
+
+// The `UpdateAllocation` benchmark is parametrized by the number of different
+// reservations of different roles on the agent. Specifically:
+//
+// Each set of reservations contains some cpu, memory, disk and port (number of
+// ranges is controlled by portRangeCount) with a random label, and is allocated
+// to a framework.
+//
+// Each role will have `reservationCount` reservations (differed by labels)
+// on the given agent.
+//
+// Thus, in total, the given agent will have: "4 * reservationCount * roleCount"
+// resource objects.
+INSTANTIATE_TEST_CASE_P(
+    ResourceParam,
+    HierarchicalAllocator__BENCHMARK_WithResourceParam,
+    ::testing::Values(
+        ResourceParam(50, 1, 1),
+        ResourceParam(100, 1, 1),
+        ResourceParam(200, 1, 1)));
+
+
+TEST_P(HierarchicalAllocator__BENCHMARK_WithResourceParam, UpdateAllocation)
+{
+  // This benchmark evaluates the performance of `UpdateAllocation()` call
+  // where an agent contains various sizes of resource reservations.
+  //
+  // During test setup, an agent is created with `roleCount` roles, each with
+  // `reservationCount` sets of allocated reservations. Each reservations
+  // is allocated to a framework. Each contains some cpu, memory, disk and port
+  // (number of ranges is controlled by `portRangeCount`) with a random label.
+  //
+  // During evaluation stage, one of the frameworks keeps reserving and
+  // unreseving its allocation. We measure the time spent in `UpdateAllocation`.
+
+  initialize();
+
+  Clock::pause();
+
+  // Create agent resources.
+
+  // Helper to generate a random character with the given `length`.
+  auto randString = [](size_t length) -> string {
+    string s(length, 0);
+    std::generate(
+        s.begin(), s.end(), []() -> char { return 'a' + rand() % 26; });
+    return s;
+  };
+
+  const ResourceParam& param = GetParam();
+
+  const string LABEL_KEY = "Label";
+  const size_t labelValueLength = 36u;
+
+  const vector<string> RESOURCE_NAMES{"cpus", "mem", "disk", "port"};
+
+  // We introduce a level of role hierarchy here. Each role will be
+  // "parent_role/role-[random letters with childRoleLength]".
+  const size_t childRoleLength = 36u;
+  vector<string> roles(param.roleCount);
+  std::generate(roles.begin(), roles.end(), [&childRoleLength, &randString]() {
+    return "role-" + randString(childRoleLength);
+  });
+
+  Resources agentResources;
+  hashmap<FrameworkID, Resources> usedResources;
+
+  foreach (const string& role, roles) {
+    // Each slice of reservations is used by a framework.
+    // We first add that framework to the allocator.
+    FrameworkInfo framework = createFrameworkInfo({role});
+    usedResources.emplace(framework.id(), Resources());
+    allocator->addFramework(framework.id(), framework, {}, true, {});
+
+    // Create reservations.
+    for (size_t i = 0; i < param.reservationCount; ++i) {
+      foreach (const string& name, RESOURCE_NAMES) {
+        Resource resource = [&name, &param]() {
+          if (name != "port") {
+            return CHECK_NOTERROR(Resources::parse(name, "100", "*"));
+          } else {
+            Value::Ranges ranges;
+            for (size_t count = 1; count <= param.portRangeCount; ++count) {
+              *ranges.add_range() = createRange(count * 2, count * 2);
+            }
+
+            return createPorts(ranges);
+          }
+        }();
+
+        // Add reservation info.
+        Resource::ReservationInfo reservation;
+        reservation.set_type(Resource::ReservationInfo::DYNAMIC);
+        reservation.set_role(role);
+
+        // Each reservation will have one key-value label. The key is simply
+        // "Label", the value is a generated string with fixed length.
+        // Different labels will prevent resources of the same type
+        // from merging.
+        Label* label = reservation.mutable_labels()->add_labels();
+        label->set_key(LABEL_KEY);
+        label->set_value(randString(labelValueLength));
+        *resource.add_reservations() = std::move(reservation);
+
+        agentResources += resource;
+
+        // Allocate the resources to the framework.
+        resource.mutable_allocation_info()->set_role(role);
+        usedResources.at(framework.id()) += std::move(resource);
+      }
+    }
+  }
+
+  // We let one framework repeatedly reserve and unreserve allocated resources,
+  // and measure the `allocator->updateAllocation` time.
+
+  FrameworkID loopFrameworkId = usedResources.begin()->first;
+
+  // Operations to reserve and unreserve resources.
+
+  Resources reserveResources = usedResources.begin()->second;
+  Offer::Operation reserve = RESERVE(reserveResources);
+
+  Resources unReserveResources = reserveResources.toUnreserved();
+  Offer::Operation unreserve = UNRESERVE(reserveResources);
+
+  // Create an agent with the given resources.
+  SlaveInfo agent = createSlaveInfo(agentResources);
+  allocator->addSlave(
+      agent.id(),
+      agent,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent.resources(),
+      usedResources);
+
+  Clock::settle();
+
+  size_t repetition = 20;
+
+  Duration reserveTime, unreserveTime;
+
+  Stopwatch watch;
+
+  for (size_t i = 0; i < repetition; ++i) {
+    watch.start();
+
+    allocator->updateAllocation(
+        loopFrameworkId,
+        agent.id(),
+        reserveResources,
+        CHECK_NOTERROR(getResourceConversions(unreserve)));
+
+    Clock::settle();
+
+    watch.stop();
+    unreserveTime += watch.elapsed();
+
+    watch.start();
+
+    allocator->updateAllocation(
+        loopFrameworkId,
+        agent.id(),
+        unReserveResources,
+        CHECK_NOTERROR(getResourceConversions(reserve)));
+    Clock::settle();
+
+    watch.stop();
+    reserveTime += watch.elapsed();
+  }
+
+  cout << "Agent resource object count: " << agentResources.size() << " ("
+       << param.roleCount << " roles, "
+       << param.reservationCount << " reservations per role, "
+       << param.portRangeCount << " ranges per port resource)"
+       << endl;
+  cout << repetition << " RESERVE operations took "
+       << reserveTime << ", each takes "
+       << reserveTime / repetition * 1.0 << endl;
+  cout << repetition << " UNRESERVE operations took "
+       << unreserveTime << ", each takes "
+       << unreserveTime / repetition * 1.0 << endl;
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
