@@ -29,7 +29,7 @@ import cli
 from cli.exceptions import CLIException
 
 
-def read_endpoint(addr, endpoint):
+def read_endpoint(addr, endpoint, query=None):
     """
     Read the specified endpoint and return the results.
     """
@@ -41,6 +41,8 @@ def read_endpoint(addr, endpoint):
 
     try:
         url = "{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
+        if query is not None:
+          url += "?{query}".format(query=urllib.parse.urlencode(query))
         http_response = urllib.request.urlopen(url).read().decode("utf-8")
     except Exception as exception:
         raise CLIException("Unable to open url '{url}': {error}"
@@ -49,7 +51,7 @@ def read_endpoint(addr, endpoint):
     return http_response
 
 
-def get_json(addr, endpoint, condition=None, timeout=5):
+def get_json(addr, endpoint, query=None, condition=None, timeout=5):
     """
     Return the contents of the 'endpoint' at 'addr' as JSON data
     subject to the condition specified in 'condition'. If we are
@@ -62,7 +64,7 @@ def get_json(addr, endpoint, condition=None, timeout=5):
         data = None
 
         try:
-            data = read_endpoint(addr, endpoint)
+            data = read_endpoint(addr, endpoint, query)
         except Exception as exception:
             pass
 

@@ -114,7 +114,7 @@ def get_container_id(task):
         " Please try again.")
 
 
-def get_tasks(master):
+def get_tasks(master, query=None):
     """
     Get the tasks in a Mesos cluster.
     """
@@ -122,17 +122,18 @@ def get_tasks(master):
     key = "tasks"
 
     try:
-        data = http.get_json(master, endpoint)
+        data = http.get_json(master, endpoint, query)
     except Exception as exception:
         raise CLIException(
-            "Could not open '/{endpoint}' on master: {error}"
-            .format(endpoint=endpoint, error=exception))
+            "Could not open '/{endpoint}' with query parameters: {query}"
+            "on master: {error}"
+            .format(endpoint=endpoint, query=query, error=exception))
 
     if not key in data:
         raise CLIException(
             "Missing '{key}' key in data retrieved"
-            " from master on '/{endpoint}'"
-            .format(key=key, endpoint=endpoint))
+            " from master on '/{endpoint}' with query parameters: {query}"
+            .format(key=key, endpoint=endpoint, query=query))
 
     return data[key]
 
@@ -169,11 +170,12 @@ class TaskIO():
         # "MESOS". Having a type of "MESOS" implies that it was launched by the
         # UCR -- all other types imply it was not.
         try:
-            tasks = get_tasks(master)
+            tasks = get_tasks(master, query={'task_id': task_id})
         except Exception as exception:
-            raise CLIException("Unable to get tasks from leading"
-                               " master '{master}': {error}"
-                               .format(master=master, error=exception))
+            raise CLIException("Unable to get task with ID {task_id}"
+                               " from leading master '{master}': {error}"
+                               .format(task_id=task_id, master=master,
+                                       error=exception))
 
         running_tasks = [t for t in tasks if t["state"] == "TASK_RUNNING"]
         matching_tasks = [t for t in running_tasks if t["id"] == task_id]
