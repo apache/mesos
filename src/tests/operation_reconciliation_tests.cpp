@@ -780,7 +780,9 @@ TEST_P(OperationReconciliationTest, UnknownOperationUnknownAgent)
 
 // This test verifies that, after a master failover, reconciliation of an
 // operation that is still pending on an agent results in `OPERATION_PENDING`.
-TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
+TEST_P(
+    OperationReconciliationTest,
+    DISABLED_AgentPendingOperationAfterMasterFailover)
 {
   Clock::pause();
 
