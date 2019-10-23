@@ -10,6 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#ifndef __PROCESS_POLL_SOCKET__
+#define __PROCESS_POLL_SOCKET__
 #include <memory>
 
 #include <process/socket.hpp>
@@ -50,3 +52,5 @@ public:
 } // namespace internal {
 } // namespace network {
 } // namespace process {
+
+#endif // __PROCESS_POLL_SOCKET__
