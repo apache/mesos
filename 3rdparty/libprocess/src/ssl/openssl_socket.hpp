@@ -84,6 +84,15 @@ private:
   // We wrap the socket in a 'Future' so that we can pass failures or
   // discards through.
   Queue<Future<std::shared_ptr<SocketImpl>>> accept_queue;
+
+  // Set to true whenever the connection is terminated before a proper
+  // SSL shutdown can be sent. This will also prevent `shutdown` from
+  // doing anything, as the connection will be presumed dead.
+  bool dirty_shutdown;
+
+  // An actor used to dispatch the compute-heavy work of encryption and
+  // decryption, like `SSL_read` and `SSL_write`.
+  Option<UPID> compute_thread;
 };
 
 } // namespace internal {
