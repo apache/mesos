@@ -80,7 +80,7 @@ Try<bool> UpdateQuota::perform(
 
   foreach (const QuotaConfig& config, configs) {
     // Check if there is already quota stored for the role.
-    int configIndex = find_if(
+    int configIndex = std::find_if(
         registryConfigs.begin(),
         registryConfigs.end(),
         [&](const QuotaConfig& registryConfig) {

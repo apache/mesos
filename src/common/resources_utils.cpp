@@ -914,7 +914,7 @@ Resources shrinkResources(const Resources& resources, ResourceQuantities target)
   // TODO(mzhu): Add a `shuffle()` method in `Resources` to avoid this copy.
   google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
 
-  random_shuffle(resourceVector.begin(), resourceVector.end());
+  std::random_shuffle(resourceVector.begin(), resourceVector.end());
 
   Resources result;
   foreach (Resource& resource, resourceVector) {
@@ -947,7 +947,7 @@ Resources shrinkResources(const Resources& resources, ResourceLimits target)
   // TODO(mzhu): Add a `shuffle()` method in `Resources` to avoid this copy.
   google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
 
-  random_shuffle(resourceVector.begin(), resourceVector.end());
+  std::random_shuffle(resourceVector.begin(), resourceVector.end());
 
   Resources result;
   foreach (Resource resource, resourceVector) {

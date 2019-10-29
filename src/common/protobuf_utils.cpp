@@ -1375,7 +1375,7 @@ void addMinimumCapability(
     const MasterInfo::Capability::Type& capability)
 {
   int capabilityIndex =
-    find_if(
+    std::find_if(
         capabilities->begin(),
         capabilities->end(),
         [&](const Registry::MinimumCapability& mc) {
@@ -1396,7 +1396,7 @@ void removeMinimumCapability(
     const MasterInfo::Capability::Type& capability)
 {
   int capabilityIndex =
-    find_if(
+    std::find_if(
         capabilities->begin(),
         capabilities->end(),
         [&](const Registry::MinimumCapability& mc) {
