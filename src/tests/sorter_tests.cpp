@@ -243,8 +243,7 @@ TEST(DRFSorterTest, DRF)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   EXPECT_EQ(vector<string>({}), sorter.sort());
 
@@ -287,16 +286,14 @@ TEST(DRFSorterTest, DRF)
   sorter.activate("e");
   sorter.allocated("e", slaveId, eResources);
 
-  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
-  sorter.remove(slaveId, removedResources);
-  // total resources is now cpus = 50, mem = 100
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:100"));
 
   // shares: b = .04, c = .02, d = .06, e = .05
   EXPECT_EQ(vector<string>({"c", "b", "e", "d"}), sorter.sort());
 
-  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
-  sorter.add(slaveId, addedResources);
-  // total resources is now cpus = 50, mem = 200
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:200"));
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f");
@@ -336,7 +333,7 @@ TEST(DRFSorterTest, WDRF)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -396,9 +393,7 @@ TEST(DRFSorterTest, UpdateWeight)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -428,9 +423,7 @@ TEST(DRFSorterTest, AllocationCountTieBreak)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.add("b");
@@ -511,8 +504,7 @@ TEST(DRFSorterTest, ShallowHierarchy)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a/a");
   sorter.activate("a/a");
@@ -554,16 +546,14 @@ TEST(DRFSorterTest, ShallowHierarchy)
   sorter.activate("e/e");
   sorter.allocated("e/e", slaveId, eResources);
 
-  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
-  sorter.remove(slaveId, removedResources);
-  // total resources is now cpus = 50, mem = 100
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:100"));
 
   // shares: b/b = .04, c/c = .02, d/d = .06, e/e = .05
   EXPECT_EQ(vector<string>({"c/c", "b/b", "e/e", "d/d"}), sorter.sort());
 
-  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
-  sorter.add(slaveId, addedResources);
-  // total resources is now cpus = 50, mem = 200
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:200"));
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f/f");
@@ -606,8 +596,7 @@ TEST(DRFSorterTest, DeepHierarchy)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a/a/a/a/a");
   sorter.activate("a/a/a/a/a");
@@ -649,17 +638,15 @@ TEST(DRFSorterTest, DeepHierarchy)
   sorter.activate("e/e/e/e/e/e");
   sorter.allocated("e/e/e/e/e/e", slaveId, eResources);
 
-  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
-  sorter.remove(slaveId, removedResources);
-  // total resources is now cpus = 50, mem = 100
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:100"));
 
   // shares: b/b/b/b = .04, c/c/c = .02, d/d = .06, e/e/e/e/e/e = .05
   EXPECT_EQ(vector<string>({"c/c/c", "b/b/b/b", "e/e/e/e/e/e", "d/d"}),
             sorter.sort());
 
-  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
-  sorter.add(slaveId, addedResources);
-  // total resources is now cpus = 50, mem = 200
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:50;mem:200"));
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f/f");
@@ -702,8 +689,7 @@ TEST(DRFSorterTest, HierarchicalAllocation)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.add("b/c");
@@ -824,8 +810,7 @@ TEST(DRFSorterTest, HierarchicalIterationOrder)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a/b");
   sorter.add("c");
@@ -872,7 +857,7 @@ TEST(DRFSorterTest, AddChildToLeaf)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -943,7 +928,7 @@ TEST(DRFSorterTest, AddChildToInternal)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("x/a");
   sorter.activate("x/a");
@@ -986,7 +971,7 @@ TEST(DRFSorterTest, AddChildToInactiveLeaf)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -1021,7 +1006,7 @@ TYPED_TEST(CommonSorterTest, RemoveLeafCollapseParent)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -1066,7 +1051,7 @@ TYPED_TEST(CommonSorterTest, RemoveLeafCollapseParentInactive)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.add("a");
   sorter.activate("a");
@@ -1107,7 +1092,7 @@ TEST(DRFSorterTest, ChangeWeightOnSubtree)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:100"));
 
   sorter.updateWeight("b", 3);
   sorter.updateWeight("a", 2);
@@ -1173,9 +1158,9 @@ TEST(DRFSorterTest, SplitResourceShares)
   disk2.mutable_disk()->mutable_persistence()->set_id("ID2");
   disk2.mutable_disk()->mutable_volume()->set_container_path("data");
 
-  sorter.add(
+  sorter.addSlave(
       slaveId,
-      Resources::parse("cpus:100;mem:100;disk:95").get() + disk1 + disk2);
+      *ResourceQuantities::fromString("cpus:100;mem:100;disk:100"));
 
   // Now, allocate resources to "a" and "b". Note that "b" will have
   // more disk if the shares are accounted correctly!
@@ -1200,7 +1185,8 @@ TYPED_TEST(CommonSorterTest, UpdateAllocation)
   sorter.activate("a");
   sorter.activate("b");
 
-  sorter.add(slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
+  sorter.addSlave(
+      slaveId, *ResourceQuantities::fromString("cpus:10;mem:10;disk:10"));
 
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
@@ -1241,7 +1227,7 @@ TYPED_TEST(CommonSorterTest, UpdateAllocation)
   sorter.add("c");
   sorter.activate("c");
 
-  sorter.add(slaveId, resourcesC);
+  sorter.addSlave(slaveId, ResourceQuantities::fromScalarResources(resourcesC));
 
   sorter.allocated("c", slaveId2, resourcesC);
   sorter.update("c", slaveId2, resourcesC, Resources());
@@ -1261,7 +1247,8 @@ TYPED_TEST(CommonSorterTest, UpdateAllocationNestedClient)
   sorter.activate("a/x");
   sorter.activate("b/y");
 
-  sorter.add(slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
+  sorter.addSlave(
+      slaveId, *ResourceQuantities::fromString("cpus:10;mem:10;disk:10"));
 
   sorter.allocated(
       "a/x", slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
@@ -1303,7 +1290,7 @@ TYPED_TEST(CommonSorterTest, AllocationForInactiveClient)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  sorter.add(slaveId, Resources::parse("cpus:10;mem:10").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:10;mem:10"));
 
   sorter.add("a");
   sorter.add("b");
@@ -1361,11 +1348,14 @@ TYPED_TEST(CommonSorterTest, MultipleSlaves)
   sorter.add("framework");
   sorter.activate("framework");
 
-  Resources slaveResources =
+  const Resources slaveResources =
     Resources::parse("cpus:2;mem:512;ports:[31000-32000]").get();
 
-  sorter.add(slaveA, slaveResources);
-  sorter.add(slaveB, slaveResources);
+  const ResourceQuantities slaveResourceQuantities =
+    ResourceQuantities::fromScalarResources(slaveResources.scalars());
+
+  sorter.addSlave(slaveA, slaveResourceQuantities);
+  sorter.addSlave(slaveB, slaveResourceQuantities);
 
   sorter.allocated("framework", slaveA, slaveResources);
   sorter.allocated("framework", slaveB, slaveResources);
@@ -1374,14 +1364,10 @@ TYPED_TEST(CommonSorterTest, MultipleSlaves)
   EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveA));
   EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveB));
 
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
-        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+  EXPECT_EQ(slaveResourceQuantities + slaveResourceQuantities,
       sorter.allocationScalarQuantities("framework"));
 
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
-        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+  EXPECT_EQ(slaveResourceQuantities + slaveResourceQuantities,
       sorter.allocationScalarQuantities());
 }
 
@@ -1404,11 +1390,14 @@ TYPED_TEST(CommonSorterTest, MultipleSlavesUpdateAllocation)
   sorter.add("framework");
   sorter.activate("framework");
 
-  Resources slaveResources =
+  const Resources slaveResources =
     Resources::parse("cpus:2;mem:512;disk:10;ports:[31000-32000]").get();
 
-  sorter.add(slaveA, slaveResources);
-  sorter.add(slaveB, slaveResources);
+  const ResourceQuantities slaveResourceQuantities =
+    ResourceQuantities::fromScalarResources(slaveResources.scalars());
+
+  sorter.addSlave(slaveA, slaveResourceQuantities);
+  sorter.addSlave(slaveB, slaveResourceQuantities);
 
   sorter.allocated("framework", slaveA, slaveResources);
   sorter.allocated("framework", slaveB, slaveResources);
@@ -1456,7 +1445,7 @@ TEST(DRFSorterTest, UpdateTotal)
   sorter.activate("a");
   sorter.activate("b");
 
-  sorter.add(slaveId, Resources::parse("cpus:10;mem:100").get());
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:10;mem:100"));
 
   // Dominant share of "a" is 0.2 (cpus).
   sorter.allocated(
@@ -1470,8 +1459,8 @@ TEST(DRFSorterTest, UpdateTotal)
 
   // Update the total resources by removing the previous total and
   // adding back the new total.
-  sorter.remove(slaveId, Resources::parse("cpus:10;mem:100").get());
-  sorter.add(slaveId, Resources::parse("cpus:100;mem:10").get());
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(slaveId, *ResourceQuantities::fromString("cpus:100;mem:10"));
 
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
@@ -1496,8 +1485,8 @@ TEST(DRFSorterTest, MultipleSlavesUpdateTotal)
   sorter.activate("a");
   sorter.activate("b");
 
-  sorter.add(slaveA, Resources::parse("cpus:5;mem:50").get());
-  sorter.add(slaveB, Resources::parse("cpus:5;mem:50").get());
+  sorter.addSlave(slaveA, *ResourceQuantities::fromString("cpus:5;mem:50"));
+  sorter.addSlave(slaveB, *ResourceQuantities::fromString("cpus:5;mem:50"));
 
   // Dominant share of "a" is 0.2 (cpus).
   sorter.allocated(
@@ -1509,10 +1498,9 @@ TEST(DRFSorterTest, MultipleSlavesUpdateTotal)
 
   EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
-  // Update the total resources of slaveA by removing the previous
-  // total and adding the new total.
-  sorter.remove(slaveA, Resources::parse("cpus:5;mem:50").get());
-  sorter.add(slaveA, Resources::parse("cpus:95;mem:50").get());
+  // Update the total resources of slaveA.
+  sorter.removeSlave(slaveA);
+  sorter.addSlave(slaveA, *ResourceQuantities::fromString("cpus:95;mem:50"));
 
   // Now the dominant share of "a" is 0.02 (cpus) and "b" is 0.03
   // (mem), which should change the sort order.
@@ -1536,7 +1524,7 @@ TEST(DRFSorterTest, RemoveResources)
   sorter.activate("b");
 
   Resources slaveTotal = Resources::parse("cpus", "10", "*").get();
-  sorter.add(slaveId, slaveTotal);
+  sorter.addSlave(slaveId, ResourceQuantities::fromScalarResources(slaveTotal));
 
   // Dominant share of "a" is 0.6 (cpus).
   Resources allocatedForA = Resources::parse("cpus", "6", "*").get();
@@ -1549,8 +1537,10 @@ TEST(DRFSorterTest, RemoveResources)
 
   // Remove cpus from the total resources as well as the allocation of "a".
   Resources removed = Resources::parse("cpus", "5", "*").get();
-  sorter.remove(slaveId, slaveTotal);
-  sorter.add(slaveId, slaveTotal - removed);
+  sorter.removeSlave(slaveId);
+  sorter.addSlave(
+      slaveId, ResourceQuantities::fromScalarResources(slaveTotal - removed));
+
   sorter.update("a", slaveId, allocatedForA, allocatedForA - removed);
 
   // Now the dominant share of "a" is 0.2 (cpus) and that of "b" is 0.8 (cpus),
@@ -1579,7 +1569,7 @@ TEST(DRFSorterTest, RevocableResources)
   revocable.mutable_revocable();
   Resources total = Resources::parse("cpus:10;mem:100").get() + revocable;
 
-  sorter.add(slaveId, total);
+  sorter.addSlave(slaveId, ResourceQuantities::fromScalarResources(total));
 
   // Dominant share of "a" is 0.1 (cpus).
   Resources a = Resources::parse("cpus:2;mem:1").get();
@@ -1609,15 +1599,13 @@ TEST(DRFSorterTest, SharedResources)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resource sharedDisk = createDiskResource(
+  const Resource sharedDisk = createDiskResource(
       "100", "role1", "id1", "path1", None(), true);
 
-  // Set totalResources to have disk of 1000, with disk 100 being shared.
-  Resources totalResources = Resources::parse(
-      "cpus:100;mem:100;disk(role1):900").get();
-  totalResources += sharedDisk;
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(
+        *Resources::parse("cpus:100;mem:100;disk(role1):900") + sharedDisk));
 
   // Verify sort() works when shared resources are in the allocations.
   sorter.add("a");
@@ -1663,28 +1651,6 @@ TEST(DRFSorterTest, SharedResources)
   //         d = .1 (dominant: disk).
   EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
 
-  // Verify other basic allocator methods work when shared resources
-  // are in the allocations.
-  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
-  sorter.remove(slaveId, removedResources);
-
-  // Total resources is now:
-  // cpus:50;mem:100;disk(role1):900;disk(role1)[id1]:100
-
-  // Shares: b = .04 (dominant: cpus), c = .1 (dominant: disk),
-  //         d = .1 (dominant: disk).
-  EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
-
-  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
-  sorter.add(slaveId, addedResources);
-
-  // Total resources is now:
-  // cpus:50;mem:200;disk(role1):900;disk(role1)[id1]:100
-
-  // Shares: b = .04 (dominant: cpus), c = .1 (dominant: disk),
-  //         d = .1 (dominant: disk).
-  EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
-
   EXPECT_TRUE(sorter.contains("b"));
 
   EXPECT_FALSE(sorter.contains("a"));
@@ -1703,15 +1669,13 @@ TEST(DRFSorterTest, SameDominantSharedResourcesAcrossClients)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resource sharedDisk = createDiskResource(
+  const Resource sharedDisk = createDiskResource(
       "900", "role1", "id1", "path1", None(), true);
 
-  // Set totalResources to have disk of 1000, with disk 900 being shared.
-  Resources totalResources = Resources::parse(
-      "cpus:100;mem:100;disk(role1):100").get();
-  totalResources += sharedDisk;
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(
+        *Resources::parse("cpus:100;mem:100;disk(role1):100") + sharedDisk));
 
   // Add 2 clients each with the same shared disk, but with varying
   // cpus and mem.
@@ -1752,15 +1716,13 @@ TEST(DRFSorterTest, SameSharedResourcesSameClient)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resource sharedDisk = createDiskResource(
+  const Resource sharedDisk = createDiskResource(
       "50", "role1", "id1", "path1", None(), true);
 
-  // Set totalResources to have disk of 1000, with disk of 50 being shared.
-  Resources totalResources = Resources::parse(
-      "cpus:100;mem:100;disk(role1):950").get();
-  totalResources += sharedDisk;
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(
+        *Resources::parse("cpus:100;mem:100;disk(role1):950") + sharedDisk));
 
   // Verify sort() works when shared resources are in the allocations.
   sorter.add("a");
@@ -1797,15 +1759,13 @@ TEST(DRFSorterTest, SharedResourcesUnallocated)
   SlaveID slaveId;
   slaveId.set_value("agentId");
 
-  Resource sharedDisk = createDiskResource(
+  const Resource sharedDisk = createDiskResource(
       "100", "role1", "id1", "path1", None(), true);
 
-  // Set totalResources to have disk of 1000, with disk 100 being shared.
-  Resources totalResources = Resources::parse(
-      "cpus:100;mem:100;disk(role1):900").get();
-  totalResources += sharedDisk;
-
-  sorter.add(slaveId, totalResources);
+  sorter.addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(
+        *Resources::parse("cpus:100;mem:100;disk(role1):900") + sharedDisk));
 
   // Allocate 3 copies of shared resources to client 'a', but allocate no
   // shared resource to client 'b'.
@@ -1838,45 +1798,6 @@ TEST(DRFSorterTest, SharedResourcesUnallocated)
 
   // Shares: a = .02 (dominant: cpus), b = .06 (dominant: cpus).
   EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
-}
-
-
-// This test verifies that shared resources are removed from the sorter
-// only when all instances of the the same shared resource are removed.
-TYPED_TEST(CommonSorterTest, RemoveSharedResources)
-{
-  TypeParam sorter;
-
-  SlaveID slaveId;
-  slaveId.set_value("agentId");
-
-  Resource sharedDisk = createDiskResource(
-      "100", "role1", "id1", "path1", None(), true);
-
-  sorter.add(
-      slaveId, Resources::parse("cpus:100;mem:100;disk(role1):900").get());
-
-  ResourceQuantities quantity1 = sorter.totalScalarQuantities();
-
-  sorter.add(slaveId, sharedDisk);
-  ResourceQuantities quantity2 = sorter.totalScalarQuantities();
-
-  EXPECT_EQ(
-      CHECK_NOTERROR(ResourceQuantities::fromString("disk:100")),
-      quantity2 - quantity1);
-
-  sorter.add(slaveId, sharedDisk);
-  ResourceQuantities quantity3 = sorter.totalScalarQuantities();
-
-  EXPECT_NE(quantity1, quantity3);
-  EXPECT_EQ(quantity2, quantity3);
-
-  // The quantity of the shared disk is removed  when the last copy is removed.
-  sorter.remove(slaveId, sharedDisk);
-  EXPECT_EQ(sorter.totalScalarQuantities(), quantity3);
-
-  sorter.remove(slaveId, sharedDisk);
-  EXPECT_EQ(sorter.totalScalarQuantities(), quantity1);
 }
 
 
@@ -1920,8 +1841,8 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_FullSort)
       cout << "Added " << clientCount << " clients in "
            << watch.elapsed() << endl;
 
-      Resources agentResources = Resources::parse(
-          "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+      const ResourceQuantities agentScalarQuantities =
+        *ResourceQuantities::fromString("cpus:24;mem:4096;disk:4096");
 
       watch.start();
       {
@@ -1931,7 +1852,7 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_FullSort)
 
           agents.push_back(slaveId);
 
-          sorter.add(slaveId, agentResources);
+          sorter.addSlave(slaveId, agentScalarQuantities);
         }
       }
       watch.stop();
@@ -1999,7 +1920,7 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_FullSort)
       watch.start();
       {
         foreach (const SlaveID& slaveId, agents) {
-          sorter.remove(slaveId, agentResources);
+          sorter.removeSlave(slaveId);
         }
       }
       watch.stop();
@@ -2100,8 +2021,8 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_HierarchyFullSort)
       cout << "Added " << clientCount << " clients in "
            << watch.elapsed() << endl;
 
-      Resources agentResources = Resources::parse(
-          "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+      const ResourceQuantities agentScalarQuantities =
+        *ResourceQuantities::fromString("cpus:24;mem:4096;disk:4096");
 
       watch.start();
       {
@@ -2111,7 +2032,7 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_HierarchyFullSort)
 
           agents.push_back(slaveId);
 
-          sorter.add(slaveId, agentResources);
+          sorter.addSlave(slaveId, agentScalarQuantities);
         }
       }
       watch.stop();
@@ -2179,7 +2100,7 @@ TYPED_TEST(CommonSorterTest, BENCHMARK_HierarchyFullSort)
       watch.start();
       {
         foreach (const SlaveID& slaveId, agents) {
-          sorter.remove(slaveId, agentResources);
+          sorter.removeSlave(slaveId);
         }
       }
       watch.stop();

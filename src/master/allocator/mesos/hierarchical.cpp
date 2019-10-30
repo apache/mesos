@@ -803,10 +803,14 @@ void HierarchicalAllocatorProcess::addSlave(
 
   roleTree.trackReservations(total.reserved());
 
-  roleSorter->add(slaveId, total);
+  const ResourceQuantities agentScalarQuantities =
+    ResourceQuantities::fromScalarResources(total.scalars());
+
+  totalScalarQuantities += agentScalarQuantities;
+  roleSorter->addSlave(slaveId, agentScalarQuantities);
 
   foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-    sorter->add(slaveId, total);
+    sorter->addSlave(slaveId, agentScalarQuantities);
   }
 
   foreachpair (const FrameworkID& frameworkId,
@@ -873,13 +877,19 @@ void HierarchicalAllocatorProcess::removeSlave(
     // all the resources. Fixing this would require more information
     // than what we currently track in the allocator.
 
-    roleSorter->remove(slaveId, slave.getTotal());
+    roleSorter->removeSlave(slaveId);
 
     foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-      sorter->remove(slaveId, slave.getTotal());
+      sorter->removeSlave(slaveId);
     }
 
     roleTree.untrackReservations(slave.getTotal().reserved());
+
+    const ResourceQuantities agentScalarQuantities =
+        ResourceQuantities::fromScalarResources(slave.getTotal().scalars());
+
+    CHECK_CONTAINS(totalScalarQuantities, agentScalarQuantities);
+    totalScalarQuantities -= agentScalarQuantities;
   }
 
   slaves.erase(slaveId);
@@ -1870,7 +1880,7 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        allocated resources -
   //                        unallocated reservations -
   //                        unallocated revocable resources
-  ResourceQuantities availableHeadroom = roleSorter->totalScalarQuantities();
+  ResourceQuantities availableHeadroom = totalScalarQuantities;
 
   // NOTE: The role sorter does not return aggregated allocation
   // information whereas `reservationScalarQuantities` does, so
@@ -2666,7 +2676,7 @@ double HierarchicalAllocatorProcess::_resources_offered_or_allocated(
 double HierarchicalAllocatorProcess::_resources_total(
     const string& resource)
 {
-  return roleSorter->totalScalarQuantities().get(resource).value();
+  return totalScalarQuantities.get(resource).value();
 }
 
 
@@ -2773,7 +2783,9 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     frameworkSorter->initialize(options.fairnessExcludeResourceNames);
 
     foreachvalue (const Slave& slave, slaves) {
-      frameworkSorter->add(slave.info.id(), slave.getTotal());
+      frameworkSorter->addSlave(
+          slave.info.id(),
+          ResourceQuantities::fromScalarResources(slave.getTotal().scalars()));
     }
   }
 
@@ -2826,13 +2838,23 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
   roleTree.untrackReservations(oldTotal.reserved());
   roleTree.trackReservations(total.reserved());
 
-  // Update the totals in the sorters.
-  roleSorter->remove(slaveId, oldTotal);
-  roleSorter->add(slaveId, total);
+  // Update the total in the allocator and totals in the sorters.
+  const ResourceQuantities oldAgentScalarQuantities =
+    ResourceQuantities::fromScalarResources(oldTotal.scalars());
+
+  const ResourceQuantities agentScalarQuantities =
+    ResourceQuantities::fromScalarResources(total.scalars());
+
+  CHECK_CONTAINS(totalScalarQuantities, oldAgentScalarQuantities);
+  totalScalarQuantities -= oldAgentScalarQuantities;
+  totalScalarQuantities += agentScalarQuantities;
+
+  roleSorter->removeSlave(slaveId);
+  roleSorter->addSlave(slaveId, agentScalarQuantities);
 
   foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-    sorter->remove(slaveId, oldTotal);
-    sorter->add(slaveId, total);
+    sorter->removeSlave(slaveId);
+    sorter->addSlave(slaveId, agentScalarQuantities);
   }
 
   return true;

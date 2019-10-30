@@ -660,6 +660,9 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
+  // Total scalar resource quantities on all agents.
+  ResourceQuantities totalScalarQuantities;
+
   RoleTree roleTree;
 
   // A set of agents that are kept as allocation candidates. Events

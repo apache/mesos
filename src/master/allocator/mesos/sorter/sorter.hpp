@@ -124,15 +124,19 @@ public:
       const std::string& client,
       const SlaveID& slaveId) const = 0;
 
-  // Returns the total scalar resource quantities in this sorter.
-  virtual const ResourceQuantities& totalScalarQuantities() const = 0;
+  // Add/remove total scalar resource quantities of an agent to/from the
+  // total pool of resources this Sorter should consider.
+  //
+  // NOTE: Updating resources of an agent in the Sorter is done by first calling
+  // `removeSlave()` and then `addSlave()` with new resource quantities.
+  //
+  // NOTE: Attempt to add the same agent twice or remove an agent not added
+  // to the Sorter may crash the program.
+  virtual void addSlave(
+      const SlaveID& slaveId,
+      const ResourceQuantities& scalarQuantities) = 0;
 
-  // Add resources to the total pool of resources this
-  // Sorter should consider.
-  virtual void add(const SlaveID& slaveId, const Resources& resources) = 0;
-
-  // Remove resources from the total pool.
-  virtual void remove(const SlaveID& slaveId, const Resources& resources) = 0;
+  virtual void removeSlave(const SlaveID& slaveId) = 0;
 
   // Returns all of the clients in the order that they should
   // be allocated to, according to this Sorter's policy.
