@@ -445,68 +445,36 @@ Resources DRFSorter::allocation(
 }
 
 
-const ResourceQuantities& DRFSorter::totalScalarQuantities() const
+void DRFSorter::addSlave(
+    const SlaveID& slaveId,
+    const ResourceQuantities& scalarQuantities)
 {
-  return total_.totals;
+  bool inserted = total_.agentResourceQuantities.emplace(
+      slaveId, scalarQuantities).second;
+
+  CHECK(inserted) << "Attempted to add already added agent " << slaveId;
+
+  total_.totals += scalarQuantities;
+
+  // We have to recalculate all shares when the total resources
+  // change, but we put it off until `sort` is called so that if
+  // something else changes before the next allocation we don't
+  // recalculate everything twice.
+  dirty = true;
 }
 
 
-void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
+void DRFSorter::removeSlave(const SlaveID& slaveId)
 {
-  if (!resources.empty()) {
-    // Add shared resources to the total quantities when the same
-    // resources don't already exist in the total.
-    const Resources newShared = resources.shared()
-      .filter([this, slaveId](const Resource& resource) {
-        return !total_.resources[slaveId].contains(resource);
-      });
+  const auto agent = total_.agentResourceQuantities.find(slaveId);
+  CHECK(agent != total_.agentResourceQuantities.end())
+    << "Attempted to remove unknown agent " << slaveId;
 
-    total_.resources[slaveId] += resources;
+  CHECK_CONTAINS(total_.totals, agent->second);
+  total_.totals -= agent->second;
 
-    const ResourceQuantities scalarQuantities =
-      ResourceQuantities::fromScalarResources(
-          (resources.nonShared() + newShared).scalars());
-
-    total_.totals += scalarQuantities;
-
-    // We have to recalculate all shares when the total resources
-    // change, but we put it off until `sort` is called so that if
-    // something else changes before the next allocation we don't
-    // recalculate everything twice.
-    dirty = true;
-  }
-}
-
-
-void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
-{
-  if (!resources.empty()) {
-    CHECK(total_.resources.contains(slaveId));
-    CHECK(total_.resources[slaveId].contains(resources))
-      << total_.resources[slaveId] << " does not contain " << resources;
-
-    total_.resources[slaveId] -= resources;
-
-    // Remove shared resources from the total quantities when there
-    // are no instances of same resources left in the total.
-    const Resources absentShared = resources.shared()
-      .filter([this, slaveId](const Resource& resource) {
-        return !total_.resources[slaveId].contains(resource);
-      });
-
-    const ResourceQuantities scalarQuantities =
-      ResourceQuantities::fromScalarResources(
-          (resources.nonShared() + absentShared).scalars());
-
-    CHECK(total_.totals.contains(scalarQuantities));
-    total_.totals -= scalarQuantities;
-
-    if (total_.resources[slaveId].empty()) {
-      total_.resources.erase(slaveId);
-    }
-
-    dirty = true;
-  }
+  total_.agentResourceQuantities.erase(agent);
+  dirty = true;
 }
 
 
