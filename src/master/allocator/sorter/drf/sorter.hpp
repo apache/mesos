@@ -96,11 +96,11 @@ public:
       const std::string& clientPath,
       const SlaveID& slaveId) const override;
 
-  const Resources& totalScalarQuantities() const override;
+  void addSlave(
+      const SlaveID& slaveId,
+      const ResourceQuantities& scalarQuantities) override;
 
-  void add(const SlaveID& slaveId, const Resources& resources) override;
-
-  void remove(const SlaveID& slaveId, const Resources& resources) override;
+  void removeSlave(const SlaveID& slaveId) override;
 
   std::vector<std::string> sort() override;
 
@@ -150,34 +150,15 @@ private:
   // Total resources.
   struct Total
   {
-    // We need to keep track of the resources (and not just scalar
-    // quantities) to account for multiple copies of the same shared
-    // resources. We need to ensure that we do not update the scalar
-    // quantities for shared resources when the change is only in the
-    // number of copies in the sorter.
-    hashmap<SlaveID, Resources> resources;
-
-    // NOTE: Scalars can be safely aggregated across slaves. We keep
-    // that to speed up the calculation of shares. See MESOS-2891 for
-    // the reasons why we want to do that.
-    //
-    // NOTE: We omit information about dynamic reservations and
-    // persistent volumes here to enable resources to be aggregated
-    // across slaves more effectively. See MESOS-4833 for more
-    // information.
-    //
-    // Sharedness info is also stripped out when resource identities
-    // are omitted because sharedness inherently refers to the
-    // identities of resources and not quantities.
-    Resources scalarQuantities;
-
-    // To improve the performance of calculating shares, we store
-    // a redundant but more efficient version of `scalarQuantities`.
-    // See MESOS-4694.
-    //
-    // TODO(bmahler): Can we remove `scalarQuantities` in favor of
-    // using this type whenever scalar quantities are needed?
     ResourceQuantities totals;
+
+    // We keep track of per-agent resource quantities to handle agent removal.
+    //
+    // Note that the only way to change the stored resource quantities
+    // is to remove the agent from the sorter and add it with new resources.
+    // Thus, when a resource shared count on an agent changes, multiple copies
+    // of the same shared resource are still accounted for exactly once.
+    hashmap<SlaveID, const ResourceQuantities> agentResourceQuantities;
   } total_;
 
   // Metrics are optionally exposed by the sorter.

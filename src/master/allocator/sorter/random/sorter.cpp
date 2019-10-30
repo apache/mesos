@@ -418,64 +418,6 @@ Resources RandomSorter::allocation(
 }
 
 
-const Resources& RandomSorter::totalScalarQuantities() const
-{
-  return total_.scalarQuantities;
-}
-
-
-void RandomSorter::add(const SlaveID& slaveId, const Resources& resources)
-{
-  if (!resources.empty()) {
-    // Add shared resources to the total quantities when the same
-    // resources don't already exist in the total.
-    const Resources newShared = resources.shared()
-      .filter([this, slaveId](const Resource& resource) {
-        return !total_.resources[slaveId].contains(resource);
-      });
-
-    total_.resources[slaveId] += resources;
-
-    const Resources scalarQuantities =
-      (resources.nonShared() + newShared).createStrippedScalarQuantity();
-
-    total_.scalarQuantities += scalarQuantities;
-    total_.totals += ResourceQuantities::fromScalarResources(scalarQuantities);
-  }
-}
-
-
-void RandomSorter::remove(const SlaveID& slaveId, const Resources& resources)
-{
-  if (!resources.empty()) {
-    CHECK(total_.resources.contains(slaveId));
-    CHECK(total_.resources[slaveId].contains(resources))
-      << total_.resources[slaveId] << " does not contain " << resources;
-
-    total_.resources[slaveId] -= resources;
-
-    // Remove shared resources from the total quantities when there
-    // are no instances of same resources left in the total.
-    const Resources absentShared = resources.shared()
-      .filter([this, slaveId](const Resource& resource) {
-        return !total_.resources[slaveId].contains(resource);
-      });
-
-    const Resources scalarQuantities =
-      (resources.nonShared() + absentShared).createStrippedScalarQuantity();
-
-    CHECK(total_.scalarQuantities.contains(scalarQuantities));
-    total_.scalarQuantities -= scalarQuantities;
-
-    total_.totals -= ResourceQuantities::fromScalarResources(scalarQuantities);
-
-    if (total_.resources[slaveId].empty()) {
-      total_.resources.erase(slaveId);
-    }
-  }
-}
-
-
 vector<string> RandomSorter::sort()
 {
   std::function<void (Node*)> shuffleTree = [this, &shuffleTree](Node* node) {

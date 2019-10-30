@@ -523,6 +523,9 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
+  // Total stripped scalar resources on all agents.
+  Resources totalStrippedScalars;
+
   // A set of agents that are kept as allocation candidates. Events
   // may add or remove candidates to the set. When an allocation is
   // processed, the set of candidates is cleared.

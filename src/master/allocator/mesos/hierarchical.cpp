@@ -537,14 +537,21 @@ void HierarchicalAllocatorProcess::addSlave(
 
   trackReservations(total.reservations());
 
-  roleSorter->add(slaveId, total);
+  const Resources strippedScalars = total.createStrippedScalarQuantity();
+  const ResourceQuantities agentScalarQuantities =
+    ResourceQuantities::fromScalarResources(strippedScalars);
+
+  totalStrippedScalars += strippedScalars;
+  roleSorter->addSlave(slaveId, agentScalarQuantities);
 
   foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-    sorter->add(slaveId, total);
+    sorter->addSlave(slaveId, agentScalarQuantities);
   }
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->add(slaveId, total.nonRevocable());
+  quotaRoleSorter->addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(total.nonRevocable().scalars()));
 
   foreachpair (const FrameworkID& frameworkId,
                const Resources& allocation,
@@ -608,17 +615,21 @@ void HierarchicalAllocatorProcess::removeSlave(
   // all the resources. Fixing this would require more information
   // than what we currently track in the allocator.
 
-  roleSorter->remove(slaveId, slaves.at(slaveId).getTotal());
+  roleSorter->removeSlave(slaveId);
 
   foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-    sorter->remove(slaveId, slaves.at(slaveId).getTotal());
+    sorter->removeSlave(slaveId);
   }
 
-  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->remove(
-      slaveId, slaves.at(slaveId).getTotal().nonRevocable());
+  quotaRoleSorter->removeSlave(slaveId);
 
   untrackReservations(slaves.at(slaveId).getTotal().reservations());
+
+  const Resources strippedScalars =
+      slaves.at(slaveId).getTotal().createStrippedScalarQuantity();
+
+  CHECK(totalStrippedScalars.contains(strippedScalars));
+  totalStrippedScalars -= strippedScalars;
 
   slaves.erase(slaveId);
   allocationCandidates.erase(slaveId);
@@ -1727,7 +1738,11 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        allocated resources -
   //                        unallocated reservations -
   //                        unallocated revocable resources
-  Resources availableHeadroom = roleSorter->totalScalarQuantities();
+  Resources availableHeadroom = totalStrippedScalars;
+
+  // NOTE: The role sorter does not return aggregated allocation
+  // information whereas `reservationScalarQuantities` does, so
+  // we need to loop over only top level roles for the latter.
 
   // Subtract allocated resources from the total.
   foreachkey (const string& role, roles) {
@@ -2473,8 +2488,7 @@ double HierarchicalAllocatorProcess::_resources_total(
     const string& resource)
 {
   Option<Value::Scalar> total =
-    roleSorter->totalScalarQuantities()
-      .get<Value::Scalar>(resource);
+    totalStrippedScalars.get<Value::Scalar>(resource);
 
   return total.isSome() ? total->value() : 0;
 }
@@ -2545,7 +2559,9 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     frameworkSorters.at(role)->initialize(fairnessExcludeResourceNames);
 
     foreachvalue (const Slave& slave, slaves) {
-      frameworkSorters.at(role)->add(slave.info.id(), slave.getTotal());
+      frameworkSorters.at(role)->addSlave(
+        slave.info.id(),
+        ResourceQuantities::fromScalarResources(slave.getTotal().scalars()));
     }
 
     metrics.addRole(role);
@@ -2662,18 +2678,33 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
     trackReservations(newReservations);
   }
 
-  // Update the totals in the sorters.
-  roleSorter->remove(slaveId, oldTotal);
-  roleSorter->add(slaveId, total);
+  // Update the total in the allocator and totals in the sorters.
+  const Resources oldStrippedScalars = oldTotal.createStrippedScalarQuantity();
+  const Resources strippedScalars = total.createStrippedScalarQuantity();
+
+  const ResourceQuantities oldAgentScalarQuantities =
+    ResourceQuantities::fromScalarResources(oldStrippedScalars);
+
+  const ResourceQuantities agentScalarQuantities =
+    ResourceQuantities::fromScalarResources(strippedScalars);
+
+  CHECK(totalStrippedScalars.contains(oldStrippedScalars));
+  totalStrippedScalars -= oldStrippedScalars;
+  totalStrippedScalars += strippedScalars;
+
+  roleSorter->removeSlave(slaveId);
+  roleSorter->addSlave(slaveId, agentScalarQuantities);
 
   foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
-    sorter->remove(slaveId, oldTotal);
-    sorter->add(slaveId, total);
+    sorter->removeSlave(slaveId);
+    sorter->addSlave(slaveId, agentScalarQuantities);
   }
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
-  quotaRoleSorter->add(slaveId, total.nonRevocable());
+  quotaRoleSorter->removeSlave(slaveId);
+  quotaRoleSorter->addSlave(
+      slaveId,
+      ResourceQuantities::fromScalarResources(total.nonRevocable().scalars()));
 
   return true;
 }
