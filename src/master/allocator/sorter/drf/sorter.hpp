@@ -98,11 +98,11 @@ public:
       const std::string& clientPath,
       const SlaveID& slaveId) const override;
 
-  const ResourceQuantities& totalScalarQuantities() const override;
+  void addSlave(
+      const SlaveID& slaveId,
+      const ResourceQuantities& scalarQuantities) override;
 
-  void add(const SlaveID& slaveId, const Resources& resources) override;
-
-  void remove(const SlaveID& slaveId, const Resources& resources) override;
+  void removeSlave(const SlaveID& slaveId) override;
 
   std::vector<std::string> sort() override;
 
@@ -152,18 +152,19 @@ private:
   // Total resources.
   struct Total
   {
-    // We need to keep track of the resources (and not just scalar
-    // quantities) to account for multiple copies of the same shared
-    // resources. We need to ensure that we do not update the scalar
-    // quantities for shared resources when the change is only in the
-    // number of copies in the sorter.
-    hashmap<SlaveID, Resources> resources;
-
     // We keep the aggregated scalar resource quantities to speed
     // up share calculation. Note, resources shared count are ignored.
     // Because sharedness inherently refers to the identities of resources
     // and not quantities.
     ResourceQuantities totals;
+
+    // We keep track of per-agent resource quantities to handle agent removal.
+    //
+    // Note that the only way to change the stored resource quantities
+    // is to remove the agent from the sorter and add it with new resources.
+    // Thus, when a resource shared count on an agent changes, multiple copies
+    // of the same shared resource are still accounted for exactly once.
+    hashmap<SlaveID, const ResourceQuantities> agentResourceQuantities;
   } total_;
 
   // Metrics are optionally exposed by the sorter.
