@@ -1748,7 +1748,6 @@ TEST_F(RegistrarTest, UpdateQuotaInvalid)
 
   AWAIT_FALSE(
       registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
-
 }
 
 
