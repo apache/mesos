@@ -44,8 +44,18 @@
  * other "Record-IO" implementations use a fixed-size header
  * of 4 bytes to directly encode an unsigned 32 bit length.
  *
- * TODO(bmahler): Move this to libprocess and support async
- * consumption of data.
+ * TODO(bmahler): Make the encoder and decoder non-templated.
+ * They can just take records as bytes and let a wrapper at
+ * a higher level do what they like with the bytes of each
+ * record.
+ *
+ * TODO(bmahler): Make the encoder and decoder zero-copy,
+ * once they're just dealing with bytes. To make the encoder
+ * zero-copy, we need to make "writes" directly to an output
+ * (e.g. call a callback with bytes to write, or write to a
+ * provided "output stream" abstraction). For the decoder,
+ * we can provide a string view into the input data of the
+ * record.
  */
 namespace recordio {
 
