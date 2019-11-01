@@ -7843,6 +7843,24 @@ void Master::__reregisterSlave(
       Framework* framework = getFramework(frameworkId);
       if (framework != nullptr) {
         framework->unreachableTasks.erase(task.task_id());
+
+        // The master transitions task to terminal state on its own in certain
+        // scenarios (e.g., framework or agent teardown) before instructing the
+        // agent to remove it. However, we are not guaranteed that the message
+        // reaches the agent and is processed by it. If the agent fails to act
+        // on the message, tasks the master has declared terminal might reappear
+        // from the agent as non-terminal, see e.g., MESOS-9940.
+        //
+        // Avoid tracking a task as both terminal and non-terminal by
+        // garbage-collected completed tasks which come back as running.
+        framework->completedTasks.erase(
+            std::remove_if(
+                framework->completedTasks.begin(),
+                framework->completedTasks.end(),
+                [&](const Owned<Task>& task_) {
+                  return task_.get() && task_->task_id() == task.task_id();
+                }),
+            framework->completedTasks.end());
       }
 
       const string message = slaves.unreachable.contains(slaveInfo.id())
