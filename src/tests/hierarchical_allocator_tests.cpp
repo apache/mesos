@@ -8449,9 +8449,9 @@ TEST_P(HierarchicalAllocator__BENCHMARK_WithResourceParam, UpdateAllocation)
 
   // We introduce a level of role hierarchy here. Each role will be
   // "parent_role/role-[random letters with childRoleLength]".
-  const size_t childRoleLength = 36u;
+  size_t childRoleLength = 36u;
   vector<string> roles(param.roleCount);
-  std::generate(roles.begin(), roles.end(), [&randString]() {
+  std::generate(roles.begin(), roles.end(), [&childRoleLength, &randString]() {
     return "role-" + randString(childRoleLength);
   });
 
