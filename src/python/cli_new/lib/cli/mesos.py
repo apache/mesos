@@ -122,7 +122,7 @@ def get_tasks(master, query=None):
     key = "tasks"
 
     try:
-        data = http.get_json(master, endpoint, query)
+        data = http.get_json(master, endpoint, query=query)
     except Exception as exception:
         raise CLIException(
             "Could not open '/{endpoint}' with query parameters: {query}"

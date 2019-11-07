@@ -42,7 +42,7 @@ def read_endpoint(addr, endpoint, query=None):
     try:
         url = "{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
         if query is not None:
-          url += "?{query}".format(query=urllib.parse.urlencode(query))
+            url += "?{query}".format(query=urllib.parse.urlencode(query))
         http_response = urllib.request.urlopen(url).read().decode("utf-8")
     except Exception as exception:
         raise CLIException("Unable to open url '{url}': {error}"
@@ -51,7 +51,7 @@ def read_endpoint(addr, endpoint, query=None):
     return http_response
 
 
-def get_json(addr, endpoint, query=None, condition=None, timeout=5):
+def get_json(addr, endpoint, condition=None, timeout=5, query=None):
     """
     Return the contents of the 'endpoint' at 'addr' as JSON data
     subject to the condition specified in 'condition'. If we are
