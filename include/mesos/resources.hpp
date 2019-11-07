@@ -523,11 +523,12 @@ public:
 
   // Returns a `Resources` object with the new reservation added to the back.
   // The new reservation must be a valid refinement of the current reservation.
-  Resources pushReservation(const Resource::ReservationInfo& reservation) const;
+  STOUT_NODISCARD Resources pushReservation(
+      const Resource::ReservationInfo& reservation) const;
 
   // Returns a `Resources` object with the last reservation removed.
   // Every resource in `Resources` must have `resource.reservations_size() > 0`.
-  Resources popReservation() const;
+  STOUT_NODISCARD Resources popReservation() const;
 
   // Returns a `Resources` object with all of the reservations removed.
   Resources toUnreserved() const;
