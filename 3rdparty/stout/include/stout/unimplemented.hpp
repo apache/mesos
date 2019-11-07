@@ -28,7 +28,7 @@
 
 #define UNIMPLEMENTED Unimplemented(__func__, __FILE__, __LINE__)
 
-NORETURN inline void Unimplemented(
+STOUT_NORETURN inline void Unimplemented(
     const char* function,
     const char* file,
     const int line)

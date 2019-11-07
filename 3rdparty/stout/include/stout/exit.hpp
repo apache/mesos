@@ -62,7 +62,7 @@ struct __Exit
     stream() << "EXIT with status " << _status << ": ";
   }
 
-  NORETURN ~__Exit()
+  STOUT_NORETURN ~__Exit()
   {
     message.Flush();
     exit(status);

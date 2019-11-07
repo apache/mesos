@@ -40,7 +40,8 @@
 #define ABORT(...) _Abort(_ABORT_PREFIX, __VA_ARGS__)
 
 
-inline NORETURN void _Abort(const char* prefix, const char* message)
+STOUT_NORETURN
+inline void _Abort(const char* prefix, const char* message)
 {
 #ifndef __WINDOWS__
   const size_t prefix_len = strlen(prefix);
@@ -87,7 +88,8 @@ inline NORETURN void _Abort(const char* prefix, const char* message)
 }
 
 
-inline NORETURN void _Abort(const char* prefix, const std::string& message)
+STOUT_NORETURN
+inline void _Abort(const char* prefix, const std::string& message)
 {
   _Abort(prefix, message.c_str());
 }

@@ -13,12 +13,30 @@
 #ifndef __STOUT_ATTRIBUTES_HPP__
 #define __STOUT_ATTRIBUTES_HPP__
 
-
-#ifdef __WINDOWS__
-#define NORETURN __declspec(noreturn)
+#ifdef __has_cpp_attribute
+#  define STOUT_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
 #else
-#define NORETURN __attribute__((noreturn))
-#endif // __WINDOWS__
+#  define STOUT_HAS_CPP_ATTRIBUTE(x) 0
+#endif
 
+// We unconditionally require compiler support for `noreturn`,
+// both for legacy reasons and because the presence of this
+// attribute might affect code generation.
+#if STOUT_HAS_CPP_ATTRIBUTE(noreturn) > 0
+#  define STOUT_NORETURN [[noreturn]]
+#elif defined(__WINDOWS__)
+#  define STOUT_NORETURN __declspec(noreturn)
+#else
+#  define STOUT_NORETURN __attribute__((noreturn))
+#endif
+
+// Non-namespaced version for backwards compatibility.
+#define NORETURN STOUT_NORETURN
+
+#if STOUT_HAS_CPP_ATTRIBUTE(nodiscard) > 0
+#  define STOUT_NODISCARD [[nodiscard]]
+#else
+#  define STOUT_NODISCARD
+#endif
 
 #endif // __STOUT_ATTRIBUTES_HPP__

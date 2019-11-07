@@ -22,7 +22,7 @@
 #define UNREACHABLE() Unreachable(__FILE__, __LINE__)
 
 
-inline NORETURN void Unreachable(const char* file, int line)
+STOUT_NORETURN inline void Unreachable(const char* file, int line)
 {
   std::cerr << "Reached unreachable statement at " << file << ':'
             << line << std::endl;
