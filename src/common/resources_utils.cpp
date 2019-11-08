@@ -119,11 +119,20 @@ Try<vector<TResourceConversion>> getResourceConversions(
       return Error("Operation not supported");
 
     case TOperation::RESERVE: {
-      foreach (const TResource& reserved, operation.reserve().resources()) {
-        // Note that we only allow "pushing" a single reservation at time.
-        TResources consumed = TResources(reserved).popReservation();
-        conversions.emplace_back(consumed, reserved);
+      TResources reserved(operation.reserve().resources());
+
+      // If the operation explicitly specifies a `source` we use that,
+      // otherwise we assume that the operation is "pushing" a single
+      // reservation. At this point, the resources in the operation
+      // should have been already sanity checked, so we don't have to
+      // repeat that here.
+      TResources consumed;
+      if (operation.reserve().source_size() > 0) {
+        consumed = TResources(operation.reserve().source());
+      } else {
+        consumed = reserved.popReservation();
       }
+      conversions.emplace_back(consumed, reserved);
       break;
     }
 
