@@ -1728,6 +1728,7 @@ private:
 
     process::Future<process::http::Response> _reserve(
         const SlaveID& slaveId,
+        const google::protobuf::RepeatedPtrField<Resource>& source,
         const google::protobuf::RepeatedPtrField<Resource>& resources,
         const Option<process::http::authentication::Principal>&
             principal) const;

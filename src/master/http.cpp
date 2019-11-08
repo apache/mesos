@@ -1914,11 +1914,45 @@ Future<Response> Master::Http::reserve(
     return BadRequest("Unable to decode query string: " + decode.error());
   }
 
+  // Helper function to parse a list of resource from query parameters.
+  auto parseResourcesList = [](
+      const std::string& key,
+      const hashmap<string, string>& queryParameters)
+    -> Try<RepeatedPtrField<Resource>>
+    {
+      Option<string> value = queryParameters.get(key);
+      if (value.isNone()) {
+        return Error(
+          "Missing '" + key + "' query parameter in the request body");
+      }
+
+      Try<JSON::Array> parse =
+        JSON::parse<JSON::Array>(value.get());
+
+      if (parse.isError()) {
+        return Error(
+            "Error parsing '" + key +
+            "' query parameter in the request body: " + parse.error());
+      }
+
+      RepeatedPtrField<Resource> resources;
+      foreach (const JSON::Value& value, parse->values) {
+        Try<Resource> resource = ::protobuf::parse<Resource>(value);
+        if (resource.isError()) {
+          return Error(
+              "Error parsing '" + key +
+              "' query parameter in the request body: " + resource.error());
+        }
+
+        resources.Add()->CopyFrom(resource.get());
+      }
+
+      return resources;
+    };
+
   const hashmap<string, string>& values = decode.get();
 
-  Option<string> value;
-
-  value = values.get("slaveId");
+  Option<string> value = values.get("slaveId");
   if (value.isNone()) {
     return BadRequest("Missing 'slaveId' query parameter in the request body");
   }
@@ -1926,39 +1960,32 @@ Future<Response> Master::Http::reserve(
   SlaveID slaveId;
   slaveId.set_value(value.get());
 
-  value = values.get("resources");
-  if (value.isNone()) {
-    return BadRequest(
-        "Missing 'resources' query parameter in the request body");
+  Try<RepeatedPtrField<Resource>> resources =
+    parseResourcesList("resources", values);
+
+  if (resources.isError()) {
+    return BadRequest(resources.error());
   }
 
-  Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(value.get());
+  RepeatedPtrField<Resource> source;
+  if (values.contains("source")) {
+    Try<RepeatedPtrField<Resource>> parsedSource =
+      parseResourcesList("source", values);
 
-  if (parse.isError()) {
-    return BadRequest(
-        "Error in parsing 'resources' query parameter in the request body: " +
-        parse.error());
-  }
-
-  RepeatedPtrField<Resource> resources;
-  foreach (const JSON::Value& value, parse->values) {
-    Try<Resource> resource = ::protobuf::parse<Resource>(value);
-    if (resource.isError()) {
-      return BadRequest(
-          "Error in parsing 'resources' query parameter in the request body: " +
-          resource.error());
+    if (parsedSource.isError()) {
+      return BadRequest(parsedSource.error());
     }
 
-    resources.Add()->CopyFrom(resource.get());
+    source = parsedSource.get();
   }
 
-  return _reserve(slaveId, resources, principal);
+  return _reserve(slaveId, source, resources.get(), principal);
 }
 
 
 Future<Response> Master::Http::_reserve(
     const SlaveID& slaveId,
+    const RepeatedPtrField<Resource>& source,
     const RepeatedPtrField<Resource>& resources,
     const Option<Principal>& principal) const
 {
@@ -1970,6 +1997,7 @@ Future<Response> Master::Http::_reserve(
   // Create an operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::RESERVE);
+  operation.mutable_reserve()->mutable_source()->CopyFrom(source);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
   Option<Error> error = validateAndUpgradeResources(&operation);
@@ -2009,13 +2037,7 @@ Future<Response> Master::Http::reserveResources(
   const RepeatedPtrField<Resource>& resources =
     call.reserve_resources().resources();
 
-  // Reject all `Reserve` operations whenever `source` is set
-  // until we have a proper implementation in place.
-  if (!source.empty()) {
-    return BadRequest("Reservation updates not yet supported.");
-  }
-
-  return _reserve(slaveId, resources, principal);
+  return _reserve(slaveId, source, resources, principal);
 }
 
 
