@@ -2053,6 +2053,7 @@ message Offer {
     }
 
     message Reserve {
+      repeated Resource source = 2;
       repeated Resource resources = 1;
     }
 
