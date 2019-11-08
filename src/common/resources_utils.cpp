@@ -618,6 +618,12 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
         return error;
       }
 
+      error = Resources::validate(operation->reserve().source());
+
+      if (error.isSome()) {
+        return error;
+      }
+
       break;
     }
     case Offer::Operation::UNRESERVE: {
