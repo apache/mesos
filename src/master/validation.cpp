@@ -2214,6 +2214,63 @@ Option<Error> validate(
     return Error("Invalid resources: " + error->message);
   }
 
+  error = resource::validate(reserve.source());
+  if (error.isSome()) {
+    return Error("Invalid source: " + error->message);
+  }
+
+  if (reserve.source_size() > 0) {
+    Resources source = reserve.source();
+    Resources target = reserve.resources();
+
+    auto validateReservationResources =
+      [](const RepeatedPtrField<Resource>& resources) -> Option<Error> {
+      // Resources should not be empty.
+      if (resources.empty()) {
+        return Error("Resource cannot be empty");
+      }
+
+      // All passed resources should have identical reservations.
+      const RepeatedPtrField<Resource::ReservationInfo>& reservations =
+        resources.begin()->reservations();
+
+      if (!std::all_of(
+              resources.begin(),
+              resources.end(),
+              [&](const Resource& resource) {
+                return resource.reservations_size() == reservations.size() &&
+                       std::equal(
+                           resource.reservations().begin(),
+                           resource.reservations().end(),
+                           reservations.begin());
+              })) {
+        return Error(
+            "Mixed reservations are not supported" + stringify(resources));
+      }
+
+      return None();
+    };
+
+    error = validateReservationResources(source);
+    if (error.isSome()) {
+      return Error("Invalid source: " + error->message);
+    }
+
+    error = validateReservationResources(target);
+    if (error.isSome()) {
+      return Error("Invalid resources: " + error->message);
+    }
+
+    // Both operands should refer to identical resource quantities.
+    if (source.toUnreserved() != target.toUnreserved()) {
+      return Error(
+          "Source and target resources should refer to identical resource "
+          "quantities: " +
+          stringify(source.toUnreserved()) + " vs. " +
+          stringify(target.toUnreserved()));
+    }
+  }
+
   error =
     resource::internal::validateSingleResourceProvider(reserve.resources());
   if (error.isSome()) {
