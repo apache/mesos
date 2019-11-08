@@ -376,6 +376,20 @@ public:
   // E.g. MOUNT volume).
   static bool shrink(Resource* resource, const Value::Scalar& target);
 
+  // Returns the most refined reserved resource that can be
+  // reached by modifications to `a`'s or `b`'s reservations.
+  //
+  // Both `a` and `b` must refer to identical resource quantities.
+  static Resource getReservationAncestor(const Resource& a, const Resource& b);
+
+  // Returns the most refined reserved resources that can be
+  // reached by modifications to `a`'s or `b`'s reservations.
+  //
+  // Both `a` and `b` must be non-empty, and must contain the
+  // same resources except for reservations.
+  static Resources getReservationAncestor(
+      const Resources& a, const Resources& b);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,

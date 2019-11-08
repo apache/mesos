@@ -3595,6 +3595,72 @@ TEST(ResourcesTest, Evolve)
 }
 
 
+TEST(ResourcesTest, ReservationAncestor)
+{
+  Resources baseResources = *Resources::parse("cpus:2;mem:10");
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(baseResources, baseResources));
+
+  Resources resources1 = baseResources.pushReservation(
+      createDynamicReservationInfo("foo"));
+
+  EXPECT_EQ(
+      resources1,
+      Resources::getReservationAncestor(resources1, resources1));
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(resources1, baseResources));
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(baseResources, resources1));
+
+  resources1 = resources1.pushReservation(
+      createDynamicReservationInfo("foo/bar"));
+
+  EXPECT_EQ(
+      resources1,
+      Resources::getReservationAncestor(resources1, resources1));
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(resources1, baseResources));
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(baseResources, resources1));
+
+  Resources resources2 = baseResources.pushReservation(
+      createDynamicReservationInfo("foo"));
+
+  EXPECT_EQ(
+      resources2,
+      Resources::getReservationAncestor(resources1, resources2));
+
+  EXPECT_EQ(
+      resources2,
+      Resources::getReservationAncestor(resources2, resources1));
+
+  EXPECT_NE(
+      resources1,
+      Resources::getReservationAncestor(baseResources, resources2));
+
+  EXPECT_EQ(
+      baseResources,
+      Resources::getReservationAncestor(baseResources, resources2));
+
+  Resources resources3 = resources2.pushReservation(
+      createDynamicReservationInfo("foo/baz"));
+
+  EXPECT_EQ(
+      resources2,
+      Resources::getReservationAncestor(resources1, resources3));
+}
+
+
 TEST(SharedResourcesTest, Printing)
 {
   Resources volume = createPersistentVolume(

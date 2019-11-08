@@ -1318,6 +1318,40 @@ bool Resources::shrink(Resource* resource, const Value::Scalar& target)
 }
 
 
+Resources Resources::getReservationAncestor(
+    const Resources& r1, const Resources& r2)
+{
+  CHECK(!r1.empty());
+  CHECK(!r2.empty());
+  CHECK(r1.toUnreserved() == r2.toUnreserved());
+
+  Resources result = r1.toUnreserved();
+  Resource ancestor = getReservationAncestor(*r1.begin(), *r2.begin());
+  foreach (
+      const Resource::ReservationInfo& reservation,
+      ancestor.reservations()) {
+    result = result.pushReservation(reservation);
+  }
+
+  return result;
+}
+
+
+Resource Resources::getReservationAncestor(
+    const Resource& r1, const Resource& r2)
+{
+  Resource ancestor = r1;
+  ancestor.clear_reservations();
+
+  const int size = std::min(r1.reservations_size(), r2.reservations_size());
+  for (int i = 0; i < size && r1.reservations(i) == r2.reservations(i); ++i) {
+    *ancestor.add_reservations() = r1.reservations(i);
+  }
+
+  return ancestor;
+}
+
+
 /////////////////////////////////////////////////
 // Public member functions.
 /////////////////////////////////////////////////
