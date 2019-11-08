@@ -2005,8 +2005,15 @@ Future<Response> Master::Http::reserveResources(
   CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
 
   const SlaveID& slaveId = call.reserve_resources().slave_id();
+  const RepeatedPtrField<Resource>& source = call.reserve_resources().source();
   const RepeatedPtrField<Resource>& resources =
     call.reserve_resources().resources();
+
+  // Reject all `Reserve` operations whenever `source` is set
+  // until we have a proper implementation in place.
+  if (!source.empty()) {
+    return BadRequest("Reservation updates not yet supported.");
+  }
 
   return _reserve(slaveId, resources, principal);
 }
