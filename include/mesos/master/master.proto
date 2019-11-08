@@ -154,6 +154,7 @@ message Call {
   // Reserve resources dynamically on a specific agent.
   message ReserveResources {
     required SlaveID slave_id = 1;
+    repeated Resource source = 3;
     repeated Resource resources = 2;
   }
 
