@@ -1439,6 +1439,150 @@ TEST_P(MasterAPITest, ReserveResources)
 }
 
 
+// This test verifies that an operator can update existing reservation through
+// the `RESERVE_RESOURCES` call.
+TEST_P(MasterAPITest, ReservationUpdate)
+{
+  ContentType contentType = GetParam();
+
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Wait until the agent has finished recovery.
+  ASSERT_SOME(slave);
+  AWAIT_READY(__recover);
+
+  // It's actually impossible to construct `Resources` from the contents
+  // of `state["reserved_resources"]`, so instead we just compare against
+  // the expected JSON below.
+  JSON::Value resourcesJson = JSON::parse(R"_(
+        {
+            "cpus": 1.0,
+            "disk": 0.0,
+            "gpus": 0.0,
+            "mem": 10.0
+        }
+      )_").get();
+
+  Resources unreserved = Resources::parse("cpus:1;mem:10").get();
+  Resources dynamicallyReserved =
+    unreserved.pushReservation(createDynamicReservationInfo(
+        "role", DEFAULT_CREDENTIAL.principal()));
+
+  Resources dynamicallyReservedToFoo =
+    dynamicallyReserved.pushReservation(createDynamicReservationInfo(
+        "role/foo", DEFAULT_CREDENTIAL.principal()));
+
+  Resources dynamicallyReservedToBar =
+    dynamicallyReserved.pushReservation(createDynamicReservationInfo(
+        "role/bar", DEFAULT_CREDENTIAL.principal()));
+
+  // Helper function to attempt a reservation update from a given `source`
+  // to a given reservation using an operator API call.
+  auto attemptReservation = [&master, &slaveId, &contentType](
+      const Resources& source,
+      const Resources& resources,
+      const std::string& expectedResponseStatus) {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::RESERVE_RESOURCES);
+    v1::master::Call::ReserveResources* reserveResources =
+      v1Call.mutable_reserve_resources();
+
+    reserveResources->mutable_agent_id()->CopyFrom(evolve(slaveId.get()));
+    reserveResources->mutable_source()->CopyFrom(evolve(source));
+    reserveResources->mutable_resources()->CopyFrom(evolve(resources));
+
+    Future<http::Response> response = http::post(
+      master.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(expectedResponseStatus, response);
+  };
+
+  // Helper function to verify that the resources on the agent are
+  // indeed reserved to the specified role.
+  auto verifyReservation = [&slave, &resourcesJson](
+      const std::string& intendedRole) {
+    Future<http::Response> response = http::get(
+        slave.get()->pid,
+        "state",
+        None(), // query
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Value> json = JSON::parse(response->body);
+    ASSERT_SOME(json);
+
+    Result<JSON::Object> reservations =
+      json->as<JSON::Object>().at<JSON::Object>("reserved_resources");
+
+    ASSERT_SOME(reservations);
+    EXPECT_EQ(reservations->values.size(), 1u);
+
+    foreachpair (
+        const std::string& role,
+        const JSON::Value& reservation,
+        reservations->values) {
+      EXPECT_EQ(role, intendedRole);
+      EXPECT_EQ(resourcesJson, reservation);
+    }
+  };
+
+  // Setup done, actual test can start now.
+  const std::string conflict = http::Conflict().status;
+  const std::string accepted = http::Accepted().status;
+
+  // Should fail, since there are no resources that are dynamically
+  // reserved to `role/bar`.
+  attemptReservation(
+      dynamicallyReservedToBar,
+      dynamicallyReservedToFoo,
+      conflict);
+
+  // Reserve unreserved resources to `role/foo`.
+  attemptReservation(
+      unreserved,
+      dynamicallyReservedToFoo,
+      accepted);
+
+  verifyReservation("role/foo");
+
+  // Should fail again, since there are still no resources that are
+  // dynamically reserved to `role/bar`.
+  attemptReservation(
+      dynamicallyReservedToBar,
+      dynamicallyReservedToFoo,
+      conflict);
+
+  // Update reservation from `role/foo` to `role/bar`.
+  attemptReservation(
+      dynamicallyReservedToFoo,
+      dynamicallyReservedToBar,
+      accepted);
+
+  verifyReservation("role/bar");
+}
+
+
 // This test verifies that an operator can unreserve reserved resources through
 // the `UNRESERVE_RESOURCES` call.
 TEST_P(MasterAPITest, UnreserveResources)
