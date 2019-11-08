@@ -3753,16 +3753,6 @@ Future<bool> Master::authorizeReserveResources(
     const Offer::Operation::Reserve& reserve,
     const Option<Principal>& principal)
 {
-  // Authorizing the reserve operation is equivalent to authorizing
-  // the resources specified in the operation.
-  return authorizeReserveResources(reserve.resources(), principal);
-}
-
-
-Future<bool> Master::authorizeReserveResources(
-    const Resources& resources,
-    const Option<Principal>& principal)
-{
   if (authorizer.isNone()) {
     return true; // Authorization is disabled.
   }
@@ -3780,7 +3770,7 @@ Future<bool> Master::authorizeReserveResources(
   // Add an element to `request.roles` for each unique role in the resources.
   hashset<string> roles;
   vector<Future<bool>> authorizations;
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, reserve.resources()) {
     // NOTE: We rely on the master to ensure that the resource is in the
     // post-reservation-refinement format. If there is a stack of reservations,
     // we perform authorization for the role of the most refined reservation,
@@ -3810,7 +3800,7 @@ Future<bool> Master::authorizeReserveResources(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to reserve resources '" << resources << "'";
+            << "' to reserve resources '" << reserve.resources() << "'";
 
   // NOTE: Empty authorizations are not valid and are checked by a validator.
   // However under certain circumstances, this method can be called before
@@ -4213,8 +4203,10 @@ Future<bool> Master::authorizeSlave(
   // agent's principal and authorizing them helps prevent agents from
   // advertising reserved resources of arbitrary roles.
   if (!Resources(slaveInfo.resources()).reserved().empty()) {
+    Offer::Operation::Reserve reserve;
+    reserve.mutable_resources()->CopyFrom(slaveInfo.resources());
     authorizations.push_back(
-        authorizeReserveResources(slaveInfo.resources(), principal));
+        authorizeReserveResources(reserve, principal));
   }
 
   return authorization::collectAuthorizations(authorizations);
