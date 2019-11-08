@@ -76,6 +76,8 @@ using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::slave::Slave;
 
+using mesos::v1::master::Call;
+
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
@@ -86,6 +88,7 @@ using process::Owned;
 using process::PID;
 using process::Promise;
 
+using process::http::Accepted;
 using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
@@ -2764,6 +2767,180 @@ TEST_F(MasterAuthorizationTest, AuthorizedToRegisterNoStaticReservations)
   AWAIT_READY(slaveRegisteredMessage);
 }
 
+// This test verifies that when reserving resources the correct
+// `RESERVE_RESOURCES` or `UNRESERVE_RESOURCES` authorization
+// requests are performed.
+TEST_F(MasterAuthorizationTest, ReserveResources)
+{
+  Clock::pause();
+
+  MockAuthorizer authorizer;
+
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+
+  // Reserve `cpus:0.1` for `foo`. This should trigger exactly one authorization
+  // request for `RESERVE_RESOURCES`. This is a base case.
+  {
+    Future<authorization::Request> request;
+    EXPECT_CALL(authorizer, authorized(_))
+      .WillOnce(DoAll(FutureArg<0>(&request), Return(true)));
+
+    Call call;
+    call.set_type(Call::RESERVE_RESOURCES);
+    Call::ReserveResources* reserveResources = call.mutable_reserve_resources();
+
+    reserveResources->mutable_agent_id()->set_value(slaveId.value());
+
+    v1::Resource resource = *v1::Resources::parse("cpus", "0.1", "*");
+    *reserveResources->add_source() = resource;
+
+    *resource.add_reservations() =
+      v1::createDynamicReservationInfo("foo", DEFAULT_CREDENTIAL.principal());
+    *reserveResources->add_resources() = resource;
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "/api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        stringify(JSON::protobuf(call)),
+        stringify(ContentType::JSON));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+    AWAIT_READY(request);
+    ASSERT_EQ(authorization::Action::RESERVE_RESOURCES, request->action());
+    ASSERT_EQ(1, request->object().resource().reservations_size());
+    ASSERT_EQ("foo", request->object().resource().reservations(0).role());
+  }
+
+  // Reserve `cpus:0.1` for `foo` and refine to `foo/bar`. This should trigger
+  // two authorization requests, one for the reservation to `foo` and another
+  // one for the reservation refinement to `foo/bar`.
+  {
+    Future<authorization::Request> request1;
+    Future<authorization::Request> request2;
+    EXPECT_CALL(authorizer, authorized(_))
+      .WillOnce(DoAll(FutureArg<0>(&request1), Return(true)))
+      .WillOnce(DoAll(FutureArg<0>(&request2), Return(true)));
+
+    Call call;
+    call.set_type(Call::RESERVE_RESOURCES);
+    Call::ReserveResources* reserveResources = call.mutable_reserve_resources();
+
+    reserveResources->mutable_agent_id()->set_value(slaveId.value());
+
+    v1::Resource resource = *v1::Resources::parse("cpus", "0.1", "*");
+    *reserveResources->add_source() = resource;
+
+    *resource.add_reservations() =
+      v1::createDynamicReservationInfo("foo", DEFAULT_CREDENTIAL.principal());
+    *resource.add_reservations() = v1::createDynamicReservationInfo(
+        "foo/bar", DEFAULT_CREDENTIAL.principal());
+    *reserveResources->add_resources() = resource;
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "/api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        stringify(JSON::protobuf(call)),
+        stringify(ContentType::JSON));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+    AWAIT_READY(request1);
+    ASSERT_EQ(authorization::Action::RESERVE_RESOURCES, request1->action());
+    ASSERT_EQ(1, request1->object().resource().reservations_size());
+    ASSERT_EQ("foo", request1->object().resource().reservations(0).role());
+
+    AWAIT_READY(request2);
+    ASSERT_EQ(authorization::Action::RESERVE_RESOURCES, request2->action());
+    ASSERT_EQ(2, request2->object().resource().reservations_size());
+    ASSERT_EQ("foo", request2->object().resource().reservations(0).role());
+    ASSERT_EQ("foo/bar", request2->object().resource().reservations(1).role());
+  }
+
+  // Re-reserve the `cpus:0.1` reserved above for `foo` and refined to `foo/bar`
+  // to `baz` and refined to `baz/bar`. This will trigger two authorization
+  // requests to unreserved the resource in the `foo` hierarchy, and two
+  // authorization request for the reservations in the `baz` hierarchy.
+  {
+    Future<authorization::Request> request1;
+    Future<authorization::Request> request2;
+    Future<authorization::Request> request3;
+    Future<authorization::Request> request4;
+    EXPECT_CALL(authorizer, authorized(_))
+      .WillOnce(DoAll(FutureArg<0>(&request1), Return(true)))
+      .WillOnce(DoAll(FutureArg<0>(&request2), Return(true)))
+      .WillOnce(DoAll(FutureArg<0>(&request3), Return(true)))
+      .WillOnce(DoAll(FutureArg<0>(&request4), Return(true)));
+
+    Call call;
+    call.set_type(Call::RESERVE_RESOURCES);
+    Call::ReserveResources* reserveResources = call.mutable_reserve_resources();
+
+    reserveResources->mutable_agent_id()->set_value(slaveId.value());
+
+    v1::Resource source = *v1::Resources::parse("cpus", "0.1", "*");
+    *source.add_reservations() =
+      v1::createDynamicReservationInfo("foo", DEFAULT_CREDENTIAL.principal());
+    *source.add_reservations() = v1::createDynamicReservationInfo(
+      "foo/bar", DEFAULT_CREDENTIAL.principal());
+
+    v1::Resource resource = *v1::Resources::parse("cpus", "0.1", "*");
+    *resource.add_reservations() =
+      v1::createDynamicReservationInfo("baz", DEFAULT_CREDENTIAL.principal());
+    *resource.add_reservations() = v1::createDynamicReservationInfo(
+      "baz/bar", DEFAULT_CREDENTIAL.principal());
+
+    *reserveResources->add_resources() = resource;
+    *reserveResources->add_source() = source;
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "/api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        stringify(JSON::protobuf(call)),
+        stringify(ContentType::JSON));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+    AWAIT_READY(request1);
+    ASSERT_EQ(authorization::Action::UNRESERVE_RESOURCES, request1->action());
+    ASSERT_EQ(2, request1->object().resource().reservations_size());
+    ASSERT_EQ("foo", request1->object().resource().reservations(0).role());
+    ASSERT_EQ("foo/bar", request1->object().resource().reservations(1).role());
+
+    AWAIT_READY(request2);
+    ASSERT_EQ(authorization::Action::UNRESERVE_RESOURCES, request2->action());
+    ASSERT_EQ(1, request2->object().resource().reservations_size());
+    ASSERT_EQ("foo", request1->object().resource().reservations(0).role());
+
+    AWAIT_READY(request3);
+    ASSERT_EQ(authorization::Action::RESERVE_RESOURCES, request3->action());
+    ASSERT_EQ(1, request3->object().resource().reservations_size());
+    ASSERT_EQ("baz", request3->object().resource().reservations(0).role());
+
+    AWAIT_READY(request4);
+    ASSERT_EQ(authorization::Action::RESERVE_RESOURCES, request4->action());
+    ASSERT_EQ(2, request4->object().resource().reservations_size());
+    ASSERT_EQ("baz", request4->object().resource().reservations(0).role());
+    ASSERT_EQ("baz/bar", request4->object().resource().reservations(1).role());
+  }
+}
 
 class MasterOperationAuthorizationTest
   : public MesosTest,

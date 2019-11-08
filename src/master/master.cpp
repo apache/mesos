@@ -3765,42 +3765,96 @@ Future<bool> Master::authorizeReserveResources(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  // The operation will be authorized if the entity is allowed to make
-  // reservations for all roles included in `reserve.resources`.
-  // Add an element to `request.roles` for each unique role in the resources.
-  hashset<string> roles;
   vector<Future<bool>> authorizations;
-  foreach (const Resource& resource, reserve.resources()) {
-    // NOTE: We rely on the master to ensure that the resource is in the
-    // post-reservation-refinement format. If there is a stack of reservations,
-    // we perform authorization for the role of the most refined reservation,
-    // since we only support "pushing" one reservation at a time. That is, all
-    // of the previous reservations must have already been authorized.
-    //
-    // NOTE: If there is no reservation, we authorize the resource with the
-    // default role '*' for backward compatibility.
-    CHECK(!resource.has_role()) << resource;
-    CHECK(!resource.has_reservation()) << resource;
 
-    const string role = Resources::isReserved(resource)
-      ? Resources::reservationRole(resource) : "*";
+  // We support `Reserve` operations with either `source` set or unset. If
+  // `source` is unset (an older API), it is possible to send calls which
+  // contain also resources whose reservations are unmodified; in that case all
+  // `Reserve` `resources` will be authorized. In the case where `source` is set
+  // we follow a narrower contract and e.g., only accept resources whose
+  // reservations are all modified, and require identical modifications for all
+  // passed `Resource`s.
+  //
+  // This e.g., means that we cannot upgrade calls without `source` to
+  // calls with `source` and use uniform handling. Instead we branch
+  // on whether `source` was set to select the authorization handling.
+  // Each fundamental reservation added in with with-`source` case can
+  // then be authorized using the historic, wider contract.
+  if (reserve.source().empty()) {
+    // The operation will be authorized if the entity is allowed to make
+    // reservations for all roles included in `reserve.resources`.
+    // Add an element to `request.roles` for each unique role in the resources.
+    hashset<string> roles;
 
-    if (!roles.contains(role)) {
-      roles.insert(role);
+    foreach (const Resource& resource, reserve.resources()) {
+      // NOTE: We rely on the master to ensure that the resource is in the
+      // post-reservation-refinement format. If there is a stack of
+      // reservations, we perform authorization for the role of the most refined
+      // reservation, since we only support "pushing" one reservation at a time.
+      // That is, all of the previous reservations must have already been
+      // authorized.
+      //
+      // NOTE: If there is no reservation, we authorize the resource with the
+      // default role '*' for backward compatibility.
+      CHECK(!resource.has_role()) << resource;
+      CHECK(!resource.has_reservation()) << resource;
 
-      request.mutable_object()->mutable_resource()->CopyFrom(resource);
+      const string role = Resources::isReserved(resource)
+        ? Resources::reservationRole(resource) : "*";
 
-      // We also set the deprecated `object.value` field to support legacy
-      // authorizers that have not been upgraded to look at `object.resource`.
-      request.mutable_object()->set_value(role);
+      if (!roles.contains(role)) {
+        roles.insert(role);
 
-      authorizations.push_back(authorizer.get()->authorized(request));
+        request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
+        // We also set the deprecated `object.value` field to support legacy
+        // authorizers that have not been upgraded to look at `object.resource`.
+        request.mutable_object()->set_value(role);
+
+        authorizations.push_back(authorizer.get()->authorized(request));
+      }
+    }
+
+    LOG(INFO) << "Authorizing principal '"
+              << (principal.isSome() ? stringify(principal.get()) : "ANY")
+              << "' to reserve resources '" << reserve.resources() << "'";
+  } else {
+    Resources source = reserve.source();
+    const Resources target = reserve.resources();
+    const Resources ancestor =
+      Resources::getReservationAncestor(source, target);
+
+    // Authorize `UNRESERVE` operations bringing `source` to `ancestor`.
+    while (source != ancestor) {
+      Offer::Operation::Unreserve unreserve;
+      unreserve.mutable_resources()->CopyFrom(source);
+
+      authorizations.push_back(
+          authorizeUnreserveResources(unreserve, principal));
+
+      source = source.popReservation();
+    }
+
+    // Authorize `RESERVE` operations bringing `ancestor` to `target`.
+    const RepeatedPtrField<Resource::ReservationInfo>& targetReservations =
+      reserve.resources(0).reservations();
+    const RepeatedPtrField<Resource::ReservationInfo>& ancestorReservations =
+      RepeatedPtrField<Resource>(ancestor).begin()->reservations();
+
+    // Skip reservations common among `source` and `resources`.
+    auto it = targetReservations.begin();
+    std::advance(it, ancestorReservations.size());
+
+    for (; it != targetReservations.end(); ++it) {
+      source = source.pushReservation(*it);
+
+      // We do not set `source` here to trigger the previous branch.
+      Offer::Operation::Reserve reserve;
+      reserve.mutable_resources()->CopyFrom(source);
+
+      authorizations.push_back(authorizeReserveResources(reserve, principal));
     }
   }
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to reserve resources '" << reserve.resources() << "'";
 
   // NOTE: Empty authorizations are not valid and are checked by a validator.
   // However under certain circumstances, this method can be called before
