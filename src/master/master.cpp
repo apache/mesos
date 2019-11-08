@@ -4484,6 +4484,30 @@ void Master::accept(
 
     foreach (Offer::Operation& operation, operations) {
       Option<Error> error = validateAndUpgradeResources(&operation);
+
+      // Additional operation-specific validation.
+      if (error.isNone()) {
+        switch (operation.type()) {
+          case Offer::Operation::RESERVE:
+            if (!operation.reserve().source().empty()) {
+              error = Error("Reservation updates are not yet implemented"
+                            " for the scheduler API.");
+            }
+            break;
+          case Offer::Operation::UNRESERVE:
+          case Offer::Operation::CREATE:
+          case Offer::Operation::DESTROY:
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME:
+          case Offer::Operation::CREATE_DISK:
+          case Offer::Operation::DESTROY_DISK:
+          case Offer::Operation::LAUNCH:
+          case Offer::Operation::LAUNCH_GROUP:
+          case Offer::Operation::UNKNOWN:
+            break;
+        }
+      }
+
       if (error.isSome()) {
         switch (operation.type()) {
           case Offer::Operation::RESERVE:
