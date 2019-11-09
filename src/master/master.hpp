@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <set>
@@ -1778,6 +1779,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    static std::function<void(JSON::ObjectWriter*)> jsonifyGetAgents(
+        const Master* master,
+        const process::Owned<ObjectApprovers>& approvers);
+    std::string serializeGetAgents(
+        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetAgents _getAgents(
         const process::Owned<ObjectApprovers>& approvers) const;
 
