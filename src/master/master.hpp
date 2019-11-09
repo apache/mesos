@@ -1920,6 +1920,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    static std::function<void(JSON::ObjectWriter*)> jsonifyGetFrameworks(
+        const Master* master,
+        const process::Owned<ObjectApprovers>& approvers);
+    std::string serializeGetFrameworks(
+        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetFrameworks _getFrameworks(
         const process::Owned<ObjectApprovers>& approvers) const;
 
