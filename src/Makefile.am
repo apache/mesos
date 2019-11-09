@@ -2743,6 +2743,9 @@ mesos_tests_SOURCES =						\
   tests/common/command_utils_tests.cpp				\
   tests/common/future_tracker_tests.cpp				\
   tests/common/http_tests.cpp					\
+  tests/common/http_tests.pb.cc					\
+  tests/common/http_tests.pb.h					\
+  tests/common/http_tests.proto					\
   tests/common/recordio_tests.cpp				\
   tests/common/type_utils_tests.cpp				\
   tests/containerizer/appc_spec_tests.cpp			\
