@@ -2258,6 +2258,118 @@ Future<Response> Master::Http::getVersion(
 }
 
 
+// NOTE: The `metrics` object provided as an argument must outlive
+// the returned function, since the function captures `metrics`
+// by reference to avoid a really expensive map copy. This is a
+// rather unsafe approach, but in typical jsonify usage this is
+// not an issue.
+function<void(JSON::ObjectWriter*)> jsonifyGetMetrics(
+    const map<string, double>& metrics)
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response::GetMetrics getMetrics;
+  //
+  //   foreachpair (const string& key, double value, metrics) {
+  //     Metric* metric = getMetrics->add_metrics();
+  //     metric->set_name(key);
+  //     metric->set_value(value);
+  //   }
+
+  return [&](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetMetrics::descriptor();
+
+    int field;
+
+    field = v1::master::Response::GetMetrics::kMetricsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreachpair (const string& key, double value, metrics) {
+            writer->element([&](JSON::ObjectWriter* writer) {
+              const google::protobuf::Descriptor* descriptor =
+                v1::Metric::descriptor();
+
+              int field;
+
+              field = v1::Metric::kNameFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(), key);
+
+              field = v1::Metric::kValueFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(), value);
+            });
+          }
+        });
+  };
+}
+
+
+string serializeGetMetrics(const map<string, double>& metrics)
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response::GetMetrics getMetrics;
+  //
+  //   foreachpair (const string& key, double value, metrics) {
+  //     Metric* metric = getMetrics->add_metrics();
+  //     metric->set_name(key);
+  //     metric->set_value(value);
+  //   }
+
+  auto serializeMetric = [](const string& key, double value) {
+    string output;
+    google::protobuf::io::StringOutputStream stream(&output);
+    google::protobuf::io::CodedOutputStream writer(&stream);
+
+    writer.WriteTag(
+        WireFormatLite::MakeTag(
+            mesos::v1::Metric::kNameFieldNumber,
+            WireFormatLite::WIRETYPE_LENGTH_DELIMITED));
+    writer.WriteVarint32(key.size());
+    writer.WriteString(key);
+
+    writer.WriteTag(
+        WireFormatLite::MakeTag(
+            mesos::v1::Metric::kValueFieldNumber,
+            WireFormatLite::WIRETYPE_FIXED64));
+    writer.WriteLittleEndian64(WireFormatLite::EncodeDouble(value));
+
+    // While an explicit Trim() isn't necessary (since the coded
+    // output stream is destructed before the string is returned),
+    // it's a quite tricky bug to diagnose if Trim() is missed, so
+    // we always do it explicitly to signal the reader about this
+    // subtlety.
+    writer.Trim();
+    return output;
+  };
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  foreachpair (const string& key, double value, metrics) {
+    string serializedMetric = serializeMetric(key, value);
+    writer.WriteTag(
+        WireFormatLite::MakeTag(
+            mesos::v1::master::Response::GetMetrics::kMetricsFieldNumber,
+            WireFormatLite::WIRETYPE_LENGTH_DELIMITED));
+    writer.WriteVarint32(serializedMetric.size());
+    writer.WriteString(serializedMetric);
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+  return output;
+}
+
+
 Future<Response> Master::Http::getMetrics(
     const mesos::master::Call& call,
     const Option<Principal>& principal,
@@ -2273,19 +2385,67 @@ Future<Response> Master::Http::getMetrics(
 
   return process::metrics::snapshot(timeout)
     .then([contentType](const map<string, double>& metrics) -> Response {
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_METRICS);
-      mesos::master::Response::GetMetrics* _getMetrics =
-        response.mutable_get_metrics();
+      // Serialize the following message:
+      //
+      //   mesos::master::Response response;
+      //   response.set_type(mesos::master::Response::GET_METRICS);
+      //   mesos::master::Response::GetMetrics* getMetrics = ...;
 
-      foreachpair (const string& key, double value, metrics) {
-        Metric* metric = _getMetrics->add_metrics();
-        metric->set_name(key);
-        metric->set_value(value);
+      switch (contentType) {
+        case ContentType::PROTOBUF: {
+          string output;
+          google::protobuf::io::StringOutputStream stream(&output);
+          google::protobuf::io::CodedOutputStream writer(&stream);
+
+          writer.WriteTag(
+              WireFormatLite::MakeTag(
+                  mesos::v1::master::Response::kTypeFieldNumber,
+                  WireFormatLite::WIRETYPE_VARINT));
+          writer.WriteVarint32SignExtended(
+              mesos::v1::master::Response::GET_METRICS);
+
+          string serializedGetMetrics = serializeGetMetrics(metrics);
+          writer.WriteTag(
+              WireFormatLite::MakeTag(
+                  mesos::v1::master::Response::kGetMetricsFieldNumber,
+                  WireFormatLite::WIRETYPE_LENGTH_DELIMITED));
+          writer.WriteVarint32(serializedGetMetrics.size());
+          writer.WriteString(serializedGetMetrics);
+
+          // We must manually trim the unused buffer space since
+          // we use the string before the coded output stream is
+          // destructed.
+          writer.Trim();
+
+          return OK(std::move(output), stringify(contentType));
+        }
+
+        case ContentType::JSON: {
+          string body = jsonify([&](JSON::ObjectWriter* writer) {
+            const google::protobuf::Descriptor* descriptor =
+              v1::master::Response::descriptor();
+
+            int field;
+
+            field = v1::master::Response::kTypeFieldNumber;
+            writer->field(
+                descriptor->FindFieldByNumber(field)->name(),
+                v1::master::Response::Type_Name(
+                    v1::master::Response::GET_METRICS));
+
+            field = v1::master::Response::kGetMetricsFieldNumber;
+            writer->field(
+                descriptor->FindFieldByNumber(field)->name(),
+                jsonifyGetMetrics(metrics));
+          });
+
+          // TODO(bmahler): Pass jsonp query parameter through here.
+          return OK(std::move(body), stringify(contentType));
+        }
+
+        default:
+          return NotAcceptable("Request must accept json or protobuf");
       }
-
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
     });
 }
 
