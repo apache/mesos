@@ -1951,6 +1951,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    static std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
+        const Master* master,
+        const process::Owned<ObjectApprovers>& approvers);
+    std::string serializeGetState(
+        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetState _getState(
         const process::Owned<ObjectApprovers>& approvers) const;
 
