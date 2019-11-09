@@ -181,6 +181,19 @@ struct StreamingHttpConnection
 };
 
 
+// The representation of generic v0 protobuf => v1 protobuf as JSON,
+// e.g., `jsonify(asV1Protobuf(message))`.
+//
+// Specifically, this acts the same as JSON::Protobuf, except that
+// it remaps "slave" to "agent" in field names and enum values.
+struct asV1Protobuf : Representation<google::protobuf::Message>
+{
+  using Representation<google::protobuf::Message>::Representation;
+};
+
+void json(JSON::ObjectWriter* writer, const asV1Protobuf& protobuf);
+
+
 JSON::Object model(const Resources& resources);
 JSON::Object model(const hashmap<std::string, Resources>& roleResources);
 JSON::Object model(const Attributes& attributes);
