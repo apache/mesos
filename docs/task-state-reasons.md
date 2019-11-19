@@ -236,6 +236,9 @@ As of Mesos 1.4, the following reasons are being used.
 <code>             REASON_SLAVE_DISCONNECTED
 </code></td><td>   The agent on which the task was running disconnected, and
                    didn't reconnect in time.
+<br/><strong>      Note:
+</strong>          For partition-aware frameworks, the state will
+                   be <code> TASK_DROPPED </code> instead
 </td></tr>
 <tr><td>           The task was part of an accepted offer, but the agent
                    sending the offer disconnected in the meantime.
