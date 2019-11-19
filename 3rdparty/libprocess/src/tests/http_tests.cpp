@@ -51,6 +51,8 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/write.hpp>
+
 #include <stout/tests/utils.hpp>
 
 #include "encoder.hpp"
@@ -884,6 +886,75 @@ TEST_P(HTTPTest, StreamingGetFailure)
   // Fail the response.
   EXPECT_TRUE(writer.fail("oops"));
   AWAIT_FAILED(reader.read());
+}
+
+
+class FileServerProcess : public Process<FileServerProcess>
+{
+public:
+  explicit FileServerProcess(const string& _path)
+    : path(_path) {}
+
+protected:
+  void initialize() override
+  {
+    provide("", path);
+  }
+
+  const string path;
+};
+
+
+class FileServer
+{
+public:
+  FileServer(const string& path) : process(new FileServerProcess(path))
+  {
+    spawn(process.get());
+  }
+
+  ~FileServer()
+  {
+    terminate(process.get());
+    wait(process.get());
+  }
+
+  Owned<FileServerProcess> process;
+};
+
+
+TEST_P(HTTPTest, ProvideSendfile)
+{
+  // A file smaller than the buffered read size.
+  const string LOREM_IPSUM =
+    "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
+    "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad "
+    "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip "
+    "ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "
+    "voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur "
+    "sint occaecat cupidatat non proident, sunt in culpa qui officia "
+    "deserunt mollit anim id est laborum.";
+
+  const string path = path::join(sandbox.get(), "lorem.txt");
+  ASSERT_SOME(os::write(path, LOREM_IPSUM));
+
+  FileServer server(path);
+
+  Future<http::Response> response =
+    http::get(server.process->self(), None(), None(), None(), GetParam());
+
+  AWAIT_READY(response);
+  ASSERT_EQ(LOREM_IPSUM, response->body);
+
+  // A file significantly larger than the buffered read size.
+  const string LOREM_IPSUM_AND_JUNK = LOREM_IPSUM + string(1024 * 1024, 'A');
+  ASSERT_SOME(os::write(path, LOREM_IPSUM_AND_JUNK));
+
+  response =
+    http::get(server.process->self(), None(), None(), None(), GetParam());
+
+  AWAIT_READY(response);
+  ASSERT_EQ(LOREM_IPSUM_AND_JUNK, response->body);
 }
 
 

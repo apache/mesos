@@ -20,8 +20,11 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include <algorithm>
 #include <atomic>
 #include <queue>
+
+#include <boost/shared_array.hpp>
 
 #include <process/io.hpp>
 #include <process/loop.hpp>
@@ -34,6 +37,8 @@
 #include <stout/synchronized.hpp>
 #include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
+
+#include <stout/os/lseek.hpp>
 
 #include "openssl.hpp"
 
@@ -490,7 +495,50 @@ Future<size_t> OpenSSLSocketImpl::send(const char* input, size_t size)
 Future<size_t> OpenSSLSocketImpl::sendfile(
     int_fd fd, off_t offset, size_t size)
 {
-  UNIMPLEMENTED;
+  if (dirty_shutdown) {
+    return Failure("Socket is shutdown");
+  }
+
+  // Hold a weak pointer since both read and write are not guaranteed to finish.
+  std::weak_ptr<OpenSSLSocketImpl> weak_self(shared(this));
+
+  Try<off_t> seek = os::lseek(fd, offset, SEEK_SET);
+  if (seek.isError()) {
+    return Failure("Failed to seek: " + seek.error());
+  }
+
+  Try<Nothing> async = io::prepare_async(fd);
+  if (async.isError()) {
+    return Failure("Failed to make FD asynchronous: " + async.error());
+  }
+
+  size_t remaining_size = size;
+  boost::shared_array<char> data(new char[io::BUFFERED_READ_SIZE]);
+
+  return process::loop(
+      compute_thread,
+      [weak_self, fd, remaining_size, data]() -> Future<size_t> {
+        return io::read(
+            fd, data.get(), std::min(io::BUFFERED_READ_SIZE, remaining_size))
+          .then([weak_self, data](size_t read_bytes) -> Future<size_t> {
+            std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+            if (self == nullptr) {
+              return Failure("Socket destroyed while sending file");
+            }
+
+            return self->send(data.get(), read_bytes);
+          });
+      },
+      [size, &remaining_size](size_t written) mutable
+          -> Future<ControlFlow<size_t>> {
+        remaining_size -= written;
+
+        if (remaining_size > 0) {
+          return Continue();
+        }
+
+        return Break(size);
+      });
 }
 
 
