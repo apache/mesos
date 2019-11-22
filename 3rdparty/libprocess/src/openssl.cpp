@@ -841,8 +841,9 @@ Try<Nothing> verify(
   }
 
   // The X509 object must be freed if this call succeeds.
-  // TODO(jmlvanre): handle this better. How about RAII?
-  X509* cert = SSL_get_peer_certificate(ssl);
+  std::unique_ptr<X509, decltype(&X509_free)> cert(
+      SSL_get_peer_certificate(ssl),
+      X509_free);
 
   // NOTE: Even without this check, the OpenSSL handshake will not complete
   // when connecting to servers that do not present a certificate, unless an
@@ -852,7 +853,6 @@ Try<Nothing> verify(
   }
 
   if (SSL_get_verify_result(ssl) != X509_V_OK) {
-    X509_free(cert);
     return Error("Could not verify peer certificate");
   }
 
@@ -896,7 +896,6 @@ Try<Nothing> verify(
   }
 
   if (!ssl_flags->verify_ipadd && peer_hostname.isNone()) {
-    X509_free(cert);
     return ssl_flags->require_client_cert
       ? Error("Cannot verify peer certificate: peer hostname unknown")
       : Try<Nothing>(Nothing());
@@ -908,7 +907,7 @@ Try<Nothing> verify(
   // physical host.
   STACK_OF(GENERAL_NAME)* san_names =
     reinterpret_cast<STACK_OF(GENERAL_NAME)*>(X509_get_ext_d2i(
-        reinterpret_cast<X509*>(cert),
+        cert.get(),
         NID_subject_alt_name,
         nullptr,
         nullptr));
@@ -931,7 +930,6 @@ Try<Nothing> verify(
             const size_t length = ASN1_STRING_length(current_name->d.dNSName);
             if (length != dns_name.length()) {
               sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-              X509_free(cert);
               return Error(
                   "X509 certificate malformed: "
                   "embedded NUL character in DNS name");
@@ -941,7 +939,6 @@ Try<Nothing> verify(
               // Compare expected hostname with the DNS name.
               if (peer_hostname.get() == dns_name) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-                X509_free(cert);
 
                 VLOG(2) << "dNSName match found for " << peer_hostname.get();
 
@@ -966,7 +963,6 @@ Try<Nothing> verify(
 
               if (ip.get() == ip_add) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-                X509_free(cert);
 
                 VLOG(2) << "iPAddress match found for " << ip.get();
 
@@ -985,7 +981,7 @@ Try<Nothing> verify(
   if (peer_hostname.isSome()) {
     // If we still haven't verified the hostname, try doing it via
     // the certificate subject name.
-    X509_NAME* name = X509_get_subject_name(cert);
+    X509_NAME* name = X509_get_subject_name(cert.get());
 
     if (name != nullptr) {
       char text[MAXHOSTNAMELEN] {};
@@ -998,7 +994,6 @@ Try<Nothing> verify(
         VLOG(2) << "Matching common name: " << text;
 
         if (peer_hostname.get() != text) {
-          X509_free(cert);
           return Error(
             "Presented Certificate Name: " + stringify(text) +
             " does not match peer hostname name: " + peer_hostname.get());
@@ -1006,15 +1001,12 @@ Try<Nothing> verify(
 
         VLOG(2) << "Common name match found for " << peer_hostname.get();
 
-        X509_free(cert);
         return Nothing();
       }
     }
   }
 
   // If we still haven't exited, we haven't verified it, and we give up.
-  X509_free(cert);
-
   std::vector<string> details;
 
   if (peer_hostname.isSome()) {
