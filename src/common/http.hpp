@@ -168,6 +168,12 @@ struct StreamingHttpConnection
     return writer.write(::recordio::encode(record));
   }
 
+  // Like the above send, but for already serialized data.
+  bool send(const std::string& event)
+  {
+    return writer.write(::recordio::encode(event));
+  }
+
   bool close()
   {
     return writer.close();
