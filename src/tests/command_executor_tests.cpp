@@ -496,6 +496,84 @@ TEST_P(CommandExecutorTest, AllocationRoleEnvironmentVariable)
 }
 
 
+// This test checks that the command executor can communicate
+// with the agent using unix domain sockets, when the necessary
+// flags are set on the agent.
+TEST_P(CommandExecutorTest, ExecutorDomainSockets)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+  flags.http_executor_domain_sockets = true;
+  flags.domain_socket_location = *sandbox + "/agent.sock";
+
+  // Forward `GLOG_v` environment variable to the executor;
+  // useful when debugging tests.
+  JSON::Object executorEnvironment;
+  executorEnvironment.values["GLOG_v"] =
+    JSON::String(os::getenv("GLOG_v").getOrElse("0"));
+
+  flags.executor_environment_variables = executorEnvironment;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Start the framework without the task killing capability.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Launch a task with the command executor.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "test -S $MESOS_DOMAIN_SOCKET");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // The task will be successful even if the executor is
+  // not using domain sockets, because the container is
+  // not mounting a separate root fs, so `$MESOS_DOMAIN_SOCKET`
+  // will point to the agent domain socket on the host
+  // filesystem.
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 class HTTPCommandExecutorTest
   : public MesosTest {};
 

@@ -43,6 +43,7 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/domain_sockets.hpp"
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 #include "common/validation.hpp"
@@ -232,12 +233,51 @@ public:
     }
 #endif // USE_SSL_SOCKET
 
-    agent = ::URL(
-        scheme,
-        upid.address.ip,
-        upid.address.port,
-        upid.id +
-        "/api/v1/executor");
+    value = env.get("MESOS_DOMAIN_SOCKET");
+    if (value.isSome()) {
+      string scheme = "http+unix";
+      std::string path = value.get();
+
+      // Currently this check should not trigger because the agent already
+      // checks the path length on startup. We still do the involved checking
+      // procedure below, on the one hand because the agent might have gotten
+      // a relative path but mainly so we are able to seamlessly start
+      // supporting custom executors with their own rootfs in the future.
+      if (path.size() >= common::DOMAIN_SOCKET_MAX_PATH_LENGTH) {
+        std::string cwd = os::getcwd();
+        VLOG(1) << "Path " << path << " too long, shortening it by using"
+                << " the relative path to " << cwd;
+
+        Try<std::string> relative = path::relative(path, cwd);
+        if (relative.isError()) {
+          EXIT(EXIT_FAILURE)
+            << "Couldnt compute path of " << path
+            << " relative to " << cwd << ": "
+            << relative.error();
+        }
+
+        path = "./" + *relative;
+      }
+
+      if (path.size() >= common::DOMAIN_SOCKET_MAX_PATH_LENGTH) {
+        EXIT(EXIT_FAILURE)
+          << "Cannot use domain sockets for communication as requested: "
+          << "Path " << path << " is longer than 108 characters";
+      }
+
+      agent = ::URL(
+          scheme,
+          path,
+          upid.id + "/api/v1/executor");
+    } else {
+      agent = ::URL(
+          scheme,
+          upid.address.ip,
+          upid.address.port,
+          upid.id + "/api/v1/executor");
+    }
+
+    LOG(INFO) << "Using URL " << agent << " for the executor API endpoint";
 
     value = env.get("MESOS_EXECUTOR_AUTHENTICATION_TOKEN");
     if (value.isSome()) {

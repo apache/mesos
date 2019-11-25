@@ -1727,16 +1727,55 @@ int main(int argc, char** argv)
       << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
   }
 
-  process::initialize();
-
   UPID upid(value.get());
   CHECK(upid) << "Failed to parse MESOS_SLAVE_PID '" << value.get() << "'";
 
-  agent = ::URL(
-      scheme,
-      upid.address.ip,
-      upid.address.port,
-      upid.id + "/api/v1");
+  value = os::getenv("MESOS_DOMAIN_SOCKET");
+  if (value.isSome()) {
+    // The previous value of `scheme` can be ignored here, since we do not
+    // use https over unix domain sockets anyways.
+    scheme = "http+unix";
+    std::string path = value.get();
+
+    if (path.size() >= 108) {
+      std::string cwd = os::getcwd();
+      VLOG(1) << "Path " << path << " too long, shortening it by using"
+              << " the relative path to " << cwd;
+
+      Try<std::string> relative = path::relative(path, cwd);
+      if (relative.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Couldnt compute relative path of socket location: "
+          << relative.error();
+      }
+      path = "./" + *relative;
+    }
+
+    // This should not happen, because the socket is supposed to
+    // be in `$MESOS_SANDBOX/agent.sock`, so the relative path should
+    // always be `./agent.sock`.
+    if (path.size() >= 108) {
+      EXIT(EXIT_FAILURE)
+        << "Cannot use domain sockets for communication as requested: "
+        << "Path " << path << " is longer than 108 characters";
+    }
+
+    agent = ::URL(
+        scheme,
+        path,
+        upid.id + "/api/v1");
+
+  } else {
+    agent = ::URL(
+        scheme,
+        upid.address.ip,
+        upid.address.port,
+        upid.id + "/api/v1");
+  }
+
+  LOG(INFO) << "Using URL " << agent << " for the streaming endpoint";
+
+  process::initialize();
 
   value = os::getenv("MESOS_SANDBOX");
   if (value.isNone()) {

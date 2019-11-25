@@ -4417,6 +4417,80 @@ TEST_P(DefaultExecutorTest, AllocationRoleEnvironmentVariable)
   ASSERT_EQ(taskInfo.task_id(), finishedUpdate->status().task_id());
 }
 
+
+// This test verifies that the default executor will attempt to connect to
+// the domain socket located at `MESOS_DOMAIN_SOCKET` if that environment
+// variable is set.
+TEST_P(DefaultExecutorTest, DomainSockets)
+{
+  Try<string> socketDir = os::mkdtemp();
+  ASSERT_SOME(socketDir);
+
+  std::string socketPath = socketDir.get() + "/agent.sock";
+  Try<process::network::unix::Address> address =
+    process::network::unix::Address::create(socketPath);
+
+  ASSERT_SOME(address);
+
+  Try<process::network::unix::Socket> socket =
+    process::network::unix::Socket::create();
+  ASSERT_SOME(socket);
+
+  Try<process::network::unix::Address> bound = socket->bind(address.get());
+  ASSERT_SOME(bound);
+
+  socket->listen(1);
+  Future<process::network::unix::Socket> client = socket->accept();
+
+  std::vector<std::string> argv {
+    "mesos-default-executor"
+  };
+
+  std::map<string, string> environment = {
+    {"MESOS_DOMAIN_SOCKET", socketPath},
+    {"MESOS_EXECUTOR_ID", "some_executor"},
+    {"MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD", "1ms"},
+    {"MESOS_FRAMEWORK_ID", "some_framework"},
+    {"MESOS_SANDBOX", socketDir.get()},
+    {"MESOS_SLAVE_PID", "mesos-agent@localhost:5051"},
+    {"GLOG_v", os::getenv("GLOG_v").getOrElse("0") },
+  };
+
+  Result<std::string> path = os::realpath(BUILD_DIR);
+  ASSERT_SOME(path);
+
+  Try<process::Subprocess> executor = process::subprocess(
+        path::join(path.get(), "src/mesos-default-executor"),
+        argv,
+        process::Subprocess::FD(STDIN_FILENO),
+        process::Subprocess::FD(STDOUT_FILENO),
+        process::Subprocess::FD(STDERR_FILENO),
+        nullptr, // Don't pass flags.
+        environment,
+        None(),  // Use default clone.
+        {},      // No parent hooks.
+        { process::Subprocess::ChildHook::SETSID() });
+
+  ASSERT_SOME(executor);
+  AWAIT_ASSERT_READY(client);
+
+  std::string data(5, '\0');
+  Future<size_t> n = client->recv(&data[0], data.size());
+  AWAIT_READY(n);
+  EXPECT_GE(n.get(), 5u);
+  EXPECT_EQ(data, "POST ");
+
+  os::kill(executor->pid(), SIGTERM);
+  auto status = executor->status();
+  AWAIT_READY(status);
+
+  Try<Nothing, SocketError> shutdown = socket->shutdown();
+  ASSERT_SOME(shutdown);
+
+  Try<Nothing> rmdir = os::rmdir(socketDir.get());
+  ASSERT_SOME(rmdir);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
