@@ -1015,12 +1015,25 @@ string encode(const hashmap<string, string>& query)
 
 ostream& operator<<(ostream& stream, const URL& url)
 {
+  // TODO(bevers): The '//' sequence only follows the ':' if
+  // the next part begins with an "authority". This is required
+  // for the 'http' scheme, but not guaranteed in general.
   if (url.scheme.isSome()) {
     stream << url.scheme.get() << "://";
   }
 
   if (url.domain.isSome()) {
-    stream << url.domain.get();
+    // Optimize the most common case by not encoding for `http`
+    // and `https` schemes, since their domain part is already
+    // guaranteed to only contain unreserved characters.
+    bool encodeDomain = url.scheme.isNone() ||
+      (*url.scheme != "http" && *url.scheme != "https");
+
+    const std::string& host = encodeDomain
+      ? http::encode(url.domain.get())
+      : url.domain.get();
+
+    stream << host;
   } else if (url.ip.isSome()) {
     stream << url.ip.get();
   }
@@ -1079,7 +1092,9 @@ Pipe::Reader encode(const Request& request)
   // Need to specify the 'Host' header.
   CHECK(request.url.domain.isSome() || request.url.ip.isSome());
 
-  if (request.url.domain.isSome()) {
+  if (request.url.scheme == Some("http+unix")) {
+    headers["Host"] = "localhost";
+  } else if (request.url.domain.isSome()) {
     headers["Host"] = request.url.domain.get();
   } else if (request.url.ip.isSome()) {
     headers["Host"] = stringify(request.url.ip.get());
@@ -1505,6 +1520,7 @@ Future<Connection> connect(
 
   switch (scheme) {
     case Scheme::HTTP:
+    case Scheme::HTTP_UNIX:
       kind = SocketImpl::Kind::POLL;
       break;
 #ifdef USE_SSL_SOCKET
@@ -1525,6 +1541,7 @@ Future<Connection> connect(
   Future<Nothing> connected = [&]() {
     switch (scheme) {
       case Scheme::HTTP:
+      case Scheme::HTTP_UNIX:
         return socket->connect(address);
 #ifdef USE_SSL_SOCKET
       case Scheme::HTTPS:
@@ -1559,6 +1576,10 @@ Future<Connection> connect(
 
 Future<Connection> connect(const URL& url)
 {
+  // Default to 'http' if no scheme was specified.
+  string scheme = url.scheme.getOrElse("http");
+  bool inetAddressRequired = scheme == "http" || scheme == "https";
+
   // TODO(bmahler): Move address resolution into the URL class?
   Address address = inet4::Address::ANY_ANY();
 
@@ -1568,7 +1589,7 @@ Future<Connection> connect(const URL& url)
 
   if (url.ip.isSome()) {
     address.ip = url.ip.get();
-  } else {
+  } else if (inetAddressRequired) {
     Try<net::IP> ip = net::getIP(url.domain.get(), AF_INET);
 
     if (ip.isError()) {
@@ -1579,23 +1600,42 @@ Future<Connection> connect(const URL& url)
     address.ip = ip.get();
   }
 
-  if (url.port.isNone()) {
+  if (url.port.isNone() && inetAddressRequired) {
     return Failure("Expecting url.port to be set");
   }
 
-  address.port = url.port.get();
+  if (url.port.isSome()) {
+    address.port = url.port.get();
+  }
 
-  // Default to 'http' if no scheme was specified.
-  if (url.scheme.isNone() || url.scheme == string("http")) {
+  if (scheme == "http") {
     return connect(address, Scheme::HTTP, url.domain);
   }
 
-  if (url.scheme == string("https")) {
+  if (scheme == "https") {
 #ifdef USE_SSL_SOCKET
     return connect(address, Scheme::HTTPS, url.domain);
 #else
     return Failure("'https' scheme requires SSL enabled");
 #endif
+  }
+
+  if (scheme == "http+unix") {
+    if (!url.domain.isSome()) {
+      return Failure("'http+unix' scheme requires domain (filesystem path)");
+    }
+
+    Try<network::unix::Address> address =
+      network::unix::Address::create(url.domain.get());
+
+    if (address.isError()) {
+      return Failure(strings::format(
+          "Could not create address from %s: %s",
+          url.domain.get(),
+          address.error()).get());
+    }
+
+    return connect(*address, Scheme::HTTP, url.domain);
   }
 
   return Failure("Unsupported URL scheme");
@@ -2306,9 +2346,12 @@ Try<Server> Server::create(
 {
   SocketImpl::Kind kind = [&]() {
     switch (options.scheme) {
-      case Scheme::HTTP: return SocketImpl::Kind::POLL;
+      case Scheme::HTTP:
+      case Scheme::HTTP_UNIX:
+        return SocketImpl::Kind::POLL;
 #ifdef USE_SSL_SOCKET
-      case Scheme::HTTPS: return SocketImpl::Kind::SSL;
+      case Scheme::HTTPS:
+        return SocketImpl::Kind::SSL;
 #endif
     }
     UNREACHABLE();

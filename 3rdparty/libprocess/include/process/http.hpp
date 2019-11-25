@@ -55,8 +55,9 @@ namespace http {
 
 enum class Scheme {
   HTTP,
+  HTTP_UNIX,
 #ifdef USE_SSL_SOCKET
-  HTTPS
+  HTTPS,
 #endif
 };
 
@@ -129,6 +130,18 @@ bool isValidStatus(uint16_t code);
 struct URL
 {
   URL() = default;
+
+  URL(const std::string& _scheme,
+      const std::string& _domain,
+      const std::string& _path,
+      const hashmap<std::string, std::string>& _query =
+        (hashmap<std::string, std::string>()),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      domain(_domain),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
 
   URL(const std::string& _scheme,
       const std::string& _domain,
