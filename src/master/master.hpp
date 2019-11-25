@@ -1959,6 +1959,11 @@ private:
     mesos::master::Response::GetState _getState(
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    static std::function<void(JSON::ObjectWriter*)> jsonifySubscribe(
+        const Master* master,
+        const process::Owned<ObjectApprovers>& approvers);
+    std::string serializeSubscribe(
+        const process::Owned<ObjectApprovers>& approvers) const;
     process::Future<process::http::Response> subscribe(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,

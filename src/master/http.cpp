@@ -438,15 +438,70 @@ Future<Response> Master::Http::subscribe(
           StreamingHttpConnection<v1::master::Event> http(
               pipe.writer(), contentType);
 
-          mesos::master::Event event;
-          event.set_type(mesos::master::Event::SUBSCRIBED);
-          *event.mutable_subscribed()->mutable_get_state() =
-            _getState(approvers);
+          // Serialize the following event:
+          //
+          //   mesos::master::Event event;
+          //   event.set_type(mesos::master::Event::SUBSCRIBED);
+          //   *event.mutable_subscribed()->mutable_get_state() =
+          //     _getState(approvers);
+          //   event.mutable_subscribed()->set_heartbeat_interval_seconds(
+          //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+          //
+          //   http.send(event);
 
-          event.mutable_subscribed()->set_heartbeat_interval_seconds(
-              DEFAULT_HEARTBEAT_INTERVAL.secs());
+          switch (contentType) {
+            case ContentType::PROTOBUF: {
+              string serialized;
+              google::protobuf::io::StringOutputStream stream(&serialized);
+              google::protobuf::io::CodedOutputStream writer(&stream);
 
-          http.send(event);
+              WireFormatLite::WriteEnum(
+                  mesos::v1::master::Event::kTypeFieldNumber,
+                  mesos::v1::master::Event::SUBSCRIBED,
+                  &writer);
+
+              WireFormatLite::WriteBytes(
+                  mesos::v1::master::Event::kSubscribedFieldNumber,
+                  serializeSubscribe(approvers),
+                  &writer);
+
+              // We must manually trim the unused buffer space since
+              // we use the string before the coded output stream is
+              // destructed.
+              writer.Trim();
+
+              http.send(serialized);
+
+              break;
+            }
+
+            case ContentType::JSON: {
+              string serialized = jsonify([&](JSON::ObjectWriter* writer) {
+                const google::protobuf::Descriptor* descriptor =
+                  v1::master::Event::descriptor();
+
+                int field;
+
+                field = v1::master::Event::kTypeFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    v1::master::Event::Type_Name(
+                        v1::master::Event::SUBSCRIBED));
+
+                field = v1::master::Event::kSubscribedFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    jsonifySubscribe(master, approvers));
+              });
+
+              http.send(serialized);
+
+              break;
+            }
+
+            default:
+              return NotAcceptable("Request must accept json or protobuf");
+          }
 
           mesos::master::Event heartbeatEvent;
           heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
@@ -458,6 +513,73 @@ Future<Response> Master::Http::subscribe(
 
           return ok;
         }));
+}
+
+
+function<void(JSON::ObjectWriter*)> Master::Http::jsonifySubscribe(
+    const Master* master,
+    const Owned<ObjectApprovers>& approvers)
+{
+  // Jsonify the following message:
+  //
+  //   mesos::master::Event::Subscribed subscribed;
+  //   *subscribed.mutable_get_state() = _getState(approvers);
+  //   subscribed.set_heartbeat_interval_seconds(
+  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Event::Subscribed::descriptor();
+
+    int field;
+
+    field = v1::master::Event::Subscribed::kGetStateFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetState(master, approvers));
+
+    field = v1::master::Event::Subscribed::kHeartbeatIntervalSecondsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        DEFAULT_HEARTBEAT_INTERVAL.secs());
+  };
+}
+
+
+string Master::Http::serializeSubscribe(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Event::Subscribed subscribed;
+  //   *subscribed.mutable_get_state() = _getState(approvers);
+  //   subscribed.set_heartbeat_interval_seconds(
+  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Event::Subscribed::kGetStateFieldNumber,
+      serializeGetState(approvers),
+      &writer);
+
+  WireFormatLite::WriteDouble(
+      mesos::v1::master::Event::Subscribed
+        ::kHeartbeatIntervalSecondsFieldNumber,
+      DEFAULT_HEARTBEAT_INTERVAL.secs(),
+      &writer);
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
 }
 
 
