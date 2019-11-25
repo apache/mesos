@@ -11092,6 +11092,13 @@ map<string, string> executorEnvironment(
   environment["MESOS_HTTP_COMMAND_EXECUTOR"] =
     flags.http_command_executor ? "1" : "0";
 
+  if (flags.http_executor_domain_sockets) {
+    // If `http_executor_domain_sockets` is true, the location should have
+    // been set either by the user or automatically during agent startup.
+    CHECK(flags.domain_socket_location.isSome());
+    environment["MESOS_DOMAIN_SOCKET"] = *flags.domain_socket_location;
+  }
+
   // Set executor's shutdown grace period. If set, the customized value
   // from `ExecutorInfo` overrides the default from agent flags.
   Duration executorShutdownGracePeriod = flags.executor_shutdown_grace_period;

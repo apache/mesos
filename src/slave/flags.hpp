@@ -182,6 +182,8 @@ public:
 #ifdef USE_SSL_SOCKET
   bool authenticate_http_executors;
 #endif // USE_SSL_SOCKET
+  bool http_executor_domain_sockets;
+  Option<std::string> domain_socket_location;
   Option<Path> http_credentials;
   Option<std::string> hooks;
   Option<std::string> secret_resolver;

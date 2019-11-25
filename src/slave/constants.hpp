@@ -140,6 +140,10 @@ constexpr char DEFAULT_DOCKER_HOST_RESOURCE[] = "//./pipe/docker_engine";
 constexpr char DEFAULT_DOCKER_HOST_RESOURCE[] = "/var/run/docker.sock";
 #endif // __WINDOWS__
 
+// Default filename used for domain socket-based communication between
+// agent and executors, if that is enabled.
+constexpr char AGENT_EXECUTORS_SOCKET_FILENAME[] = "agent.sock";
+
 // Default duration that docker containers will be removed after exit.
 constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 

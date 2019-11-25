@@ -344,6 +344,19 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", flags.advertise_port.get());
   }
 
+  if (flags.http_executor_domain_sockets) {
+    if (flags.domain_socket_location.isNone()) {
+      flags.domain_socket_location = flags.runtime_dir + "/agent.sock";
+    }
+
+    if (flags.domain_socket_location->size() >=
+        common::DOMAIN_SOCKET_MAX_LENGTH) {
+      EXIT(EXIT_FAILURE)
+        << "Domain socket location '" << *flags.domain_socket_location << "'"
+        << " must have less than 108 characters.";
+    }
+  }
+
   os::setenv("LIBPROCESS_MEMORY_PROFILING", stringify(flags.memory_profiling));
 
   // Log build information.

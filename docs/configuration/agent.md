@@ -808,6 +808,25 @@ users. By default, this flag is off. (default: false)
   </td>
 </tr>
 
+<tr id="domain_socket_location">
+  <td>
+    --domain_socket_location=VALUE
+  </td>
+  <td>
+Location on the host filesystem of the domain socket used for
+communication with executors. Alternatively, this can be set to
+<code>'systemd:&lt;identifier&gt;'</code> to use the domain socket
+with the given identifier, which is expected to be passed by systemd.
+
+This flag will be ignored unless the <code>--http_executor_domain_sockets</code>
+flag is also set to true.
+
+Total path length must be less than 108 characters.
+
+Will be set to <code>&lt;runtime_dir&gt;/agent.sock</code> by default.
+  </td>
+</tr>
+
 <tr id="enforce_container_disk_quota">
   <td>
     --[no-]enforce_container_disk_quota
@@ -1073,6 +1092,18 @@ executor library to interact with the Mesos agent. If set to <code>false</code>,
 the driver based implementation would be used.
 <b>NOTE</b>: This flag is *experimental* and should not be used in
 production yet. (default: false)
+  </td>
+</tr>
+
+
+<tr id="http_executor_domain_sockets">
+  <td>
+      --http_executor_domain_sockets
+  </td>
+  <td>
+If true, the agent will provide a unix domain sockets that the
+executor can use to connect to the agent, instead of relying on
+a TCP connection.
   </td>
 </tr>
 
