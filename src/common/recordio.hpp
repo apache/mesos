@@ -65,10 +65,10 @@ public:
   // We spawn `ReaderProcess` as a managed process to guarantee
   // that it does not wait on itself (this would cause a deadlock!).
   // See comments in `Connection::Data` for further details.
-  Reader(::recordio::Decoder<T>&& decoder,
+  Reader(std::function<Try<T>(const std::string&)> deserialize,
          process::http::Pipe::Reader reader)
     : process(process::spawn(
-        new internal::ReaderProcess<T>(std::move(decoder), reader),
+        new internal::ReaderProcess<T>(std::move(deserialize), reader),
         true)) {}
 
   virtual ~Reader()
@@ -149,10 +149,10 @@ class ReaderProcess : public process::Process<ReaderProcess<T>>
 {
 public:
   ReaderProcess(
-      ::recordio::Decoder<T>&& _decoder,
+      std::function<Try<T>(const std::string&)>&& _deserialize,
       process::http::Pipe::Reader _reader)
     : process::ProcessBase(process::ID::generate("__reader__")),
-      decoder(_decoder),
+      deserialize(_deserialize),
       reader(_reader),
       done(false) {}
 
@@ -235,26 +235,29 @@ private:
       return;
     }
 
-    Try<std::deque<Try<T>>> decode = decoder.decode(read.get());
+    Try<std::deque<std::string>> decode = decoder.decode(read.get());
 
     if (decode.isError()) {
       fail("Decoder failure: " + decode.error());
       return;
     }
 
-    foreach (const Try<T>& record, decode.get()) {
+    foreach (const std::string& record, decode.get()) {
+      Result<T> t = deserialize(record);
+
       if (!waiters.empty()) {
-        waiters.front()->set(Result<T>(std::move(record)));
+        waiters.front()->set(std::move(t));
         waiters.pop();
       } else {
-        records.push(std::move(record));
+        records.push(std::move(t));
       }
     }
 
     consume();
   }
 
-  ::recordio::Decoder<T> decoder;
+  ::recordio::Decoder decoder;
+  std::function<Try<T>(const std::string&)> deserialize;
   process::http::Pipe::Reader reader;
 
   std::queue<process::Owned<process::Promise<Result<T>>>> waiters;

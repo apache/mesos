@@ -655,11 +655,9 @@ protected:
 
       Pipe::Reader reader = response->reader.get();
 
-      auto deserializer =
-        lambda::bind(deserialize<Event>, contentType, lambda::_1);
-
-      Owned<Reader<Event>> decoder(
-          new Reader<Event>(Decoder<Event>(deserializer), reader));
+      Owned<Reader<Event>> decoder(new Reader<Event>(
+          lambda::bind(deserialize<Event>, contentType, lambda::_1),
+          reader));
 
       subscribed = SubscribedResponse {reader, decoder};
 

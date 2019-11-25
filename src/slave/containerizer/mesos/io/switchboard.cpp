@@ -977,18 +977,21 @@ public:
   Future<Nothing> unblock();
 
 private:
+  // TODO(bmahler): Replace this with the common StreamingHttpConnection.
   class HttpConnection
   {
   public:
     HttpConnection(
         const http::Pipe::Writer& _writer,
-        const ContentType& contentType)
+        const ContentType& _contentType)
       : writer(_writer),
-        encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+        contentType(_contentType) {}
 
     bool send(const agent::ProcessIO& message)
     {
-      return writer.write(encoder.encode(message));
+      string record = serialize(contentType, message);
+
+      return writer.write(::recordio::encode(record));
     }
 
     bool close()
@@ -1003,7 +1006,7 @@ private:
 
   private:
     http::Pipe::Writer writer;
-    ::recordio::Encoder<agent::ProcessIO> encoder;
+    ContentType contentType;
   };
 
   // Sit in a heartbeat loop forever.
@@ -1483,10 +1486,10 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
 
     Owned<recordio::Reader<agent::Call>> reader(
         new recordio::Reader<agent::Call>(
-            ::recordio::Decoder<agent::Call>(lambda::bind(
+            lambda::bind(
                 deserialize<agent::Call>,
                 messageContentType.get(),
-                lambda::_1)),
+                lambda::_1),
             request.reader.get()));
 
     return reader->read()

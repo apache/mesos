@@ -113,48 +113,12 @@ createRegistryResourceProvider(const ResourceProviderInfo& resourceProviderInfo)
   return resourceProvider;
 }
 
-// Represents the streaming HTTP connection to a resource provider.
-struct HttpConnection
-{
-  HttpConnection(const http::Pipe::Writer& _writer,
-                 ContentType _contentType,
-                 id::UUID _streamId)
-    : writer(_writer),
-      contentType(_contentType),
-      streamId(_streamId),
-      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
-
-  // Converts the message to an Event before sending.
-  template <typename Message>
-  bool send(const Message& message)
-  {
-    // We need to evolve the internal 'message' into a
-    // 'v1::resource_provider::Event'.
-    return writer.write(encoder.encode(evolve(message)));
-  }
-
-  bool close()
-  {
-    return writer.close();
-  }
-
-  Future<Nothing> closed() const
-  {
-    return writer.readerClosed();
-  }
-
-  http::Pipe::Writer writer;
-  ContentType contentType;
-  id::UUID streamId;
-  ::recordio::Encoder<v1::resource_provider::Event> encoder;
-};
-
 
 struct ResourceProvider
 {
   ResourceProvider(
       const ResourceProviderInfo& _info,
-      const HttpConnection& _http)
+      const StreamingHttpConnection<v1::resource_provider::Event>& _http)
     : info(_info),
       http(_http) {}
 
@@ -172,7 +136,7 @@ struct ResourceProvider
   }
 
   ResourceProviderInfo info;
-  HttpConnection http;
+  StreamingHttpConnection<v1::resource_provider::Event> http;
   hashmap<id::UUID, Owned<Promise<Nothing>>> publishes;
 };
 
@@ -203,7 +167,7 @@ public:
 
 private:
   void subscribe(
-      const HttpConnection& http,
+      const StreamingHttpConnection<v1::resource_provider::Event>& http,
       const Call::Subscribe& subscribe);
 
   void _subscribe(
@@ -394,7 +358,9 @@ Future<http::Response> ResourceProviderManagerProcess::api(
           id::UUID streamId = id::UUID::random();
           ok.headers["Mesos-Stream-Id"] = streamId.toString();
 
-          HttpConnection http(pipe.writer(), acceptType, streamId);
+          StreamingHttpConnection<v1::resource_provider::Event> http(
+              pipe.writer(), acceptType, streamId);
+
           this->subscribe(http, call.subscribe());
 
           return std::move(ok);
@@ -804,7 +770,7 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
 
 
 void ResourceProviderManagerProcess::subscribe(
-    const HttpConnection& http,
+    const StreamingHttpConnection<v1::resource_provider::Event>& http,
     const Call::Subscribe& subscribe)
 {
   const ResourceProviderInfo& resourceProviderInfo =

@@ -69,19 +69,16 @@ TEST(RecordIOReaderTest, EndOfFile)
 {
   // Write some data to the pipe so that records
   // are available before any reads occur.
-  ::recordio::Encoder<string> encoder(strings::upper);
-
   string data;
 
-  data += encoder.encode("hello");
-  data += encoder.encode("world!");
+  data += ::recordio::encode("HELLO");
+  data += ::recordio::encode("WORLD!");
 
   process::http::Pipe pipe;
   pipe.writer().write(data);
 
   mesos::internal::recordio::Reader<string> reader(
-      ::recordio::Decoder<string>(strings::lower),
-      pipe.reader());
+      strings::lower, pipe.reader());
 
   AWAIT_EXPECT_EQ(Result<string>::some("hello"), reader.read());
   AWAIT_EXPECT_EQ(Result<string>::some("world!"), reader.read());
@@ -93,7 +90,7 @@ TEST(RecordIOReaderTest, EndOfFile)
   EXPECT_TRUE(read1.isPending());
   EXPECT_TRUE(read2.isPending());
 
-  pipe.writer().write(encoder.encode("goodbye"));
+  pipe.writer().write(::recordio::encode("goodbye"));
   pipe.writer().close();
 
   AWAIT_EXPECT_EQ(Result<string>::some("goodbye"), read1);
@@ -106,12 +103,10 @@ TEST(RecordIOReaderTest, EndOfFile)
 
 TEST(RecordIOReaderTest, DecodingFailure)
 {
-  ::recordio::Encoder<string> encoder(strings::upper);
   process::http::Pipe pipe;
 
   mesos::internal::recordio::Reader<string> reader(
-      ::recordio::Decoder<string>(strings::lower),
-      pipe.reader());
+      strings::lower, pipe.reader());
 
   // Have multiple outstanding reads before we fail the decoder.
   Future<Result<string>> read1 = reader.read();
@@ -119,7 +114,7 @@ TEST(RecordIOReaderTest, DecodingFailure)
   Future<Result<string>> read3 = reader.read();
 
   // Write non-encoded data to the pipe so that the decoder fails.
-  pipe.writer().write(encoder.encode("encoded"));
+  pipe.writer().write(::recordio::encode("encoded"));
   pipe.writer().write("not encoded!\n");
 
   AWAIT_EXPECT_EQ(Result<string>::some("encoded"), read1);
@@ -128,7 +123,7 @@ TEST(RecordIOReaderTest, DecodingFailure)
 
   // The reader is now in a failed state, subsequent
   // writes will be dropped and all reads will fail.
-  pipe.writer().write(encoder.encode("encoded"));
+  pipe.writer().write(::recordio::encode("encoded"));
 
   AWAIT_EXPECT_FAILED(reader.read());
 }
@@ -136,12 +131,10 @@ TEST(RecordIOReaderTest, DecodingFailure)
 
 TEST(RecordIOReaderTest, PipeFailure)
 {
-  ::recordio::Encoder<string> encoder(strings::upper);
   process::http::Pipe pipe;
 
   mesos::internal::recordio::Reader<string> reader(
-      ::recordio::Decoder<string>(strings::lower),
-      pipe.reader());
+      strings::lower, pipe.reader());
 
   // Have multiple outstanding reads before we fail the writer.
   Future<Result<string>> read1 = reader.read();
@@ -149,7 +142,7 @@ TEST(RecordIOReaderTest, PipeFailure)
   Future<Result<string>> read3 = reader.read();
 
   // Write a record, then fail the pipe writer!
-  pipe.writer().write(encoder.encode("encoded"));
+  pipe.writer().write(::recordio::encode("ENCODED"));
   pipe.writer().fail("failure");
 
   AWAIT_EXPECT_EQ(Result<string>::some("encoded"), read1);
@@ -167,20 +160,17 @@ TEST(RecordIOTransformTest, EndOfFile)
 {
   // Write some data to the pipe so that records
   // are available before any reads occur.
-  ::recordio::Encoder<string> encoder(strings::upper);
-
   string data;
 
-  data += encoder.encode("hello ");
-  data += encoder.encode("world! ");
+  data += ::recordio::encode("HELLO ");
+  data += ::recordio::encode("WORLD! ");
 
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
   process::Owned<mesos::internal::recordio::Reader<string>> reader(
     new mesos::internal::recordio::Reader<string>(
-        ::recordio::Decoder<string>(strings::lower),
-        pipeA.reader()));
+        strings::lower, pipeA.reader()));
 
   process::http::Pipe pipeB;
 
@@ -207,20 +197,17 @@ TEST(RecordIOTransformTest, ReaderWriterEndFail)
 {
   // Write some data to the pipe so that records
   // are available before any reads occur.
-  ::recordio::Encoder<string> encoder(strings::upper);
-
   string data;
 
-  data += encoder.encode("hello ");
-  data += encoder.encode("world! ");
+  data += ::recordio::encode("HELLO ");
+  data += ::recordio::encode("WORLD! ");
 
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
   process::Owned<mesos::internal::recordio::Reader<string>> reader(
     new mesos::internal::recordio::Reader<string>(
-        ::recordio::Decoder<string>(strings::lower),
-        pipeA.reader()));
+        strings::lower, pipeA.reader()));
 
   process::http::Pipe pipeB;
 
@@ -244,20 +231,17 @@ TEST(RecordIOTransformTest, WriterReadEndFail)
 {
   // Write some data to the pipe so that records
   // are available before any reads occur.
-  ::recordio::Encoder<string> encoder(strings::upper);
-
   string data;
 
-  data += encoder.encode("hello ");
-  data += encoder.encode("world! ");
+  data += ::recordio::encode("HELLO ");
+  data += ::recordio::encode("WORLD! ");
 
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
   process::Owned<mesos::internal::recordio::Reader<string>> reader(
     new mesos::internal::recordio::Reader<string>(
-        ::recordio::Decoder<string>(strings::lower),
-        pipeA.reader()));
+        strings::lower, pipeA.reader()));
 
   process::http::Pipe pipeB;
 

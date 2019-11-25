@@ -368,12 +368,9 @@ protected:
 
       process::http::Pipe::Reader reader = response.reader.get();
 
-      auto deserializer =
-        lambda::bind(deserialize<Event>, contentType, lambda::_1);
-
       process::Owned<recordio::Reader<Event>> decoder(
           new recordio::Reader<Event>(
-              ::recordio::Decoder<Event>(deserializer),
+              lambda::bind(deserialize<Event>, contentType, lambda::_1),
               reader));
 
       subscribed = SubscribedResponse(reader, std::move(decoder));

@@ -498,8 +498,8 @@ Future<Response> Http::api(
     CHECK_SOME(mediaTypes.messageContent);
 
     Owned<Reader<mesos::agent::Call>> reader(new Reader<mesos::agent::Call>(
-        Decoder<mesos::agent::Call>(lambda::bind(
-            deserializer, lambda::_1, mediaTypes.messageContent.get())),
+        lambda::bind(
+            deserializer, lambda::_1, mediaTypes.messageContent.get()),
         request.reader.get()));
 
     return reader->read()
@@ -3191,10 +3191,8 @@ Future<Response> Http::_attachContainerInput(
 
   CHECK_SOME(mediaTypes.messageContent);
   auto encoder = [mediaTypes](const mesos::agent::Call& call) {
-    ::recordio::Encoder<mesos::agent::Call> encoder(lambda::bind(
-        serialize, mediaTypes.messageContent.get(), lambda::_1));
-
-    return encoder.encode(call);
+    string record = serialize(mediaTypes.messageContent.get(), call);
+    return ::recordio::encode(record);
   };
 
   // Write the first record. We had extracted it from the `decoder`
@@ -3728,17 +3726,18 @@ Future<Response> Http::_attachContainerOutput(
           CHECK_SOME(response.reader);
           Pipe::Reader reader = response.reader.get();
 
-          auto deserializer = lambda::bind(
-              deserialize<ProcessIO>, messageContentType, lambda::_1);
-
           Owned<Reader<ProcessIO>> decoder(new Reader<ProcessIO>(
-              Decoder<ProcessIO>(deserializer), reader));
+              lambda::bind(
+                  deserialize<ProcessIO>,
+                  messageContentType,
+                  lambda::_1),
+              reader));
 
           auto encoder = [messageContentType](const ProcessIO& processIO) {
-            ::recordio::Encoder<v1::agent::ProcessIO> encoder (lambda::bind(
-                serialize, messageContentType, lambda::_1));
+            v1::agent::ProcessIO evolved = evolve(processIO);
+            string record = serialize(messageContentType, evolved);
 
-            return encoder.encode(evolve(processIO));
+            return ::recordio::encode(record);
           };
 
           recordio::transform<ProcessIO>(std::move(decoder), encoder, writer)

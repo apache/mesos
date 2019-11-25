@@ -282,7 +282,7 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
   auto deserializer = lambda::bind(
       &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(deserializer, reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
   AWAIT_READY(event);
@@ -350,7 +350,7 @@ TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
   auto deserializer = lambda::bind(
       &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(deserializer, reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
   AWAIT_READY(event);
@@ -430,7 +430,7 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetry)
     Option<Pipe::Reader> reader = response->reader;
     ASSERT_SOME(reader);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     Future<Result<Event>> event = responseDecoder.read();
     AWAIT_READY(event);
@@ -457,7 +457,7 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetry)
     Option<Pipe::Reader> reader = response->reader;
     ASSERT_SOME(reader);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     // Check if we were successfully able to subscribe after the blip.
     Future<Result<Event>> event = responseDecoder.read();
@@ -544,7 +544,7 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   auto deserializer = lambda::bind(
       &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(deserializer, reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
   AWAIT_READY(event);
@@ -608,7 +608,7 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
   auto deserializer = lambda::bind(
       &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(deserializer, reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
   AWAIT_READY(event);
@@ -705,7 +705,7 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidSchedulerAndBack)
   auto deserializer = lambda::bind(
       &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(deserializer, reader.get());
 
   // Get SUBSCRIBED event and check framework ID.
   Future<Result<Event>> event = responseDecoder.read();
@@ -899,7 +899,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWithoutStreamId)
     auto deserializer = lambda::bind(
         &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     Future<Result<Event>> event = responseDecoder.read();
     AWAIT_READY(event);
@@ -974,7 +974,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
     auto deserializer = lambda::bind(
         &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     Future<Result<Event>> event = responseDecoder.read();
     AWAIT_READY(event);
@@ -1020,7 +1020,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
     auto deserializer = lambda::bind(
         &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     Future<Result<Event>> event = responseDecoder.read();
     AWAIT_READY(event);
@@ -1092,7 +1092,7 @@ TEST_P(SchedulerHttpApiTest, MalformedUUID)
     auto deserializer = lambda::bind(
         &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
-    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+    Reader<Event> responseDecoder(deserializer, reader.get());
 
     Future<Result<Event>> event = responseDecoder.read();
     AWAIT_READY(event);

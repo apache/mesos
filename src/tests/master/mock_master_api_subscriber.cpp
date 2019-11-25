@@ -98,7 +98,7 @@ private:
         deserialize<Event>, contentType, lambda::_1);
 
     std::unique_ptr<Reader<Event>> reader(new Reader<Event>(
-        ::recordio::Decoder<Event>(deserializer), response->reader.get()));
+        deserializer, response->reader.get()));
 
     auto decode = lambda::bind(
         [](std::unique_ptr<Reader<Event>>& d) { return d->read(); },

@@ -153,15 +153,19 @@ struct StreamingHttpConnection
       id::UUID _streamId = id::UUID::random())
     : writer(_writer),
       contentType(_contentType),
-      encoder(lambda::bind(serialize, contentType, lambda::_1)),
       streamId(_streamId) {}
 
-  // Converts the message to the templated `Event`, via `evolve()`,
-  // before sending.
   template <typename Message>
   bool send(const Message& message)
   {
-    return writer.write(encoder.encode(evolve(message)));
+    // TODO(bmahler): Remove this evolve(). Could we still
+    // somehow assert that evolve(message) produces a result
+    // of type Event without calling evolve()?
+    Event e = evolve(message);
+
+    std::string record = serialize(contentType, e);
+
+    return writer.write(::recordio::encode(record));
   }
 
   bool close()
@@ -176,7 +180,6 @@ struct StreamingHttpConnection
 
   process::http::Pipe::Writer writer;
   ContentType contentType;
-  ::recordio::Encoder<Event> encoder;
   id::UUID streamId;
 };
 

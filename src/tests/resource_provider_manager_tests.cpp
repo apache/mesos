@@ -544,8 +544,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
     ASSERT_SOME(reader);
 
     responseDecoder.reset(new recordio::Reader<Event>(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        lambda::bind(deserialize<Event>, contentType, lambda::_1),
         reader.get()));
 
     Future<Result<Event>> event = responseDecoder->read();
@@ -652,8 +651,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
     ASSERT_SOME(reader);
 
     responseDecoder.reset(new recordio::Reader<Event>(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        lambda::bind(deserialize<Event>, contentType, lambda::_1),
         reader.get()));
 
     Future<Result<Event>> event = responseDecoder->read();
@@ -753,8 +751,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesDisconnected)
     ASSERT_SOME(reader);
 
     responseDecoder.reset(new recordio::Reader<Event>(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        lambda::bind(deserialize<Event>, contentType, lambda::_1),
         reader.get()));
 
     Future<Result<Event>> event = responseDecoder->read();
@@ -846,8 +843,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
   ASSERT_SOME(reader);
 
   recordio::Reader<Event> responseDecoder(
-      ::recordio::Decoder<Event>(
-          lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+      lambda::bind(deserialize<Event>, contentType, lambda::_1),
       reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
@@ -1696,8 +1692,7 @@ TEST_F(ResourceProviderManagerHttpApiTest, RemoveResourceProvider)
     ASSERT_SOME(reader);
 
     recordio::Reader<Event> responseDecoder(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        lambda::bind(deserialize<Event>, contentType, lambda::_1),
         reader.get());
 
     // We expect the manager to drop the subscribe call since

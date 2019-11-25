@@ -3073,8 +3073,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
 
-  Reader<v1::master::Event> decoder(
-      Decoder<v1::master::Event>(deserializer), reader);
+  Reader<v1::master::Event> decoder(deserializer, reader);
 
   {
     Future<Result<v1::master::Event>> event = decoder.read();
@@ -3334,8 +3333,7 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
 
-  Reader<v1::master::Event> decoder(
-      Decoder<v1::master::Event>(deserializer), reader);
+  Reader<v1::master::Event> decoder(deserializer, reader);
 
   Future<Result<v1::master::Event>> event = decoder.read();
   AWAIT_READY(event);
@@ -3525,8 +3523,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
 
-  Reader<v1::master::Event> decoder(
-      Decoder<v1::master::Event>(deserializer), reader);
+  Reader<v1::master::Event> decoder(deserializer, reader);
 
   Future<Result<v1::master::Event>> event = decoder.read();
   AWAIT_READY(event);
@@ -3697,8 +3694,7 @@ TEST_P(MasterAPITest, Heartbeat)
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
 
-  Reader<v1::master::Event> decoder(
-      Decoder<v1::master::Event>(deserializer), reader);
+  Reader<v1::master::Event> decoder(deserializer, reader);
 
   Future<Result<v1::master::Event>> event = decoder.read();
   AWAIT_READY(event);
@@ -3785,8 +3781,7 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   ASSERT_SOME(response1->reader);
   http::Pipe::Reader reader1 = response1->reader.get();
 
-  Reader<v1::master::Event> decoder1(
-      Decoder<v1::master::Event>(deserializer), reader1);
+  Reader<v1::master::Event> decoder1(deserializer, reader1);
 
   event = decoder1.read();
   AWAIT_READY(event);
@@ -3807,8 +3802,7 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   ASSERT_SOME(response2->reader);
   http::Pipe::Reader reader2 = response2->reader.get();
 
-  Reader<v1::master::Event> decoder2(
-      Decoder<v1::master::Event>(deserializer), reader2);
+  Reader<v1::master::Event> decoder2(deserializer, reader2);
 
   event = decoder2.read();
   AWAIT_READY(event);
@@ -3854,8 +3848,7 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
     ASSERT_SOME(response3->reader);
     http::Pipe::Reader reader3 = response3->reader.get();
 
-    Reader<v1::master::Event> decoder3(
-        Decoder<v1::master::Event>(deserializer), reader3);
+    Reader<v1::master::Event> decoder3(deserializer, reader3);
 
     event = decoder3.read();
     AWAIT_READY(event);
@@ -3898,8 +3891,7 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   ASSERT_SOME(response4->reader);
   http::Pipe::Reader reader4 = response4->reader.get();
 
-  Reader<v1::master::Event> decoder4(
-      Decoder<v1::master::Event>(deserializer), reader4);
+  Reader<v1::master::Event> decoder4(deserializer, reader4);
 
   event = decoder4.read();
   AWAIT_READY(event);
@@ -5675,29 +5667,30 @@ static Future<tuple<string, string>> getProcessIOData(
       string stdoutReceived;
       string stderrReceived;
 
-      ::recordio::Decoder<v1::agent::ProcessIO> decoder(lambda::bind(
-          deserialize<v1::agent::ProcessIO>, contentType, lambda::_1));
+      ::recordio::Decoder decoder;
 
-      Try<std::deque<Try<v1::agent::ProcessIO>>> records =
-        decoder.decode(data);
+      Try<std::deque<string>> records = decoder.decode(data);
 
       if (records.isError()) {
         return process::Failure(records.error());
       }
 
       while(!records->empty()) {
-        Try<v1::agent::ProcessIO> record = records->front();
+        string record = std::move(records->front());
         records->pop_front();
 
-        if (record.isError()) {
-          return process::Failure(record.error());
+        Try<v1::agent::ProcessIO> processIO =
+          deserialize<v1::agent::ProcessIO>(contentType, record);
+
+        if (processIO.isError()) {
+          return process::Failure(processIO.error());
         }
 
-        if (record->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
-          stdoutReceived += record->data().data();
-        } else if (record->data().type() ==
+        if (processIO->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
+          stdoutReceived += processIO->data().data();
+        } else if (processIO->data().type() ==
             v1::agent::ProcessIO::Data::STDERR) {
-          stderrReceived += record->data().data();
+          stderrReceived += processIO->data().data();
         }
       }
 
@@ -7968,9 +7961,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   http::Pipe::Writer writer = pipe.writer();
   http::Pipe::Reader reader = pipe.reader();
 
-  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-      serialize, contentType, lambda::_1));
-
   {
     v1::agent::Call call;
     call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
@@ -7981,7 +7971,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     attach->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
     attach->mutable_container_id()->CopyFrom(containerId);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(contentType, call)));
   }
 
   const std::string command = "pkill sleep\n";
@@ -8000,7 +7990,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
     processIO->mutable_data()->set_data(command);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(contentType, call)));
   }
 
   {
@@ -8150,9 +8140,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, AttachContainerInputRepeat)
     http::Pipe::Writer writer = pipe.writer();
     http::Pipe::Reader reader = pipe.reader();
 
-    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-        serialize, contentType, lambda::_1));
-
     {
       v1::agent::Call call;
       call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
@@ -8163,7 +8150,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, AttachContainerInputRepeat)
       attach->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
       attach->mutable_container_id()->CopyFrom(containerId);
 
-      writer.write(encoder.encode(call));
+      writer.write(::recordio::encode(serialize(contentType, call)));
     }
 
     size_t offset = 0;
@@ -8185,7 +8172,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, AttachContainerInputRepeat)
       processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
       processIO->mutable_data()->set_data(dataChunk);
 
-      writer.write(encoder.encode(call));
+      writer.write(::recordio::encode(serialize(contentType, call)));
     }
 
     // Signal `EOF` to the 'cat' command.
@@ -8203,7 +8190,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, AttachContainerInputRepeat)
       processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
       processIO->mutable_data()->set_data("");
 
-      writer.write(encoder.encode(call));
+      writer.write(::recordio::encode(serialize(contentType, call)));
     }
 
     writer.close();
@@ -8435,9 +8422,6 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
   http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers[MESSAGE_CONTENT_TYPE] = stringify(messageContentType);
 
-  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-      serialize, messageContentType, lambda::_1));
-
   EXPECT_CALL(containerizer, attach(_))
     .WillOnce(Return(process::Failure("Unsupported")));
 
@@ -8445,7 +8429,7 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
     slave.get()->pid,
     "api/v1",
     headers,
-    encoder.encode(call),
+    ::recordio::encode(serialize(messageContentType, call)),
     stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
@@ -8573,9 +8557,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     ContentType contentType = ContentType::RECORDIO;
     ContentType messageContentType = ContentType::PROTOBUF;
 
-    ::recordio::Encoder<v1::agent::Call> encoder(
-        lambda::bind(serialize, messageContentType, lambda::_1));
-
     http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
     headers[MESSAGE_CONTENT_TYPE] = stringify(messageContentType);
 
@@ -8583,7 +8564,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       slave.get()->pid,
       "api/v1",
       headers,
-      encoder.encode(call),
+      ::recordio::encode(serialize(messageContentType, call)),
       stringify(contentType));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
@@ -8624,14 +8605,11 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
     call.mutable_attach_container_input()->set_type(
         v1::agent::Call::AttachContainerInput::CONTAINER_ID);
 
-    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-        serialize, messageContentType, lambda::_1));
-
     Future<http::Response> response = http::post(
         slave.get()->pid,
         "api/v1",
         headers,
-        encoder.encode(call),
+        ::recordio::encode(serialize(messageContentType, call)),
         stringify(contentType));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
@@ -8646,14 +8624,11 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
     call.mutable_attach_container_input()->set_type(
         v1::agent::Call::AttachContainerInput::PROCESS_IO);
 
-    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-        serialize, messageContentType, lambda::_1));
-
     Future<http::Response> response = http::post(
         slave.get()->pid,
         "api/v1",
         headers,
-        encoder.encode(call),
+        ::recordio::encode(serialize(messageContentType, call)),
         stringify(contentType));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
@@ -8687,14 +8662,11 @@ TEST_F(AgentAPITest, HeaderValidation)
     call.mutable_attach_container_input()->set_type(
         v1::agent::Call::AttachContainerInput::CONTAINER_ID);
 
-    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-        serialize, ContentType::PROTOBUF, lambda::_1));
-
     Future<http::Response> response = http::post(
         slave.get()->pid,
         "api/v1",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-        encoder.encode(call),
+        ::recordio::encode(serialize(ContentType::PROTOBUF, call)),
         stringify(ContentType::RECORDIO));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
@@ -8708,9 +8680,6 @@ TEST_F(AgentAPITest, HeaderValidation)
     call.mutable_attach_container_input()->set_type(
         v1::agent::Call::AttachContainerInput::CONTAINER_ID);
 
-    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-        serialize, ContentType::PROTOBUF, lambda::_1));
-
     http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
     headers[MESSAGE_CONTENT_TYPE] = "unsupported/media-type";
 
@@ -8718,7 +8687,7 @@ TEST_F(AgentAPITest, HeaderValidation)
         slave.get()->pid,
         "api/v1",
         headers,
-        encoder.encode(call),
+        ::recordio::encode(serialize(ContentType::PROTOBUF, call)),
         stringify(ContentType::RECORDIO));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::UnsupportedMediaType().status,
@@ -9382,9 +9351,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
   http::Pipe::Writer writer = pipe.writer();
   http::Pipe::Reader reader = pipe.reader();
 
-  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-      serialize, messageContentType, lambda::_1));
-
   // Prepare the data that needs to be streamed to the entrypoint
   // of the container.
 
@@ -9398,7 +9364,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
     attach->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
     attach->mutable_container_id()->CopyFrom(containerId);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   size_t offset = 0;
@@ -9420,7 +9386,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
     processIO->mutable_data()->set_data(dataChunk);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   // Signal `EOT` to the terminal so that it sends `EOF` to `cat` command.
@@ -9438,7 +9404,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
     processIO->mutable_data()->set_data("\x04");
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   writer.close();
@@ -9610,9 +9576,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   http::Pipe::Writer writer = pipe.writer();
   http::Pipe::Reader reader = pipe.reader();
 
-  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
-      serialize, messageContentType, lambda::_1));
-
   {
     v1::agent::Call call;
     call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
@@ -9623,7 +9586,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     attach->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
     attach->mutable_container_id()->CopyFrom(containerId);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   size_t offset = 0;
@@ -9645,7 +9608,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
     processIO->mutable_data()->set_data(dataChunk);
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   // Signal `EOF` to the 'cat' command.
@@ -9663,7 +9626,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
     processIO->mutable_data()->set_data("");
 
-    writer.write(encoder.encode(call));
+    writer.write(::recordio::encode(serialize(messageContentType, call)));
   }
 
   writer.close();

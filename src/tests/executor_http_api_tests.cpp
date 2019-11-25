@@ -936,11 +936,8 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   Option<Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
-  auto deserializer =
-    lambda::bind(deserialize<Event>, contentType, lambda::_1);
-
   Reader<Event> responseDecoder(
-      Decoder<Event>(deserializer),
+      lambda::bind(deserialize<Event>, contentType, lambda::_1),
       reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
@@ -1047,9 +1044,9 @@ TEST_P(ExecutorHttpApiTest, HeartbeatEvents)
   Option<Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
-  auto deserializer =
-    lambda::bind(deserialize<Event>, contentType, lambda::_1);
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+  Reader<Event> responseDecoder(
+      lambda::bind(deserialize<Event>, contentType, lambda::_1),
+      reader.get());
 
   Future<Result<Event>> event = responseDecoder.read();
   AWAIT_READY(event);
@@ -1158,10 +1155,8 @@ TEST_F(ExecutorHttpApiTest, HeartbeatCalls)
 
     event.mutable_subscribed()->mutable_container_id()->set_value(":P");
 
-    ::recordio::Encoder<v1::executor::Event> encoder(
-        lambda::bind(serialize, ContentType::PROTOBUF, lambda::_1));
-
-    pipe.writer().write(encoder.encode(event));
+    pipe.writer().write(
+        ::recordio::encode(serialize(ContentType::PROTOBUF, event)));
   }
 
   // Set the expectation for an executor to register with the fake agent.

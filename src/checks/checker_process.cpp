@@ -171,30 +171,29 @@ static Try<tuple<string, string>> decodeProcessIOData(const string& data)
   string stdoutReceived;
   string stderrReceived;
 
-  ::recordio::Decoder<v1::agent::ProcessIO> decoder(
-      lambda::bind(
-          deserialize<v1::agent::ProcessIO>,
-          ContentType::PROTOBUF,
-          lambda::_1));
+  ::recordio::Decoder decoder;
 
-  Try<std::deque<Try<v1::agent::ProcessIO>>> records = decoder.decode(data);
+  Try<std::deque<string>> records = decoder.decode(data);
 
   if (records.isError()) {
     return Error(records.error());
   }
 
   while (!records->empty()) {
-    Try<v1::agent::ProcessIO> record = records->front();
+    string record = std::move(records->front());
     records->pop_front();
 
-    if (record.isError()) {
-      return Error(record.error());
+    Try<v1::agent::ProcessIO> result = deserialize<v1::agent::ProcessIO>(
+        ContentType::PROTOBUF, record);
+
+    if (result.isError()) {
+      return Error(result.error());
     }
 
-    if (record->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
-      stdoutReceived += record->data().data();
-    } else if (record->data().type() == v1::agent::ProcessIO::Data::STDERR) {
-      stderrReceived += record->data().data();
+    if (result->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
+      stdoutReceived += result->data().data();
+    } else if (result->data().type() == v1::agent::ProcessIO::Data::STDERR) {
+      stderrReceived += result->data().data();
     }
   }
 
