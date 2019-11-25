@@ -71,31 +71,25 @@ bool operator==(deque<T> rhs, deque<T> lhs)
 }
 
 
-TEST(RecordIOTest, Encoder)
+TEST(RecordIOTest, Encode)
 {
-  recordio::Encoder<string> encoder(strings::upper);
-
   string data;
 
-  data += encoder.encode("hello!");
-  data += encoder.encode("");
-  data += encoder.encode(" ");
-  data += encoder.encode("13 characters");
+  data += recordio::encode("hello!");
+  data += recordio::encode("");
+  data += recordio::encode(" ");
+  data += recordio::encode("13 characters");
 
   EXPECT_EQ(
-      "6\nHELLO!"
+      "6\nhello!"
       "0\n"
       "1\n "
-      "13\n13 CHARACTERS",
+      "13\n13 characters",
       data);
 
-  // Make sure these can be decoded.
-  recordio::Decoder<string> decoder(
-      [=](const string& data) {
-        return Try<string>(strings::lower(data));
-      });
+  recordio::Decoder decoder;
 
-  deque<Try<string>> records;
+  deque<string> records;
   records.push_back("hello!");
   records.push_back("");
   records.push_back(" ");
@@ -107,18 +101,9 @@ TEST(RecordIOTest, Encoder)
 
 TEST(RecordIOTest, Decoder)
 {
-  // Deserializing brings to lower case, but add an
-  // error case to test deserialization failures.
-  auto deserialize = [](const string& data) -> Try<string> {
-    if (data == "error") {
-      return Error("error");
-    }
-    return strings::lower(data);
-  };
+  recordio::Decoder decoder;
 
-  recordio::Decoder<string> decoder(deserialize);
-
-  deque<Try<string>> records;
+  deque<string> records;
 
   // Empty data should not result in an error.
   records.clear();
@@ -131,14 +116,7 @@ TEST(RecordIOTest, Decoder)
   records.push_back("");
   records.push_back(" ");
 
-  EXPECT_SOME_EQ(records, decoder.decode("6\nHELLO!0\n1\n "));
-
-  // An entry which cannot be decoded should not
-  // fail the decoder permanently.
-  records.clear();
-  records.push_back(Error("error"));
-
-  EXPECT_SOME_EQ(records, decoder.decode("5\nerror"));
+  EXPECT_SOME_EQ(records, decoder.decode("6\nhello!0\n1\n "));
 
   // Record should only be decoded once complete.
   records.clear();
@@ -146,12 +124,12 @@ TEST(RecordIOTest, Decoder)
   EXPECT_SOME_EQ(records, decoder.decode("1"));
   EXPECT_SOME_EQ(records, decoder.decode("3"));
   EXPECT_SOME_EQ(records, decoder.decode("\n"));
-  EXPECT_SOME_EQ(records, decoder.decode("13 CHARACTER"));
+  EXPECT_SOME_EQ(records, decoder.decode("13 character"));
 
   records.clear();
   records.push_back("13 characters");
 
-  EXPECT_SOME_EQ(records, decoder.decode("S"));
+  EXPECT_SOME_EQ(records, decoder.decode("s"));
 
   // If the format is bad, the decoder should fail permanently.
   EXPECT_ERROR(decoder.decode("not a number\n"));
