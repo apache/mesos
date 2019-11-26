@@ -66,6 +66,28 @@ struct Slave;
 
 namespace protobuf {
 
+// Modeled after WireFormatLite from protobuf, but to provide
+// missing helpers.
+class WireFormatLite2
+{
+public:
+  // This is a wrapper to compute cached sizes before calling into
+  // `WireFormatLite::WriteMessage`, which assumes that sizes are
+  // already cached.
+  static void WriteMessageWithoutCachedSizes(
+      int field_number,
+      const google::protobuf::MessageLite& value,
+      google::protobuf::io::CodedOutputStream* output)
+  {
+    // Cache the sizes first.
+    value.ByteSizeLong();
+
+    google::protobuf::internal::WireFormatLite::WriteMessage(
+        field_number, value, output);
+  }
+};
+
+
 // Internal helper class for protobuf union validation.
 class UnionValidator
 {
