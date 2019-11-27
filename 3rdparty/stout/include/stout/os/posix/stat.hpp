@@ -114,6 +114,15 @@ inline bool isfile(
 }
 
 
+inline bool issocket(
+    const std::string& path,
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
+{
+  Try<struct ::stat> s = internal::stat(path, follow);
+  return s.isSome() && S_ISSOCK(s->st_mode);
+}
+
+
 // Returns the size in Bytes of a given file system entry. When
 // applied to a symbolic link with `follow` set to
 // `DO_NOT_FOLLOW_SYMLINK`, this will return the length of the entry
