@@ -124,6 +124,7 @@ MockSlave::MockSlave(
         secretGenerator,
         volumeGidManager,
         futureTracker,
+        None(),
         authorizer)
 {
   // Set up default behaviors, calling the original methods.

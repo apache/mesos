@@ -58,6 +58,7 @@
 
 #include "common/authorization.hpp"
 #include "common/build.hpp"
+#include "common/domain_sockets.hpp"
 #include "common/http.hpp"
 
 #include "hook/manager.hpp"
@@ -74,6 +75,7 @@
 
 #include "module/manager.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
 #include "slave/task_status_update_manager.hpp"
@@ -105,6 +107,8 @@ using process::Owned;
 
 using process::firewall::DisabledEndpointsFirewallRule;
 using process::firewall::FirewallRule;
+
+using process::network::unix::Socket;
 
 using std::cerr;
 using std::cout;
@@ -346,11 +350,12 @@ int main(int argc, char** argv)
 
   if (flags.http_executor_domain_sockets) {
     if (flags.domain_socket_location.isNone()) {
-      flags.domain_socket_location = flags.runtime_dir + "/agent.sock";
+      flags.domain_socket_location =
+        flags.runtime_dir + "/" + AGENT_EXECUTORS_SOCKET_FILENAME;
     }
 
     if (flags.domain_socket_location->size() >=
-        common::DOMAIN_SOCKET_MAX_LENGTH) {
+        common::DOMAIN_SOCKET_MAX_PATH_LENGTH) {
       EXIT(EXIT_FAILURE)
         << "Domain socket location '" << *flags.domain_socket_location << "'"
         << " must have less than 108 characters.";
@@ -620,6 +625,25 @@ int main(int argc, char** argv)
   }
 #endif // USE_SSL_SOCKET
 
+  // Create executor domain socket if the user so desires.
+  Option<Socket> executorSocket = None();
+  if (flags.http_executor_domain_sockets) {
+    // If `http_executor_domain_sockets` is true, then the location should have
+    // been set by the user or automatically during startup.
+    CHECK_SOME(flags.domain_socket_location);
+
+    LOG(INFO) << "Creating domain socket at " << *flags.domain_socket_location;
+    Try<Socket> socket =
+      common::createDomainSocket(*flags.domain_socket_location);
+
+    if (socket.isError()) {
+      EXIT(EXIT_FAILURE)
+          << "Failed to create domain socket: " << socket.error();
+    }
+
+    executorSocket = socket.get();
+  }
+
   Slave* slave = new Slave(
       id,
       flags,
@@ -633,6 +657,7 @@ int main(int argc, char** argv)
       secretGenerator,
       volumeGidManager,
       futureTracker.get(),
+      executorSocket,
       authorizer_);
 
   process::spawn(slave);

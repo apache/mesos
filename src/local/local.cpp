@@ -535,6 +535,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         secretGenerators->back(),
         nullptr,
         nullptr,
+        None(),
         authorizer_); // Same authorizer as master.
 
     slaves[containerizer.get()] = slave;

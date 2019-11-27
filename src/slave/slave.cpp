@@ -199,6 +199,7 @@ Slave::Slave(const string& id,
              SecretGenerator* _secretGenerator,
              VolumeGidManager* _volumeGidManager,
              PendingFutureTracker* _futureTracker,
+             const Option<process::network::unix::Socket>& _executorSocket,
              const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
@@ -230,6 +231,7 @@ Slave::Slave(const string& id,
     secretGenerator(_secretGenerator),
     volumeGidManager(_volumeGidManager),
     futureTracker(_futureTracker),
+    executorSocket(_executorSocket),
     authorizer(_authorizer),
     resourceVersion(protobuf::createUUID()) {}
 

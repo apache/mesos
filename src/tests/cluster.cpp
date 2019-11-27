@@ -71,6 +71,7 @@
 #include "authorizer/local/authorizer.hpp"
 
 #include "common/authorization.hpp"
+#include "common/domain_sockets.hpp"
 #include "common/future_tracker.hpp"
 #include "common/http.hpp"
 
@@ -118,6 +119,8 @@ using mesos::master::detector::StandaloneMasterDetector;
 using mesos::master::detector::ZooKeeperMasterDetector;
 
 using mesos::slave::ContainerTermination;
+
+using process::network::unix::Socket;
 
 namespace mesos {
 namespace internal {
@@ -607,6 +610,24 @@ Try<process::Owned<Slave>> Slave::create(
     slave->secretGenerator.reset(_secretGenerator);
   }
 
+  Option<Socket> executorSocket = None();
+  if (flags.http_executor_domain_sockets) {
+    // If `http_executor_domain_sockets` is true, then the location should have
+    // been set by the user or automatically during startup.
+    CHECK_SOME(flags.domain_socket_location);
+
+    LOG(INFO) << "Creating domain socket at " << *flags.domain_socket_location;
+    Try<Socket> socket =
+      common::createDomainSocket(*flags.domain_socket_location);
+
+    if (socket.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to create domain socket: " << socket.error();
+    }
+
+    executorSocket = socket.get();
+  }
+
   // If the task status update manager is not provided, create a default one.
   if (taskStatusUpdateManager.isNone()) {
     slave->taskStatusUpdateManager.reset(
@@ -643,6 +664,7 @@ Try<process::Owned<Slave>> Slave::create(
         secretGenerator.getOrElse(slave->secretGenerator.get()),
         volumeGidManager,
         futureTracker.getOrElse(slave->futureTracker.get()),
+        executorSocket,
         authorizer));
   }
 

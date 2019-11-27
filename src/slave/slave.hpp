@@ -130,6 +130,7 @@ public:
         mesos::SecretGenerator* secretGenerator,
         VolumeGidManager* volumeGidManager,
         PendingFutureTracker* futureTracker,
+        const Option<process::network::unix::Socket>& executorSocket,
         const Option<Authorizer*>& authorizer);
 
   ~Slave() override;
@@ -870,6 +871,8 @@ private:
   VolumeGidManager* volumeGidManager;
 
   PendingFutureTracker* futureTracker;
+
+  Option<process::network::unix::Socket> executorSocket;
 
   const Option<Authorizer*> authorizer;
 
