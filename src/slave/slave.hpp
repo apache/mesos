@@ -873,6 +873,7 @@ private:
   PendingFutureTracker* futureTracker;
 
   Option<process::network::unix::Socket> executorSocket;
+  Option<process::http::Server> executorSocketServer;
 
   const Option<Authorizer*> authorizer;
 
