@@ -1888,24 +1888,30 @@ Accept: application/json
       {
         "type": "SCALAR",
         "name": "cpus",
-        "reservation": {
-          "principal": "my-principal"
-        },
-        "role": "role",
         "scalar": {
           "value": 1.0
-        }
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role",
+            "principal": "my-principal"
+          }
+        ]
       },
       {
         "type": "SCALAR",
         "name": "mem",
-        "reservation": {
-          "principal": "my-principal"
-        },
-        "role": "role",
         "scalar": {
           "value": 512.0
-        }
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role",
+            "principal": "my-principal"
+          }
+        ]
       }
     ]
   }
@@ -1942,24 +1948,30 @@ Accept: application/json
       {
         "type": "SCALAR",
         "name": "cpus",
-        "reservation": {
-          "principal": "my-principal"
-        },
-        "role": "role",
         "scalar": {
           "value": 1.0
-        }
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role",
+            "principal": "my-principal"
+          }
+        ]
       },
       {
         "type": "SCALAR",
         "name": "mem",
-        "reservation": {
-          "principal": "my-principal"
-        },
-        "role": "role",
         "scalar": {
           "value": 512.0
-        }
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role",
+            "principal": "my-principal"
+          }
+        ]
       }
     ]
   }
