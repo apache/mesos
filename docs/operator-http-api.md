@@ -1866,8 +1866,25 @@ Content-Type: application/json
 
 ### RESERVE_RESOURCES
 
-This call reserve resources dynamically on a specific agent. This call takes
-`agent_id` and `resources` details like the following.
+This call is used to update resource reservations.
+
+This call reserves resources dynamically on a specific agent. This call takes
+`agent_id`, the `source` resources of the operation and the target
+`resources`, and updates the reservations of `source` to be equal to
+the reservations of `target`.
+
+For backwards compatibility we accept calls without the `sources` field present,
+but only allow adding a single reservation refinement in that case;
+otherwise we expect that `sources` can be transformed into `resources` by
+repeatedly removing or adding identical reservations from all given
+resources. This means that `source` and `resources` must be identical
+in all values apart from reservation.
+
+If authorization is enabled we expect the caller to be authorized to perform any
+`UNRESERVE` or `RESERVE` operations needed to transform `sources` to
+`resources`.
+
+Example of a call creating reserved resources for role `role`:
 
 ```
 RESERVE_RESOURCES HTTP Request (JSON):
@@ -1884,6 +1901,22 @@ Accept: application/json
     "agent_id": {
       "value": "1557de7d-547c-48db-b5d3-6bef9c9640ef-S0"
     },
+    "source": [
+      {
+        "type": "SCALAR",
+        "name": "cpus",
+        "scalar": {
+          "value": 1.0
+        }
+      },
+      {
+        "type": "SCALAR",
+        "name": "mem",
+        "scalar": {
+          "value": 512.0
+        }
+      }
+    ],
     "resources": [
       {
         "type": "SCALAR",
@@ -1909,6 +1942,94 @@ Accept: application/json
           {
             "type": "DYNAMIC",
             "role": "role",
+            "principal": "my-principal"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+
+RESERVE_RESOURCES HTTP Response:
+
+HTTP/1.1 202 Accepted
+
+```
+
+Example of a call changing the reservation of resources from `role_a` to
+`role_b`.
+
+```
+RESERVE_RESOURCES HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "RESERVE_RESOURCES",
+  "reserve_resources": {
+    "agent_id": {
+      "value": "1557de7d-547c-48db-b5d3-6bef9c9640ef-S0"
+    },
+    "source": [
+      {
+        "type": "SCALAR",
+        "name": "cpus",
+        "scalar": {
+          "value": 1.0
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role_a",
+            "principal": "my-principal"
+          }
+        ]
+      },
+      {
+        "type": "SCALAR",
+        "name": "mem",
+        "scalar": {
+          "value": 512.0
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role_a",
+            "principal": "my-principal"
+          }
+        ]
+      }
+    ],
+    "resources": [
+      {
+        "type": "SCALAR",
+        "name": "cpus",
+        "scalar": {
+          "value": 1.0
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role_b",
+            "principal": "my-principal"
+          }
+        ]
+      },
+      {
+        "type": "SCALAR",
+        "name": "mem",
+        "scalar": {
+          "value": 512.0
+        },
+        "reservations": [
+          {
+            "type": "DYNAMIC",
+            "role": "role_b",
             "principal": "my-principal"
           }
         ]
