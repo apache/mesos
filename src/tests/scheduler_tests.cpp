@@ -1232,9 +1232,8 @@ TEST_P(SchedulerTest, OperationFeedbackValidationNoResourceProviderCapability)
   const v1::Offer& offer = offers->offers(0);
 
   v1::Resources resources = v1::Resources::parse("cpus:0.1").get();
-  resources.pushReservation(v1::createDynamicReservationInfo(
-      frameworkInfo.roles(1),
-      frameworkInfo.principal()));
+  resources = resources.pushReservation(v1::createDynamicReservationInfo(
+      frameworkInfo.roles(1), frameworkInfo.principal()));
 
   v1::Offer::Operation operation = v1::RESERVE(resources);
   operation.mutable_id()->set_value("RESERVE_OPERATION");
