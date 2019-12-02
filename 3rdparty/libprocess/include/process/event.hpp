@@ -142,10 +142,10 @@ struct MessageEvent : Event
 struct HttpEvent : Event
 {
   HttpEvent(
-      http::Request* _request,
-      Promise<http::Response>* _response)
-    : request(_request),
-      response(_response) {}
+      std::unique_ptr<http::Request>&& _request,
+      std::unique_ptr<Promise<http::Response>>&& _response)
+    : request(std::move(_request)),
+      response(std::move(_response)) {}
 
   HttpEvent(HttpEvent&&) = default;
   HttpEvent(const HttpEvent&) = delete;
