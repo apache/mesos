@@ -476,6 +476,7 @@ public:
       const process::Future<Option<Secret>>& authorizationToken,
       const FrameworkID& frameworkId,
       const ExecutorInfo& executorInfo,
+      const google::protobuf::Map<std::string, Value::Scalar>& executorLimits,
       const Option<TaskInfo>& taskInfo);
 
   void fileAttached(const process::Future<Nothing>& result,
@@ -777,6 +778,10 @@ private:
   void initializeResourceProviderManager(
       const Flags& flags,
       const SlaveID& slaveId);
+
+  google::protobuf::Map<std::string, Value::Scalar> computeExecutorLimits(
+      const Resources& executorResources,
+      const std::vector<TaskInfo>& tasks) const;
 
   protobuf::master::Capabilities requiredMasterCapabilities;
 
