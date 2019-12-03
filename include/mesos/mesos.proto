@@ -2283,6 +2283,9 @@ message TaskInfo {
   // It is the executor's responsibility to implement this, so it might not be
   // supported by all custom executors.
   optional DurationInfo max_completion_time = 14;
+
+  // Resource limits associated with the task.
+  map<string, Value.Scalar> limits = 15;
 }
 
 
