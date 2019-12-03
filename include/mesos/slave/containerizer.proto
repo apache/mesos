@@ -136,10 +136,13 @@ message ContainerConfig {
   // same across all fields.
   optional ContainerInfo container_info = 12;
 
-  // Resources associated with the container during launch.
+  // Resource requests associated with the container during launch.
   // When either `task_info` or `executor_info` are specified, this will
   // always be the sum of the Resources within those fields.
   repeated Resource resources = 13;
+
+  // Resource limits associated with the container during launch.
+  map<string, Value.Scalar> limits = 16;
 
   // The class of container being launched. Used by isolators to
   // perform different operations depending on the class.
