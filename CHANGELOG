@@ -290,6 +290,7 @@ Release Notes - Mesos - Version 1.8.2 (WIP)
   * [MESOS-9925] - Default executor takes a couple of seconds to start and subscribe Mesos agent.
   * [MESOS-9964] - Support destroying UCR containers in provisioning state.
   * [MESOS-9966] - Agent crashes when trying to destroy orphaned nested container if root container is orphaned as well.
+  * [MESOS-9968] - WWWAuthenticate header parsing fails when commas are in (quoted) realm
   * [MESOS-10007] - Command executor can miss exit status for short-lived commands due to double-reaping.
   * [MESOS-10015] - updateAllocation() can stall the allocator with a huge number of reservations on an agent.
 
