@@ -755,13 +755,24 @@ Try<Value> parse(const string& text)
     } else if (index == string::npos) {
       Try<double> value_ = numify<double>(temp);
       if (!value_.isError()) {
-        Option<Error> error =
-          mesos::internal::common::validation::validateInputScalarValue(
-              *value_);
-        if (error.isSome()) {
-          return Error("Invalid scalar value '" + temp + "':" + error->message);
+        // Check if this is a floating point value that we can work
+        // with. If not, we will handle it as text.
+        switch (std::fpclassify(value_.get())) {
+          case FP_INFINITE:
+          case FP_NAN:
+            value_ = Error("Unsupported floating point value");
+            break;
+          case FP_NORMAL:
+            if (value_.get() < 0) {
+              value_ = Error("Negative values not supported");
+            }
+            break;
+          case FP_SUBNORMAL:
+            return Error("Subnormal values not supported");
         }
+      }
 
+      if (!value_.isError()) {
         // This is a scalar.
         Value::Scalar* scalar = value.mutable_scalar();
         value.set_type(Value::SCALAR);
