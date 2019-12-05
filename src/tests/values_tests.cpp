@@ -73,6 +73,37 @@ TEST(ValuesTest, ValidInput)
   ASSERT_SOME(result4);
   ASSERT_EQ(Value::TEXT, result4->type());
   ASSERT_EQ("123abc,s", result4->text().value());
+
+  // Test parsing unsupported scalar values.
+  Try<Value> result5 = parse("inf");
+  ASSERT_SOME(result5);
+  ASSERT_EQ(Value::TEXT, result5->type());
+  ASSERT_EQ("inf", result5->text().value());
+
+  Try<Value> result6 = parse("-inf");
+  ASSERT_SOME(result6);
+  ASSERT_EQ(Value::TEXT, result6->type());
+  ASSERT_EQ("-inf", result6->text().value());
+
+  Try<Value> result7 = parse("infinity");
+  ASSERT_SOME(result7);
+  ASSERT_EQ(Value::TEXT, result7->type());
+  ASSERT_EQ("infinity", result7->text().value());
+
+  Try<Value> result8 = parse("-infinity");
+  ASSERT_SOME(result8);
+  ASSERT_EQ(Value::TEXT, result8->type());
+  ASSERT_EQ("-infinity", result8->text().value());
+
+  Try<Value> result9 = parse("nan");
+  ASSERT_SOME(result9);
+  ASSERT_EQ(Value::TEXT, result9->type());
+  ASSERT_EQ("nan", result9->text().value());
+
+  Try<Value> result10 = parse("-nan");
+  ASSERT_SOME(result10);
+  ASSERT_EQ(Value::TEXT, result10->type());
+  ASSERT_EQ("-nan", result10->text().value());
 }
 
 
@@ -90,14 +121,9 @@ TEST(ValuesTest, InvalidInput)
   // Test when giving empty string.
   EXPECT_ERROR(parse("  "));
 
-  EXPECT_ERROR(parse("nan"));
-  EXPECT_ERROR(parse("-nan"));
-
-  EXPECT_ERROR(parse("inf"));
-  EXPECT_ERROR(parse("-inf"));
-
-  EXPECT_ERROR(parse("infinity"));
-  EXPECT_ERROR(parse("-infinity"));
+  // Test subnormal scalar value.
+  EXPECT_ERROR(parse("7.63918e-313"));
+  EXPECT_ERROR(parse("-7.63918e-313"));
 }
 
 
