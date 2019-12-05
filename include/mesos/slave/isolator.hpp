@@ -97,7 +97,9 @@ public:
   // Update the resources allocated to the container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources)
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {})
   {
     return Nothing();
   }

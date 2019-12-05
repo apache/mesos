@@ -2952,7 +2952,8 @@ void PortMappingIsolatorProcess::_update(
 
 Future<Nothing> PortMappingIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   // It is possible for the network isolator to be asked to update a
   // container that isn't managed by it, for instance, containers
@@ -2970,9 +2971,9 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   // specified in 'resources'. However, this behavior needs to be
   // changed once the master can make default allocations for
   // ephemeral ports.
-  if (resources.ephemeral_ports().isSome()) {
+  if (resourceRequests.ephemeral_ports().isSome()) {
     LOG(WARNING) << "Ignoring the specified ephemeral_ports '"
-                 << resources.ephemeral_ports().get()
+                 << resourceRequests.ephemeral_ports().get()
                  << "' for container" << containerId;
   }
 
@@ -2985,9 +2986,9 @@ Future<Nothing> PortMappingIsolatorProcess::update(
 
   IntervalSet<uint16_t> nonEphemeralPorts;
 
-  if (resources.ports().isSome()) {
+  if (resourceRequests.ports().isSome()) {
     nonEphemeralPorts = rangesToIntervalSet<uint16_t>(
-        resources.ports().get()).get();
+        resourceRequests.ports().get()).get();
 
     // Sanity check to make sure that the assigned non-ephemeral ports
     // for the container are part of the non-ephemeral ports specified

@@ -69,7 +69,9 @@ public:
 
   process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources) override;
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) override;
 
   process::Future<Nothing> cleanup(
       const ContainerID& containerId) override;

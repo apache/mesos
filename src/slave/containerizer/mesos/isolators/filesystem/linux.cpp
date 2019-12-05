@@ -850,7 +850,8 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
 Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (containerId.has_parent()) {
     return Failure("Not supported for nested containers");
@@ -882,7 +883,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
       continue;
     }
 
-    if (resources.contains(resource)) {
+    if (resourceRequests.contains(resource)) {
       continue;
     }
 
@@ -923,7 +924,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
   vector<Future<gid_t>> futures;
 
   // We then mount new persistent volumes.
-  foreach (const Resource& resource, resources.persistentVolumes()) {
+  foreach (const Resource& resource, resourceRequests.persistentVolumes()) {
     // This is enforced by the master.
     CHECK(resource.disk().has_volume());
 
@@ -1075,7 +1076,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
   }
 
   // Store the new resources;
-  info->resources = resources;
+  info->resources = resourceRequests;
 
   return collect(futures)
     .then(defer(self(), [this, containerId](const vector<gid_t>& gids)

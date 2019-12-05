@@ -46,6 +46,7 @@ using process::Future;
 using process::Owned;
 
 using std::max;
+using std::string;
 using std::vector;
 
 namespace mesos {
@@ -153,7 +154,9 @@ Try<Isolator*> WindowsMemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> WindowsMemIsolatorProcess::update(
-    const ContainerID& containerId, const Resources& resources)
+    const ContainerID& containerId,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (containerId.has_parent()) {
     return Failure("Not supported for nested containers");
@@ -168,13 +171,13 @@ Future<Nothing> WindowsMemIsolatorProcess::update(
         "Container not isolated before update: " + stringify(containerId));
   }
 
-  if (resources.mem().isNone()) {
+  if (resourceRequests.mem().isNone()) {
     return Failure(
         "Failed to update container '" + stringify(containerId) +
         "': No mem resource given");
   }
 
-  infos[containerId].limit = max(resources.mem().get(), MIN_MEM);
+  infos[containerId].limit = max(resourceRequests.mem().get(), MIN_MEM);
   const Try<Nothing> set = os::set_job_mem_limit(
       infos[containerId].pid.get(), infos[containerId].limit.get());
   if (set.isError()) {

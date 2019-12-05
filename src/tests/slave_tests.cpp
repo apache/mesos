@@ -2822,7 +2822,7 @@ TEST_F(SlaveTest, ROOT_ContainerizerDebugEndpoint)
     .WillOnce(DoAll(FutureSatisfy(&prepare),
                     Return(promise.future())));
 
-  EXPECT_CALL(*mockIsolator, update(_, _))
+  EXPECT_CALL(*mockIsolator, update(_, _, _))
     .WillOnce(Return(Nothing()));
 
   // Wrap `mockIsolator` in `PendingFutureTracker`.

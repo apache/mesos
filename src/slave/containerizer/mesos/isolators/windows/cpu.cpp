@@ -45,6 +45,7 @@ using process::Future;
 using process::Owned;
 
 using std::max;
+using std::string;
 using std::vector;
 
 namespace mesos {
@@ -152,7 +153,9 @@ Try<Isolator*> WindowsCpuIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> WindowsCpuIsolatorProcess::update(
-    const ContainerID& containerId, const Resources& resources)
+    const ContainerID& containerId,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (containerId.has_parent()) {
     return Failure("Not supported for nested containers");
@@ -167,13 +170,13 @@ Future<Nothing> WindowsCpuIsolatorProcess::update(
         "Container not isolated before update: " + stringify(containerId));
   }
 
-  if (resources.cpus().isNone()) {
+  if (resourceRequests.cpus().isNone()) {
     return Failure(
         "Failed to update container '" + stringify(containerId) +
         "': No cpus resource given");
   }
 
-  infos[containerId].limit = max(resources.cpus().get(), MIN_CPU);
+  infos[containerId].limit = max(resourceRequests.cpus().get(), MIN_CPU);
   const Try<Nothing> set = os::set_job_cpu_limit(
       infos[containerId].pid.get(), infos[containerId].limit.get());
   if (set.isError()) {

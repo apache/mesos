@@ -103,9 +103,12 @@ public:
       watch,
       process::Future<mesos::slave::ContainerLimitation>(const ContainerID&));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       update,
-      process::Future<Nothing>(const ContainerID&, const Resources&));
+      process::Future<Nothing>(
+          const ContainerID&,
+          const Resources&,
+          const google::protobuf::Map<std::string, Value::Scalar>&));
 
   MOCK_METHOD1(
       usage,

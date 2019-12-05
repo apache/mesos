@@ -475,7 +475,8 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
 
 Future<Nothing> NvidiaGpuIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (containerId.has_parent()) {
     return Failure("Not supported for nested containers");
@@ -487,7 +488,7 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  Option<double> gpus = resources.gpus();
+  Option<double> gpus = resourceRequests.gpus();
 
   // Make sure that the `gpus` resource is not fractional.
   // We rely on scalar resources only having 3 digits of precision.
@@ -495,7 +496,8 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
     return Failure("The 'gpus' resource must be an unsigned integer");
   }
 
-  size_t requested = static_cast<size_t>(resources.gpus().getOrElse(0.0));
+  size_t requested =
+    static_cast<size_t>(resourceRequests.gpus().getOrElse(0.0));
 
   // Update the GPU allocation to reflect the new total.
   if (requested > info->allocated.size()) {

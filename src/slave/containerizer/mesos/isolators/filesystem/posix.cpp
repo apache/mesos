@@ -135,7 +135,8 @@ Future<Option<ContainerLaunchInfo>> PosixFilesystemIsolatorProcess::prepare(
 
 Future<Nothing> PosixFilesystemIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
@@ -163,7 +164,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
       continue;
     }
 
-    if (resources.contains(resource)) {
+    if (resourceRequests.contains(resource)) {
       continue;
     }
 
@@ -193,7 +194,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
   vector<Future<gid_t>> futures;
 
   // We then link additional persistent volumes.
-  foreach (const Resource& resource, resources.persistentVolumes()) {
+  foreach (const Resource& resource, resourceRequests.persistentVolumes()) {
     // This is enforced by the master.
     CHECK(resource.disk().has_volume());
 
@@ -335,7 +336,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
   }
 
   // Store the updated resources.
-  info->resources = resources;
+  info->resources = resourceRequests;
 
   return collect(futures)
     .then(defer(self(), [this, containerId](const vector<gid_t>& gids)

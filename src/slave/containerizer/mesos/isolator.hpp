@@ -61,7 +61,9 @@ public:
 
   process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources) override;
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) override;
 
   process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) override;
@@ -121,7 +123,9 @@ public:
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources)
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {})
   {
     return Nothing();
   }

@@ -210,7 +210,8 @@ Future<ContainerLimitation> PosixDiskIsolatorProcess::watch(
 
 Future<Nothing> PosixDiskIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (containerId.has_parent()) {
     return Failure("Not supported for nested containers");
@@ -222,14 +223,14 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   }
 
   LOG(INFO) << "Updating the disk resources for container "
-            << containerId << " to " << resources;
+            << containerId << " to " << resourceRequests;
 
   const Owned<Info>& info = infos[containerId];
 
   // This stores the updated quotas.
   hashmap<string, Resources> quotas;
 
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, resourceRequests) {
     if (resource.name() != "disk") {
       continue;
     }

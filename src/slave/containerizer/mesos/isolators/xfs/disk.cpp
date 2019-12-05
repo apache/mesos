@@ -596,7 +596,8 @@ static Try<xfs::QuotaInfo> applyProjectQuota(
 
 Future<Nothing> XfsDiskIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
     LOG(INFO) << "Ignoring update for unknown container " << containerId;
@@ -606,7 +607,7 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
   const Owned<Info>& info = infos.at(containerId);
 
   // First, apply the disk quota to the sandbox.
-  Option<Bytes> sandboxQuota = getSandboxDisk(resources);
+  Option<Bytes> sandboxQuota = getSandboxDisk(resourceRequests);
   if (sandboxQuota.isSome()) {
     foreachpair (
         const string& directory, Info::PathInfo& pathInfo, info->paths) {
@@ -628,7 +629,7 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
   }
 
   // Make sure that we have project IDs assigned to all persistent volumes.
-  foreach (const Resource& resource, resources.persistentVolumes()) {
+  foreach (const Resource& resource, resourceRequests.persistentVolumes()) {
     CHECK(resource.disk().has_volume());
 
     const Bytes size = Megabytes(resource.scalar().value());

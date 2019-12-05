@@ -102,12 +102,14 @@ Future<ContainerLimitation> MesosIsolator::watch(
 
 Future<Nothing> MesosIsolator::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return dispatch(process.get(),
                   &MesosIsolatorProcess::update,
                   containerId,
-                  resources);
+                  resourceRequests,
+                  resourceLimits);
 }
 
 

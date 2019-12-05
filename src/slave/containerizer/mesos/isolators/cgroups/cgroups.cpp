@@ -566,7 +566,10 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::_prepare(
         strings::join(";", errors));
   }
 
-  return update(containerId, containerConfig.resources())
+  return update(
+      containerId,
+      containerConfig.resources(),
+      containerConfig.limits())
     .then(defer(
         PID<CgroupsIsolatorProcess>(this),
         &CgroupsIsolatorProcess::__prepare,
@@ -856,7 +859,8 @@ void CgroupsIsolatorProcess::_watch(
 
 Future<Nothing> CgroupsIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
@@ -868,7 +872,7 @@ Future<Nothing> CgroupsIsolatorProcess::update(
       updates.push_back(subsystem->update(
           containerId,
           infos[containerId]->cgroup,
-          resources));
+          resourceRequests));
     }
   }
 

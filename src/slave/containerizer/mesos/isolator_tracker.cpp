@@ -104,14 +104,16 @@ Future<ContainerLimitation> IsolatorTracker::watch(
 
 Future<Nothing> IsolatorTracker::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return tracker->track(
-      isolator->update(containerId, resources),
+      isolator->update(containerId, resourceRequests, resourceLimits),
       strings::format("%s::update", isolatorName).get(),
       COMPONENT_NAME_CONTAINERIZER,
       {{"containerId", stringify(containerId)},
-       {"resources", stringify(resources)}});
+       {"resourceRequests", stringify(resourceRequests)},
+       {"resourceLimits", stringify(resourceLimits)}});
 }
 
 

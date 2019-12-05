@@ -544,7 +544,8 @@ Future<ContainerLimitation> NetworkPortsIsolatorProcess::watch(
 
 Future<Nothing> NetworkPortsIsolatorProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
     LOG(INFO) << "Ignoring update for unknown container " << containerId;
@@ -558,7 +559,7 @@ Future<Nothing> NetworkPortsIsolatorProcess::update(
   // processes in the corresponding cgroup.
   if (containerId.has_parent()) {
     // Child containers don't get resources, only the parents do.
-    CHECK(resources.empty());
+    CHECK(resourceRequests.empty());
 
     // Verify that we know about the root for this container.
     CHECK(infos.contains(protobuf::getRootContainerId(containerId)));
@@ -566,7 +567,7 @@ Future<Nothing> NetworkPortsIsolatorProcess::update(
     return Nothing();
   }
 
-  Option<Value::Ranges> ports = resources.ports();
+  Option<Value::Ranges> ports = resourceRequests.ports();
   if (ports.isSome()) {
     const Owned<Info>& info = infos.at(containerId);
     info->allocatedPorts = rangesToIntervalSet<uint16_t>(ports.get()).get();
