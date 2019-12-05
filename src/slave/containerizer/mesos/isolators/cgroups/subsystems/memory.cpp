@@ -165,7 +165,8 @@ Future<ContainerLimitation> MemorySubsystemProcess::watch(
 Future<Nothing> MemorySubsystemProcess::update(
     const ContainerID& containerId,
     const string& cgroup,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -173,14 +174,14 @@ Future<Nothing> MemorySubsystemProcess::update(
         ": Unknown container");
   }
 
-  if (resources.mem().isNone()) {
+  if (resourceRequests.mem().isNone()) {
     return Failure(
         "Failed to update subsystem '" + name() + "'"
         ": No memory resource given");
   }
 
   // New limit.
-  Bytes mem = resources.mem().get();
+  Bytes mem = resourceRequests.mem().get();
   Bytes limit = std::max(mem, MIN_MEMORY);
 
   // Always set the soft limit.

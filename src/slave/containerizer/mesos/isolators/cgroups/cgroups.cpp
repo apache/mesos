@@ -872,7 +872,8 @@ Future<Nothing> CgroupsIsolatorProcess::update(
       updates.push_back(subsystem->update(
           containerId,
           infos[containerId]->cgroup,
-          resourceRequests));
+          resourceRequests,
+          resourceLimits));
     }
   }
 

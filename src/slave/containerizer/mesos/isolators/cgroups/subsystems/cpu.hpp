@@ -52,7 +52,9 @@ public:
   process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
-      const Resources& resources) override;
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) override;
 
   process::Future<ResourceStatistics> usage(
       const ContainerID& containerId,

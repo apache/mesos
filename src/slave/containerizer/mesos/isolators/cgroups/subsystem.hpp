@@ -133,7 +133,9 @@ public:
   process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
-      const Resources& resources);
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {});
 
   /**
    * Gather resource usage statistics of the cgroups subsystem for the
@@ -210,7 +212,9 @@ public:
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
-      const Resources& resources);
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {});
 
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId,

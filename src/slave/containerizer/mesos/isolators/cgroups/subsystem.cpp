@@ -155,14 +155,16 @@ Future<mesos::slave::ContainerLimitation> Subsystem::watch(
 Future<Nothing> Subsystem::update(
     const ContainerID& containerId,
     const string& cgroup,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return process::dispatch(
       process.get(),
       &SubsystemProcess::update,
       containerId,
       cgroup,
-      resources);
+      resourceRequests,
+      resourceLimits);
 }
 
 
@@ -245,7 +247,8 @@ Future<ContainerLimitation> SubsystemProcess::watch(
 Future<Nothing> SubsystemProcess::update(
     const ContainerID& containerId,
     const string& cgroup,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return Nothing();
 }

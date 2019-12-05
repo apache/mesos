@@ -59,21 +59,22 @@ CpuSubsystemProcess::CpuSubsystemProcess(
 Future<Nothing> CpuSubsystemProcess::update(
     const ContainerID& containerId,
     const string& cgroup,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
-  if (resources.cpus().isNone()) {
+  if (resourceRequests.cpus().isNone()) {
     return Failure(
         "Failed to update subsystem '" + name() + "': "
         "No cpus resource given");
   }
 
-  double cpus = resources.cpus().get();
+  double cpus = resourceRequests.cpus().get();
 
   // Always set cpu.shares.
   uint64_t shares;
 
   if (flags.revocable_cpu_low_priority &&
-      resources.revocable().cpus().isSome()) {
+      resourceRequests.revocable().cpus().isSome()) {
     shares = std::max(
         (uint64_t) (CPU_SHARES_PER_CPU_REVOCABLE * cpus),
         MIN_CPU_SHARES);
