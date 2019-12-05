@@ -6,6 +6,7 @@ Release Notes - Mesos - Version 1.9.1 (WIP)
   * [MESOS-9964] - Support destroying UCR containers in provisioning state.
   * [MESOS-9965] - Agent should not send `TASK_GONE_BY_OPERATOR` if the framework is not partition aware.
   * [MESOS-9966] - Agent crashes when trying to destroy orphaned nested container if root container is orphaned as well.
+  * [MESOS-9968] - WWWAuthenticate header parsing fails when commas are in (quoted) realm
   * [MESOS-9972] - Update Names for TLS-related environment variables in libprocess.
   * [MESOS-10007] - Command executor can miss exit status for short-lived commands due to double-reaping.
   * [MESOS-10008] - Very large quota values can crash master.
