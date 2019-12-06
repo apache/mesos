@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
+
 #include <process/id.hpp>
 
 #include <stout/error.hpp>
@@ -68,7 +70,7 @@ Future<Nothing> CpuSubsystemProcess::update(
         "No cpus resource given");
   }
 
-  double cpus = resourceRequests.cpus().get();
+  double cpuRequest = resourceRequests.cpus().get();
 
   // Always set cpu.shares.
   uint64_t shares;
@@ -76,44 +78,60 @@ Future<Nothing> CpuSubsystemProcess::update(
   if (flags.revocable_cpu_low_priority &&
       resourceRequests.revocable().cpus().isSome()) {
     shares = std::max(
-        (uint64_t) (CPU_SHARES_PER_CPU_REVOCABLE * cpus),
+        (uint64_t) (CPU_SHARES_PER_CPU_REVOCABLE * cpuRequest),
         MIN_CPU_SHARES);
   } else {
     shares = std::max(
-        (uint64_t) (CPU_SHARES_PER_CPU * cpus),
+        (uint64_t) (CPU_SHARES_PER_CPU * cpuRequest),
         MIN_CPU_SHARES);
   }
 
   Try<Nothing> write = cgroups::cpu::shares(hierarchy, cgroup, shares);
-
   if (write.isError()) {
     return Failure("Failed to update 'cpu.shares': " + write.error());
   }
 
   LOG(INFO) << "Updated 'cpu.shares' to " << shares
-            << " (cpus " << cpus << ")"
+            << " (cpus " << cpuRequest << ")"
             << " for container " << containerId;
 
-  // Set cfs quota if enabled.
-  if (flags.cgroups_enable_cfs) {
-    write = cgroups::cpu::cfs_period_us(hierarchy, cgroup, CPU_CFS_PERIOD);
+  Option<double> cpuLimit;
+  foreach (auto&& limit, resourceLimits) {
+    if (limit.first == "cpus") {
+      cpuLimit = limit.second.value();
+    }
+  }
 
+  // Set CFS quota to CPU limit (if any) or to CPU request (if the
+  // flag `--cgroups_enable_cfs` is true).
+  if (cpuLimit.isSome() || flags.cgroups_enable_cfs) {
+    write = cgroups::cpu::cfs_period_us(hierarchy, cgroup, CPU_CFS_PERIOD);
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_period_us': " + write.error());
     }
 
-    Duration quota = std::max(CPU_CFS_PERIOD * cpus, MIN_CPU_CFS_QUOTA);
+    if (cpuLimit.isSome() && std::isinf(cpuLimit.get())) {
+      write = cgroups::write(hierarchy, cgroup, "cpu.cfs_quota_us", "-1");
+      if (write.isError()) {
+        return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
+      }
 
-    write = cgroups::cpu::cfs_quota_us(hierarchy, cgroup, quota);
+      LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
+                << " and 'cpu.cfs_quota_us' to -1" << " for container "
+                << containerId;
+    } else {
+      const double& quota = cpuLimit.isSome() ? cpuLimit.get() : cpuRequest;
+      Duration duration = std::max(CPU_CFS_PERIOD * quota, MIN_CPU_CFS_QUOTA);
 
-    if (write.isError()) {
-      return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
+      write = cgroups::cpu::cfs_quota_us(hierarchy, cgroup, duration);
+      if (write.isError()) {
+        return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
+      }
+
+      LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
+                << " and 'cpu.cfs_quota_us' to " << duration << " (cpus "
+                << quota << ")" << " for container " << containerId;
     }
-
-    LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
-              << " and 'cpu.cfs_quota_us' to " << quota
-              << " (cpus " << cpus << ")"
-              << " for container " << containerId;
   }
 
   return Nothing();
