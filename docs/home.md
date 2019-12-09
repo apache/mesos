@@ -11,6 +11,7 @@ layout: documentation
 
 ## Build / Installation
 * [Building](building.md) for basic instructions on compiling and installing Mesos.
+* [Binary Packages](binary-packages.md) for how to use Mesos binary packages.
 * [Configuration](configuration.md) for build configuration options.
 * [CMake](cmake.md) for details about using the new CMake build system.
 * [Windows Support](windows.md) for the state of Windows support in Mesos.
