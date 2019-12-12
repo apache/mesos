@@ -351,7 +351,8 @@ Future<http::Response> Master::QuotaHandler::status(
 
   return _status(principal)
     .then([request](const QuotaStatus& status) -> Future<http::Response> {
-      return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
+      return OK(jsonify(JSON::Protobuf(status)),
+                request.url.query.get("jsonp"));
     });
 }
 
