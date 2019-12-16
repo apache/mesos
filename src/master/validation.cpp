@@ -2381,15 +2381,6 @@ Option<Error> validate(
             " unallocated resources");
       }
     }
-
-    // NOTE: This check would be covered by 'contains' since there
-    // shouldn't be any unreserved resources with 'disk' set.
-    // However, we keep this check since it will be a more useful
-    // error message than what contains would produce.
-    if (Resources::isPersistentVolume(resource)) {
-      return Error("A persistent volume " + stringify(resource) +
-                   " must already be reserved");
-    }
   }
 
   if (frameworkInfo.isSome()) {
