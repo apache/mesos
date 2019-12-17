@@ -550,8 +550,14 @@ void reinitialize()
   // Notify users of the 'SSL_SUPPORT_DOWNGRADE' flag that this
   // setting allows insecure connections.
   if (ssl_flags->support_downgrade) {
+#ifdef USE_LIBEVENT
     LOG(WARNING) <<
       "Failed SSL connections will be downgraded to a non-SSL socket";
+#else
+    EXIT(EXIT_FAILURE)
+      << "Non-libevent SSL sockets do not support downgrade yet,"
+      << " see MESOS-10073";
+#endif // USE_LIBEVENT
   }
 
   // TODO(bevers): Remove the deprecated names for these flags after an
