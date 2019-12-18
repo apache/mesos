@@ -1595,6 +1595,8 @@ if test "x$enable_libevent" = "xyes"; then
   else
     with_bundled_libevent=yes
   fi
+
+  AC_DEFINE([USE_LIBEVENT], [1])
 fi
 
 if test "x$enable_ssl" = "xyes"; then
