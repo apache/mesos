@@ -3331,6 +3331,21 @@ message LinuxInfo {
   // note that we only support setting this field when the `ipc_mode` field is
   // set to `PRIVATE` otherwise the container launch will be rejected.
   optional uint32 shm_size = 7;
+
+  // If set as 'true', the container will share the cgroups from its parent
+  // container, otherwise it will have its own cgroups created. Please note:
+  // 1. This field should be only used for the task containers in a task group
+  //    (i.e., the 1st level nested containers). It will be ignored for the
+  //    executor containers (i.e., the top-level containers) since the executor
+  //    container will always have its own cgroups created, and it will also be
+  //    ignored for the nested containers under the 1st nested container (e.g.,
+  //    the debug container running as 2nd level nested container) since those
+  //    containers should always share cgroups from its parent container.
+  // 2. The value of this field should be same for all the tasks launched by a
+  //    single executor.
+  // 3. It is not allowed to set resource limits for the task which has this
+  //    field set as true.
+  optional bool share_cgroups = 8 [default = true];
 }
 
 
