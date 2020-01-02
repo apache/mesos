@@ -484,7 +484,8 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
       infos[containerId]->subsystems.insert(subsystem->name());
       prepares.push_back(subsystem->prepare(
           containerId,
-          infos[containerId]->cgroup));
+          infos[containerId]->cgroup,
+          containerConfig));
     }
 
     // Chown the cgroup so the executor or a nested container whose
@@ -705,10 +706,7 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
   // containers with shared cgroups, because we don't call `prepare()`,
   // `recover()`, or `cleanup()` on them either. If we were to call
   // `isolate()` on them, the call would likely fail because the subsystem
-  // doesn't know about the container. This is currently OK because
-  // the only cgroup isolator that even implements `isolate()` is the
-  // `NetClsSubsystem` and it doesn't do anything with the `pid`
-  // passed in.
+  // doesn't know about the container.
   //
   // TODO(klueska): In the future we should revisit this to make
   // sure that doing things this way is sufficient (or otherwise

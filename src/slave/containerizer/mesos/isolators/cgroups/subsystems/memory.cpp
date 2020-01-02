@@ -32,11 +32,14 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "slave/containerizer/mesos/utils.hpp"
+
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/memory.hpp"
 
 using cgroups::memory::pressure::Counter;
 using cgroups::memory::pressure::Level;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 
 using process::Failure;
@@ -135,7 +138,8 @@ Future<Nothing> MemorySubsystemProcess::recover(
 
 Future<Nothing> MemorySubsystemProcess::prepare(
     const ContainerID& containerId,
-    const string& cgroup)
+    const string& cgroup,
+    const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");
@@ -143,9 +147,90 @@ Future<Nothing> MemorySubsystemProcess::prepare(
 
   infos.put(containerId, Owned<Info>(new Info));
   infos[containerId]->hardLimitUpdated = false;
+  infos[containerId]->isCommandTask = containerConfig.has_task_info();
 
   oomListen(containerId, cgroup);
   pressureListen(containerId, cgroup);
+
+  return Nothing();
+}
+
+
+Future<Nothing> MemorySubsystemProcess::isolate(
+    const ContainerID& containerId,
+    const string& cgroup,
+    pid_t pid)
+{
+  if (!infos.contains(containerId)) {
+    return Failure(
+        "Failed to isolate subsystem '" + name() + "'"
+        ": Unknown container");
+  }
+
+  // Get the soft limit.
+  Try<Bytes> softLimit =
+    cgroups::memory::soft_limit_in_bytes(hierarchy, cgroup);
+
+  if (softLimit.isError()) {
+    return Failure(
+        "Failed to read 'memory.soft_limit_in_bytes'"
+        ": " + softLimit.error());
+  }
+
+  // Get the hard limit.
+  Try<Bytes> hardLimit =
+    cgroups::memory::limit_in_bytes(hierarchy, cgroup);
+
+  if (hardLimit.isError()) {
+    return Failure(
+        "Failed to read 'memory.limit_in_bytes'"
+        ": " + hardLimit.error());
+  }
+
+  // While the OOM score of a process is a complex function of the process state
+  // and configuration, a decent approximation of the OOM score is 10 x percent
+  // of memory used by the process + `/proc/$pid/oom_score_adj` (a configurable
+  // quantity which is between -1000 and 1000). Containers with higher OOM
+  // scores are killed if the system runs out of memory.
+  //
+  // We would like burstable task containers which consume more memory than
+  // their memory requests (i.e. soft limits) to be preferentially OOM-killed
+  // first. To accomplish this, we set their OOM score adjustment as shown
+  // below, which attempts to ensure that the container which consumes more
+  // memory than its memory request will have an OOM score of 1000.
+  //
+  // Please note that there are two kinds of burstable task containers:
+  //   1. Command task containers whose soft limit < hard limit.
+  //   2. Nested task containers whose soft limit < hard limit.
+  //
+  // For any other kinds of containers (see below), we will just leave their OOM
+  // score adjustments at the default value (i.e. 0).
+  //   1. Containers whose soft limit == hard limit, this is to ensure backward
+  //      compatibility.
+  //   2. Default executor containers whose soft limit < hard limit.
+  //   3. Custom executor containers whose soft limit < hard limit.
+  //   4. Debug containers.
+  if (softLimit.get() < hardLimit.get() &&
+      (infos[containerId]->isCommandTask || containerId.has_parent())) {
+    Try<int> oomScoreAdj = calculateOOMScoreAdj(softLimit.get());
+    if (oomScoreAdj.isError()) {
+      return Failure(
+          "Failed to calculate OOM score adjustment: " + oomScoreAdj.error());
+    }
+
+    const string oomScoreAdjPath =
+      strings::format("/proc/%d/oom_score_adj", pid).get();
+
+    Try<Nothing> write =
+      os::write(oomScoreAdjPath, stringify(oomScoreAdj.get()));
+
+    if (write.isError()) {
+      return Failure("Failed to set OOM score adjustment: " + write.error());
+    }
+
+    LOG(INFO) << "Set " << oomScoreAdjPath << " to " << oomScoreAdj.get()
+              << " for container " << containerId;
+  }
 
   return Nothing();
 }

@@ -30,6 +30,9 @@ namespace slave {
 Try<pid_t> getMountNamespaceTarget(pid_t parent);
 #endif // __linux__
 
+
+Try<int> calculateOOMScoreAdj(const Bytes& memRequest);
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

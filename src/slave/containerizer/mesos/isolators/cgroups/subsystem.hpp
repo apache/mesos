@@ -90,11 +90,13 @@ public:
    *
    * @param containerId The target containerId.
    * @param cgroup The target cgroup.
+   * @param containerConfig The container configuration.
    * @return Nothing or an error if `prepare` fails.
    */
   process::Future<Nothing> prepare(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup,
+      const mesos::slave::ContainerConfig& containerConfig);
 
   /**
    * Isolate the associated container to cgroups subsystem.
@@ -198,7 +200,8 @@ public:
 
   virtual process::Future<Nothing> prepare(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup,
+      const mesos::slave::ContainerConfig& containerConfig);
 
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,

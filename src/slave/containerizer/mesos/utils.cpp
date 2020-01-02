@@ -140,6 +140,26 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
 }
 #endif // __linux__
 
+
+Try<int> calculateOOMScoreAdj(const Bytes& memRequest)
+{
+  // Get the total memory of this node.
+  static Option<Bytes> totalMem;
+  if (totalMem.isNone()) {
+    Try<os::Memory> mem = os::memory();
+    if (mem.isError()) {
+      return Error(
+          "Failed to auto-detect the size of main memory: " + mem.error());
+    }
+
+    totalMem = mem->total;
+  }
+
+  CHECK_SOME(totalMem);
+
+  return 1000 - (1000 * memRequest.bytes()) / totalMem->bytes();
+}
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

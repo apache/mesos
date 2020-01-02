@@ -167,7 +167,8 @@ Future<Nothing> DevicesSubsystemProcess::recover(
 
 Future<Nothing> DevicesSubsystemProcess::prepare(
     const ContainerID& containerId,
-    const string& cgroup)
+    const string& cgroup,
+    const mesos::slave::ContainerConfig& containerConfig)
 {
   if (containerIds.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");

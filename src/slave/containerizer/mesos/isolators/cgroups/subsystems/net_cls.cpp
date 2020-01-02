@@ -336,7 +336,8 @@ Future<Nothing> NetClsSubsystemProcess::recover(
 
 Future<Nothing> NetClsSubsystemProcess::prepare(
     const ContainerID& containerId,
-    const string& cgroup)
+    const string& cgroup,
+    const mesos::slave::ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");

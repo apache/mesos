@@ -116,13 +116,15 @@ Future<Nothing> Subsystem::recover(
 
 Future<Nothing> Subsystem::prepare(
     const ContainerID& containerId,
-    const string& cgroup)
+    const string& cgroup,
+    const mesos::slave::ContainerConfig& containerConfig)
 {
   return process::dispatch(
       process.get(),
       &SubsystemProcess::prepare,
       containerId,
-      cgroup);
+      cgroup,
+      containerConfig);
 }
 
 
@@ -221,7 +223,8 @@ Future<Nothing> SubsystemProcess::recover(
 
 Future<Nothing> SubsystemProcess::prepare(
     const ContainerID& containerId,
-    const string& cgroup)
+    const string& cgroup,
+    const mesos::slave::ContainerConfig& containerConfig)
 {
   return Nothing();
 }

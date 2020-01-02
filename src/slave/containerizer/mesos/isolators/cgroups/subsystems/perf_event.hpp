@@ -57,7 +57,8 @@ public:
 
   process::Future<Nothing> prepare(
       const ContainerID& containerId,
-      const std::string& cgroup) override;
+      const std::string& cgroup,
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
   process::Future<Nothing> recover(
       const ContainerID& containerId,
