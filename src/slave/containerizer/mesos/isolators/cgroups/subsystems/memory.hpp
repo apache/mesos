@@ -93,6 +93,10 @@ private:
         process::Owned<cgroups::memory::pressure::Counter>> pressureCounters;
 
     process::Promise<mesos::slave::ContainerLimitation> limitation;
+
+    // Indicate whether the memory hard limit of this container has
+    // already been updated.
+    bool hardLimitUpdated;
   };
 
   MemorySubsystemProcess(const Flags& flags, const std::string& hierarchy);
