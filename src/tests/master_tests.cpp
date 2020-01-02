@@ -199,7 +199,7 @@ TEST_F(MasterTest, TaskRunning)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offers.get()[0].resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())));
 
@@ -274,7 +274,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offer.resources())))
+              update(_, Resources(offer.resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())));
 
@@ -5720,7 +5720,7 @@ TEST_F(MasterTest, TaskLabels)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offers.get()[0].resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())));
 
@@ -6146,7 +6146,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offers.get()[0].resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())));
 
@@ -10178,7 +10178,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchTask)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<Nothing> update;
-  EXPECT_CALL(containerizer, update(_, inboundResources(offer.resources())))
+  EXPECT_CALL(containerizer, update(_, inboundResources(offer.resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update), Return(Nothing())));
 
   Future<TaskStatus> status;
@@ -10895,7 +10895,7 @@ TEST_F(MasterTest, LostTaskCleanup) {
   EXPECT_CALL(exec, launchTask(_, _))
     .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   Promise<Option<ContainerTermination>> hang;

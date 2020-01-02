@@ -1087,7 +1087,7 @@ TEST_P(MasterDrainingTest2, DisallowReactivationWhileDraining)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   Promise<Option<ContainerTermination>> hang;

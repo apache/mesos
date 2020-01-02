@@ -58,11 +58,12 @@ public:
       attach,
       process::Future<process::http::Connection>(const ContainerID&));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       update,
       process::Future<Nothing>(
           const ContainerID&,
-          const Resources&));
+          const Resources&,
+          const google::protobuf::Map<std::string, Value::Scalar>&));
 
   MOCK_METHOD1(
       usage,

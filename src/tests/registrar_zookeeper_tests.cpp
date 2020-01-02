@@ -96,7 +96,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
 
   Future<Nothing> resourcesUpdated;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offers.get()[0].resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
                     Return(Nothing())));
 

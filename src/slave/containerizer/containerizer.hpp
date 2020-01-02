@@ -119,7 +119,9 @@ public:
   // Update the resources for a container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources) = 0;
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) = 0;
 
   // Get resource usage statistics on the container.
   virtual process::Future<ResourceStatistics> usage(

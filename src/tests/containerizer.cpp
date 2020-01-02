@@ -180,7 +180,8 @@ public:
 
   Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources)
+      const Resources& resourceRequests,
+      const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
   {
     return Nothing();
   }
@@ -405,7 +406,7 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, status(_))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_status));
 
-  EXPECT_CALL(*this, update(_, _))
+  EXPECT_CALL(*this, update(_, _, _))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_update));
 
   EXPECT_CALL(*this, launch(_, _, _, _))
@@ -466,13 +467,15 @@ Future<Connection> TestContainerizer::_attach(
 
 Future<Nothing> TestContainerizer::_update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return process::dispatch(
       process.get(),
       &TestContainerizerProcess::update,
       containerId,
-      resources);
+      resourceRequests,
+      resourceLimits);
 }
 
 

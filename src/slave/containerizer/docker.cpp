@@ -819,13 +819,15 @@ Future<Containerizer::LaunchResult> DockerContainerizer::launch(
 
 Future<Nothing> DockerContainerizer::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return dispatch(
       process.get(),
       &DockerContainerizerProcess::update,
       containerId,
-      resources,
+      resourceRequests,
+      resourceLimits,
       false);
 }
 
@@ -1330,7 +1332,7 @@ Future<Containerizer::LaunchResult> DockerContainerizerProcess::_launch(
       // --cpu-quota to the 'docker run' call in
       // launchExecutorContainer.
       return update(
-          containerId, containerConfig.executor_info().resources(), true)
+          containerId, containerConfig.executor_info().resources(), {}, true)
         .then([=]() {
           return Future<Docker::Container>(dockerContainer);
         });
@@ -1654,7 +1656,8 @@ Future<Nothing> DockerContainerizerProcess::reapExecutor(
 
 Future<Nothing> DockerContainerizerProcess::update(
     const ContainerID& containerId,
-    const Resources& _resources,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits,
     bool force)
 {
   CHECK(!containerId.has_parent());
@@ -1672,7 +1675,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
-  if (container->resources == _resources && !force) {
+  if (container->resources == resourceRequests && !force) {
     LOG(INFO) << "Ignoring updating container " << containerId
               << " because resources passed to update are identical to"
               << " existing resources";
@@ -1685,17 +1688,17 @@ Future<Nothing> DockerContainerizerProcess::update(
   // TODO(gyliu): Support updating GPU resources.
 
   // Store the resources for usage().
-  container->resources = _resources;
+  container->resources = resourceRequests;
 
 #ifdef __linux__
-  if (!_resources.cpus().isSome() && !_resources.mem().isSome()) {
+  if (!resourceRequests.cpus().isSome() && !resourceRequests.mem().isSome()) {
     LOG(WARNING) << "Ignoring update as no supported resources are present";
     return Nothing();
   }
 
   // Skip inspecting the docker container if we already have the cgroups.
   if (container->cpuCgroup.isSome() && container->memoryCgroup.isSome()) {
-    return __update(containerId, _resources);
+    return __update(containerId, resourceRequests);
   }
 
   string containerName = containers_.at(containerId)->containerName;
@@ -1739,7 +1742,7 @@ Future<Nothing> DockerContainerizerProcess::update(
       });
 
   return inspectLoop
-    .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
+    .then(defer(self(), &Self::_update, containerId, resourceRequests, lambda::_1));
 #else
   return Nothing();
 #endif // __linux__

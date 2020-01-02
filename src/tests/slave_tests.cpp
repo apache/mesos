@@ -3129,7 +3129,7 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithLost)
   EXPECT_EQ(TASK_RUNNING, status2->state());
 
   // Set up the containerizer so the next update() will fail.
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillOnce(Return(Failure("update() failed")))
     .WillRepeatedly(Return(Nothing()));
 
@@ -3242,7 +3242,7 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithGone)
   EXPECT_EQ(TASK_RUNNING, status2->state());
 
   // Set up the containerizer so the next update() will fail.
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillOnce(Return(Failure("update() failed")))
     .WillRepeatedly(Return(Nothing()));
 
@@ -3311,7 +3311,7 @@ TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
   // sent to the executor.
   testing::Sequence sequence;
 
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .InSequence(sequence)
     .WillOnce(Return(Nothing()));
 
@@ -3369,7 +3369,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
     .Times(AtMost(1));
 
   // Set up the containerizer so update() will fail.
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillOnce(Return(Failure("update() failed")))
     .WillRepeatedly(Return(Nothing()));
 
@@ -7079,7 +7079,7 @@ TEST_F(SlaveTest, TaskLabels)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offers.get()[0].resources()), _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())));
 
@@ -12380,7 +12380,7 @@ TEST_F(SlaveTest, DrainAgentKillsQueuedTask)
         FutureSatisfy(&launched),
         Return(launchResult.future())));
 
-  EXPECT_CALL(mockContainerizer, update(_, _))
+  EXPECT_CALL(mockContainerizer, update(_, _, _))
     .WillOnce(Return(Nothing()));
 
   mesos.send(

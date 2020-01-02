@@ -97,9 +97,12 @@ public:
       process::Future<process::http::Connection>(
           const ContainerID& containerId));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       update,
-      process::Future<Nothing>(const ContainerID&, const Resources&));
+      process::Future<Nothing>(
+          const ContainerID&,
+          const Resources&,
+          const google::protobuf::Map<std::string, Value::Scalar>&));
 
   MOCK_METHOD1(
       usage,
@@ -154,7 +157,8 @@ private:
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
-      const Resources& resources);
+      const Resources& resourceRequests,
+      const google::protobuf::Map<std::string, Value::Scalar>& resourceLimits);
 
   process::Future<ResourceStatistics> _usage(
       const ContainerID& containerId);

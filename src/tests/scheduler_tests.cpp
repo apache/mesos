@@ -510,7 +510,7 @@ TEST_P(SchedulerTest, TaskRunning)
     .WillOnce(FutureArg<1>(&statusUpdate));
 
   Future<Nothing> update;
-  EXPECT_CALL(containerizer, update(_, _))
+  EXPECT_CALL(containerizer, update(_, _, _))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Nothing())))
     .WillRepeatedly(Return(Future<Nothing>())); // Ignore subsequent calls.

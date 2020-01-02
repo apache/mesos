@@ -74,7 +74,9 @@ public:
 
   Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources);
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {});
 
   Future<ResourceStatistics> usage(
       const ContainerID& containerId);
@@ -187,12 +189,14 @@ Future<Containerizer::LaunchResult> ComposingContainerizer::launch(
 
 Future<Nothing> ComposingContainerizer::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return dispatch(process,
                   &ComposingContainerizerProcess::update,
                   containerId,
-                  resources);
+                  resourceRequests,
+                  resourceLimits);
 }
 
 
@@ -547,14 +551,15 @@ Future<http::Connection> ComposingContainerizerProcess::attach(
 
 Future<Nothing> ComposingContainerizerProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container not found");
   }
 
   return containers_[containerId]->containerizer->update(
-      containerId, resources);
+      containerId, resourceRequests, resourceLimits);
 }
 
 

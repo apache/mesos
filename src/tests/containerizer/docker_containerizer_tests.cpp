@@ -1015,7 +1015,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
                            &MockDockerContainerizer::_launch)));
 
   // We ignore all update calls to prevent resizing cgroup limits.
-  EXPECT_CALL(dockerContainerizer, update(_, _))
+  EXPECT_CALL(dockerContainerizer, update(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   Future<TaskStatus> statusStarting;
@@ -1183,7 +1183,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(newResources);
 
   Future<Nothing> update =
-    dockerContainerizer.update(containerId.get(), newResources.get());
+    dockerContainerizer.update(containerId.get(), newResources.get(), {});
 
   AWAIT_READY(update);
 
@@ -1220,7 +1220,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   newResources = Resources::parse("cpus:1;mem:144");
 
   // Issue second update that uses the cached cgroups instead of inspect.
-  update = dockerContainerizer.update(containerId.get(), newResources.get());
+  update = dockerContainerizer.update(containerId.get(), newResources.get(), {});
 
   AWAIT_READY(update);
 
@@ -3541,7 +3541,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
                            &MockDockerContainerizer::_launch)));
 
   // Fail the update so we don't proceed to send run task to the executor.
-  EXPECT_CALL(dockerContainerizer, update(_, _))
+  EXPECT_CALL(dockerContainerizer, update(_, _, _))
     .WillRepeatedly(Return(Failure("Fail resource update")));
 
   driver.launchTasks(offers.get()[0].id(), {task});

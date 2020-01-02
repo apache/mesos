@@ -155,7 +155,7 @@ public:
     EXPECT_CALL(*this, launch(_, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
 
-    EXPECT_CALL(*this, update(_, _))
+    EXPECT_CALL(*this, update(_, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
 
@@ -167,11 +167,12 @@ public:
           const std::map<std::string, std::string>&,
           const Option<std::string>&));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       update,
       process::Future<Nothing>(
           const ContainerID&,
-          const Resources&));
+          const Resources&,
+          const google::protobuf::Map<std::string, Value::Scalar>&));
 
   // Default 'launch' implementation (necessary because we can't just
   // use &slave::DockerContainerizer::launch with 'Invoke').
@@ -190,11 +191,13 @@ public:
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
-      const Resources& resources)
+      const Resources& resourceRequests,
+      const google::protobuf::Map<std::string, Value::Scalar>& resourceLimits)
   {
     return slave::DockerContainerizer::update(
         containerId,
-        resources);
+        resourceRequests,
+        resourceLimits);
   }
 };
 

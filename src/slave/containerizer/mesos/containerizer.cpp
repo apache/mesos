@@ -734,12 +734,14 @@ Future<Connection> MesosContainerizer::attach(
 
 Future<Nothing> MesosContainerizer::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   return dispatch(process.get(),
                   &MesosContainerizerProcess::update,
                   containerId,
-                  resources);
+                  resourceRequests,
+                  resourceLimits);
 }
 
 
@@ -2406,7 +2408,8 @@ Future<Option<ContainerTermination>> MesosContainerizerProcess::wait(
 
 Future<Nothing> MesosContainerizerProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   CHECK(!containerId.has_parent());
 
@@ -2429,7 +2432,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 
   // NOTE: We update container's resources before isolators are updated
   // so that subsequent containerizer->update can be handled properly.
-  container->resources = resources;
+  container->resources = resourceRequests;
 
   // Update each isolator.
   vector<Future<Nothing>> futures;
@@ -2441,7 +2444,8 @@ Future<Nothing> MesosContainerizerProcess::update(
       continue;
     }
 
-    futures.push_back(isolator->update(containerId, resources));
+    futures.push_back(
+        isolator->update(containerId, resourceRequests, resourceLimits));
   }
 
   // Wait for all isolators to complete.
