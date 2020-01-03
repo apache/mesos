@@ -41,8 +41,6 @@ layout: community_section
 
     <p>To request an invite for slack please click <a href="https://mesos-slackin.herokuapp.com">here</a>.</p>
 
-    <p>All slack communication is publicly archived <a href="http://mesos.slackarchive.io">here</a>.</p>
-
     <p>Thank you <a href="https://www.criteo.com">Criteo</a> for sponsoring Slack standard plan.</p>
 
 
