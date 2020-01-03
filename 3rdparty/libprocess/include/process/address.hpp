@@ -13,6 +13,7 @@
 #ifndef __PROCESS_ADDRESS_HPP__
 #define __PROCESS_ADDRESS_HPP__
 
+#include <stddef.h>
 #include <stdint.h>
 #ifndef __WINDOWS__
 #include <unistd.h>
@@ -220,22 +221,41 @@ public:
     un.sun_family = AF_UNIX;
     memcpy(un.sun_path, path.c_str(), path.length() + 1);
 
-    return Address(un);
+    return Address(
+        un, path.length() + offsetof(struct sockaddr_un, sun_path) + 1);
   }
 
-  Address(const sockaddr_un& un)
+  // For pathname sockets, `length` can be omitted to signal that it should be
+  // determined automatically from the string length of the null-terminated
+  // string inside `sun_path`. For abstract and unnamed domain sockets, the
+  // correct length must be passed manually. See `man(7) unix` on the details
+  // how to compute the correct length. For functions that return a socket
+  // address (`recvfrom()`, `getpeername()`, etc.) the returned length will be
+  // set to the correct value during the call.
+  Address(const sockaddr_un& un, Option<socklen_t> _length = None())
     : sockaddr() // Zero initialize.
   {
     sockaddr.un = un;
+
+    if (_length.isNone()) {
+      CHECK(un.sun_path[0] != 0)
+        << "Cannot automatically determine size of abstract socket address.";
+
+      length = ::strlen(un.sun_path) + offsetof(sockaddr_un, sun_path) + 1;
+    } else {
+      CHECK(_length.get() <= sizeof(struct sockaddr_un));
+      length = _length.get();
+    }
+  }
+
+  size_t size() const
+  {
+    return length;
   }
 
   std::string path() const
   {
-    if (sockaddr.un.sun_path[0] == '\0') {
-      return '\0' + std::string(sockaddr.un.sun_path + 1);
-    }
-
-    return std::string(sockaddr.un.sun_path);
+    return std::string(sockaddr.un.sun_path, path_length());
   }
 
   operator sockaddr_storage() const
@@ -245,7 +265,8 @@ public:
 
   bool operator==(const Address& that) const
   {
-    return path() == that.path();
+    return length == that.length &&
+      !memcmp(sockaddr.un.sun_path, that.sockaddr.un.sun_path, path_length());
   }
 
 private:
@@ -253,10 +274,31 @@ private:
       std::ostream& stream,
       const Address& address);
 
+  // Size of the address data inside `sun_path`, in bytes.
+  // The length computations here are defined in `man(7) unix`.
+  size_t path_length() const
+  {
+    if (length == sizeof(sa_family_t)) {
+      // Unnamed socket.
+      return 0;
+    } else if (sockaddr.un.sun_path[0] == '\0') {
+      // Abstract domain socket.
+      return length - sizeof(sa_family_t);
+    } else {
+      // Pathname socket.
+      return length - offsetof(struct sockaddr_un, sun_path) - 1;
+    }
+  }
+
   union {
     sockaddr_storage storage;
     sockaddr_un un;
   } sockaddr;
+
+  // Size of this socket. Unlike TCP/IP sockets, this is not just a
+  // compile time constant, but depends on the type of the socket
+  // address and the path it contains.
+  socklen_t length;
 };
 
 
@@ -296,12 +338,23 @@ public:
     INET6
   };
 
-  static Try<Address> create(const sockaddr_storage& storage)
+  // The `length` is the size of this `struct sockaddr`. For `AF_INET`
+  // and `AF_INET6` this parameters is ignored, since there is only
+  // one possible value anyways.
+  static Try<Address> create(
+      const sockaddr_storage& storage,
+      Option<socklen_t> length = None())
   {
     switch (storage.ss_family) {
 #ifndef __WINDOWS__
       case AF_UNIX:
-        return unix::Address((const sockaddr_un&) storage);
+        // We need to know the length in addition to the address, to
+        // distinguish between e.g. an unnamed socket and an abstract
+        // socket whose name is a single null byte.
+        if (length.isNone()) {
+          return Error("Need length to create unix address from sockaddr.");
+        }
+        return unix::Address((const sockaddr_un&) storage, *length);
 #endif // __WINDOWS__
       case AF_INET:
         return inet4::Address((const sockaddr_in&) storage);
@@ -367,7 +420,7 @@ public:
     return visit(
 #ifndef __WINDOWS__
         [](const unix::Address& address) {
-          return sizeof(sockaddr_un);
+          return address.size();
         },
 #endif // __WINDOWS__
         [](const inet4::Address& address) {

@@ -85,7 +85,7 @@ inline Try<Address> address(int_fd s)
     return ErrnoError("Failed to getsockname");
   }
 
-  return Address::create(storage);
+  return Address::create(storage, length);
 }
 
 
@@ -104,7 +104,7 @@ inline Try<Address> peer(int_fd s)
     return ErrnoError("Failed to getpeername");
   }
 
-  return Address::create(storage);
+  return Address::create(storage, length);
 }
 
 } // namespace network {
