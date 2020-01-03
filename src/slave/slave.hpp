@@ -779,9 +779,13 @@ private:
       const Flags& flags,
       const SlaveID& slaveId);
 
+  // This function is used to compute limits for executors before they
+  // are launched as well as when updating running executors, so we must
+  // accept both `TaskInfo` and `Task` types to handle both cases.
   google::protobuf::Map<std::string, Value::Scalar> computeExecutorLimits(
       const Resources& executorResources,
-      const std::vector<TaskInfo>& tasks) const;
+      const std::vector<TaskInfo>& taskInfos,
+      const std::vector<Task*>& tasks = {}) const;
 
   protobuf::master::Capabilities requiredMasterCapabilities;
 
