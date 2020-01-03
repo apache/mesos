@@ -395,6 +395,7 @@ Task createTask(
   t.mutable_task_id()->CopyFrom(task.task_id());
   t.mutable_slave_id()->CopyFrom(task.slave_id());
   t.mutable_resources()->CopyFrom(task.resources());
+  *t.mutable_limits() = task.limits();
 
   if (task.has_executor()) {
     t.mutable_executor_id()->CopyFrom(task.executor().executor_id());

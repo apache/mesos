@@ -2362,6 +2362,9 @@ message Task {
 
   // Specific user under which task is running.
   optional string user = 14;
+
+  // Resource limits associated with the task.
+  map<string, Value.Scalar> limits = 17;
 }
 
 
