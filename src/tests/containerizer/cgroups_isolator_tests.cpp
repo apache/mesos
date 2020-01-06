@@ -50,8 +50,11 @@ using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_CLS_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_PRIO_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_PIDS_NAME;
+using mesos::internal::slave::CPU_SHARES_PER_CPU;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
+using mesos::internal::slave::CPU_CFS_PERIOD;
 using mesos::internal::slave::DEFAULT_EXECUTOR_CPUS;
+using mesos::internal::slave::DEFAULT_EXECUTOR_MEM;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -373,13 +376,17 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 }
 
 
-TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
+// This test verifies that a task launched with 0.5 cpu and 32MB memory as its
+// resource requests (but no resource limits specified) will have its CPU and
+// memory's soft & hard limits and OOM score adjustment set correctly, and it
+// cannot consume more cpu time than its CFS quota.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "cgroups/cpu";
+  flags.isolation = "cgroups/cpu,cgroups/mem";
 
   // Enable CFS to cap CPU utilization.
   flags.cgroups_enable_cfs = true;
@@ -423,7 +430,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
 
   // Generate random numbers to max out a single core. We'll run this
   // for 0.5 seconds of wall time so it should consume approximately
-  // 250 ms of total cpu time when limited to 0.5 cpu. We use
+  // 300 ms of total cpu time when limited to 0.6 cpu. We use
   // /dev/urandom to prevent blocking on Linux when there's
   // insufficient entropy.
   string command =
@@ -432,11 +439,21 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
     "sleep 0.5 && "
     "kill $MESOS_TEST_PID";
 
-  ASSERT_GE(Resources(offers.get()[0].resources()).cpus().get(), 0.5);
+  // We will launch a task with 0.5 cpu and 32MB memory, and the command
+  // executor will be given 0.1 cpu (`DEFAULT_EXECUTOR_CPUS`) and 32MB
+  // memory (DEFAULT_EXECUTOR_MEM) by default, so we need 0.6 cpu and 64MB
+  // in total.
+  ASSERT_GE(
+      Resources(offers.get()[0].resources()).cpus().get(),
+      0.5 + DEFAULT_EXECUTOR_CPUS);
+
+  ASSERT_GE(
+       Resources(offers.get()[0].resources()).mem().get(),
+       Megabytes(32) + DEFAULT_EXECUTOR_MEM);
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
-      Resources::parse("cpus:0.5").get(),
+      Resources::parse("cpus:0.5;mem:32").get(),
       command);
 
   Future<TaskStatus> statusStarting;
@@ -459,10 +476,53 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
 
   ContainerID containerId = *(containers->begin());
 
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
+
+  Result<string> memoryHierarchy = cgroups::hierarchy("memory");
+  ASSERT_SOME(memoryHierarchy);
+
+  string cgroup = path::join(flags.cgroups_root, containerId.value());
+
+  // Ensure the CPU shares and CFS quota are correctly set for the container.
+  EXPECT_SOME_EQ(
+      (uint64_t)(CPU_SHARES_PER_CPU * (0.5 + DEFAULT_EXECUTOR_CPUS)),
+      cgroups::cpu::shares(cpuHierarchy.get(), cgroup));
+
+  Try<Duration> cfsQuota =
+    cgroups::cpu::cfs_quota_us(cpuHierarchy.get(), cgroup);
+
+  ASSERT_SOME(cfsQuota);
+
+  double expectedCFSQuota = (0.5 + DEFAULT_EXECUTOR_CPUS) * CPU_CFS_PERIOD.ms();
+  EXPECT_EQ(expectedCFSQuota, cfsQuota->ms());
+
+  // Ensure the memory soft and hard limits are correctly set for the container.
+  EXPECT_SOME_EQ(
+      Megabytes(32) + DEFAULT_EXECUTOR_MEM,
+      cgroups::memory::soft_limit_in_bytes(memoryHierarchy.get(), cgroup));
+
+  EXPECT_SOME_EQ(
+      Megabytes(32) + DEFAULT_EXECUTOR_MEM,
+      cgroups::memory::limit_in_bytes(memoryHierarchy.get(), cgroup));
+
+  Future<ContainerStatus> status = containerizer->status(containerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  // Ensure the OOM score adjustment is set to the default value (i.e. 0).
+  Try<string> read = os::read(
+      strings::format("/proc/%d/oom_score_adj", status->executor_pid()).get());
+
+  ASSERT_SOME(read);
+
+  Try<int32_t> oomScoreAdj = numify<int32_t>(strings::trim(read.get()));
+  ASSERT_SOME_EQ(0, oomScoreAdj);
+
   Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
-  // Expect that no more than 300 ms of cpu time has been consumed. We
+  // Expect that no more than 400 ms of cpu time has been consumed. We
   // also check that at least 50 ms of cpu time has been consumed so
   // this test will fail if the host system is very heavily loaded.
   // This behavior is correct because under such conditions we aren't
@@ -470,7 +530,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   double cpuTime = usage->cpus_system_time_secs() +
                    usage->cpus_user_time_secs();
 
-  EXPECT_GE(0.30, cpuTime);
+  EXPECT_GE(0.4, cpuTime);
   EXPECT_LE(0.05, cpuTime);
 
   driver.stop();
