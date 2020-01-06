@@ -2237,37 +2237,11 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
 Future<bool> Master::authorizeFramework(
     const FrameworkInfo& frameworkInfo)
 {
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  LOG(INFO) << "Authorizing framework principal '" << frameworkInfo.principal()
-            << "' to receive offers for roles '"
-            << stringify(protobuf::framework::getRoles(frameworkInfo)) << "'";
-
-  authorization::Request request;
-  request.set_action(authorization::REGISTER_FRAMEWORK);
-
-  if (frameworkInfo.has_principal()) {
-    request.mutable_subject()->set_value(frameworkInfo.principal());
-  }
-
-  request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
-
-  // For non-`MULTI_ROLE` frameworks, also propagate its single role
-  // via the request's `value` field. This is purely for backwards
-  // compatibility as the `value` field is deprecated. Note that this
-  // means that authorizers relying on the deprecated field will see
-  // an empty string in `value` for `MULTI_ROLE` frameworks.
-  //
-  // TODO(bbannier): Remove this at the end of `value`'s deprecation
-  // cycle, see MESOS-7073.
-  if (!protobuf::frameworkHasCapability(
-          frameworkInfo, FrameworkInfo::Capability::MULTI_ROLE)) {
-    request.mutable_object()->set_value(frameworkInfo.role());
-  }
-
-  return authorizer.get()->authorized(request);
+  return authorize(
+      frameworkInfo.has_principal()
+        ? Option<Principal>(frameworkInfo.principal())
+        : Option<Principal>::none(),
+       ActionObject::frameworkRegistration(frameworkInfo));
 }
 
 

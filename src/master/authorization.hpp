@@ -41,6 +41,11 @@ public:
       const TaskInfo& task,
       const FrameworkInfo& framework);
 
+  // Returns action-object pair for authorizing
+  // framework (re)registration or update.
+  static ActionObject frameworkRegistration(
+      const FrameworkInfo& frameworkInfo);
+
 private:
   Action action_;
   Option<Object> object_;

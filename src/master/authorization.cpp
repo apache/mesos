@@ -38,6 +38,29 @@ ActionObject ActionObject::taskLaunch(
 }
 
 
+ActionObject ActionObject::frameworkRegistration(
+    const FrameworkInfo& frameworkInfo)
+{
+  Object object;
+  *object.mutable_framework_info() = frameworkInfo;
+
+  // For non-`MULTI_ROLE` frameworks, also propagate its single role
+  // via the request's `value` field. This is purely for backwards
+  // compatibility as the `value` field is deprecated. Note that this
+  // means that authorizers relying on the deprecated field will see
+  // an empty string in `value` for `MULTI_ROLE` frameworks.
+  //
+  // TODO(bbannier): Remove this at the end of `value`'s deprecation
+  // cycle, see MESOS-7073.
+  if (!::mesos::internal::protobuf::frameworkHasCapability(
+          frameworkInfo, FrameworkInfo::Capability::MULTI_ROLE)) {
+    object.set_value(frameworkInfo.role());
+  }
+
+  return ActionObject(authorization::REGISTER_FRAMEWORK, std::move(object));
+}
+
+
 ostream& operator<<(ostream& stream, const ActionObject& actionObject)
 {
   const Option<Object>& object = actionObject.object();
@@ -49,14 +72,24 @@ ostream& operator<<(ostream& stream, const ActionObject& actionObject)
 
   switch (actionObject.action()) {
     case authorization::RUN_TASK:
-      return stream << "launch task " << object->task_info().task_id()
-                    << " of framework " << object->framework_info().id();
+      return stream
+        << "launch task " << object->task_info().task_id()
+        << " of framework " << object->framework_info().id();
+
+    case authorization::REGISTER_FRAMEWORK:
+      return stream
+        << "register framework " << object->framework_info().id()
+        << " with roles "
+        << stringify(::mesos::internal::protobuf::framework::getRoles(
+               object->framework_info()));
+
     default:
       break;
   }
 
-  return stream << "perform action " << Action_Name(actionObject.action())
-                << " on object " << jsonify(JSON::Protobuf(*object));
+  return stream
+    << "perform action " << Action_Name(actionObject.action())
+    << " on object " << jsonify(JSON::Protobuf(*object));
 }
 
 
