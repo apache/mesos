@@ -332,7 +332,8 @@ if (NOT WIN32)
     mesos-local
     mesos-log
     mesos-logrotate-logger
-    mesos-master)
+    mesos-master
+    mesos-resolve)
 
   # The tests require all the test modules. These are not directly linked but
   # instead loaded at runtime, hence the manual dependency here.
@@ -362,6 +363,7 @@ if (NOT WIN32)
     disk-full-framework
     docker-no-executor-framework
     dynamic-reservation-framework
+    inverse-offer-framework
     load-generator-framework
     long-lived-executor
     long-lived-framework
@@ -379,6 +381,14 @@ if (NOT WIN32)
     add_dependencies(
       mesos-tests
       test-csi-plugin)
+  endif ()
+
+  if (NOT ENABLE_NEW_CLI)
+    add_dependencies(mesos-tests
+      mesos-cli)
+  else ()
+    add_dependencies(mesos-tests
+      cli)
   endif ()
 endif ()
 
