@@ -1309,32 +1309,115 @@ public:
 
     // /frameworks
     process::http::Response frameworks(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /roles
     process::http::Response roles(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /slaves
     process::http::Response slaves(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /state
     process::http::Response state(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /state-summary
     process::http::Response stateSummary(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /tasks
     process::http::Response tasks(
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_STATE
+    process::http::Response getState(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_AGENTS
+    process::http::Response getAgents(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_FRAMEWORKS
+    process::http::Response getFrameworks(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_EXECUTORS
+    process::http::Response getExecutors(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_OPERATIONS
+    process::http::Response getOperations(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_TASKS
+    process::http::Response getTasks(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // master::Call::GET_ROLES
+    process::http::Response getRoles(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // TODO(bmahler): These could just live in the .cpp file,
+    // however they are shared with SUBSCRIBE which currently
+    // is not implemented as a read only handler here. Make these
+    // private or only in the .cpp file once SUBSCRIBE is moved
+    // into readonly_handler.cpp.
+    std::string serializeGetState(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetAgents(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetFrameworks(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetExecutors(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetOperations(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetTasks(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeGetRoles(
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetAgents(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetFrameworks(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetExecutors(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetOperations(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetTasks(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifyGetRoles(
         const process::Owned<ObjectApprovers>& approvers) const;
 
   private:
@@ -1631,12 +1714,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-
-    static std::function<void(JSON::ObjectWriter*)> jsonifyGetAgents(
-        const Master* master,
-        const process::Owned<ObjectApprovers>& approvers);
-    std::string serializeGetAgents(
-        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetAgents _getAgents(
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1734,12 +1811,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-
-    static std::function<void(JSON::ObjectWriter*)> jsonifyGetTasks(
-        const Master* master,
-        const process::Owned<ObjectApprovers>& approvers);
-    std::string serializeGetTasks(
-        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetTasks _getTasks(
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1777,12 +1848,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-
-    static std::function<void(JSON::ObjectWriter*)> jsonifyGetFrameworks(
-        const Master* master,
-        const process::Owned<ObjectApprovers>& approvers);
-    std::string serializeGetFrameworks(
-        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetFrameworks _getFrameworks(
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1790,12 +1855,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-
-    static std::function<void(JSON::ObjectWriter*)> jsonifyGetExecutors(
-        const Master* master,
-        const process::Owned<ObjectApprovers>& approvers);
-    std::string serializeGetExecutors(
-        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetExecutors _getExecutors(
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1803,12 +1862,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-
-    static std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
-        const Master* master,
-        const process::Owned<ObjectApprovers>& approvers);
-    std::string serializeGetState(
-        const process::Owned<ObjectApprovers>& approvers) const;
     mesos::master::Response::GetState _getState(
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1864,12 +1917,14 @@ private:
 
     typedef process::http::Response
       (Master::ReadOnlyHandler::*ReadOnlyRequestHandler)(
+          ContentType,
           const hashmap<std::string, std::string>&,
           const process::Owned<ObjectApprovers>&) const;
 
     process::Future<process::http::Response> deferBatchedRequest(
         ReadOnlyRequestHandler handler,
         const Option<process::http::authentication::Principal>& principal,
+        ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1878,6 +1933,7 @@ private:
     struct BatchedRequest
     {
       ReadOnlyRequestHandler handler;
+      ContentType outputContentType;
       hashmap<std::string, std::string> queryParameters;
       Option<process::http::authentication::Principal> principal;
       process::Owned<ObjectApprovers> approvers;
@@ -2684,6 +2740,11 @@ struct Role
 
   hashmap<FrameworkID, Framework*> frameworks;
 };
+
+
+mesos::master::Response::GetFrameworks::Framework model(
+    const Framework& framework);
+
 
 } // namespace master {
 } // namespace internal {

@@ -19,6 +19,12 @@
 #include <string>
 #include <vector>
 
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/wire_format_lite.h>
+
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -36,8 +42,11 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 
+using google::protobuf::internal::WireFormatLite;
+
 using process::Owned;
 
+using process::http::NotAcceptable;
 using process::http::OK;
 
 using mesos::authorization::VIEW_EXECUTOR;
@@ -46,6 +55,9 @@ using mesos::authorization::VIEW_FRAMEWORK;
 using mesos::authorization::VIEW_ROLE;
 using mesos::authorization::VIEW_TASK;
 
+using mesos::internal::protobuf::WireFormatLite2;
+
+using std::function;
 using std::vector;
 using std::string;
 
@@ -661,9 +673,12 @@ private:
 
 
 process::http::Response Master::ReadOnlyHandler::frameworks(
+    ContentType outputContentType,
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   IDAcceptor<FrameworkID> selectFrameworkId(
       query.get("framework_id"));
 
@@ -719,9 +734,12 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
 
 
 process::http::Response Master::ReadOnlyHandler::roles(
+    ContentType outputContentType,
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   const Master* master = this->master;
 
   const vector<string> knownRoles = master->knownRoles();
@@ -796,9 +814,12 @@ process::http::Response Master::ReadOnlyHandler::roles(
 
 
 process::http::Response Master::ReadOnlyHandler::slaves(
+    ContentType outputContentType,
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   IDAcceptor<SlaveID> selectSlaveId(query.get("slave_id"));
 
   return process::http::OK(
@@ -808,9 +829,12 @@ process::http::Response Master::ReadOnlyHandler::slaves(
 
 
 process::http::Response Master::ReadOnlyHandler::state(
+    ContentType outputContentType,
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   const Master* master = this->master;
   auto calculateState = [master, &approvers](JSON::ObjectWriter* writer) {
     writer->field("version", MESOS_VERSION);
@@ -954,9 +978,12 @@ process::http::Response Master::ReadOnlyHandler::state(
 
 
 process::http::Response Master::ReadOnlyHandler::stateSummary(
+    ContentType outputContentType,
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   const Master* master = this->master;
   auto stateSummary = [master, &approvers](JSON::ObjectWriter* writer) {
     writer->field("hostname", master->info().hostname());
@@ -1150,9 +1177,12 @@ struct TaskComparator
 
 
 process::http::Response Master::ReadOnlyHandler::tasks(
-  const hashmap<std::string, std::string>& query,
-  const process::Owned<ObjectApprovers>& approvers) const
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
 {
+  CHECK_EQ(outputContentType, ContentType::JSON);
+
   // Get list options (limit and offset).
   Result<int> result = numify<int>(query.get("limit"));
   size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
@@ -1255,6 +1285,1182 @@ process::http::Response Master::ReadOnlyHandler::tasks(
   };
 
   return OK(jsonify(tasksWriter), query.get("jsonp"));
+}
+
+
+function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetAgents(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetAgents getAgents;
+  //   for each registered agent:
+  //     *getAgents.add_agents() = protobuf::master::event::createAgentResponse(
+  //         agent,
+  //         master->slaves.draining.get(slave->id),
+  //         master->slaves.deactivated.contains(slave->id),
+  //         approvers);
+  //   for each recovered agent:
+  //     SlaveInfo* agent = getAgents.add_recovered_agents();
+  //     agent->CopyFrom(slaveInfo);
+  //     agent->clear_resources();
+  //     foreach (const Resource& resource, slaveInfo.resources()):
+  //       if (approvers->approved<VIEW_ROLE>(resource)):
+  //         *agent->add_resources() = resource;
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetAgents::descriptor();
+
+    int field;
+
+    field = v1::master::Response::GetAgents::kAgentsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+      foreachvalue (const Slave* slave, master->slaves.registered) {
+        // TODO(bmahler): Consider not constructing the temporary
+        // agent object and instead serialize directly.
+        mesos::master::Response::GetAgents::Agent agent =
+            protobuf::master::event::createAgentResponse(
+                *slave,
+                master->slaves.draining.get(slave->id),
+                master->slaves.deactivated.contains(slave->id),
+                approvers);
+
+        writer->element(asV1Protobuf(agent));
+      }
+    });
+
+    field = v1::master::Response::GetAgents::kRecoveredAgentsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+      foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
+        // TODO(bmahler): Consider not constructing the temporary
+        // SlaveInfo object and instead serialize directly.
+        SlaveInfo agent = slaveInfo;
+        agent.clear_resources();
+        foreach (const Resource& resource, slaveInfo.resources()) {
+          if (approvers->approved<VIEW_ROLE>(resource)) {
+            *agent.add_resources() = resource;
+          }
+        }
+
+        writer->element(asV1Protobuf(agent));
+      }
+    });
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeGetAgents(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetAgents getAgents;
+  //   for each registered agent:
+  //     *getAgents.add_agents() = protobuf::master::event::createAgentResponse(
+  //         agent,
+  //         master->slaves.draining.get(slave->id),
+  //         master->slaves.deactivated.contains(slave->id),
+  //         approvers);
+  //   for each recovered agent:
+  //     SlaveInfo* agent = getAgents.add_recovered_agents();
+  //     agent->CopyFrom(slaveInfo);
+  //     agent->clear_resources();
+  //     foreach (const Resource& resource, slaveInfo.resources()):
+  //       if (approvers->approved<VIEW_ROLE>(resource)):
+  //         *agent->add_resources() = resource;
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    // TODO(bmahler): Consider not constructing the temporary
+    // agent object and instead serialize directly.
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::master::Response::GetAgents::kAgentsFieldNumber,
+        protobuf::master::event::createAgentResponse(
+            *slave,
+            master->slaves.draining.get(slave->id),
+            master->slaves.deactivated.contains(slave->id),
+            approvers),
+        &writer);
+  }
+
+  foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
+    // TODO(bmahler): Consider not constructing the temporary
+    // SlaveInfo object and instead serialize directly.
+    SlaveInfo agent = slaveInfo;
+    agent.clear_resources();
+    foreach (const Resource& resource, slaveInfo.resources()) {
+      if (approvers->approved<VIEW_ROLE>(resource)) {
+        *agent.add_resources() = resource;
+      }
+    }
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::master::Response::GetAgents::kRecoveredAgentsFieldNumber,
+        agent,
+        &writer);
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
+}
+
+
+
+process::http::Response Master::ReadOnlyHandler::getAgents(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response response;
+  //   response.set_type(mesos::master::Response::GET_AGENTS);
+  //   *response.mutable_get_agents() = _getAgents(approvers);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string output;
+      google::protobuf::io::StringOutputStream stream(&output);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Response::kTypeFieldNumber,
+          mesos::v1::master::Response::GET_AGENTS,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Response::kGetAgentsFieldNumber,
+          serializeGetAgents(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      return OK(std::move(output), stringify(outputContentType));
+    }
+
+    case ContentType::JSON: {
+      string body = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Response::descriptor();
+
+        int field;
+
+        field = v1::master::Response::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Response::Type_Name(
+                v1::master::Response::GET_AGENTS));
+
+        field = v1::master::Response::kGetAgentsFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifyGetAgents(approvers));
+      });
+
+      // TODO(bmahler): Pass jsonp query parameter through here.
+      return OK(std::move(body), stringify(outputContentType));
+    }
+
+    default:
+      return NotAcceptable("Request must accept json or protobuf");
+  }
+}
+
+
+function<void(JSON::ObjectWriter*)>
+  Master::ReadOnlyHandler::jsonifyGetFrameworks(
+      const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetFrameworks getFrameworks;
+  //   for each framework:
+  //     *getFrameworks.add_frameworks() = model(*framework);
+  //   for each completed framework:
+  //     *getFrameworks.add_completed_frameworks() = model(*framework);
+
+  // TODO(bmahler): Consider not constructing the temporary framework
+  // objects and instead serialize directly, but since we don't
+  // expect a large number of pending tasks, we currently don't
+  // bother with the more efficient approach.
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetFrameworks::descriptor();
+
+    int field;
+
+    field = v1::master::Response::GetFrameworks::kFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+      foreachvalue (const Framework* framework,
+                    master->frameworks.registered) {
+        // Skip unauthorized frameworks.
+        if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+          continue;
+        }
+
+        mesos::master::Response::GetFrameworks::Framework f = model(*framework);
+        writer->element(asV1Protobuf(f));
+      }
+    });
+
+    field =
+      v1::master::Response::GetFrameworks::kCompletedFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+      foreachvalue (const Owned<Framework>& framework,
+                    master->frameworks.completed) {
+        // Skip unauthorized frameworks.
+        if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+          continue;
+        }
+
+        mesos::master::Response::GetFrameworks::Framework f = model(*framework);
+        writer->element(asV1Protobuf(f));
+      }
+    });
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeGetFrameworks(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetFrameworks getFrameworks;
+  //   for each framework:
+  //     *getFrameworks.add_frameworks() = model(*framework);
+  //   for each completed framework:
+  //     *getFrameworks.add_completed_frameworks() = model(*framework);
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  // TODO(bmahler): Consider not constructing the temporary framework
+  // objects and instead serialize directly, but since we don't
+  // expect a large number of pending tasks, we currently don't
+  // bother with the more efficient approach.
+
+  foreachvalue (const Framework* framework,
+                master->frameworks.registered) {
+    // Skip unauthorized frameworks.
+    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      continue;
+    }
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::master::Response::GetFrameworks::kFrameworksFieldNumber,
+        model(*framework),
+        &writer);
+  }
+
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
+    // Skip unauthorized frameworks.
+    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      continue;
+    }
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::master::Response::GetFrameworks::kCompletedFrameworksFieldNumber,
+        model(*framework),
+        &writer);
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getFrameworks(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response response;
+  //   response.set_type(mesos::master::Response::GET_FRAMEWORKS);
+  //   *response.mutable_get_frameworks() = _getFrameworks(approvers);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string output;
+      google::protobuf::io::StringOutputStream stream(&output);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Response::kTypeFieldNumber,
+          mesos::v1::master::Response::GET_FRAMEWORKS,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Response::kGetFrameworksFieldNumber,
+          serializeGetFrameworks(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      return OK(std::move(output), stringify(outputContentType));
+    }
+
+    case ContentType::JSON: {
+      string body = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Response::descriptor();
+
+        int field;
+
+        field = v1::master::Response::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Response::Type_Name(
+                v1::master::Response::GET_FRAMEWORKS));
+
+        field = v1::master::Response::kGetFrameworksFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifyGetFrameworks(approvers));
+      });
+
+      // TODO(bmahler): Pass jsonp query parameter through here.
+      return OK(std::move(body), stringify(outputContentType));
+    }
+
+    default:
+      return NotAcceptable("Request must accept json or protobuf");
+  }
+}
+
+
+function<void(JSON::ObjectWriter*)>
+  Master::ReadOnlyHandler::jsonifyGetExecutors(
+      const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetExecutors getExecutors;
+  //
+  //   for each (executor, agent):
+  //     mesos::master::Response::GetExecutors::Executor* executor =
+  //       getExecutors.add_executors();
+  //     *executor->mutable_executor_info() = executorInfo;
+  //     *executor->mutable_slave_id() = slaveId;
+
+  // TODO(bmahler): This copies the owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    // Construct framework list with both active and completed frameworks.
+    vector<const Framework*> frameworks;
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      // Skip unauthorized frameworks.
+      if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+        frameworks.push_back(framework);
+      }
+    }
+    foreachvalue (const Owned<Framework>& framework,
+                  master->frameworks.completed) {
+      // Skip unauthorized frameworks.
+      if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+        frameworks.push_back(framework.get());
+      }
+    }
+
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetExecutors::descriptor();
+
+    int field;
+
+    field = v1::master::Response::GetExecutors::kExecutorsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+      foreach (const Framework* framework, frameworks) {
+        foreachpair (const SlaveID& slaveId,
+                     const auto& executorsMap,
+                     framework->executors) {
+          foreachvalue (const ExecutorInfo& executorInfo, executorsMap) {
+            // Skip unauthorized executors.
+            if (!approvers->approved<VIEW_EXECUTOR>(
+                    executorInfo, framework->info)) {
+              continue;
+            }
+
+            writer->element([&](JSON::ObjectWriter* writer) {
+              const google::protobuf::Descriptor* descriptor =
+                v1::master::Response::GetExecutors::Executor::descriptor();
+
+              // Serialize the following message:
+              //
+              //   mesos::master::Response::GetExecutors::Executor executor;
+              //   *executor.mutable_executor_info() = executorInfo;
+              //   *executor.mutable_slave_id() = slaveId;
+              int field;
+
+              field = v1::master::Response::GetExecutors::Executor
+                ::kExecutorInfoFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(),
+                  asV1Protobuf(executorInfo));
+
+              field = v1::master::Response::GetExecutors::Executor
+                ::kAgentIdFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(),
+                  asV1Protobuf(slaveId));
+            });
+          }
+        }
+      }
+    });
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeGetExecutors(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Construct framework list with both active and completed frameworks.
+  vector<const Framework*> frameworks;
+  foreachvalue (Framework* framework, master->frameworks.registered) {
+    // Skip unauthorized frameworks.
+    if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      frameworks.push_back(framework);
+    }
+  }
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
+    // Skip unauthorized frameworks.
+    if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      frameworks.push_back(framework.get());
+    }
+  }
+
+  // Lambda for serializing the following message:
+  //
+  //   mesos::master::Response::GetExecutors::Executor executor;
+  //   *executor.mutable_executor_info() = executorInfo;
+  //   *executor.mutable_slave_id() = slaveId;
+  auto serializeExecutor = [](const ExecutorInfo& e, const SlaveID& s) {
+    string output;
+    google::protobuf::io::StringOutputStream stream(&output);
+    google::protobuf::io::CodedOutputStream writer(&stream);
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::v1::master::Response::GetExecutors::Executor
+          ::kExecutorInfoFieldNumber,
+        e,
+        &writer);
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        mesos::v1::master::Response::GetExecutors::Executor
+          ::kAgentIdFieldNumber,
+        s,
+        &writer);
+
+    // While an explicit Trim() isn't necessary (since the coded
+    // output stream is destructed before the string is returned),
+    // it's a quite tricky bug to diagnose if Trim() is missed, so
+    // we always do it explicitly to signal the reader about this
+    // subtlety.
+    writer.Trim();
+
+    return output;
+  };
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  // Serialize the following:
+  //
+  //   mesos::master::Response::GetExecutors getExecutors;
+  //
+  //   for each (executor, agent):
+  //     mesos::master::Response::GetExecutors::Executor* executor =
+  //       getExecutors.add_executors();
+  //     *executor->mutable_executor_info() = executorInfo;
+  //     *executor->mutable_slave_id() = slaveId;
+
+  foreach (const Framework* framework, frameworks) {
+    foreachpair (const SlaveID& slaveId,
+                 const auto& executorsMap,
+                 framework->executors) {
+      foreachvalue (const ExecutorInfo& executorInfo, executorsMap) {
+        // Skip unauthorized executors.
+        if (!approvers->approved<VIEW_EXECUTOR>(
+                executorInfo, framework->info)) {
+          continue;
+        }
+
+        WireFormatLite::WriteBytes(
+            mesos::v1::master::Response::GetExecutors::kExecutorsFieldNumber,
+            serializeExecutor(executorInfo, slaveId),
+            &writer);
+      }
+    }
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getExecutors(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response response;
+  //   response.set_type(mesos::master::Response::GET_EXECUTORS);
+  //   *response.mutable_get_executors() = _getExecutors(approvers);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string output;
+      google::protobuf::io::StringOutputStream stream(&output);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Response::kTypeFieldNumber,
+          mesos::v1::master::Response::GET_EXECUTORS,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Response::kGetExecutorsFieldNumber,
+          serializeGetExecutors(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      return OK(std::move(output), stringify(outputContentType));
+    }
+
+    case ContentType::JSON: {
+      string body = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Response::descriptor();
+
+        int field;
+
+        field = v1::master::Response::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Response::Type_Name(
+                v1::master::Response::GET_EXECUTORS));
+
+        field = v1::master::Response::kGetExecutorsFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifyGetExecutors(approvers));
+      });
+
+      // TODO(bmahler): Pass jsonp query parameter through here.
+      return OK(std::move(body), stringify(outputContentType));
+    }
+
+    default:
+      return NotAcceptable("Request must accept json or protobuf");
+  }
+}
+
+
+function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetTasks(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Jsonify the following message:
+  //
+  //  master::Response::GetTasks getTasks;
+  //  for each pending task:
+  //    *getTasks.add_pending_tasks() =
+  //      protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
+  //  for each task:
+  //    *getTasks.add_tasks() = *task;
+  //  for each unreachable task:
+  //    *getTasks.add_unreachable_tasks() = *task;
+  //  for each completed task:
+  //    *getTasks.add_completed_tasks() = *task;
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    // Construct framework list with both active and completed frameworks.
+    vector<const Framework*> frameworks;
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      // Skip unauthorized frameworks.
+      if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+        frameworks.push_back(framework);
+      }
+    }
+    foreachvalue (const Owned<Framework>& framework,
+                  master->frameworks.completed) {
+      // Skip unauthorized frameworks.
+      if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+        frameworks.push_back(framework.get());
+      }
+    }
+
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetTasks::descriptor();
+
+    int field;
+
+    // Pending tasks.
+    field = v1::master::Response::GetTasks::kPendingTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreach (const Framework* framework, frameworks) {
+            foreachvalue (const TaskInfo& t, framework->pendingTasks) {
+              // Skip unauthorized tasks.
+              if (!approvers->approved<VIEW_TASK>(t, framework->info)) {
+                continue;
+              }
+
+              Task task =
+                  protobuf::createTask(t, TASK_STAGING, framework->id());
+
+              writer->element(asV1Protobuf(task));
+            }
+          }
+        });
+
+    // Active tasks.
+    field = v1::master::Response::GetTasks::kTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreach (const Framework* framework, frameworks) {
+            foreachvalue (Task* task, framework->tasks) {
+              CHECK_NOTNULL(task);
+              // Skip unauthorized tasks.
+              if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+                continue;
+              }
+
+              writer->element(asV1Protobuf(*task));
+            }
+          }
+        });
+
+    // Unreachable tasks.
+    field = v1::master::Response::GetTasks::kUnreachableTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreach (const Framework* framework, frameworks) {
+            foreachvalue (const Owned<Task>& task,
+                          framework->unreachableTasks) {
+              // Skip unauthorized tasks.
+              if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+                continue;
+              }
+
+              writer->element(asV1Protobuf(*task));
+            }
+          }
+        });
+
+    // Completed tasks.
+    field = v1::master::Response::GetTasks::kCompletedTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreach (const Framework* framework, frameworks) {
+            foreach (const Owned<Task>& task, framework->completedTasks) {
+              // Skip unauthorized tasks.
+              if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+                continue;
+              }
+
+              writer->element(asV1Protobuf(*task));
+            }
+          }
+        });
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeGetTasks(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Construct framework list with both active and completed frameworks.
+  vector<const Framework*> frameworks;
+  foreachvalue (Framework* framework, master->frameworks.registered) {
+    // Skip unauthorized frameworks.
+    if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      frameworks.push_back(framework);
+    }
+  }
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
+    // Skip unauthorized frameworks.
+    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      frameworks.push_back(framework.get());
+    }
+  }
+
+  // Serialize the following message:
+  //
+  //  mesos::master::Response::GetTasks getTasks;
+  //  for each pending task:
+  //    *getTasks.add_pending_tasks() =
+  //      protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
+  //  for each task:
+  //    *getTasks.add_tasks() = *task;
+  //  for each unreachable task:
+  //    *getTasks.add_unreachable_tasks() = *task;
+  //  for each completed task:
+  //    *getTasks.add_completed_tasks() = *task;
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  foreach (const Framework* framework, frameworks) {
+    // Pending tasks.
+    foreachvalue (const TaskInfo& taskInfo, framework->pendingTasks) {
+      // Skip unauthorized tasks.
+      if (!approvers->approved<VIEW_TASK>(taskInfo, framework->info)) {
+        continue;
+      }
+
+      // TODO(bmahler): Consider not constructing the temporary task
+      // object and instead serialize directly. Since we don't expect
+      // a large number of pending tasks, we currently don't bother
+      // with the more efficient approach.
+      //
+      // *getTasks.add_pending_tasks() =
+      //   protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
+      WireFormatLite2::WriteMessageWithoutCachedSizes(
+          mesos::v1::master::Response::GetTasks::kPendingTasksFieldNumber,
+          protobuf::createTask(taskInfo, TASK_STAGING, framework->id()),
+          &writer);
+    }
+
+    // Active tasks.
+    foreachvalue (Task* task, framework->tasks) {
+      CHECK_NOTNULL(task);
+      // Skip unauthorized tasks.
+      if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      WireFormatLite2::WriteMessageWithoutCachedSizes(
+          mesos::v1::master::Response::GetTasks::kTasksFieldNumber,
+          *task,
+          &writer);
+    }
+
+    // Unreachable tasks.
+    foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+      // Skip unauthorized tasks.
+      if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      WireFormatLite2::WriteMessageWithoutCachedSizes(
+          mesos::v1::master::Response::GetTasks::kUnreachableTasksFieldNumber,
+          *task,
+          &writer);
+    }
+
+    // Completed tasks.
+    foreach (const Owned<Task>& task, framework->completedTasks) {
+      // Skip unauthorized tasks.
+      if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      WireFormatLite2::WriteMessageWithoutCachedSizes(
+          mesos::v1::master::Response::GetTasks::kCompletedTasksFieldNumber,
+          *task,
+          &writer);
+    }
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getTasks(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //    mesos::master::Response response;
+  //    response.set_type(mesos::master::Response::GET_TASKS);
+  //    *response.mutable_get_tasks() = _getTasks(approvers);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string output;
+      google::protobuf::io::StringOutputStream stream(&output);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Response::kTypeFieldNumber,
+          mesos::v1::master::Response::GET_TASKS,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Response::kGetTasksFieldNumber,
+          serializeGetTasks(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      return OK(std::move(output), stringify(outputContentType));
+    }
+
+    case ContentType::JSON: {
+      string body = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Response::descriptor();
+
+        int field;
+
+        field = v1::master::Response::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Response::Type_Name(
+                v1::master::Response::GET_TASKS));
+
+        field = v1::master::Response::kGetTasksFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifyGetTasks(approvers));
+      });
+
+      // TODO(bmahler): Pass jsonp query parameter through here.
+      return OK(std::move(body), stringify(outputContentType));
+    }
+
+    default:
+      return NotAcceptable("Request must accept json or protobuf");
+  }
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getOperations(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // We consider a principal to be authorized to view an operation if it
+  // is authorized to view the resources the operation is performed on.
+  auto approved = [&approvers](const Operation& operation) {
+    Try<Resources> consumedResources =
+      protobuf::getConsumedResources(operation.info());
+
+    if (consumedResources.isError()) {
+      LOG(WARNING)
+        << "Could not approve operation " << operation.uuid()
+        << " since its consumed resources could not be determined:"
+        << consumedResources.error();
+
+      return false;
+    }
+
+    foreach (const Resource& resource, consumedResources.get()) {
+      if (!approvers->approved<VIEW_ROLE>(resource)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_OPERATIONS);
+
+  mesos::master::Response::GetOperations* operations =
+    response.mutable_get_operations();
+
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    foreachvalue (Operation* operation, slave->operations) {
+      if (approved(*operation)) {
+        operations->add_operations()->CopyFrom(*operation);
+      }
+    }
+
+    foreachvalue (
+        const Slave::ResourceProvider resourceProvider,
+        slave->resourceProviders) {
+      foreachvalue (Operation* operation, resourceProvider.operations) {
+        if (approved(*operation)) {
+          operations->add_operations()->CopyFrom(*operation);
+        }
+      }
+    }
+  }
+
+  return OK(
+      serialize(outputContentType, evolve(response)),
+      stringify(outputContentType));
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getRoles(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  const vector<string> knownRoles = master->knownRoles();
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_ROLES);
+
+  mesos::master::Response::GetRoles* getRoles =
+    response.mutable_get_roles();
+
+  foreach (const string& name, knownRoles) {
+    if (!approvers->approved<VIEW_ROLE>(name)) {
+      continue;
+    }
+
+    mesos::Role* role = getRoles->add_roles();
+
+    role->set_name(name);
+
+    role->set_weight(master->weights.get(name).getOrElse(DEFAULT_WEIGHT));
+
+    RoleResourceBreakdown resourceBreakdown(master, name);
+
+    ResourceQuantities allocatedAndOffered =
+      resourceBreakdown.allocated() + resourceBreakdown.offered();
+
+    // `resources` will be deprecated in favor of
+    // `offered`, `allocated`, `reserved`, and quota consumption.
+    // As a result, we don't bother trying to expose more
+    // than {cpus, mem, disk, gpus} since we don't know if
+    // anything outside this set is of type SCALAR.
+    foreach (const auto& quantity, allocatedAndOffered) {
+      if (quantity.first == "cpus" || quantity.first == "mem" ||
+          quantity.first == "disk" || quantity.first == "gpus") {
+        Resource* resource = role->add_resources();
+        resource->set_name(quantity.first);
+        resource->set_type(Value::SCALAR);
+        *resource->mutable_scalar() = quantity.second;
+      }
+    }
+
+    Option<Role*> role_ = master->roles.get(name);
+
+    if (role_.isSome()) {
+      foreachkey (const FrameworkID& frameworkId, (*role_)->frameworks) {
+        *role->add_frameworks() = frameworkId;
+      }
+    }
+  }
+
+  return OK(serialize(outputContentType, evolve(response)),
+            stringify(outputContentType));
+}
+
+
+function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetState(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Jsonify the following message:
+  //
+  //   mesos::master::Response::GetState getState;
+  //   *getState.mutable_get_tasks() = _getTasks(approvers);
+  //   *getState.mutable_get_executors() = _getExecutors(approvers);
+  //   *getState.mutable_get_frameworks() = _getFrameworks(approvers);
+  //   *getState.mutable_get_agents() = _getAgents(approvers);
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Response::GetState::descriptor();
+
+    int field;
+
+    field = v1::master::Response::GetState::kGetTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetTasks(approvers));
+
+    field = v1::master::Response::GetState::kGetExecutorsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetExecutors(approvers));
+
+    field = v1::master::Response::GetState::kGetFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetFrameworks(approvers));
+
+    field = v1::master::Response::GetState::kGetAgentsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetAgents(approvers));
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeGetState(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response::GetState getState;
+  //   *getState.mutable_get_tasks() = _getTasks(approvers);
+  //   *getState.mutable_get_executors() = _getExecutors(approvers);
+  //   *getState.mutable_get_frameworks() = _getFrameworks(approvers);
+  //   *getState.mutable_get_agents() = _getAgents(approvers);
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Response::GetState::kGetTasksFieldNumber,
+      serializeGetTasks(approvers),
+      &writer);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Response::GetState::kGetExecutorsFieldNumber,
+      serializeGetExecutors(approvers),
+      &writer);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Response::GetState::kGetFrameworksFieldNumber,
+      serializeGetFrameworks(approvers),
+      &writer);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Response::GetState::kGetAgentsFieldNumber,
+      serializeGetAgents(approvers),
+      &writer);
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
+}
+
+
+process::http::Response Master::ReadOnlyHandler::getState(
+    ContentType outputContentType,
+    const hashmap<std::string, std::string>& query,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response response;
+  //   response.set_type(mesos::master::Response::GET_STATE);
+  //   *response.mutable_get_state() = _getState(approvers);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string output;
+      google::protobuf::io::StringOutputStream stream(&output);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Response::kTypeFieldNumber,
+          mesos::v1::master::Response::GET_STATE,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Response::kGetStateFieldNumber,
+          serializeGetState(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      return OK(std::move(output), stringify(outputContentType));
+    }
+
+    case ContentType::JSON: {
+      string body = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Response::descriptor();
+
+        int field;
+
+        field = v1::master::Response::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Response::Type_Name(
+                v1::master::Response::GET_STATE));
+
+        field = v1::master::Response::kGetStateFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifyGetState(approvers));
+      });
+
+      // TODO(bmahler): Pass jsonp query parameter through here.
+      return OK(std::move(body), stringify(outputContentType));
+    }
+
+    default:
+      return NotAcceptable("Request must accept json or protobuf");
+  }
 }
 
 } // namespace master {
