@@ -1133,6 +1133,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/sorter/random/sorter.hpp				\
   master/allocator/mesos/sorter/random/utils.hpp				\
   master/allocator/mesos/sorter/sorter.hpp					\
+  master/authorization.cpp						\
+  master/authorization.hpp						\
   master/constants.cpp							\
   master/constants.hpp							\
   master/contender/contender.cpp					\

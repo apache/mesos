@@ -90,6 +90,7 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "master/authorization.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registry_operations.hpp"
@@ -145,6 +146,8 @@ using mesos::authorization::VIEW_ROLE;
 using mesos::authorization::VIEW_FRAMEWORK;
 using mesos::authorization::VIEW_TASK;
 using mesos::authorization::VIEW_EXECUTOR;
+
+using mesos::authorization::ActionObject;
 
 using mesos::master::contender::MasterContender;
 
@@ -3716,35 +3719,36 @@ void Master::launchTasks(
 }
 
 
-Future<bool> Master::authorizeTask(
-    const TaskInfo& task,
-    Framework* framework)
+Future<bool> Master::authorize(
+    const Option<Principal>& principal,
+    ActionObject&& actionObject)
 {
-  CHECK_NOTNULL(framework);
 
   if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
+    return true;
   }
 
-  // Authorize the task.
+  const Option<authorization::Subject> subject = createSubject(principal);
+
   authorization::Request request;
 
-  if (framework->info.has_principal()) {
-    request.mutable_subject()->set_value(framework->info.principal());
+  if (subject.isSome()) {
+    *request.mutable_subject() = *subject;
   }
 
-  request.set_action(authorization::RUN_TASK);
+  LOG(INFO) << "Authorizing"
+            << (principal.isSome()
+                  ? " principal '" + stringify(*principal) + "'"
+                  : " ANY principal")
+            << " to " << actionObject;
 
-  authorization::Object* object = request.mutable_object();
+  request.set_action(actionObject.action());
+  if (actionObject.object().isSome()) {
+    *request.mutable_object() = *(std::move(actionObject).object());
+  }
 
-  object->mutable_task_info()->CopyFrom(task);
-  object->mutable_framework_info()->CopyFrom(framework->info);
-
-  LOG(INFO)
-    << "Authorizing framework principal '"
-    << (framework->info.has_principal() ? framework->info.principal() : "ANY")
-    << "' to launch task " << task.task_id();
-
+  // TODO(asekretenko): Use a background-refreshed ObjectApprover
+  // when they become available (see MESOS-10056).
   return authorizer.get()->authorized(request);
 }
 
@@ -4343,6 +4347,7 @@ void Master::addTask(
 }
 
 
+
 void Master::accept(
     Framework* framework,
     scheduler::Call::Accept&& accept)
@@ -4789,43 +4794,60 @@ void Master::accept(
   LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
             << " on agent " << *slave << " for framework " << *framework;
 
+  auto getOperationTasks =
+    [](const Offer::Operation& operation) -> const RepeatedPtrField<TaskInfo>& {
+    if (operation.type() == Offer::Operation::LAUNCH) {
+      return operation.launch().task_infos();
+    }
+
+    if (operation.type() == Offer::Operation::LAUNCH_GROUP) {
+      return operation.launch_group().task_group().tasks();
+    }
+
+    UNREACHABLE();
+  };
+
+  // Add tasks to be launched to the framework's list of pending tasks
+  // before authorizing.
+  //
+  // NOTE: If two tasks have the same ID, the second one will
+  // not be put into 'framework->pendingTasks', therefore
+  // will not be launched (and TASK_ERROR will be sent).
+  // Unfortunately, we can't tell the difference between a
+  // duplicate TaskID and getting killed while pending
+  // (removed from the map). So it's possible that we send
+  // a TASK_ERROR after a TASK_KILLED (see _accept())!
+  for (const Offer::Operation& operation : accept.operations()) {
+    if (operation.type() == Offer::Operation::LAUNCH ||
+        operation.type() == Offer::Operation::LAUNCH_GROUP) {
+      for (const TaskInfo& task : getOperationTasks(operation)) {
+        if (!framework->pendingTasks.contains(task.task_id())) {
+          framework->pendingTasks[task.task_id()] = task;
+        }
+
+        // Add to the slave's list of pending tasks.
+        if (!slave->pendingTasks.contains(framework->id()) ||
+            !slave->pendingTasks[framework->id()].contains(task.task_id())) {
+          slave->pendingTasks[framework->id()][task.task_id()] = task;
+        }
+      }
+    }
+  }
+
+  const Option<Principal> principal = framework->info.has_principal()
+    ? Principal(framework->info.principal())
+    : Option<Principal>::none();
+
+  // TODO (asekretenko): use background-refreshed ObjectApprovers
+  // instead of asynchronous authorization.
   vector<Future<bool>> futures;
-  foreach (const Offer::Operation& operation, accept.operations()) {
+  for (const Offer::Operation& operation : accept.operations()) {
     switch (operation.type()) {
       case Offer::Operation::LAUNCH:
       case Offer::Operation::LAUNCH_GROUP: {
-        const RepeatedPtrField<TaskInfo>& tasks = [&]() {
-          if (operation.type() == Offer::Operation::LAUNCH) {
-            return operation.launch().task_infos();
-          } else if (operation.type() == Offer::Operation::LAUNCH_GROUP) {
-            return operation.launch_group().task_group().tasks();
-          }
-          UNREACHABLE();
-        }();
-
-        // Authorize the tasks. A task is in 'framework->pendingTasks'
-        // and 'slave->pendingTasks' before it is authorized.
-        foreach (const TaskInfo& task, tasks) {
-          futures.push_back(authorizeTask(task, framework));
-
-          // Add to the framework's list of pending tasks.
-          //
-          // NOTE: If two tasks have the same ID, the second one will
-          // not be put into 'framework->pendingTasks', therefore
-          // will not be launched (and TASK_ERROR will be sent).
-          // Unfortunately, we can't tell the difference between a
-          // duplicate TaskID and getting killed while pending
-          // (removed from the map). So it's possible that we send
-          // a TASK_ERROR after a TASK_KILLED (see _accept())!
-          if (!framework->pendingTasks.contains(task.task_id())) {
-            framework->pendingTasks[task.task_id()] = task;
-          }
-
-          // Add to the slave's list of pending tasks.
-          if (!slave->pendingTasks.contains(framework->id()) ||
-              !slave->pendingTasks[framework->id()].contains(task.task_id())) {
-            slave->pendingTasks[framework->id()][task.task_id()] = task;
-          }
+        for (const TaskInfo& task : getOperationTasks(operation)) {
+          futures.emplace_back(authorize(
+              principal, ActionObject::taskLaunch(task, framework->info)));
         }
         break;
       }

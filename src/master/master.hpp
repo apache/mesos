@@ -79,6 +79,7 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
+#include "master/authorization.hpp"
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/machine.hpp"
@@ -742,6 +743,15 @@ protected:
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
 
+  // Returns whether the principal is authorized for the specified
+  // action-object pair.
+  // Returns failure for transient authorization failures.
+  process::Future<bool> authorize(
+      const Option<process::http::authentication::Principal>& principal,
+      authorization::ActionObject&& actionObject);
+
+  // TODO(asekretenko): get rid of action-specific authorizeSomething() methods.
+
   // Returns whether the framework is authorized.
   // Returns failure for transient authorization failures.
   process::Future<bool> authorizeFramework(
@@ -753,11 +763,6 @@ protected:
       const SlaveInfo& slaveInfo,
       const Option<process::http::authentication::Principal>& principal);
 
-  // Returns whether the task is authorized.
-  // Returns failure for transient authorization failures.
-  process::Future<bool> authorizeTask(
-      const TaskInfo& task,
-      Framework* framework);
 
   /**
    * Authorizes a `RESERVE` operation.

@@ -408,6 +408,7 @@ set(LOGGING_SRC
   logging/logging.cpp)
 
 set(MASTER_SRC
+  master/authorization.cpp
   master/constants.cpp
   master/flags.cpp
   master/framework.cpp
