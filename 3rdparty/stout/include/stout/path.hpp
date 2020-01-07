@@ -134,7 +134,9 @@ inline std::string join(
 }
 
 
-inline std::string join(const std::vector<std::string>& paths)
+inline std::string join(
+    const std::vector<std::string>& paths,
+    const char separator = os::PATH_SEPARATOR)
 {
   if (paths.empty()) {
     return "";
@@ -142,7 +144,7 @@ inline std::string join(const std::vector<std::string>& paths)
 
   std::string result = paths[0];
   for (size_t i = 1; i < paths.size(); ++i) {
-    result = join(result, paths[i]);
+    result = join(result, paths[i], separator);
   }
   return result;
 }
