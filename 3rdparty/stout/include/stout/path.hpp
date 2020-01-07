@@ -515,4 +515,72 @@ inline std::ostream& operator<<(
   return stream << path.string();
 }
 
+
+namespace path {
+
+// Compute path of `path` relative to `base`.
+inline Try<std::string> relative(
+    const std::string& path_,
+    const std::string& base_,
+    char path_separator = os::PATH_SEPARATOR)
+{
+  if (path::is_absolute(path_) != path::is_absolute(base_)) {
+    return Error(
+        "Relative paths can only be computed between paths which are either "
+        "both absolute or both relative");
+  }
+
+  // Normalize both `path` and `base`.
+  Try<std::string> normalized_path = path::normalize(path_);
+  Try<std::string> normalized_base = path::normalize(base_);
+
+  if (normalized_path.isError()) {
+    return normalized_path;
+  }
+
+  if (normalized_base.isError()) {
+    return normalized_base;
+  }
+
+  // If normalized `path` and `base` are identical return `.`.
+  if (*normalized_path == *normalized_base) {
+    return ".";
+  }
+
+  const Path path(*normalized_path);
+  const Path base(*normalized_base);
+
+  auto path_it = path.begin();
+  auto base_it = base.begin();
+
+  const auto path_end = path.end();
+  const auto base_end = base.end();
+
+  // Strip common path components.
+  for (; path_it != path_end && base_it != base_end && *path_it == *base_it;
+       ++path_it, ++base_it) {
+  }
+
+  std::vector<std::string> result;
+  result.reserve(
+      std::distance(base_it, base_end) + std::distance(path_it, path_end));
+
+  // If we have not fully consumed the range of `base` we need to go
+  // up from `path` to reach `base`. Insert ".." into the result.
+  if (base_it != base_end) {
+    for (; base_it != base_end; ++base_it) {
+      result.emplace_back("..");
+    }
+  }
+
+  // Add remaining path components to the result.
+  for (; path_it != path_end; ++path_it) {
+    result.emplace_back(*path_it);
+  }
+
+  return join(result, path_separator);
+}
+
+} // namespace path {
+
 #endif // __STOUT_PATH_HPP__
