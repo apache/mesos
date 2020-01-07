@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
@@ -378,6 +380,89 @@ public:
   {
     return value;
   }
+
+  // An iterator over path components. Paths are expected to be normalized.
+  //
+  // The effect of using this iterator is to split the path at its
+  // separator and iterate over the different splits. This means in
+  // particular that this class performs no path normalization.
+  class const_iterator
+  {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = std::string;
+    using difference_type = std::string::const_iterator::difference_type;
+    using pointer = std::string::const_iterator::pointer;
+
+    // We cannot return a reference type (or `const char*` for that
+    // matter) as we neither own string values nor deal with setting up
+    // proper null-terminated output buffers.
+    //
+    // TODO(bbannier): Consider introducing a `string_view`-like class
+    // to wrap path components and use it as a reference type here and as
+    // `value_type`, and as return value for most `Path` member functions above.
+    using reference = std::string;
+
+    explicit const_iterator(
+        const Path* path_,
+        std::string::const_iterator offset_)
+      : path(path_), offset(offset_) {}
+
+    // Disallow construction from temporary as we hold a reference to `path`.
+    explicit const_iterator(Path&& path) = delete;
+
+    const_iterator& operator++()
+    {
+      offset = std::find(offset, path->string().end(), path->separator);
+
+      // If after incrementing we have reached the end return immediately.
+      if (offset == path->string().end()) {
+        return *this;
+      } else {
+        // If we are not at the end we have a separator to skip.
+        ++offset;
+      }
+
+      return *this;
+    }
+
+    const_iterator operator++(int)
+    {
+      const_iterator it = *this;
+      ++(*this);
+      return it;
+    }
+
+    bool operator==(const const_iterator& other) const
+    {
+      CHECK_EQ(path, other.path)
+        << "Iterators into different paths cannot be compared";
+
+      return (!path && !other.path) || offset == other.offset;
+    }
+
+    bool operator!=(const const_iterator& other) const
+    {
+      return !(*this == other);
+    }
+
+    reference operator*() const
+    {
+      auto end = std::find(offset, path->string().end(), path->separator);
+      return reference(offset, end);
+    }
+
+  private:
+    const Path* path = nullptr;
+    std::string::const_iterator offset;
+  };
+
+  const_iterator begin() const
+  {
+    return const_iterator(this, string().begin());
+  }
+
+  const_iterator end() const { return const_iterator(this, string().end()); }
 
 private:
   std::string value;

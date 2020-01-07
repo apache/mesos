@@ -398,6 +398,50 @@ TEST(PathTest, FromURI)
 }
 
 
+TEST(PathTest, PathIteration)
+{
+  {
+    // An empty path should contain no elements and have its begin and
+    // end iterators compare equal.
+    Path path;
+    EXPECT_EQ(0u, std::distance(path.begin(), path.end()));
+    EXPECT_EQ(path.begin(), path.end());
+  }
+
+  {
+    // Checks for behavior of relative paths.
+    const vector<string> components{"1", "2", "3", "4", "5", "file.ext"};
+    const Path relative_path(
+      strings::join(string(1, os::PATH_SEPARATOR), components));
+
+    EXPECT_NE(relative_path.begin(), relative_path.end());
+    EXPECT_EQ(
+      components.size(),
+      std::distance(relative_path.begin(), relative_path.end()));
+
+    EXPECT_EQ(
+        components, vector<string>(relative_path.begin(), relative_path.end()));
+  }
+
+  {
+    // Checks for behavior of absolute paths.
+    const vector<string> components{"", "1", "2", "3", "4", "5", "file.ext"};
+    const Path absolute_path(
+      strings::join(string(1, os::PATH_SEPARATOR), components));
+
+    ASSERT_TRUE(absolute_path.absolute());
+
+    EXPECT_NE(absolute_path.begin(), absolute_path.end());
+    EXPECT_EQ(
+        components.size(),
+        std::distance(absolute_path.begin(), absolute_path.end()));
+
+    EXPECT_EQ(
+        components, vector<string>(absolute_path.begin(), absolute_path.end()));
+  }
+}
+
+
 class PathFileTest : public TemporaryDirectoryTest {};
 
 
