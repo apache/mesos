@@ -23,6 +23,8 @@ using std::ostream;
 using std::string;
 using std::vector;
 
+using google::protobuf::RepeatedPtrField;
+
 namespace mesos {
 namespace authorization {
 
@@ -94,6 +96,126 @@ string getReservationRole(const Resource& resource)
 
   return Resources::isReserved(resource)
     ? Resources::reservationRole(resource) : "*";
+}
+
+
+void ActionObject::pushUnreserveActionObjects(
+    const Resources& resources,
+    vector<ActionObject>* result)
+{
+  bool hasReservationsWithoutPrincipal = false;
+
+  for (const Resource& resource : resources) {
+    // NOTE: We rely on the master to ensure that the resource is in the
+    // post-reservation-refinement format.
+    CHECK(!resource.has_role()) << resource;
+    CHECK(!resource.has_reservation()) << resource;
+
+    if (!resource.reservations().empty() &&
+        resource.reservations().rbegin()->has_principal()) {
+      result->push_back(fromResourceWithLegacyValue(
+          authorization::UNRESERVE_RESOURCES,
+          resource,
+          resource.reservations().rbegin()->principal()));
+    } else {
+      hasReservationsWithoutPrincipal = true;
+    }
+  }
+
+  if (hasReservationsWithoutPrincipal) {
+    result->push_back(ActionObject(authorization::UNRESERVE_RESOURCES, None()));
+  }
+}
+
+
+vector<ActionObject>
+ActionObject::unreserve(const Offer::Operation::Unreserve& unreserve)
+{
+  vector<ActionObject> result;
+  pushUnreserveActionObjects(unreserve.resources(), &result);
+  // NOTE: In some cases, such as UNRESERVE with no resources
+  // (which is invalid) or resources reserved without a principal
+  // by an old version of Mesos, an empty vector will be returned.
+  return result;
+}
+
+
+vector<ActionObject> ActionObject::reserve(
+    const Offer::Operation::Reserve& reserve)
+{
+  std::vector<ActionObject> result;
+  auto pushReserveActionObjects =
+    [&result](const Resources& resources) mutable {
+      // The operation will be authorized if the entity is allowed to make
+      // reservations for all unique roles included in `resources`.
+      //
+      // TODO(asekretenko): This approach assumes that resources with identical
+      // reservation roles are equivalent from the authorizers' point of view;
+      // in future this assumption might become incorrect. As there is no reason
+      // other than performance to leave only resources with unique roles, this
+      // filtration can probably be avoided after implementing synchronous
+      // authorization (see MESOS-10056).
+      hashset<string> roles;
+
+      foreach (const Resource& resource, resources) {
+        const string role = getReservationRole(resource);
+
+        if (!roles.contains(role)) {
+          roles.insert(role);
+          result.push_back(fromResourceWithLegacyValue(
+            authorization::RESERVE_RESOURCES, resource, role));
+        }
+      }
+    };
+
+  // We support `Reserve` operations with either `source` set or unset. If
+  // `source` is unset (an older API), it is possible to send calls which
+  // contain also resources whose reservations are unmodified; in that case
+  // all `Reserve` `resources` will be authorized. In the case where `source`
+  // is set we follow a narrower contract and e.g., only accept resources
+  // whose reservations are all modified, and require identical modifications
+  // for all passed `Resource`s.
+  //
+  // This e.g., means that we cannot upgrade calls without `source` to
+  // calls with `source` and use uniform handling. Instead we branch
+  // on whether `source` was set to select the authorization handling.
+  // Each fundamental reservation added in with with-`source` case can
+  // then be authorized using the historic, wider contract.
+  if (reserve.source().empty())
+  {
+    pushReserveActionObjects(reserve.resources());
+    return result;
+  }
+
+  Resources source = reserve.source();
+  const Resources target = reserve.resources();
+  const Resources ancestor =
+    Resources::getReservationAncestor(source, target);
+
+  // We request UNRESERVE_RESOURCES to bring `source` to `ancestor`.
+  while (source != ancestor) {
+    pushUnreserveActionObjects(source, &result);
+    source = source.popReservation();
+  }
+
+  // We request RESERVE_RESOURCES to bring `ancestor` to `target`.
+  const RepeatedPtrField<Resource::ReservationInfo>& targetReservations =
+    reserve.resources(0).reservations();
+  const RepeatedPtrField<Resource::ReservationInfo>& ancestorReservations =
+    RepeatedPtrField<Resource>(ancestor).begin()->reservations();
+
+  // Skip reservations common among `source` and `resources`.
+  auto it = targetReservations.begin();
+  std::advance(it, ancestorReservations.size());
+
+  for (; it != targetReservations.end(); ++it) {
+    source = source.pushReservation(*it);
+    pushReserveActionObjects(source);
+  }
+
+  // NOTE: In some cases, such as RESERVE with source identical to target,
+  // an empty vector will be returned.
+  return result;
 }
 
 

@@ -2827,7 +2827,8 @@ Future<Response> Master::Http::_reserve(
         error->message);
   }
 
-  return master->authorizeReserveResources(operation.reserve(), principal)
+  return master->authorize(
+      principal, ActionObject::reserve(operation.reserve()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();
@@ -5578,7 +5579,8 @@ Future<Response> Master::Http::_unreserve(
     return BadRequest("Invalid UNRESERVE operation: " + error->message);
   }
 
-  return master->authorizeUnreserveResources(operation.unreserve(), principal)
+  return master->authorize(
+      principal, ActionObject::unreserve(operation.unreserve()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();

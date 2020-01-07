@@ -55,6 +55,12 @@ public:
   // resources are in post-reservation-refinement format.
   // Otherwise, they  may crash the program.
 
+  static std::vector<ActionObject> unreserve(
+      const Offer::Operation::Unreserve& unreserve);
+
+  static std::vector<ActionObject> reserve(
+      const Offer::Operation::Reserve& reserve);
+
   static std::vector<ActionObject> createVolume(
       const Offer::Operation::Create& create);
 
@@ -98,6 +104,24 @@ private:
       Action action,
       const Resource& resource,
       std::string value_);
+
+  // Helper method for `reserve()`/`unreserve()`.
+  //
+  // For each resource reserved with a principal, pushes into `result` an
+  // ActionObject needed for unreserving it. If there are resources reserved
+  // without a principal, an UNRESERVE_RESOURCE for ANY object is also added
+  // (see MESOS-9562).
+  //
+  // NOTE: Since the UNRESERVE operation only "pops" one reservation off the
+  // stack of reservations, only principals of the most refined reservations
+  // (i.e. ones that will be unreserved) are used.
+  //
+  // NOTE: Currently, validation of RESERVE operations prevents creating
+  // reservation without a principal, so they should not exist in new
+  // clusters.
+  static void pushUnreserveActionObjects(
+      const Resources& resources,
+      std::vector<ActionObject>* result);
 };
 
 // Outputs human-readable description of an ActionObject.
