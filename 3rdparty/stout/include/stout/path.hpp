@@ -19,6 +19,7 @@
 
 #include <glog/logging.h>
 
+#include <stout/attributes.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
@@ -192,6 +193,11 @@ inline bool is_absolute(const std::string& path)
   std::string colon = path.substr(1, 2);
   return colon == ":\\" || colon == ":/";
 #endif // __WINDOWS__
+}
+
+STOUT_DEPRECATED inline bool absolute(const std::string& path)
+{
+  return is_absolute(path);
 }
 
 } // namespace path {
