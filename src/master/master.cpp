@@ -4014,51 +4014,6 @@ Future<bool> Master::authorizeDestroyVolume(
 }
 
 
-Future<bool> Master::authorizeResizeVolume(
-    const Resource& volume,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::RESIZE_VOLUME);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->mutable_resource()->CopyFrom(volume);
-
-  // We also set the deprecated `object.value` field to support legacy
-  // authorizers that have not been upgraded to look at `object.resource`.
-  //
-  // NOTE: We rely on the master to ensure that the resource is in the
-  // post-reservation-refinement format. If there is a stack of reservations,
-  // we perform authorization for the role of the most refined reservation,
-  // since we only support "pushing" one reservation at a time. That is, all
-  // of the previous reservations must have already been authorized.
-  //
-  // NOTE: Since authorization happens __before__ validation, we must check here
-  // that this resource has a reservation. If not, the error will be caught
-  // during validation, but we still authorize the resource with the default
-  // role '*' for backward compatibility.
-  CHECK(!volume.has_role()) << volume;
-  CHECK(!volume.has_reservation()) << volume;
-
-  request.mutable_object()->set_value(
-      Resources::isReserved(volume) ? Resources::reservationRole(volume) : "*");
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to resize volume '" << volume << "'";
-
-  return authorizer.get()->authorized(request);
-}
-
-
 Future<bool> Master::authorizeCreateDisk(
     const Offer::Operation::CreateDisk& createDisk,
     const Option<Principal>& principal)
@@ -4885,25 +4840,15 @@ void Master::accept(
       }
 
       case Offer::Operation::GROW_VOLUME: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeResizeVolume(
-                operation.grow_volume().volume(), principal));
+        futures.push_back(authorize(
+            principal, ActionObject::growVolume(operation.grow_volume())));
 
         break;
       }
 
       case Offer::Operation::SHRINK_VOLUME: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeResizeVolume(
-                operation.shrink_volume().volume(), principal));
+        futures.push_back(authorize(
+            principal, ActionObject::shrinkVolume(operation.shrink_volume())));
 
         break;
       }

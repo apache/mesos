@@ -18,6 +18,7 @@
 #define __MASTER_AUTHORIZATION_HPP__
 
 #include <ostream>
+#include <string>
 
 #include <stout/option.hpp>
 
@@ -46,12 +47,36 @@ public:
   static ActionObject frameworkRegistration(
       const FrameworkInfo& frameworkInfo);
 
+  // Methods that return action-object pair(s) for authorizing
+  // offer operations other than LAUNCH/LAUNCH_GROUP.
+  //
+  // NOTE: these methods rely on the caller to ensure that operation
+  // resources are in post-reservation-refinement format.
+  // Otherwise, they  may crash the program.
+
+  static ActionObject growVolume(
+      const Offer::Operation::GrowVolume& grow);
+
+  static ActionObject shrinkVolume(
+      const Offer::Operation::ShrinkVolume& shrink);
+
 private:
   Action action_;
   Option<Object> object_;
 
   ActionObject(Action action, Option<Object>&& object)
     : action_(action), object_(object){};
+
+  // Returns an action-object pair for the case that commonly
+  // occurs when authorizing non-LAUNCH operations: sets `action`,
+  // `object.resource` and `object.value`.
+  //
+  // NOTE: the deprecated `object.value` field is set to support legacy
+  // authorizers that have not been upgraded to look at `object.resource`.
+  static ActionObject fromResourceWithLegacyValue(
+      Action action,
+      const Resource& resource,
+      std::string value_);
 };
 
 // Outputs human-readable description of an ActionObject.

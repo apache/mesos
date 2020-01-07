@@ -83,6 +83,7 @@
 
 #include "logging/logging.hpp"
 
+#include "master/authorization.hpp"
 #include "master/machine.hpp"
 #include "master/maintenance.hpp"
 #include "master/master.hpp"
@@ -137,6 +138,7 @@ using std::tie;
 using std::tuple;
 using std::vector;
 
+using mesos::authorization::ActionObject;
 using mesos::authorization::createSubject;
 using mesos::authorization::DEACTIVATE_AGENT;
 using mesos::authorization::DRAIN_AGENT;
@@ -1262,8 +1264,8 @@ Future<Response> Master::Http::growVolume(
         stringify(*slave) + ": " + error->message);
   }
 
-  return master->authorizeResizeVolume(
-      operation.grow_volume().volume(), principal)
+  return master->authorize(
+      principal, ActionObject::growVolume(operation.grow_volume()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();
@@ -1325,8 +1327,8 @@ Future<Response> Master::Http::shrinkVolume(
         stringify(*slave) + ": " + error->message);
   }
 
-  return master->authorizeResizeVolume(
-      operation.shrink_volume().volume(), principal)
+  return master->authorize(
+      principal, ActionObject::shrinkVolume(operation.shrink_volume()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();
