@@ -259,7 +259,18 @@ class NvidiaGpuFilter : public TestFilter
 public:
   NvidiaGpuFilter()
   {
+#ifndef ENABLE_NVML
+    nvidiaGpuError = true;
+
+    std::cerr
+      << "-------------------------------------------------------------\n"
+      << "Linking against libnvml is disabled so\n"
+      << " no Nvidia GPU tests will be run\n"
+      << "-------------------------------------------------------------"
+      << std::endl;
+#else
     nvidiaGpuError = os::which("nvidia-smi").isNone();
+
     if (nvidiaGpuError) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -267,6 +278,7 @@ public:
         << "-------------------------------------------------------------"
         << std::endl;
     }
+#endif // ENABLE_NVML
   }
 
   bool disable(const ::testing::TestInfo* test) const override

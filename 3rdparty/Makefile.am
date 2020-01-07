@@ -387,9 +387,11 @@ $(LIBSECCOMP)-build-stamp: $(LIBSECCOMP)-stamp
 ALL_LOCAL += $(LIB_LIBSECCOMP)
 endif
 
+if ENABLE_NVML
 if WITH_BUNDLED_NVML
 $(NVML)/nvidia/gdk/nvml.h: $(NVML)-stamp
 ALL_LOCAL += $(NVML)-stamp
+endif
 endif
 
 if WITH_BUNDLED_PICOJSON

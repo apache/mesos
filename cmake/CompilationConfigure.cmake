@@ -148,6 +148,11 @@ option(
   FALSE)
 
 option(
+  ENABLE_NVML
+  "Whether to use the NVML headers."
+  TRUE)
+
+option(
   PYTHON
   "Command for the Python interpreter, set to `python` if not given."
   "python")

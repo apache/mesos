@@ -105,7 +105,6 @@
 #include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
-#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 #include "slave/containerizer/mesos/isolators/linux/capabilities.hpp"
 #include "slave/containerizer/mesos/isolators/linux/devices.hpp"
 #include "slave/containerizer/mesos/isolators/linux/nnp.hpp"

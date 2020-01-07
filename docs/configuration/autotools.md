@@ -149,6 +149,15 @@ layout: documentation
   </tr>
   <tr>
     <td>
+      --enable-install-module-dependencies
+    </td>
+    <td>
+      Install third-party bundled dependencies required for module development.
+      [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-java
     </td>
     <td>
@@ -167,11 +176,10 @@ layout: documentation
   </tr>
   <tr>
     <td>
-      --enable-install-module-dependencies
+      --disable-use-nvml
     </td>
+      Disable use of the NVML headers.
     <td>
-      Install third-party bundled dependencies required for module development.
-      [default=no]
     </td>
   </tr>
   <tr>

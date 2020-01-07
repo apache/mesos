@@ -268,6 +268,11 @@ AC_ARG_ENABLE([java],
                              [do not build Java bindings]),
               [], [enable_java=yes])
 
+AC_ARG_ENABLE([nvml],
+              AS_HELP_STRING([--disable-nvml],
+                             [do not use the NVML headers]),
+              [], [enable_nvml=yes])
+
 # TODO(bevers): Eventually make this enabled by default.
 AC_ARG_ENABLE([jemalloc-allocator],
                AS_HELP_STRING([--enable-jemalloc-allocator],
@@ -1385,10 +1390,10 @@ __EOF__
     dir="$JAVA_HOME/jre/lib/server"
     for dir in "$JAVA_HOME/lib/server" "$JAVA_HOME/jre/lib/server"; do
       if test -e "$dir"; then
-	# Note that these are libtool specific flags.
+        # Note that these are libtool specific flags.
         JAVA_TEST_LDFLAGS="-framework JavaVM"
         JAVA_JVM_LIBRARY=$dir/libjvm.dylib
-	break;
+        break;
       fi
     done
   elif test "$OS_NAME" = "linux"; then
@@ -1397,20 +1402,20 @@ __EOF__
       "$JAVA_HOME/jre/lib/"{amd64,i386,arm,aarch64,ppc64,ppc64le,s390,s390x}"/server"
     do
       if test -e "$dir"; then
-	# Note that these are libtool specific flags.
-	JAVA_TEST_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
-	JAVA_JVM_LIBRARY=$dir/libjvm.so
-	break;
+        # Note that these are libtool specific flags.
+        JAVA_TEST_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
+        JAVA_JVM_LIBRARY=$dir/libjvm.so
+        break;
       fi
     done
   elif test "$OS_NAME" = "freebsd"; then
     for arch in amd64 i386 arm; do
       dir="$JAVA_HOME/jre/lib/$arch/server"
       if test -e "$dir"; then
-	# Note that these are libtool specific flags.
-	JAVA_TEST_LDFLAGS="-L$dir -R$dir -pthread -Wl,-ljvm"
-	JAVA_JVM_LIBRARY=$dir/libjvm.so
-	break;
+        # Note that these are libtool specific flags.
+        JAVA_TEST_LDFLAGS="-L$dir -R$dir -pthread -Wl,-ljvm"
+        JAVA_JVM_LIBRARY=$dir/libjvm.so
+        break;
       fi
     done
   fi
@@ -1783,29 +1788,37 @@ AM_CONDITIONAL(
   [test "x$enable_network_ports_isolator" = "xyes" -o "x$enable_port_mapping_isolator" = "xyes"])
 
 
+AM_CONDITIONAL(
+  [ENABLE_NVML],
+  [test "x$enable_nvml" = "xyes"])
+
+AM_COND_IF([ENABLE_NVML], [AC_DEFINE([ENABLE_NVML])])
+
 # If the user has asked not to include the bundled NVML headers for
 # Nvidia GPU support, check to see if the path to the NVML headers has
 # been specified.  If it has, make sure that the path is absolute. If
 # everything is in order, add this path to the CPPFLAGS.
-if test "x$without_bundled_nvml" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  if test -n "`echo $with_nvml`"; then
-    if test "$with_nvml" = "${with_nvml#/}"; then
-      AC_MSG_ERROR([The path passed to --with-nvml must be absolute.])
+if test "x$enable_nvml" = "xyes"; then
+  if test "x$without_bundled_nvml" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+    if test -n "`echo $with_nvml`"; then
+      if test "$with_nvml" = "${with_nvml#/}"; then
+        AC_MSG_ERROR([The path passed to --with-nvml must be absolute.])
+      fi
+       CPPFLAGS="-I${with_nvml} $CPPFLAGS"
     fi
-     CPPFLAGS="-I${with_nvml} $CPPFLAGS"
-  fi
 
-  AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
-                   [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
--------------------------------------------------------------------
-You have requested the use of a non-bundled NVML but no suitable
-NVML headers could be found. Make sure these headers are either
-installed on the system or the path passed via --with-nvml is correct.
--------------------------------------------------------------------
-  ])])
-else
-  with_bundled_nvml=yes
+    AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
+                     [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
+  -------------------------------------------------------------------
+  You have requested the use of a non-bundled NVML but no suitable
+  NVML headers could be found. Make sure these headers are either
+  installed on the system or the path passed via --with-nvml is correct.
+  -------------------------------------------------------------------
+    ])])
+  else
+    with_bundled_nvml=yes
+  fi
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_NVML],
@@ -2682,7 +2695,7 @@ There are two possible workarounds for this issue:
   PYTHON_LDFLAGS="$LDFLAGS $GFLAGS_LIBS"
 
   AS_IF([test "x$ax_cv_cxx_compiler_vendor" = "xclang"],
-	[PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"
+        [PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"
          PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"])
 
   AC_SUBST([PYTHON_CPPFLAGS])

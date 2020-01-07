@@ -18,8 +18,6 @@
 
 #include <glog/logging.h>
 
-#include <nvidia/gdk/nvml.h>
-
 #include <map>
 #include <string>
 
@@ -37,6 +35,14 @@
 #include "logging/logging.hpp"
 
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
+
+#ifndef ENABLE_NVML
+// We provide dummy types and variables in case we do not use the NVML headers.
+using nvmlReturn_t = int;
+constexpr bool NVML_SUCCESS = true;
+constexpr size_t NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE = 1;
+constexpr nvmlReturn_t NVML_ERROR_INVALID_ARGUMENT{};
+#endif // ENABLE_NVML
 
 using process::Once;
 
@@ -153,6 +159,10 @@ Try<Nothing> initialize()
 
 bool isAvailable()
 {
+#ifndef ENABLE_NVML
+  return false;
+#endif // ENABLE_NVML
+
   // Unfortunately, there is no function available in `glibc` to check
   // if a dynamic library is available to open with `dlopen()`.
   // Instead, availability is determined by attempting to open a

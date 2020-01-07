@@ -489,22 +489,24 @@ ExternalProject_Add(
   URL_HASH          ${RAPIDJSON_HASH})
 
 
-# NVML: NVIDIA Management Library.
-# https://developer.nvidia.com/nvidia-management-library-nvml
-#############################################################
-EXTERNAL(nvml ${NVML_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-add_library(nvml INTERFACE)
-add_dependencies(nvml ${NVML_TARGET})
-target_include_directories(nvml INTERFACE ${NVML_ROOT})
+if (ENABLE_NVML)
+  # NVML: NVIDIA Management Library.
+  # https://developer.nvidia.com/nvidia-management-library-nvml
+  #############################################################
+  EXTERNAL(nvml ${NVML_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(nvml INTERFACE)
+  add_dependencies(nvml ${NVML_TARGET})
+  target_include_directories(nvml INTERFACE ${NVML_ROOT})
 
-ExternalProject_Add(
-  ${NVML_TARGET}
-  PREFIX            ${NVML_CMAKE_ROOT}
-  CONFIGURE_COMMAND ${CMAKE_NOOP}
-  BUILD_COMMAND     ${CMAKE_NOOP}
-  INSTALL_COMMAND   ${CMAKE_NOOP}
-  URL               ${NVML_URL}
-  URL_HASH          ${NVML_HASH})
+  ExternalProject_Add(
+    ${NVML_TARGET}
+    PREFIX            ${NVML_CMAKE_ROOT}
+    CONFIGURE_COMMAND ${CMAKE_NOOP}
+    BUILD_COMMAND     ${CMAKE_NOOP}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${NVML_URL}
+    URL_HASH          ${NVML_HASH})
+endif ()
 
 
 # HTTP Parser: HTTP request/response parser for C.

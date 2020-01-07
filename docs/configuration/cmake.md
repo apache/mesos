@@ -202,4 +202,12 @@ See more information in the [CMake documentation](../cmake.md).
       Windows</a> binary. [default=%PROGRAMFILESX86%/GnuWin32/bin/patch.exe]
       </td>
   </tr>
+  <tr>
+    <td>
+      -DENABLE_NVML=(TRUE|FALSE)
+    </td>
+    <td>
+      Enable use of the NVML headers. [default=TRUE]
+    </td>
+  </tr>
 </table>

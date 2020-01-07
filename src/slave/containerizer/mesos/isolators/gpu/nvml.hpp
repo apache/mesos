@@ -17,7 +17,12 @@
 #ifndef __NVIDIA_NVML_HPP__
 #define __NVIDIA_NVML_HPP__
 
+#ifdef ENABLE_NVML
 #include <nvidia/gdk/nvml.h>
+#else
+// We provide dummy types in case we do not use the NVML headers.
+using nvmlDevice_t = int;
+#endif // ENABLE_NVML
 
 #include <string>
 

@@ -239,8 +239,10 @@ LIB_LIBSECCOMP = -lseccomp
 endif
 endif
 
+if ENABLE_NVML
 if WITH_BUNDLED_NVML
 MESOS_CPPFLAGS += -I../$(NVML)
+endif
 endif
 
 if WITH_BUNDLED_PICOJSON
