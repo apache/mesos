@@ -420,7 +420,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     // a dependency on that isolator, and it assumes that if the
     // container specifies a rootfs the sandbox is already bind
     // mounted into the container.
-    if (path::absolute(_volume.container_path())) {
+    if (path::is_absolute(_volume.container_path())) {
       // To specify a docker volume for a container, operators should
       // be allowed to define the 'container_path' either as an absolute
       // path or a relative path. Please see linux filesystem isolator

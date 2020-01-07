@@ -200,7 +200,7 @@ Result<string> Fetcher::uriToLocalPath(
   string path =
     strings::remove(path::from_uri(uri), "localhost", strings::PREFIX);
 
-  if (!path::absolute(path)) {
+  if (!path::is_absolute(path)) {
     if (fileUri) {
       return Error("File URI only supports absolute paths");
     }

@@ -169,7 +169,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
     // 'host_path' can be relative in legacy mode, representing
     // SANDBOX_PATH volumes.
     if (volume.has_host_path() &&
-        !path::absolute(volume.host_path())) {
+        !path::is_absolute(volume.host_path())) {
       sandboxPath = Volume::Source::SandboxPath();
       sandboxPath->set_type(Volume::Source::SandboxPath::SELF);
       sandboxPath->set_path(volume.host_path());
@@ -180,7 +180,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
         volume.source().type() == Volume::Source::SANDBOX_PATH) {
       CHECK(volume.source().has_sandbox_path());
 
-      if (path::absolute(volume.source().sandbox_path().path())) {
+      if (path::is_absolute(volume.source().sandbox_path().path())) {
         return Failure(
             "Path '" + volume.source().sandbox_path().path() + "' "
             "in SANDBOX_PATH volume is absolute");
@@ -199,7 +199,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
           "SANDBOX_PATH volume is not supported for DEBUG containers");
     }
 
-    if (!bindMountSupported && path::absolute(volume.container_path())) {
+    if (!bindMountSupported && path::is_absolute(volume.container_path())) {
       return Failure(
           "The 'linux' launcher and 'filesystem/linux' isolator "
           "must be enabled to support SANDBOX_PATH volume with "
@@ -222,7 +222,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
       case Volume::Source::SandboxPath::SELF:
         // NOTE: For this case, the user can simply create a symlink
         // in its sandbox. No need for a volume.
-        if (!path::absolute(volume.container_path())) {
+        if (!path::is_absolute(volume.container_path())) {
           return Failure(
               "'container_path' is relative for "
               "SANDBOX_PATH volume SELF type");
@@ -283,7 +283,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
     // Prepare the target.
     string target;
 
-    if (path::absolute(volume.container_path())) {
+    if (path::is_absolute(volume.container_path())) {
       CHECK(bindMountSupported);
 
       if (containerConfig.has_rootfs()) {

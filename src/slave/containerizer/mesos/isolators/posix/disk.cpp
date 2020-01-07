@@ -252,7 +252,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // In case the path in the protobuf is not an absolute path it
       // is relative to the working directory of the executor. We
       // always store the absolute path.
-      if (!path::absolute(path)) {
+      if (!path::is_absolute(path)) {
         path = path::join(info->sandbox, path);
       }
     }

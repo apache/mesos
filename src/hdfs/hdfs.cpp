@@ -199,7 +199,7 @@ Try<mesos::URI> HDFS::parse(const string& uri)
 static string normalize(const string& hdfsPath)
 {
   if (strings::contains(hdfsPath, "://") || // A URI or a malformed path.
-      path::absolute(hdfsPath)) { // Already an absolute path.
+      path::is_absolute(hdfsPath)) { // Already an absolute path.
     return hdfsPath;
   }
 

@@ -144,7 +144,7 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     // 'host_path' can be relative in legacy mode, representing
     // SANDBOX_PATH volumes.
     if (volume.has_host_path() &&
-        path::absolute(volume.host_path())) {
+        path::is_absolute(volume.host_path())) {
       hostPath = volume.host_path();
     }
 
@@ -156,7 +156,7 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
       const Volume::Source::HostPath& hostPathInfo =
         volume.source().host_path();
 
-      if (!path::absolute(hostPathInfo.path())) {
+      if (!path::is_absolute(hostPathInfo.path())) {
         return Failure(
             "Path '" + hostPathInfo.path() + "' "
             "in HOST_PATH volume is not absolute");
@@ -211,7 +211,7 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     // Determine the mount point for the host volume.
     string mountPoint;
 
-    if (path::absolute(volume.container_path())) {
+    if (path::is_absolute(volume.container_path())) {
       // TODO(jieyu): We need to check that the mount point resolves
       // under 'rootfs' because a user can potentially use a container
       // path like '/../../abc'.

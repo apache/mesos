@@ -187,7 +187,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     }
 
     string targetContainerPath;
-    if (path::absolute(volume.container_path())) {
+    if (path::is_absolute(volume.container_path())) {
       if (containerConfig.has_rootfs()) {
         targetContainerPath = path::join(
             containerConfig.rootfs(),

@@ -127,7 +127,7 @@ Try<Owned<Docker>> Docker::create(
   // on Windows an empty value of `socket` is frequently used to connect to the
   // Docker host (i.e., the user wants to connect 'npipes://', with an empty
   // socket path). A full solution should accommodate this.
-  if (!path::absolute(socket)) {
+  if (!path::is_absolute(socket)) {
     return Error("Invalid Docker socket path: " + socket);
   }
 #endif // __WINDOWS__
@@ -694,7 +694,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     // The 'container_path' can be either an absolute path or a
     // relative path. If it is a relative path, it would be prefixed
     // with the container sandbox directory.
-    string volumeConfig = path::absolute(volume.container_path())
+    string volumeConfig = path::is_absolute(volume.container_path())
       ? volume.container_path()
       : path::join(mappedDirectory, volume.container_path());
 
@@ -703,15 +703,15 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
       // If both 'host_path' and 'container_path' are relative paths,
       // return a failure because the user can just directly access the
       // volume in the sandbox.
-      if (!path::absolute(volume.host_path()) &&
-          !path::absolute(volume.container_path())) {
+      if (!path::is_absolute(volume.host_path()) &&
+          !path::is_absolute(volume.container_path())) {
         return Error(
             "Both host_path '" + volume.host_path() + "' " +
             "and container_path '" + volume.container_path() + "' " +
             "of a volume are relative");
       }
 
-      if (!path::absolute(volume.host_path()) &&
+      if (!path::is_absolute(volume.host_path()) &&
           !dockerInfo.has_volume_driver()) {
         // When volume driver is empty and host path is a relative path, mapping
         // host path from the sandbox.
@@ -1117,7 +1117,7 @@ Future<Option<int>> Docker::run(
   }
 
   foreach (const Device& device, options.devices) {
-    if (!device.hostPath.absolute()) {
+    if (!device.hostPath.is_absolute()) {
       return Failure("Device path '" + device.hostPath.string() + "'"
                      " is not an absolute path");
     }

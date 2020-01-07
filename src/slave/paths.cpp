@@ -742,7 +742,7 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().path().has_root());
       string root = volume.disk().source().path().root();
 
-      if (!path::absolute(root)) {
+      if (!path::is_absolute(root)) {
         // A relative path in `root` is relative to agent work dir.
         root = path::join(workDir, root);
       }
@@ -764,7 +764,7 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().mount().has_root());
       string root = volume.disk().source().mount().root();
 
-      if (!path::absolute(root)) {
+      if (!path::is_absolute(root)) {
         // A relative path in `root` is relative to agent work dir.
         root = path::join(workDir, root);
       }

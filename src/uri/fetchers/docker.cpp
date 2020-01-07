@@ -573,7 +573,7 @@ string DockerFetcherPlugin::getBlobPath(
 
   // The colon in disk designator is preserved.
   auto i = 0;
-  if (path::absolute(path)) {
+  if (path::is_absolute(path)) {
     i = path.find_first_of(':') + 1;
   }
 

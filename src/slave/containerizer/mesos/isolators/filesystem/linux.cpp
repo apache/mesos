@@ -750,7 +750,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
     foreach (const ContainerMountInfo& mnt, ROOTFS_CONTAINER_MOUNTS) {
       // The target for special mounts must always be an absolute path.
-      CHECK(path::absolute(mnt.target()));
+      CHECK(path::is_absolute(mnt.target()));
 
       ContainerMountInfo* info = launchInfo.add_mounts();
 
@@ -758,7 +758,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
       info->set_target(path::join(containerConfig.rootfs(), mnt.target()));
 
       // Absolute path mounts are always relative to the container root.
-      if (mnt.has_source() && path::absolute(mnt.source())) {
+      if (mnt.has_source() && path::is_absolute(mnt.source())) {
         info->set_source(path::join(containerConfig.rootfs(), info->source()));
       }
     }

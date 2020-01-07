@@ -132,7 +132,7 @@ public:
             }
 
             // We only allow absolute paths for file paths.
-            if (!value.absolute()) {
+            if (!value.is_absolute()) {
               return Error("--uri to a file must be an absolute path");
             }
 

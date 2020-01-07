@@ -88,7 +88,7 @@ struct Flags : public virtual flags::FlagsBase
             return Error("Missing required option --log_filename");
           }
 
-          if (!path::absolute(value.get())) {
+          if (!path::is_absolute(value.get())) {
             return Error("Expected --log_filename to be an absolute path");
           }
 
