@@ -50,11 +50,11 @@ inline Try<Nothing> copyfile(
     return Error("`destination` was a directory");
   }
 
-  if (!path::absolute(source)) {
+  if (!path::is_absolute(source)) {
     return Error("`source` was a relative path");
   }
 
-  if (!path::absolute(destination)) {
+  if (!path::is_absolute(destination)) {
     return Error("`destination` was a relative path");
   }
 

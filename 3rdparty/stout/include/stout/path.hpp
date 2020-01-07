@@ -152,7 +152,7 @@ inline std::string join(const std::vector<std::string>& paths)
  * Returns whether the given path is an absolute path.
  * If an invalid path is given, the return result is also invalid.
  */
-inline bool absolute(const std::string& path)
+inline bool is_absolute(const std::string& path)
 {
 #ifndef __WINDOWS__
   return strings::startsWith(path, os::PATH_SEPARATOR);
@@ -365,9 +365,9 @@ public:
   }
 
   // Checks whether the path is absolute.
-  inline bool absolute() const
+  inline bool is_absolute() const
   {
-    return path::absolute(value);
+    return path::is_absolute(value);
   }
 
   // Implicit conversion from Path to string.

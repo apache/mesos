@@ -39,7 +39,7 @@ inline std::wstring longpath(const std::string& path)
 {
   const size_t max_path_length = 248;
   if (path.size() >= max_path_length &&
-      path::absolute(path) &&
+      path::is_absolute(path) &&
       !strings::startsWith(path, os::LONGPATH_PREFIX)) {
     return wide_stringify(os::LONGPATH_PREFIX + path);
   } else {

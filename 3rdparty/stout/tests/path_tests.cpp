@@ -308,48 +308,48 @@ TEST(PathTest, Join)
 }
 
 
-TEST(PathTest, Absolute)
+TEST(PathTest, IsAbsolute)
 {
 #ifdef __WINDOWS__
   // Check absolute paths.
-  EXPECT_TRUE(path::absolute("C:\\foo\\bar\\baz"));
-  EXPECT_TRUE(path::absolute("c:\\"));
-  EXPECT_TRUE(path::absolute("C:/"));
-  EXPECT_TRUE(path::absolute("c:/"));
-  EXPECT_TRUE(path::absolute("X:\\foo"));
-  EXPECT_TRUE(path::absolute("X:\\foo"));
-  EXPECT_TRUE(path::absolute("y:\\bar"));
-  EXPECT_TRUE(path::absolute("y:/bar"));
-  EXPECT_TRUE(path::absolute("\\\\?\\"));
-  EXPECT_TRUE(path::absolute("\\\\?\\C:\\Program Files"));
-  EXPECT_TRUE(path::absolute("\\\\?\\C:/Program Files"));
-  EXPECT_TRUE(path::absolute("\\\\?\\C:\\Path"));
-  EXPECT_TRUE(path::absolute("\\\\server\\share"));
+  EXPECT_TRUE(path::is_absolute("C:\\foo\\bar\\baz"));
+  EXPECT_TRUE(path::is_absolute("c:\\"));
+  EXPECT_TRUE(path::is_absolute("C:/"));
+  EXPECT_TRUE(path::is_absolute("c:/"));
+  EXPECT_TRUE(path::is_absolute("X:\\foo"));
+  EXPECT_TRUE(path::is_absolute("X:\\foo"));
+  EXPECT_TRUE(path::is_absolute("y:\\bar"));
+  EXPECT_TRUE(path::is_absolute("y:/bar"));
+  EXPECT_TRUE(path::is_absolute("\\\\?\\"));
+  EXPECT_TRUE(path::is_absolute("\\\\?\\C:\\Program Files"));
+  EXPECT_TRUE(path::is_absolute("\\\\?\\C:/Program Files"));
+  EXPECT_TRUE(path::is_absolute("\\\\?\\C:\\Path"));
+  EXPECT_TRUE(path::is_absolute("\\\\server\\share"));
 
   // Check invalid paths.
-  EXPECT_FALSE(path::absolute("abc:/"));
-  EXPECT_FALSE(path::absolute("1:/"));
-  EXPECT_TRUE(path::absolute("\\\\?\\relative"));
+  EXPECT_FALSE(path::is_absolute("abc:/"));
+  EXPECT_FALSE(path::is_absolute("1:/"));
+  EXPECT_TRUE(path::is_absolute("\\\\?\\relative"));
 
   // Check relative paths.
-  EXPECT_FALSE(path::absolute("relative"));
-  EXPECT_FALSE(path::absolute("\\file-without-disk"));
-  EXPECT_FALSE(path::absolute("/file-without-disk"));
-  EXPECT_FALSE(path::absolute("N:file-without-dir"));
+  EXPECT_FALSE(path::is_absolute("relative"));
+  EXPECT_FALSE(path::is_absolute("\\file-without-disk"));
+  EXPECT_FALSE(path::is_absolute("/file-without-disk"));
+  EXPECT_FALSE(path::is_absolute("N:file-without-dir"));
 #else
   // Check absolute paths.
-  EXPECT_TRUE(path::absolute("/"));
-  EXPECT_TRUE(path::absolute("/foo"));
-  EXPECT_TRUE(path::absolute("/foo/bar"));
-  EXPECT_TRUE(path::absolute("/foo/bar/../baz"));
+  EXPECT_TRUE(path::is_absolute("/"));
+  EXPECT_TRUE(path::is_absolute("/foo"));
+  EXPECT_TRUE(path::is_absolute("/foo/bar"));
+  EXPECT_TRUE(path::is_absolute("/foo/bar/../baz"));
 
   // Check relative paths.
-  EXPECT_FALSE(path::absolute(""));
-  EXPECT_FALSE(path::absolute("."));
-  EXPECT_FALSE(path::absolute(".."));
-  EXPECT_FALSE(path::absolute("../"));
-  EXPECT_FALSE(path::absolute("./foo"));
-  EXPECT_FALSE(path::absolute("../foo"));
+  EXPECT_FALSE(path::is_absolute(""));
+  EXPECT_FALSE(path::is_absolute("."));
+  EXPECT_FALSE(path::is_absolute(".."));
+  EXPECT_FALSE(path::is_absolute("../"));
+  EXPECT_FALSE(path::is_absolute("./foo"));
+  EXPECT_FALSE(path::is_absolute("../foo"));
 #endif // __WINDOWS__
 }
 
@@ -429,7 +429,7 @@ TEST(PathTest, PathIteration)
     const Path absolute_path(
       strings::join(string(1, os::PATH_SEPARATOR), components));
 
-    ASSERT_TRUE(absolute_path.absolute());
+    ASSERT_TRUE(absolute_path.is_absolute());
 
     EXPECT_NE(absolute_path.begin(), absolute_path.end());
     EXPECT_EQ(

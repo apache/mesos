@@ -38,11 +38,11 @@ namespace os {
 inline Try<Nothing> copyfile(
     const std::string& source, const std::string& destination)
 {
-  if (!path::absolute(source)) {
+  if (!path::is_absolute(source)) {
     return Error("`source` was a relative path");
   }
 
-  if (!path::absolute(destination)) {
+  if (!path::is_absolute(destination)) {
     return Error("`destination` was a relative path");
   }
 
