@@ -1010,7 +1010,8 @@ Future<Response> Master::Http::_createVolumes(
         error->message);
   }
 
-  return master->authorizeCreateVolume(operation.create(), principal)
+  return master->authorize(
+      principal, ActionObject::createVolume(operation.create()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();
@@ -1178,7 +1179,8 @@ Future<Response> Master::Http::_destroyVolumes(
     return BadRequest("Invalid DESTROY operation: " + error->message);
   }
 
-  return master->authorizeDestroyVolume(operation.destroy(), principal)
+  return master->authorize(
+      principal, ActionObject::destroyVolume(operation.destroy()))
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();

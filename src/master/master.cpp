@@ -3727,6 +3727,33 @@ Future<bool> Master::authorize(
 }
 
 
+Future<bool> Master::authorize(
+    const Option<Principal>& principal,
+    vector<ActionObject>&& actionObjects)
+{
+  // NOTE: In some cases (example: RESERVE with empty resources or with source
+  // identical to target) there is no need to authorize any action-object pair
+  // (and no meaningful ActionObject can be composed anyway). Here, we treat
+  // authorization as PASSED in these cases and expect these cases to be
+  // handled by validation afterwards.
+  //
+  // Some of these cases are invalid; ideally, they should be filtered by
+  // validation before being fed into ActionObject-composing code (see
+  // MESOS-10083).
+  if (actionObjects.empty()) {
+    return true;
+  }
+
+  vector<Future<bool>> authorizations;
+  authorizations.reserve(actionObjects.size());
+  for (ActionObject& actionObject: actionObjects) {
+    authorizations.push_back(authorize(principal, std::move(actionObject)));
+  }
+
+  return authorization::collectAuthorizations(authorizations);
+}
+
+
 Future<bool> Master::authorizeReserveResources(
     const Offer::Operation::Reserve& reserve,
     const Option<Principal>& principal)
@@ -3897,114 +3924,6 @@ Future<bool> Master::authorizeUnreserveResources(
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
             << "' to unreserve resources '" << unreserve.resources() << "'";
-
-  if (authorizations.empty()) {
-    return authorizer.get()->authorized(request);
-  }
-
-  return authorization::collectAuthorizations(authorizations);
-}
-
-
-Future<bool> Master::authorizeCreateVolume(
-    const Offer::Operation::Create& create,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::CREATE_VOLUME);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  // The operation will be authorized if the entity is allowed to create
-  // volumes for all roles included in `create.volumes`.
-  // Add an element to `request.roles` for each unique role in the volumes.
-  hashset<string> roles;
-  vector<Future<bool>> authorizations;
-  foreach (const Resource& volume, create.volumes()) {
-    // NOTE: We rely on the master to ensure that the resource is in the
-    // post-reservation-refinement format. If there is a stack of reservations,
-    // we perform authorization for the role of the most refined reservation,
-    // since we only support "pushing" one reservation at a time. That is, all
-    // of the previous reservations must have already been authorized.
-    //
-    // NOTE: Since authorization happens __before__ validation, we must check
-    // here that this resource has a reservation. If not, the error will be
-    // caught during validation, but we still authorize the resource with the
-    // default role '*' for backward compatibility.
-    CHECK(!volume.has_role()) << volume;
-    CHECK(!volume.has_reservation()) << volume;
-
-    const string role =
-      Resources::isReserved(volume) ? Resources::reservationRole(volume) : "*";
-
-    if (!roles.contains(role)) {
-      roles.insert(role);
-
-      request.mutable_object()->mutable_resource()->CopyFrom(volume);
-
-      // We also set the deprecated `object.value` field to support legacy
-      // authorizers that have not been upgraded to look at `object.resource`.
-      request.mutable_object()->set_value(role);
-
-      authorizations.push_back(authorizer.get()->authorized(request));
-    }
-  }
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to create volumes '" << create.volumes() << "'";
-
-  if (authorizations.empty()) {
-    return authorizer.get()->authorized(request);
-  }
-
-  return authorization::collectAuthorizations(authorizations);
-}
-
-
-Future<bool> Master::authorizeDestroyVolume(
-    const Offer::Operation::Destroy& destroy,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::DESTROY_VOLUME);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  vector<Future<bool>> authorizations;
-  foreach (const Resource& volume, destroy.volumes()) {
-    // NOTE: Since authorization happens __before__ validation, we must check
-    // here that this resource is a persistent volume. If not, the error will be
-    // caught during validation.
-    if (volume.has_disk() && volume.disk().has_persistence()) {
-      request.mutable_object()->mutable_resource()->CopyFrom(volume);
-
-      // We also set the deprecated `object.value` field to support legacy
-      // authorizers that have not been upgraded to look at `object.resource`.
-      request.mutable_object()->set_value(
-          volume.disk().persistence().principal());
-
-      authorizations.push_back(authorizer.get()->authorized(request));
-    }
-  }
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to destroy volumes '" << destroy.volumes() << "'";
 
   if (authorizations.empty()) {
     return authorizer.get()->authorized(request);
@@ -4677,26 +4596,16 @@ void Master::accept(
 
       // The CREATE operation allows the creation of a persistent volume.
       case Offer::Operation::CREATE: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeCreateVolume(
-                operation.create(), principal));
+        futures.push_back(authorize(
+            principal, ActionObject::createVolume(operation.create())));
 
         break;
       }
 
       // The DESTROY operation allows the destruction of a persistent volume.
       case Offer::Operation::DESTROY: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeDestroyVolume(
-                operation.destroy(), principal));
+        futures.push_back(authorize(
+            principal, ActionObject::destroyVolume(operation.destroy())));
 
         break;
       }

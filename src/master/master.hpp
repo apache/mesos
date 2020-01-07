@@ -750,6 +750,12 @@ protected:
       const Option<process::http::authentication::Principal>& principal,
       authorization::ActionObject&& actionObject);
 
+  // Overload of authorize() for cases which require multiple action-object
+  // pairs to be authorized simultaneously.
+  process::Future<bool> authorize(
+      const Option<process::http::authentication::Principal>& principal,
+      std::vector<authorization::ActionObject>&& actionObjects);
+
   // TODO(asekretenko): get rid of action-specific authorizeSomething() methods.
 
   // Returns whether the framework is authorized.
@@ -804,48 +810,6 @@ protected:
    */
   process::Future<bool> authorizeUnreserveResources(
       const Offer::Operation::Unreserve& unreserve,
-      const Option<process::http::authentication::Principal>& principal);
-
-  /**
-   * Authorizes a `CREATE` operation.
-   *
-   * Returns whether the Create operation is authorized with the provided
-   * principal. This function is used for authorization of operations
-   * originating both from frameworks and operators. Note that operations may be
-   * validated AFTER authorization, so it's possible that `create` could be
-   * malformed.
-   *
-   * @param create The `CREATE` operation to be performed.
-   * @param principal An `Option` containing the principal attempting this
-   *     operation.
-   *
-   * @return A `Future` containing a boolean value representing the success or
-   *     failure of this authorization. A failed `Future` implies that
-   *     validation of the operation did not succeed.
-   */
-  process::Future<bool> authorizeCreateVolume(
-      const Offer::Operation::Create& create,
-      const Option<process::http::authentication::Principal>& principal);
-
-  /**
-   * Authorizes a `DESTROY` operation.
-   *
-   * Returns whether the Destroy operation is authorized with the provided
-   * principal. This function is used for authorization of operations
-   * originating both from frameworks and operators. Note that operations may be
-   * validated AFTER authorization, so it's possible that `destroy` could be
-   * malformed.
-   *
-   * @param destroy The `DESTROY` operation to be performed.
-   * @param principal An `Option` containing the principal attempting this
-   *     operation.
-   *
-   * @return A `Future` containing a boolean value representing the success or
-   *     failure of this authorization. A failed `Future` implies that
-   *     validation of the operation did not succeed.
-   */
-  process::Future<bool> authorizeDestroyVolume(
-      const Offer::Operation::Destroy& destroy,
       const Option<process::http::authentication::Principal>& principal);
 
   // Determine if a new executor needs to be launched.

@@ -21,7 +21,7 @@
 
 using std::ostream;
 using std::string;
-
+using std::vector;
 
 namespace mesos {
 namespace authorization {
@@ -94,6 +94,62 @@ string getReservationRole(const Resource& resource)
 
   return Resources::isReserved(resource)
     ? Resources::reservationRole(resource) : "*";
+}
+
+
+vector<ActionObject> ActionObject::createVolume(
+    const Offer::Operation::Create& create)
+{
+  vector<ActionObject> result;
+
+  // The operation will be authorized if the entity is allowed
+  // to create volumes for all roles included in `create.volumes`.
+
+  // Add an object for each unique role in the volumes.
+  hashset<string> roles;
+
+  foreach (const Resource& volume, create.volumes()) {
+    string role = getReservationRole(volume);
+
+    if (!roles.contains(role)) {
+      roles.insert(role);
+      result.push_back(fromResourceWithLegacyValue(
+          authorization::CREATE_VOLUME, volume, role));
+    }
+  }
+
+  if (result.empty()) {
+    result.push_back(ActionObject(authorization::CREATE_VOLUME, None()));
+  }
+
+  return result;
+}
+
+
+vector<ActionObject> ActionObject::destroyVolume(
+    const Offer::Operation::Destroy& destroy)
+{
+  vector<ActionObject> result;
+
+  // NOTE: As this code can be called for an invalid operation, we create
+  // action-object pairs only for resources that are persistent volumes and
+  // skip all the others, relying on the caller to perform validation after
+  // authorization (see MESOS-10083).
+  foreach (const Resource& volume, destroy.volumes()) {
+    // TODO(asekretenko): Replace with CHECK after MESOS-10083 is fixed.
+    if (volume.has_disk() && volume.disk().has_persistence()) {
+      result.push_back(fromResourceWithLegacyValue(
+          authorization::DESTROY_VOLUME,
+          volume,
+          volume.disk().persistence().principal()));
+    }
+  }
+
+  if (result.empty()) {
+    result.push_back(ActionObject(authorization::DESTROY_VOLUME, None()));
+  }
+
+  return result;
 }
 
 

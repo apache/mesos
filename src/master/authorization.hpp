@@ -19,6 +19,7 @@
 
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include <stout/option.hpp>
 
@@ -53,6 +54,12 @@ public:
   // NOTE: these methods rely on the caller to ensure that operation
   // resources are in post-reservation-refinement format.
   // Otherwise, they  may crash the program.
+
+  static std::vector<ActionObject> createVolume(
+      const Offer::Operation::Create& create);
+
+  static std::vector<ActionObject> destroyVolume(
+      const Offer::Operation::Destroy& destroy);
 
   static ActionObject growVolume(
       const Offer::Operation::GrowVolume& grow);
