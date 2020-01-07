@@ -19,6 +19,7 @@
 #  define STOUT_HAS_CPP_ATTRIBUTE(x) 0
 #endif
 
+
 // We unconditionally require compiler support for `noreturn`,
 // both for legacy reasons and because the presence of this
 // attribute might affect code generation.
@@ -30,13 +31,23 @@
 #  define STOUT_NORETURN __attribute__((noreturn))
 #endif
 
+
 // Non-namespaced version for backwards compatibility.
 #define NORETURN STOUT_NORETURN
+
 
 #if STOUT_HAS_CPP_ATTRIBUTE(nodiscard) > 0
 #  define STOUT_NODISCARD [[nodiscard]]
 #else
 #  define STOUT_NODISCARD
 #endif
+
+
+#if STOUT_HAS_CPP_ATTRIBUTE(deprecated) > 0
+#  define STOUT_DEPRECATED [[deprecated]]
+#else
+#  define STOUT_DEPRECATED
+#endif
+
 
 #endif // __STOUT_ATTRIBUTES_HPP__
