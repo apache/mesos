@@ -4014,144 +4014,6 @@ Future<bool> Master::authorizeDestroyVolume(
 }
 
 
-Future<bool> Master::authorizeCreateDisk(
-    const Offer::Operation::CreateDisk& createDisk,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  const Resource& resource = createDisk.source();
-
-  Option<authorization::Action> action;
-  switch (createDisk.target_type()) {
-    case Resource::DiskInfo::Source::MOUNT: {
-      action = authorization::CREATE_MOUNT_DISK;
-      break;
-    }
-    case Resource::DiskInfo::Source::BLOCK: {
-      action = authorization::CREATE_BLOCK_DISK;
-      break;
-    }
-    case Resource::DiskInfo::Source::UNKNOWN:
-    case Resource::DiskInfo::Source::PATH:
-    case Resource::DiskInfo::Source::RAW: {
-      return Failure(
-          "Failed to authorize principal '" +
-          (principal.isSome() ? stringify(principal.get()) : "ANY") +
-          "' to create a " + stringify(createDisk.target_type()) +
-          " disk from '" + stringify(resource) + "': Unsupported disk type");
-    }
-  }
-
-  authorization::Request request;
-  request.set_action(CHECK_NOTNONE(action));
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->mutable_resource()->CopyFrom(resource);
-
-  // We also set the deprecated `object.value` field to support legacy
-  // authorizers that have not been upgraded to look at `object.resource`.
-  //
-  // NOTE: We rely on the master to ensure that the resource is in the
-  // post-reservation-refinement format. If there is a stack of reservations,
-  // we perform authorization for the role of the most refined reservation,
-  // since we only support "pushing" one reservation at a time. That is, all
-  // of the previous reservations must have already been authorized.
-  //
-  // NOTE: If there is no reservation, we authorize the resource with the
-  // default role '*' for backward compatibility.
-  CHECK(!resource.has_role()) << resource;
-  CHECK(!resource.has_reservation()) << resource;
-
-  request.mutable_object()->set_value(
-      Resources::isReserved(resource) ? Resources::reservationRole(resource)
-                                      : "*");
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to create a " << createDisk.target_type() << " disk from '"
-            << createDisk.source() << "'";
-
-  return authorizer.get()->authorized(request);
-}
-
-
-Future<bool> Master::authorizeDestroyDisk(
-    const Offer::Operation::DestroyDisk& destroyDisk,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  const Resource& resource = destroyDisk.source();
-
-  Option<authorization::Action> action;
-  switch (resource.disk().source().type()) {
-    case Resource::DiskInfo::Source::MOUNT: {
-      action = authorization::DESTROY_MOUNT_DISK;
-      break;
-    }
-    case Resource::DiskInfo::Source::BLOCK: {
-      action = authorization::DESTROY_BLOCK_DISK;
-      break;
-    }
-    case Resource::DiskInfo::Source::RAW: {
-      action = authorization::DESTROY_RAW_DISK;
-      break;
-    }
-    case Resource::DiskInfo::Source::UNKNOWN:
-    case Resource::DiskInfo::Source::PATH: {
-      return Failure(
-          "Failed to authorize principal '" +
-          (principal.isSome() ? stringify(principal.get()) : "ANY") +
-          "' to destroy disk '" + stringify(resource) +
-          "': Unsupported disk type");
-    }
-  }
-
-  authorization::Request request;
-  request.set_action(CHECK_NOTNONE(action));
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->mutable_resource()->CopyFrom(resource);
-
-  // We also set the deprecated `object.value` field to support legacy
-  // authorizers that have not been upgraded to look at `object.resource`.
-  //
-  // NOTE: We rely on the master to ensure that the resource is in the
-  // post-reservation-refinement format. If there is a stack of reservations,
-  // we perform authorization for the role of the most refined reservation,
-  // since we only support "pushing" one reservation at a time. That is, all
-  // of the previous reservations must have already been authorized.
-  //
-  // NOTE: If there is no reservation, we authorize the resource with the
-  // default role '*' for backward compatibility.
-  CHECK(!resource.has_role()) << resource;
-  CHECK(!resource.has_reservation()) << resource;
-
-  request.mutable_object()->set_value(
-      Resources::isReserved(resource) ? Resources::reservationRole(resource)
-                                      : "*");
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to destroy disk '" << destroyDisk.source() << "'";
-
-  return authorizer.get()->authorized(request);
-}
-
-
 Future<bool> Master::authorizeSlave(
     const SlaveInfo& slaveInfo,
     const Option<Principal>& principal)
@@ -4854,25 +4716,27 @@ void Master::accept(
       }
 
       case Offer::Operation::CREATE_DISK: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
+        Try<ActionObject> actionObject =
+          ActionObject::createDisk(operation.create_disk());
 
-        futures.push_back(
-            authorizeCreateDisk(
-                operation.create_disk(), principal));
+        if (actionObject.isError()) {
+          futures.push_back(Failure(actionObject.error()));
+        } else {
+          futures.push_back(authorize(principal, std::move(*actionObject)));
+        }
 
         break;
       }
 
       case Offer::Operation::DESTROY_DISK: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
+        Try<ActionObject> actionObject =
+          ActionObject::destroyDisk(operation.destroy_disk());
 
-        futures.push_back(
-            authorizeDestroyDisk(
-                operation.destroy_disk(), principal));
+        if (actionObject.isError()) {
+          futures.push_back(Failure(actionObject.error()));
+        } else {
+          futures.push_back(authorize(principal, std::move(*actionObject)));
+        }
 
         break;
       }

@@ -116,6 +116,65 @@ ActionObject ActionObject::shrinkVolume(
 }
 
 
+Try<ActionObject> ActionObject::createDisk(
+    const Offer::Operation::CreateDisk& createDisk)
+{
+  auto action = ([&createDisk]() -> Option<authorization::Action> {
+    switch (createDisk.target_type()) {
+      case Resource::DiskInfo::Source::MOUNT:
+        return authorization::CREATE_MOUNT_DISK;
+      case Resource::DiskInfo::Source::BLOCK:
+        return authorization::CREATE_BLOCK_DISK;
+      case Resource::DiskInfo::Source::UNKNOWN:
+      case Resource::DiskInfo::Source::PATH:
+      case Resource::DiskInfo::Source::RAW:
+        return None();
+   }
+
+   return None();
+  })();
+
+  if (action.isNone()) {
+    return Error(
+        "Unsupported disk type: " + stringify(createDisk.target_type()));
+  }
+
+  return fromResourceWithLegacyValue(
+      *action, createDisk.source(), getReservationRole(createDisk.source()));
+}
+
+
+Try<ActionObject> ActionObject::destroyDisk(
+    const Offer::Operation::DestroyDisk& destroyDisk)
+{
+  const Resource& resource = destroyDisk.source();
+
+  auto action = ([&resource]() -> Option<authorization::Action> {
+    switch (resource.disk().source().type()) {
+      case Resource::DiskInfo::Source::MOUNT:
+        return authorization::DESTROY_MOUNT_DISK;
+      case Resource::DiskInfo::Source::BLOCK:
+        return authorization::DESTROY_BLOCK_DISK;
+      case Resource::DiskInfo::Source::RAW:
+        return authorization::DESTROY_RAW_DISK;
+      case Resource::DiskInfo::Source::UNKNOWN:
+      case Resource::DiskInfo::Source::PATH:
+        return None();
+   }
+
+   return None();
+  })();
+
+  if (action.isNone()) {
+    return Error(
+        "Unsupported disk type: " + stringify(resource.disk().source().type()));
+  }
+
+  return fromResourceWithLegacyValue(
+      *action, resource, getReservationRole(resource));
+}
+
+
 ostream& operator<<(ostream& stream, const ActionObject& actionObject)
 {
   const Option<Object>& object = actionObject.object();

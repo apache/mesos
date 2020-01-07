@@ -60,6 +60,20 @@ public:
   static ActionObject shrinkVolume(
       const Offer::Operation::ShrinkVolume& shrink);
 
+  // Returns Error if disk type is not supported.
+  //
+  // TODO (asekretenko): Change return type to ActionObject after
+  // authorization of invalid operations no longer occurs (see MESOS-10083).
+  static Try<ActionObject> createDisk(
+      const Offer::Operation::CreateDisk& createDisk);
+
+  // Returns Error if disk type is not supported.
+  //
+  // TODO (asekretenko): Change return type to ActionObject after
+  // authorization of invalid operations no longer occurs (see MESOS-10083).
+  static Try<ActionObject> destroyDisk(
+      const Offer::Operation::DestroyDisk& destroyDisk);
+
 private:
   Action action_;
   Option<Object> object_;
