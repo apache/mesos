@@ -3754,54 +3754,6 @@ Future<bool> Master::authorize(
 }
 
 
-Future<bool> Master::authorizeSlave(
-    const SlaveInfo& slaveInfo,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true;
-  }
-
-  vector<Future<bool>> authorizations;
-
-  // First authorize whether the agent can register.
-  LOG(INFO) << "Authorizing agent providing resources "
-            << "'" << stringify(Resources(slaveInfo.resources())) << "' "
-            << (principal.isSome()
-                ? "with principal '" + stringify(principal.get()) + "'"
-                : "without a principal");
-
-  authorization::Request request;
-  request.set_action(authorization::REGISTER_AGENT);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  // No need to set the request's object as it is implicitly set to
-  // ANY by the authorizer.
-  authorizations.push_back(authorizer.get()->authorized(request));
-
-  // Next, if static reservations exist, also authorize them.
-  //
-  // NOTE: We don't look at dynamic reservations in checkpointed
-  // resources because they should have gone through authorization
-  // against the framework / operator's principal when they were
-  // created. In constrast, static reservations are initiated by the
-  // agent's principal and authorizing them helps prevent agents from
-  // advertising reserved resources of arbitrary roles.
-  if (!Resources(slaveInfo.resources()).reserved().empty()) {
-    Offer::Operation::Reserve reserve;
-    reserve.mutable_resources()->CopyFrom(slaveInfo.resources());
-    authorizations.push_back(
-        authorize(principal, ActionObject::reserve(reserve)));
-  }
-
-  return authorization::collectAuthorizations(authorizations);
-}
-
-
 bool Master::isLaunchExecutor(
     const ExecutorID& executorId,
     Framework* framework,
@@ -6696,8 +6648,8 @@ void Master::registerSlave(
   // Calling the `onAny` continuation below separately so we can move
   // `registerSlaveMessage` without it being evaluated before it's used
   // by `authorizeSlave`.
-  Future<bool> authorization =
-    authorizeSlave(registerSlaveMessage.slave(), principal);
+  Future<bool> authorization = authorize(
+      principal, ActionObject::agentRegistration(registerSlaveMessage.slave()));
 
   authorization
     .onAny(defer(self(),
@@ -7050,8 +7002,9 @@ void Master::reregisterSlave(
   // Calling the `onAny` continuation below separately so we can move
   // `reregisterSlaveMessage` without it being evaluated before it's used
   // by `authorizeSlave`.
-  Future<bool> authorization =
-    authorizeSlave(reregisterSlaveMessage.slave(), principal);
+  Future<bool> authorization = authorize(
+      principal,
+      ActionObject::agentRegistration(reregisterSlaveMessage.slave()));
 
   authorization
     .onAny(defer(self(),

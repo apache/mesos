@@ -756,18 +756,10 @@ protected:
       const Option<process::http::authentication::Principal>& principal,
       std::vector<authorization::ActionObject>&& actionObjects);
 
-  // TODO(asekretenko): get rid of action-specific authorizeSomething() methods.
-
   // Returns whether the framework is authorized.
   // Returns failure for transient authorization failures.
   process::Future<bool> authorizeFramework(
       const FrameworkInfo& frameworkInfo);
-
-  // Returns whether the principal is authorized to (re-)register an agent
-  // and whether the `SlaveInfo` is authorized.
-  process::Future<bool> authorizeSlave(
-      const SlaveInfo& slaveInfo,
-      const Option<process::http::authentication::Principal>& principal);
 
   // Determine if a new executor needs to be launched.
   bool isLaunchExecutor (

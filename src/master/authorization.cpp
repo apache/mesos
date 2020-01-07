@@ -77,6 +77,30 @@ ActionObject ActionObject::frameworkRegistration(
 }
 
 
+vector<ActionObject> ActionObject::agentRegistration(
+    const SlaveInfo& slaveInfo)
+{
+  vector<ActionObject> result;
+
+  if (!Resources(slaveInfo.resources()).reserved().empty()) {
+    // If static reservations exist, we also need to authorize them.
+    //
+    // NOTE: We don't look at dynamic reservations in checkpointed
+    // resources because they should have gone through authorization
+    // against the framework / operator's principal when they were
+    // created. In constrast, static reservations are initiated by the
+    // agent's principal and authorizing them helps prevent agents from
+    // advertising reserved resources of arbitrary roles.
+    Offer::Operation::Reserve reserve;
+    *reserve.mutable_resources() = slaveInfo.resources();
+    result = ActionObject::reserve(reserve);
+  }
+
+  result.push_back(ActionObject(authorization::REGISTER_AGENT, None()));
+  return result;
+}
+
+
 // Returns effective reservation role of resource for the purpose
 // of authorizing an operation; that is, the the role of the most
 // refined reservation if the resource is reserved.

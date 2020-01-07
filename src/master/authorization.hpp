@@ -48,6 +48,10 @@ public:
   static ActionObject frameworkRegistration(
       const FrameworkInfo& frameworkInfo);
 
+  // Returns action-object pair(s) for authorizing agent re(registration).
+  static std::vector<ActionObject> agentRegistration(
+      const SlaveInfo& slaveInfo);
+
   // Methods that return action-object pair(s) for authorizing
   // offer operations other than LAUNCH/LAUNCH_GROUP.
   //
