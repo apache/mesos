@@ -33,6 +33,7 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <process/network.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -41,10 +42,13 @@
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 
 #include <stout/os/permissions.hpp>
 
 #ifdef __linux__
+#include <linux/systemd.hpp>
+
 #include <stout/proc.hpp>
 #endif // __linux__
 
@@ -632,16 +636,64 @@ int main(int argc, char** argv)
     // been set by the user or automatically during startup.
     CHECK_SOME(flags.domain_socket_location);
 
-    LOG(INFO) << "Creating domain socket at " << *flags.domain_socket_location;
-    Try<Socket> socket =
-      common::createDomainSocket(*flags.domain_socket_location);
+    if (strings::startsWith(*flags.domain_socket_location, "systemd:")) {
+      LOG(INFO) << "Expecting domain socket to be passed by systemd";
 
-    if (socket.isError()) {
+      // Chop off `systemd:` prefix.
+      std::string name = flags.domain_socket_location->substr(8);
+#ifdef __linux__
+      Try<std::vector<int>> socketFds =
+        systemd::socket_activation::listenFdsWithName(name);
+#else
+      Try<std::vector<int>> socketFds; // Dummy to avoid compile errors.
       EXIT(EXIT_FAILURE)
+        << "Systemd socket passing is only supported on linux.";
+#endif
+
+      if (socketFds.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Could not get passed file descriptors from systemd: "
+          << socketFds.error();
+      }
+
+      if (socketFds->size() != 1u) {
+        EXIT(EXIT_FAILURE)
+          << "Expected exactly one socket with name " << name
+          << ", got " << socketFds->size() << " instead.";
+      }
+
+      int sockfd = socketFds->at(0);
+
+      // Don't use SSLSocketImpl for unix domain sockets.
+      Try<Socket> socket = Socket::create(
+          sockfd, process::network::internal::SocketImpl::Kind::POLL);
+
+      if (socket.isError()) {
+        EXIT(EXIT_FAILURE)
           << "Failed to create domain socket: " << socket.error();
+      }
+
+      executorSocket = socket.get();
+
+      // Adjust socket location to point to the *path*, not the systemd
+      // identifier.
+      auto addr = process::network::convert<process::network::unix::Address>(
+          process::network::address(sockfd).get()).get();
+
+      flags.domain_socket_location = addr.path();
+    } else {
+      Try<Socket> socket =
+        common::createDomainSocket(*flags.domain_socket_location);
+
+      if (socket.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to create domain socket: " << socket.error();
+      }
+
+      executorSocket = socket.get();
     }
 
-    executorSocket = socket.get();
+    LOG(INFO) << "Using domain socket at " << *flags.domain_socket_location;
   }
 
   Slave* slave = new Slave(

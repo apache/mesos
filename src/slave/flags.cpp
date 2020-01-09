@@ -988,10 +988,12 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::domain_socket_location,
       "domain_socket_location",
       "Location on the host filesystem of the domain socket used for\n"
-      "communication with executors.\n This flag will be ignored unless\n"
-      "the '--http_executor_domain_sockets' flag is also set to true.\n"
-      "Total path length must be less than 108 characters.\n"
-      "Will be set to <runtime_dir>/agent.sock by default.",
+      "communication with executors.\n Alternatively, this can be set to"
+      "'systemd:<identifier>' to use the domain socket with the given\n"
+      "identifier, which is expected to be passed by systemd.\n"
+      "This flag will be ignored unless the '--http_executor_domain_sockets'\n"
+      "flag is also set to true. Total path length must be less than 108\n"
+      "characters.\n Will be set to <runtime_dir>/agent.sock by default.",
       [](const Option<string>& location) -> Option<Error> {
         if (location.isSome() &&
             location->size() >= common::DOMAIN_SOCKET_MAX_PATH_LENGTH) {
