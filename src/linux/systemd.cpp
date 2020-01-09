@@ -16,6 +16,7 @@
 
 #include "linux/systemd.hpp"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,8 @@
 
 #include <stout/os/realpath.hpp>
 
+#include <stout/flags/parse.hpp>
+
 #include "linux/cgroups.hpp"
 
 using process::Once;
@@ -37,7 +40,6 @@ using std::vector;
 namespace systemd {
 
 int DELEGATE_MINIMUM_VERSION = 218;
-
 
 Flags::Flags()
 {
@@ -332,4 +334,132 @@ Try<Nothing> start(const string& name)
 
 } // namespace slices {
 
+
+namespace socket_activation {
+
+static Try<Nothing> setCloexecFlag(int fd, bool cloexec)
+{
+  CHECK(fd >= 0) << "Invalid file desciptor was passed";
+
+  int flags = ::fcntl(fd, F_GETFD, 0);
+  if (flags < 0) {
+    return ErrnoError();
+  }
+
+  int nflags = cloexec == true ? flags | FD_CLOEXEC
+                               : flags & ~FD_CLOEXEC;
+
+  if (nflags == flags) {
+    return Nothing();
+  }
+
+  if (::fcntl(fd, F_SETFD, nflags) < 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
+// See `src/libsystemd/sd-daemon/sd-daemon.c` in the systemd source tree
+// for the reference implementation. We follow that implementation to
+// decide which conditions should result in errors and which should return
+// an empty array.
+Try<std::vector<int>> listenFds()
+{
+  vector<int> result;
+
+  Option<std::string> listenPidEnv = os::getenv("LISTEN_PID");
+  if (listenPidEnv.isNone()) {
+    return result;
+  }
+
+  Try<pid_t> listenPid = flags::parse<pid_t>(listenPidEnv->c_str());
+  if (listenPid.isError()) {
+    return Error("Could not parse $LISTEN_PID=\"" + listenPidEnv.get() +
+                 "\" as integer");
+  }
+
+  pid_t pid = ::getpid();
+  if (listenPid.get() != pid) {
+    LOG(WARNING) << "File descriptors were passed for pid " << listenPid.get()
+                 << ", ignoring them because we have pid " << pid;
+    return result;
+  }
+
+  Option<std::string> listenFdsEnv = os::getenv("LISTEN_FDS");
+  if (listenFdsEnv.isNone()) {
+    return result;
+  }
+
+  Try<int> listenFds = flags::parse<int>(listenFdsEnv->c_str());
+  if (listenFds.isError()) {
+    return Error("Could not parse $LISTEN_FDS=\"" + listenFdsEnv.get() +
+                 "\" as integer");
+  }
+
+  int n = listenFds.get();
+  if (n <= 0 || n > INT_MAX - SD_LISTEN_FDS_START) {
+    return Error("Too many passed file descriptors");
+  }
+
+  for (int fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; ++fd) {
+    Try<Nothing> cloexec = setCloexecFlag(fd, true);
+    if (cloexec.isError()) {
+      return Error(
+          "Could not set CLOEXEC flag for file descriptor " + stringify(fd) +
+          cloexec.error());
+    }
+  }
+
+  result.resize(n);
+  std::iota(result.begin(), result.begin() + n, 3);
+
+  return result;
+}
+
+
+Try<std::vector<int>> listenFdsWithName(const std::string& name)
+{
+  Try<std::vector<int>> fds = listenFds();
+  if (fds.isError()) {
+    return fds;
+  }
+
+  std::vector<std::string> listenFdnames;
+
+  Option<std::string> listenFdnamesEnv = os::getenv("LISTEN_FDNAMES");
+  if (listenFdnamesEnv.isSome()) {
+    listenFdnames = strings::split(*listenFdnamesEnv, ":");
+
+    if (listenFdnames.size() != fds->size()) {
+      return Error("Size mismatch between file descriptors and names");
+    }
+  } else {
+    // If `LISTEN_FDNAMES` is not set in the environment, libsystemd assigns
+    // the special name "unknown" to all passed file descriptors.
+    // We do the same.
+    listenFdnames.resize(fds->size());
+    std::fill_n(listenFdnames.begin(), listenFdnames.size(), "unknown");
+  }
+
+  std::vector<int> result;
+  for (size_t i=0; i < listenFdnames.size(); ++i) {
+    if (listenFdnames[i] == name) {
+      result.push_back(fds->at(i));
+    }
+  }
+
+  return result;
+}
+
+
+void clearEnvironment()
+{
+  os::unsetenv("LISTEN_PID");
+  os::unsetenv("LISTEN_FDS");
+  os::unsetenv("LISTEN_FDNAMES");
+}
+
+} // namespace socket_activation {
 } // namespace systemd {

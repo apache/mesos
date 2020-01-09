@@ -53,6 +53,69 @@ Try<Nothing> extendLifetime(pid_t child);
 } // namespace mesos {
 
 
+namespace socket_activation {
+
+// A re-implementation of the systemd socket activation API.
+//
+// To implement the socket-passing protocol, systemd uses the
+// environment variables `$LISTEN_PID`, `$LISTEN_FDS` and `$LISTEN_FDNAMES`
+// according to the scheme documented in [1], [2].
+//
+// Users of libsystemd can use the following API to interface
+// with the socket passing functionality:
+//
+//     #include <systemd/sd-daemon.h>
+//     int sd_listen_fds(int unset_environment);
+//     int sd_listen_fds_with_names(int unset_environment, char ***names);
+//
+// The `sd_listen_fds()` function does the following:
+//
+//  * The return value is the number of listening sockets passed by
+//    systemd. The actual file descriptors of these sockets are
+//    numbered 3...n+3.
+//  * If the current pid is different from the one specified by the
+//    environment variable $LISTEN_PID, 0 is returned
+//  * The `CLOEXEC` option will be set on all file descriptors "returned"
+//    by this function.
+//  * If `unset_environment` is true, the environment variables $LISTEN_PID,
+//    $LISTEN_FDS, $LISTEN_FDNAMES will be cleared.
+//
+// The `sd_listen_fds_with_names()` function does the following:
+//
+//  * If $LISTEN_FDS is set, will return an array of strings with the
+//    names. By default, the name of a socket will be equal to the
+//    name of the unit file containing the socket description.
+//  * The special string "unknown" is used for sockets where no name
+//    could be determined.
+//
+// For this reimplementation, the interface was slightly changed to better
+// suit the needs of the Mesos codebase. However, we still set the `CLOEXEC`
+// flag on all file descriptors passed via socket activation when one of
+// these functions is called.
+//
+// [1] https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html#Notes
+// [2] http://0pointer.de/blog/projects/socket-activation.html
+
+Try<std::vector<int>> listenFds();
+
+// The names are set by the `FileDescriptorName=` directive in the unit file.
+// This requires systemd 227 or newer. Since any number of unit files can
+// specify the same name, this can return more than one file descriptor.
+Try<std::vector<int>> listenFdsWithName(const std::string& name);
+
+// Clear the `$LISTEN_PID`, `$LISTEN_FDS` and `$LISTEN_FDNAMES` environment
+// variables.
+//
+// *NOTE*: This function is not thread-safe, since it modifies the global
+// environment.
+void clearEnvironment();
+
+// Defined in `man(3) sd_listen_fds`.
+constexpr int SD_LISTEN_FDS_START = 3;
+
+} // namespace socket_activation {
+
+
 /**
  * Flags to initialize systemd state.
  */
