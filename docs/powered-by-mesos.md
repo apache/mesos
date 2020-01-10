@@ -122,6 +122,7 @@ layout: documentation
 * [Verizon Labs](https://www.verizon.com/about/our-company/what-we-do)
 * [Viadeo](http://www.viadeo.com)
 * [Virdata](http://www.virdata.com)
+* [Wargaming](http://www.wargaming.net/)
 * [Weibo](http://weibo.com/)
 * [Whisk](http://www.whisk.com)
 * [Wizcorp](http://www.wizcorp.jp)
