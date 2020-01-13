@@ -645,7 +645,8 @@ int main(int argc, char** argv)
       Try<std::vector<int>> socketFds =
         systemd::socket_activation::listenFdsWithName(name);
 #else
-      Try<std::vector<int>> socketFds; // Dummy to avoid compile errors.
+      Try<std::vector<int>> socketFds =
+        Try<std::vector<int>>({}); // Dummy to avoid compile errors.
       EXIT(EXIT_FAILURE)
         << "Systemd socket passing is only supported on linux.";
 #endif
