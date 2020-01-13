@@ -4418,6 +4418,7 @@ TEST_P(DefaultExecutorTest, AllocationRoleEnvironmentVariable)
 }
 
 
+#ifdef __linux__
 // This test verifies that the default executor will attempt to connect to
 // the domain socket located at `MESOS_DOMAIN_SOCKET` if that environment
 // variable is set.
@@ -4490,6 +4491,7 @@ TEST_P(DefaultExecutorTest, DomainSockets)
   Try<Nothing> rmdir = os::rmdir(socketDir.get());
   ASSERT_SOME(rmdir);
 }
+#endif
 
 } // namespace tests {
 } // namespace internal {
