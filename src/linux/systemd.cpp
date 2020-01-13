@@ -374,7 +374,7 @@ Try<std::vector<int>> listenFds()
     return result;
   }
 
-  Try<pid_t> listenPid = flags::parse<pid_t>(listenPidEnv->c_str());
+  Try<pid_t> listenPid = flags::parse<pid_t>(listenPidEnv.get());
   if (listenPid.isError()) {
     return Error("Could not parse $LISTEN_PID=\"" + listenPidEnv.get() +
                  "\" as integer");
@@ -392,7 +392,7 @@ Try<std::vector<int>> listenFds()
     return result;
   }
 
-  Try<int> listenFds = flags::parse<int>(listenFdsEnv->c_str());
+  Try<int> listenFds = flags::parse<int>(listenFdsEnv.get());
   if (listenFds.isError()) {
     return Error("Could not parse $LISTEN_FDS=\"" + listenFdsEnv.get() +
                  "\" as integer");
