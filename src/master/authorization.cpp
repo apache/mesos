@@ -331,9 +331,9 @@ Try<ActionObject> ActionObject::createDisk(
       case Resource::DiskInfo::Source::PATH:
       case Resource::DiskInfo::Source::RAW:
         return None();
-   }
+    }
 
-   return None();
+    return None();
   })();
 
   if (action.isNone()) {
@@ -362,9 +362,9 @@ Try<ActionObject> ActionObject::destroyDisk(
       case Resource::DiskInfo::Source::UNKNOWN:
       case Resource::DiskInfo::Source::PATH:
         return None();
-   }
+    }
 
-   return None();
+    return None();
   })();
 
   if (action.isNone()) {

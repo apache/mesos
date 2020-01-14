@@ -167,7 +167,8 @@ protected:
 
           if (processIO->data().type() == agent::ProcessIO::Data::STDOUT) {
             stdoutReceived += processIO->data().data();
-          } else if (processIO->data().type() == agent::ProcessIO::Data::STDERR) {
+          } else if (
+              processIO->data().type() == agent::ProcessIO::Data::STDERR) {
             stderrReceived += processIO->data().data();
           }
         }

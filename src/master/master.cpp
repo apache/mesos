@@ -3697,7 +3697,6 @@ Future<bool> Master::authorize(
     const Option<Principal>& principal,
     ActionObject&& actionObject)
 {
-
   if (authorizer.isNone()) {
     return true;
   }
@@ -3746,7 +3745,7 @@ Future<bool> Master::authorize(
 
   vector<Future<bool>> authorizations;
   authorizations.reserve(actionObjects.size());
-  for (ActionObject& actionObject: actionObjects) {
+  for (ActionObject& actionObject : actionObjects) {
     authorizations.push_back(authorize(principal, std::move(actionObject)));
   }
 
@@ -4321,7 +4320,7 @@ void Master::accept(
     ? Principal(framework->info.principal())
     : Option<Principal>::none();
 
-  // TODO (asekretenko): use background-refreshed ObjectApprovers
+  // TODO(asekretenko): Use background-refreshed ObjectApprovers
   // instead of asynchronous authorization.
   vector<Future<bool>> futures;
   for (const Offer::Operation& operation : accept.operations()) {

@@ -22,8 +22,11 @@
 #include <vector>
 
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
-#include <mesos/mesos.pb.h>
+#include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
+
 #include <mesos/authorizer/authorizer.pb.h>
 
 namespace mesos {
@@ -79,14 +82,14 @@ public:
 
   // Returns Error if disk type is not supported.
   //
-  // TODO (asekretenko): Change return type to ActionObject after
+  // TODO(asekretenko): Change return type to ActionObject after
   // authorization of invalid operations no longer occurs (see MESOS-10083).
   static Try<ActionObject> createDisk(
       const Offer::Operation::CreateDisk& createDisk);
 
   // Returns Error if disk type is not supported.
   //
-  // TODO (asekretenko): Change return type to ActionObject after
+  // TODO(asekretenko): Change return type to ActionObject after
   // authorization of invalid operations no longer occurs (see MESOS-10083).
   static Try<ActionObject> destroyDisk(
       const Offer::Operation::DestroyDisk& destroyDisk);
