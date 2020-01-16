@@ -391,19 +391,19 @@ TEST_F(MasterLoadTest, SimultaneousBatchedRequests)
     Response reference;
     if (request.endpoint == "/state") {
       reference = readOnlyHandler.state(
-          ContentType::JSON, queryParameters, approvers);
+          ContentType::JSON, queryParameters, approvers).first;
     } else if (request.endpoint == "/state-summary") {
       reference = readOnlyHandler.stateSummary(
-          ContentType::JSON, queryParameters, approvers);
+          ContentType::JSON, queryParameters, approvers).first;
     } else if (request.endpoint == "/roles") {
       reference = readOnlyHandler.roles(
-          ContentType::JSON, queryParameters, approvers);
+          ContentType::JSON, queryParameters, approvers).first;
     } else if (request.endpoint == "/frameworks") {
       reference = readOnlyHandler.frameworks(
-          ContentType::JSON, queryParameters, approvers);
+          ContentType::JSON, queryParameters, approvers).first;
     } else if (request.endpoint == "/slaves") {
       reference = readOnlyHandler.slaves(
-          ContentType::JSON, queryParameters, approvers);
+          ContentType::JSON, queryParameters, approvers).first;
     } else {
       UNREACHABLE();
     }

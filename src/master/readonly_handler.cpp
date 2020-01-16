@@ -48,6 +48,7 @@ using process::Owned;
 
 using process::http::NotAcceptable;
 using process::http::OK;
+using process::http::Response;
 
 using mesos::authorization::VIEW_EXECUTOR;
 using mesos::authorization::VIEW_FLAGS;
@@ -58,8 +59,9 @@ using mesos::authorization::VIEW_TASK;
 using mesos::internal::protobuf::WireFormatLite2;
 
 using std::function;
-using std::vector;
+using std::pair;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -672,10 +674,11 @@ private:
 };
 
 
-process::http::Response Master::ReadOnlyHandler::frameworks(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::frameworks(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
@@ -729,14 +732,17 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
     writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
   };
 
-  return OK(jsonify(frameworks), query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(frameworks), query.get("jsonp")),
+      None());
 }
 
 
-process::http::Response Master::ReadOnlyHandler::roles(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::roles(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
@@ -809,29 +815,34 @@ process::http::Response Master::ReadOnlyHandler::roles(
         });
   };
 
-  return OK(jsonify(roles), query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(roles), query.get("jsonp")),
+      None());
 }
 
 
-process::http::Response Master::ReadOnlyHandler::slaves(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::slaves(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
   IDAcceptor<SlaveID> selectSlaveId(query.get("slave_id"));
 
-  return process::http::OK(
-      jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
-      query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
+         query.get("jsonp")),
+      None());
 }
 
 
-process::http::Response Master::ReadOnlyHandler::state(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::state(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
@@ -973,14 +984,17 @@ process::http::Response Master::ReadOnlyHandler::state(
     writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
   };
 
-  return OK(jsonify(calculateState), query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(calculateState), query.get("jsonp")),
+      None());
 }
 
 
-process::http::Response Master::ReadOnlyHandler::stateSummary(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::stateSummary(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
@@ -1128,7 +1142,9 @@ process::http::Response Master::ReadOnlyHandler::stateSummary(
         });
     };
 
-  return OK(jsonify(stateSummary), query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(stateSummary), query.get("jsonp")),
+      None());
 }
 
 
@@ -1176,10 +1192,11 @@ struct TaskComparator
 };
 
 
-process::http::Response Master::ReadOnlyHandler::tasks(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::tasks(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   CHECK_EQ(outputContentType, ContentType::JSON);
 
@@ -1284,7 +1301,9 @@ process::http::Response Master::ReadOnlyHandler::tasks(
           });
   };
 
-  return OK(jsonify(tasksWriter), query.get("jsonp"));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(jsonify(tasksWriter), query.get("jsonp")),
+      None());
 }
 
 
@@ -1421,10 +1440,11 @@ string Master::ReadOnlyHandler::serializeGetAgents(
 
 
 
-process::http::Response Master::ReadOnlyHandler::getAgents(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getAgents(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // Serialize the following message:
   //
@@ -1453,7 +1473,9 @@ process::http::Response Master::ReadOnlyHandler::getAgents(
       // destructed.
       writer.Trim();
 
-      return OK(std::move(output), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(output), stringify(outputContentType)),
+          None());
     }
 
     case ContentType::JSON: {
@@ -1476,11 +1498,14 @@ process::http::Response Master::ReadOnlyHandler::getAgents(
       });
 
       // TODO(bmahler): Pass jsonp query parameter through here.
-      return OK(std::move(body), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(body), stringify(outputContentType)),
+          None());
     }
 
     default:
-      return NotAcceptable("Request must accept json or protobuf");
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
   }
 }
 
@@ -1602,10 +1627,11 @@ string Master::ReadOnlyHandler::serializeGetFrameworks(
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getFrameworks(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getFrameworks(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // Serialize the following message:
   //
@@ -1634,7 +1660,9 @@ process::http::Response Master::ReadOnlyHandler::getFrameworks(
       // destructed.
       writer.Trim();
 
-      return OK(std::move(output), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(output), stringify(outputContentType)),
+          None());
     }
 
     case ContentType::JSON: {
@@ -1657,11 +1685,14 @@ process::http::Response Master::ReadOnlyHandler::getFrameworks(
       });
 
       // TODO(bmahler): Pass jsonp query parameter through here.
-      return OK(std::move(body), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(body), stringify(outputContentType)),
+          None());
     }
 
     default:
-      return NotAcceptable("Request must accept json or protobuf");
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
   }
 }
 
@@ -1844,10 +1875,11 @@ string Master::ReadOnlyHandler::serializeGetExecutors(
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getExecutors(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getExecutors(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // Serialize the following message:
   //
@@ -1876,7 +1908,9 @@ process::http::Response Master::ReadOnlyHandler::getExecutors(
       // destructed.
       writer.Trim();
 
-      return OK(std::move(output), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(output), stringify(outputContentType)),
+          None());
     }
 
     case ContentType::JSON: {
@@ -1899,11 +1933,14 @@ process::http::Response Master::ReadOnlyHandler::getExecutors(
       });
 
       // TODO(bmahler): Pass jsonp query parameter through here.
-      return OK(std::move(body), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(body), stringify(outputContentType)),
+          None());
     }
 
     default:
-      return NotAcceptable("Request must accept json or protobuf");
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
   }
 }
 
@@ -2132,10 +2169,11 @@ string Master::ReadOnlyHandler::serializeGetTasks(
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getTasks(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getTasks(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // Serialize the following message:
   //
@@ -2164,7 +2202,9 @@ process::http::Response Master::ReadOnlyHandler::getTasks(
       // destructed.
       writer.Trim();
 
-      return OK(std::move(output), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(output), stringify(outputContentType)),
+          None());
     }
 
     case ContentType::JSON: {
@@ -2187,19 +2227,23 @@ process::http::Response Master::ReadOnlyHandler::getTasks(
       });
 
       // TODO(bmahler): Pass jsonp query parameter through here.
-      return OK(std::move(body), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(body), stringify(outputContentType)),
+          None());
     }
 
     default:
-      return NotAcceptable("Request must accept json or protobuf");
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
   }
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getOperations(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getOperations(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // We consider a principal to be authorized to view an operation if it
   // is authorized to view the resources the operation is performed on.
@@ -2249,16 +2293,18 @@ process::http::Response Master::ReadOnlyHandler::getOperations(
     }
   }
 
-  return OK(
-      serialize(outputContentType, evolve(response)),
-      stringify(outputContentType));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(serialize(outputContentType, evolve(response)),
+         stringify(outputContentType)),
+      None());
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getRoles(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getRoles(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   const vector<string> knownRoles = master->knownRoles();
 
@@ -2308,8 +2354,10 @@ process::http::Response Master::ReadOnlyHandler::getRoles(
     }
   }
 
-  return OK(serialize(outputContentType, evolve(response)),
-            stringify(outputContentType));
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      OK(serialize(outputContentType, evolve(response)),
+         stringify(outputContentType)),
+      None());
 }
 
 
@@ -2400,10 +2448,11 @@ string Master::ReadOnlyHandler::serializeGetState(
 }
 
 
-process::http::Response Master::ReadOnlyHandler::getState(
-    ContentType outputContentType,
-    const hashmap<std::string, std::string>& query,
-    const process::Owned<ObjectApprovers>& approvers) const
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::getState(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
 {
   // Serialize the following message:
   //
@@ -2432,7 +2481,9 @@ process::http::Response Master::ReadOnlyHandler::getState(
       // destructed.
       writer.Trim();
 
-      return OK(std::move(output), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(output), stringify(outputContentType)),
+          None());
     }
 
     case ContentType::JSON: {
@@ -2455,12 +2506,179 @@ process::http::Response Master::ReadOnlyHandler::getState(
       });
 
       // TODO(bmahler): Pass jsonp query parameter through here.
-      return OK(std::move(body), stringify(outputContentType));
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          OK(std::move(body), stringify(outputContentType)),
+          None());
     }
 
     default:
-      return NotAcceptable("Request must accept json or protobuf");
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
   }
+}
+
+
+pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
+  Master::ReadOnlyHandler::subscribe(
+      ContentType outputContentType,
+      const hashmap<std::string, std::string>& query,
+      const process::Owned<ObjectApprovers>& approvers) const
+{
+  process::http::Pipe pipe;
+  OK ok;
+
+  ok.headers["Content-Type"] = stringify(outputContentType);
+  ok.type = process::http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  StreamingHttpConnection<v1::master::Event> http(
+      pipe.writer(), outputContentType);
+
+  // Serialize the following event:
+  //
+  //   mesos::master::Event event;
+  //   event.set_type(mesos::master::Event::SUBSCRIBED);
+  //   *event.mutable_subscribed()->mutable_get_state() =
+  //     _getState(approvers);
+  //   event.mutable_subscribed()->set_heartbeat_interval_seconds(
+  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+  //
+  //   http.send(event);
+
+  switch (outputContentType) {
+    case ContentType::PROTOBUF: {
+      string serialized;
+      google::protobuf::io::StringOutputStream stream(&serialized);
+      google::protobuf::io::CodedOutputStream writer(&stream);
+
+      WireFormatLite::WriteEnum(
+          mesos::v1::master::Event::kTypeFieldNumber,
+          mesos::v1::master::Event::SUBSCRIBED,
+          &writer);
+
+      WireFormatLite::WriteBytes(
+          mesos::v1::master::Event::kSubscribedFieldNumber,
+          serializeSubscribe(approvers),
+          &writer);
+
+      // We must manually trim the unused buffer space since
+      // we use the string before the coded output stream is
+      // destructed.
+      writer.Trim();
+
+      http.send(serialized);
+
+      break;
+    }
+
+    case ContentType::JSON: {
+      string serialized = jsonify([&](JSON::ObjectWriter* writer) {
+        const google::protobuf::Descriptor* descriptor =
+          v1::master::Event::descriptor();
+
+        int field;
+
+        field = v1::master::Event::kTypeFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            v1::master::Event::Type_Name(
+                v1::master::Event::SUBSCRIBED));
+
+        field = v1::master::Event::kSubscribedFieldNumber;
+        writer->field(
+            descriptor->FindFieldByNumber(field)->name(),
+            jsonifySubscribe(approvers));
+      });
+
+      http.send(serialized);
+
+      break;
+    }
+
+    default:
+      return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+          NotAcceptable("Request must accept json or protobuf"), None());
+  }
+
+  mesos::master::Event heartbeatEvent;
+  heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
+  http.send(heartbeatEvent);
+
+  // This new subscriber needs to be added in the post-processing step.
+  Master::ReadOnlyHandler::PostProcessing::Subscribe s =
+    { approvers->principal, http };
+
+  Master::ReadOnlyHandler::PostProcessing postProcessing = { std::move(s) };
+
+  return pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>(
+      ok,
+      std::move(postProcessing));
+}
+
+
+function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifySubscribe(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Jsonify the following message:
+  //
+  //   mesos::master::Event::Subscribed subscribed;
+  //   *subscribed.mutable_get_state() = _getState(approvers);
+  //   subscribed.set_heartbeat_interval_seconds(
+  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::master::Event::Subscribed::descriptor();
+
+    int field;
+
+    field = v1::master::Event::Subscribed::kGetStateFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetState(approvers));
+
+    field = v1::master::Event::Subscribed::kHeartbeatIntervalSecondsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        DEFAULT_HEARTBEAT_INTERVAL.secs());
+  };
+}
+
+
+string Master::ReadOnlyHandler::serializeSubscribe(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Event::Subscribed subscribed;
+  //   *subscribed.mutable_get_state() = _getState(approvers);
+  //   subscribed.set_heartbeat_interval_seconds(
+  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  WireFormatLite::WriteBytes(
+      mesos::v1::master::Event::Subscribed::kGetStateFieldNumber,
+      serializeGetState(approvers),
+      &writer);
+
+  WireFormatLite::WriteDouble(
+      mesos::v1::master::Event::Subscribed
+        ::kHeartbeatIntervalSecondsFieldNumber,
+      DEFAULT_HEARTBEAT_INTERVAL.secs(),
+      &writer);
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
 }
 
 } // namespace master {

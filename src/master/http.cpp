@@ -132,6 +132,7 @@ using std::copy_if;
 using std::function;
 using std::list;
 using std::map;
+using std::pair;
 using std::set;
 using std::string;
 using std::tie;
@@ -419,7 +420,7 @@ Future<Response> Master::Http::api(
 Future<Response> Master::Http::subscribe(
     const mesos::master::Call& call,
     const Option<Principal>& principal,
-    ContentType contentType) const
+    ContentType outputContentType) const
 {
   CHECK_EQ(mesos::master::Call::SUBSCRIBE, call.type());
 
@@ -428,160 +429,16 @@ Future<Response> Master::Http::subscribe(
       principal,
       {VIEW_FRAMEWORK, VIEW_TASK, VIEW_EXECUTOR, VIEW_ROLE})
     .then(defer(
-        master->self(),
-        [=](const Owned<ObjectApprovers>& approvers) -> Future<Response> {
-          Pipe pipe;
-          OK ok;
-
-          ok.headers["Content-Type"] = stringify(contentType);
-          ok.type = Response::PIPE;
-          ok.reader = pipe.reader();
-
-          StreamingHttpConnection<v1::master::Event> http(
-              pipe.writer(), contentType);
-
-          // Serialize the following event:
-          //
-          //   mesos::master::Event event;
-          //   event.set_type(mesos::master::Event::SUBSCRIBED);
-          //   *event.mutable_subscribed()->mutable_get_state() =
-          //     _getState(approvers);
-          //   event.mutable_subscribed()->set_heartbeat_interval_seconds(
-          //       DEFAULT_HEARTBEAT_INTERVAL.secs());
-          //
-          //   http.send(event);
-
-          switch (contentType) {
-            case ContentType::PROTOBUF: {
-              string serialized;
-              google::protobuf::io::StringOutputStream stream(&serialized);
-              google::protobuf::io::CodedOutputStream writer(&stream);
-
-              WireFormatLite::WriteEnum(
-                  mesos::v1::master::Event::kTypeFieldNumber,
-                  mesos::v1::master::Event::SUBSCRIBED,
-                  &writer);
-
-              WireFormatLite::WriteBytes(
-                  mesos::v1::master::Event::kSubscribedFieldNumber,
-                  serializeSubscribe(approvers),
-                  &writer);
-
-              // We must manually trim the unused buffer space since
-              // we use the string before the coded output stream is
-              // destructed.
-              writer.Trim();
-
-              http.send(serialized);
-
-              break;
-            }
-
-            case ContentType::JSON: {
-              string serialized = jsonify([&](JSON::ObjectWriter* writer) {
-                const google::protobuf::Descriptor* descriptor =
-                  v1::master::Event::descriptor();
-
-                int field;
-
-                field = v1::master::Event::kTypeFieldNumber;
-                writer->field(
-                    descriptor->FindFieldByNumber(field)->name(),
-                    v1::master::Event::Type_Name(
-                        v1::master::Event::SUBSCRIBED));
-
-                field = v1::master::Event::kSubscribedFieldNumber;
-                writer->field(
-                    descriptor->FindFieldByNumber(field)->name(),
-                    jsonifySubscribe(master, approvers));
-              });
-
-              http.send(serialized);
-
-              break;
-            }
-
-            default:
-              return NotAcceptable("Request must accept json or protobuf");
-          }
-
-          mesos::master::Event heartbeatEvent;
-          heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
-          http.send(heartbeatEvent);
-
-          // Master::subscribe will start the heartbeater process, which should
-          // only happen after `SUBSCRIBED` event is sent.
-          master->subscribe(http, principal);
-
-          return ok;
-        }));
-}
-
-
-function<void(JSON::ObjectWriter*)> Master::Http::jsonifySubscribe(
-    const Master* master,
-    const Owned<ObjectApprovers>& approvers)
-{
-  // Jsonify the following message:
-  //
-  //   mesos::master::Event::Subscribed subscribed;
-  //   *subscribed.mutable_get_state() = _getState(approvers);
-  //   subscribed.set_heartbeat_interval_seconds(
-  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
-
-  // TODO(bmahler): This copies the Owned object approvers.
-  return [=](JSON::ObjectWriter* writer) {
-    const google::protobuf::Descriptor* descriptor =
-      v1::master::Event::Subscribed::descriptor();
-
-    int field;
-
-    field = v1::master::Event::Subscribed::kGetStateFieldNumber;
-    writer->field(
-        descriptor->FindFieldByNumber(field)->name(),
-        Master::ReadOnlyHandler(master).jsonifyGetState(approvers));
-
-    field = v1::master::Event::Subscribed::kHeartbeatIntervalSecondsFieldNumber;
-    writer->field(
-        descriptor->FindFieldByNumber(field)->name(),
-        DEFAULT_HEARTBEAT_INTERVAL.secs());
-  };
-}
-
-
-string Master::Http::serializeSubscribe(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  // Serialize the following message:
-  //
-  //   mesos::master::Event::Subscribed subscribed;
-  //   *subscribed.mutable_get_state() = _getState(approvers);
-  //   subscribed.set_heartbeat_interval_seconds(
-  //       DEFAULT_HEARTBEAT_INTERVAL.secs());
-
-  string output;
-  google::protobuf::io::StringOutputStream stream(&output);
-  google::protobuf::io::CodedOutputStream writer(&stream);
-
-  WireFormatLite::WriteBytes(
-      mesos::v1::master::Event::Subscribed::kGetStateFieldNumber,
-      Master::ReadOnlyHandler(master).serializeGetState(approvers),
-      &writer);
-
-  WireFormatLite::WriteDouble(
-      mesos::v1::master::Event::Subscribed
-        ::kHeartbeatIntervalSecondsFieldNumber,
-      DEFAULT_HEARTBEAT_INTERVAL.secs(),
-      &writer);
-
-  // While an explicit Trim() isn't necessary (since the coded
-  // output stream is destructed before the string is returned),
-  // it's a quite tricky bug to diagnose if Trim() is missed, so
-  // we always do it explicitly to signal the reader about this
-  // subtlety.
-  writer.Trim();
-
-  return output;
+          master->self(),
+          [this, principal, outputContentType](
+              const Owned<ObjectApprovers>& approvers) {
+            return deferBatchedRequest(
+                &Master::ReadOnlyHandler::subscribe,
+                principal,
+                outputContentType,
+                {},
+                approvers);
+          }));
 }
 
 
@@ -2712,16 +2569,12 @@ Future<Response> Master::Http::deferBatchedRequest(
       });
 
   Future<Response> future;
-  if (it != batchedRequests.end()) {
-    // Return the existing future if we have a matching request.
-    // NOTE: This is effectively adding a layer of authorization permissions
-    // caching since we only checked the equality of principals, not the
-    // equality of the approvers themselves.
-    // On heavily-loaded masters, this could lead to a delay of several seconds
-    // before permission changes for a principal take effect.
-    future = it->promise.future();
-    ++master->metrics->http_cache_hits;
-  } else {
+
+  // Note that we do not de-duplicate the SUBSCRIBE responses,
+  // since the http server in libprocess assumes there's only
+  // 1 reader of the pipe.
+  if (handler == &Master::ReadOnlyHandler::subscribe ||
+      it == batchedRequests.end()) {
     // Add an element to the batched state requests.
     Promise<Response> promise;
     future = promise.future();
@@ -2732,6 +2585,23 @@ Future<Response> Master::Http::deferBatchedRequest(
         principal,
         approvers,
         std::move(promise)});
+  } else {
+    // Return the existing future if we have a matching request.
+    // NOTE: This is effectively adding a layer of authorization permissions
+    // caching since we only checked the equality of principals, not the
+    // equality of the approvers themselves.
+    // On heavily-loaded masters, this could lead to a delay of several seconds
+    // before permission changes for a principal take effect.
+    future = it->promise.future();
+    ++master->metrics->http_cache_hits;
+
+    // NOTE: The returned response should be either of type
+    // `BODY` or `PATH`, since `PIPE`-type responses cannot
+    // be de-duplicated currently.
+    it->promise.future()
+      .onReady([](const Response& r) {
+        CHECK_NE(r.type, Response::PIPE);
+      });
   }
 
   // Schedule processing of batched requests if not yet scheduled.
@@ -2750,6 +2620,9 @@ void Master::Http::processRequestsBatch() const
   CHECK(!batchedRequests.empty())
     << "Bug in state batching logic: No requests to process";
 
+  vector<Future<pair<Response, Option<ReadOnlyHandler::PostProcessing>>>>
+    results;
+
   // Produce the responses in parallel.
   //
   // TODO(alexr): Consider abstracting this into `parallel_async` or
@@ -2758,20 +2631,30 @@ void Master::Http::processRequestsBatch() const
   // TODO(alexr): Consider moving `BatchedStateRequest`'s fields into
   // `process::async` once it supports moving.
   foreach (BatchedRequest& request, batchedRequests) {
-    request.promise.associate(process::async(
-        [this](ReadOnlyRequestHandler handler,
-               ContentType outputContentType,
-               const hashmap<std::string, std::string>& queryParameters,
-               const process::Owned<ObjectApprovers>& approvers) {
-          return (readonlyHandler.*handler)(
-              outputContentType,
-              queryParameters,
-              approvers);
-        },
-        request.handler,
-        request.outputContentType,
-        request.queryParameters,
-        request.approvers));
+    Future<pair<Response, Option<ReadOnlyHandler::PostProcessing>>>
+      f = process::async(
+          [this](ReadOnlyRequestHandler handler,
+                 ContentType outputContentType,
+                 const hashmap<std::string, std::string>& queryParameters,
+                 const process::Owned<ObjectApprovers>& approvers) {
+            return (readonlyHandler.*handler)(
+                outputContentType,
+                queryParameters,
+                approvers);
+          },
+          request.handler,
+          request.outputContentType,
+          request.queryParameters,
+          request.approvers);
+
+    request.promise.associate(
+      f.then([](const pair<
+          Response,
+          Option<ReadOnlyHandler::PostProcessing>>& result) {
+        return result.first;
+      }));
+
+    results.push_back(f);
   }
 
   // Block the master actor until all workers have generated state responses.
@@ -2780,13 +2663,27 @@ void Master::Http::processRequestsBatch() const
   //
   // NOTE: There is the potential for deadlock since we are blocking 1 working
   // thread here, see MESOS-8256.
-  vector<Future<Response>> responses;
-  foreach (const BatchedRequest& request, batchedRequests) {
-    responses.push_back(request.promise.future());
-  }
-  process::await(responses).await();
+  process::await(results).await();
 
   batchedRequests.clear();
+
+  // Now perform the post-processing "writes" synchronously.
+  for (const auto& result : results) {
+    CHECK(!result.isPending()) << result;
+
+    // Response failed or was discarded.
+    if (!result.isReady()) continue;
+
+    // No post-processing needed.
+    if (result->second.isNone()) continue;
+
+    const ReadOnlyHandler::PostProcessing& postProcessing = *result->second;
+
+    postProcessing.state.visit(
+        [&](const ReadOnlyHandler::PostProcessing::Subscribe& s) {
+          master->subscribe(s.connection, s.principal);
+        });
+  }
 }
 
 

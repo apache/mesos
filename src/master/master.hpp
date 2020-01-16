@@ -24,6 +24,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/mesos.hpp>
@@ -1290,12 +1291,21 @@ private:
   };
 
 public:
-  // Inner class used to namespace HTTP handlers that do not change the
-  // underlying master object.
+  // Inner class used to namespace read-only HTTP handlers; these handlers
+  // may be executed in parallel.
   //
-  // Endpoints served by this handler are only permitted to depend on
-  // the request query parameters and the authorization filters to
-  // make caching of responses possible.
+  // A synchronously executed post-processing step is provided for any
+  // cases where the handler is not purely read-only and requires a
+  // synchronous write (i.e. it's not feasible to perform the write
+  // asynchronously (e.g. SUBSCRIBE cannot have a gap between serving
+  // the initial state and registering the subscriber, or else events
+  // will be missed in the interim)).
+  //
+  // The handlers are only permitted to depend on the output content
+  // type (derived from the request headers), the request query
+  // parameters and the authorization filters to de-duplicate identical
+  // responses (this does not de-duplicate all identical responses, e.g.
+  // different authz principal but same permissions).
   //
   // NOTE: Most member functions of this class are not routed directly but
   // dispatched from their corresponding handlers in the outer `Http` class.
@@ -1305,91 +1315,106 @@ public:
   class ReadOnlyHandler
   {
   public:
+    struct PostProcessing
+    {
+      struct Subscribe
+      {
+        Option<process::http::authentication::Principal> principal;
+        StreamingHttpConnection<v1::master::Event> connection;
+      };
+
+      // Any additional post-processing cases will add additional
+      // cases into this variant.
+      Variant<Subscribe> state;
+    };
+
     explicit ReadOnlyHandler(const Master* _master) : master(_master) {}
 
     // /frameworks
-    process::http::Response frameworks(
+    std::pair<process::http::Response, Option<PostProcessing>> frameworks(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /roles
-    process::http::Response roles(
+    std::pair<process::http::Response, Option<PostProcessing>> roles(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /slaves
-    process::http::Response slaves(
+    std::pair<process::http::Response, Option<PostProcessing>> slaves(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /state
-    process::http::Response state(
+    std::pair<process::http::Response, Option<PostProcessing>> state(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /state-summary
-    process::http::Response stateSummary(
+    std::pair<process::http::Response, Option<PostProcessing>> stateSummary(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // /tasks
-    process::http::Response tasks(
+    std::pair<process::http::Response, Option<PostProcessing>> tasks(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_STATE
-    process::http::Response getState(
+    std::pair<process::http::Response, Option<PostProcessing>> getState(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_AGENTS
-    process::http::Response getAgents(
+    std::pair<process::http::Response, Option<PostProcessing>> getAgents(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_FRAMEWORKS
-    process::http::Response getFrameworks(
+    std::pair<process::http::Response, Option<PostProcessing>> getFrameworks(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_EXECUTORS
-    process::http::Response getExecutors(
+    std::pair<process::http::Response, Option<PostProcessing>> getExecutors(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_OPERATIONS
-    process::http::Response getOperations(
+    std::pair<process::http::Response, Option<PostProcessing>> getOperations(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_TASKS
-    process::http::Response getTasks(
+    std::pair<process::http::Response, Option<PostProcessing>> getTasks(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
     // master::Call::GET_ROLES
-    process::http::Response getRoles(
+    std::pair<process::http::Response, Option<PostProcessing>> getRoles(
         ContentType outputContentType,
         const hashmap<std::string, std::string>& queryParameters,
         const process::Owned<ObjectApprovers>& approvers) const;
 
-    // TODO(bmahler): These could just live in the .cpp file,
-    // however they are shared with SUBSCRIBE which currently
-    // is not implemented as a read only handler here. Make these
-    // private or only in the .cpp file once SUBSCRIBE is moved
-    // into readonly_handler.cpp.
+    // master::Call::SUBSCRIBE
+    std::pair<process::http::Response, Option<PostProcessing>> subscribe(
+        ContentType outputContentType,
+        const hashmap<std::string, std::string>& queryParameters,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+  private:
     std::string serializeGetState(
         const process::Owned<ObjectApprovers>& approvers) const;
     std::string serializeGetAgents(
@@ -1403,6 +1428,8 @@ public:
     std::string serializeGetTasks(
         const process::Owned<ObjectApprovers>& approvers) const;
     std::string serializeGetRoles(
+        const process::Owned<ObjectApprovers>& approvers) const;
+    std::string serializeSubscribe(
         const process::Owned<ObjectApprovers>& approvers) const;
 
     std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
@@ -1419,8 +1446,9 @@ public:
         const process::Owned<ObjectApprovers>& approvers) const;
     std::function<void(JSON::ObjectWriter*)> jsonifyGetRoles(
         const process::Owned<ObjectApprovers>& approvers) const;
+    std::function<void(JSON::ObjectWriter*)> jsonifySubscribe(
+        const process::Owned<ObjectApprovers>& approvers) const;
 
-  private:
     const Master* master;
   };
 
@@ -1914,8 +1942,13 @@ private:
     // installation, we take some extra care to keep the backlog small.
     // In particular, all read-only requests are batched and executed in
     // parallel, instead of going through the master queue separately.
+    // The post-processing step, that depends on the handler, will be
+    // executed synchronously and serially after the parallel executions
+    // complete.
 
-    typedef process::http::Response
+    typedef std::pair<
+        process::http::Response,
+        Option<ReadOnlyHandler::PostProcessing>>
       (Master::ReadOnlyHandler::*ReadOnlyRequestHandler)(
           ContentType,
           const hashmap<std::string, std::string>&,
@@ -1937,10 +1970,6 @@ private:
       hashmap<std::string, std::string> queryParameters;
       Option<process::http::authentication::Principal> principal;
       process::Owned<ObjectApprovers> approvers;
-
-      // NOTE: The returned response should be either of type
-      // `BODY` or `PATH`, since `PIPE`-type responses would
-      // break the deduplication mechanism.
       process::Promise<process::http::Response> promise;
     };
 
