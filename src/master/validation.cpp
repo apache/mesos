@@ -2579,7 +2579,7 @@ Option<Error> validate(
     return Error("Not a persistent volume: " + error->message);
   }
 
-  foreach (const Resource volume, volumes) {
+  foreach (const Resource& volume, volumes) {
     if (Resources::hasResourceProvider(volume)) {
       continue;
     }

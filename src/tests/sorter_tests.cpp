@@ -135,7 +135,7 @@ TEST(RandomSorterTest, HierarchicalProbabilityDistribution)
     sorter.activate(client);
   }
 
-  for (const pair<string, double> weight : weights) {
+  for (const pair<string, double>& weight : weights) {
     sorter.updateWeight(weight.first, weight.second);
   }
 

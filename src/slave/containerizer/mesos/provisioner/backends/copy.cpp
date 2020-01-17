@@ -120,7 +120,7 @@ Future<Option<vector<Path>>> CopyBackendProcess::provision(
 
   vector<Future<Nothing>> futures{Nothing()};
 
-  foreach (const string layer, layers) {
+  foreach (const string& layer, layers) {
     futures.push_back(
         futures.back().then(
             defer(self(), &Self::_provision, layer, rootfs)));
@@ -293,7 +293,7 @@ Future<Nothing> CopyBackendProcess::_provision(
       }
 
       // Remove the whiteout files from rootfs.
-      foreach (const string whiteout, whiteouts) {
+      foreach (const string& whiteout, whiteouts) {
         Try<Nothing> rm = os::rm(whiteout);
         if (rm.isError()) {
           return Failure(

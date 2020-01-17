@@ -120,7 +120,7 @@ public:
       // Search the environment for prefixed environment variables.
       // We un-prefix those variables before parsing the flag values.
       map<string, string> containerEnvironment;
-      foreach (const Environment::Variable variable,
+      foreach (const Environment::Variable& variable,
                containerConfig.command_info().environment().variables()) {
         if (strings::startsWith(
               variable.name(), flags.environment_variable_prefix)) {

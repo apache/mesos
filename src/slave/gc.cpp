@@ -183,7 +183,7 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
   if (paths.count(removalTime) > 0) {
     list<Owned<PathInfo>> infos;
 
-    foreach (const Owned<PathInfo> info, paths.get(removalTime)) {
+    foreach (const Owned<PathInfo>& info, paths.get(removalTime)) {
       if (info->removing) {
         VLOG(1) << "Skipping deletion of '" << info-> path
                 << "'  as it is already in progress";
