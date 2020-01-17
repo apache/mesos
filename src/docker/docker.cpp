@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <map>
 #include <mutex>
 #include <utility>
@@ -53,6 +54,8 @@
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif // __linux__
+
+#include "slave/containerizer/mesos/utils.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 
@@ -625,11 +628,12 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     const string& name,
     const string& sandboxDirectory,
     const string& mappedDirectory,
-    const Option<Resources>& resources,
+    const Option<Resources>& resourceRequests,
     bool enableCfsQuota,
     const Option<map<string, string>>& env,
     const Option<vector<Device>>& devices,
-    const Option<ContainerDNSInfo>& defaultContainerDNS)
+    const Option<ContainerDNSInfo>& defaultContainerDNS,
+    const Option<google::protobuf::Map<string, Value::Scalar>>& resourceLimits)
 {
   if (!containerInfo.has_docker()) {
     return Error("No docker info found in container info");
@@ -640,26 +644,75 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   RunOptions options;
   options.privileged = dockerInfo.privileged();
 
-  if (resources.isSome()) {
+  Option<double> cpuRequest, cpuLimit, memLimit;
+  Option<Bytes> memRequest;
+
+  if (resourceRequests.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk).
-    Option<double> cpus = resources->cpus();
-    if (cpus.isSome()) {
-      options.cpuShares = std::max(
-          static_cast<uint64_t>(CPU_SHARES_PER_CPU * cpus.get()),
-          MIN_CPU_SHARES);
+    cpuRequest = resourceRequests->cpus();
+    memRequest = resourceRequests->mem();
+  }
 
-      if (enableCfsQuota) {
-        const Duration quota =
-          std::max(CPU_CFS_PERIOD * cpus.get(), MIN_CPU_CFS_QUOTA);
-
-        options.cpuQuota = static_cast<uint64_t>(quota.us());
+  if (resourceLimits.isSome()) {
+    foreach (auto&& limit, resourceLimits.get()) {
+      if (limit.first == "cpus") {
+        cpuLimit = limit.second.value();
+      } else if (limit.first == "mem") {
+        memLimit = limit.second.value();
       }
     }
+  }
 
-    Option<Bytes> mem = resources->mem();
-    if (mem.isSome()) {
-      options.memory = std::max(mem.get(), MIN_MEMORY);
+  if (cpuRequest.isSome()) {
+    options.cpuShares = std::max(
+        static_cast<uint64_t>(CPU_SHARES_PER_CPU * cpuRequest.get()),
+        MIN_CPU_SHARES);
+  }
+
+  // Set the `--cpu-quota` option to CPU limit (if it is not an infinite
+  // value) or to CPU request if the flag `--cgroups_enable_cfs` is true.
+  // If CPU limit is infinite, `--cpu-quota` will not be set at all which
+  // means the Docker container will run with infinite CPU quota.
+  if (cpuLimit.isSome()) {
+    if (!std::isinf(cpuLimit.get())) {
+      const Duration quota =
+        std::max(CPU_CFS_PERIOD * cpuLimit.get(), MIN_CPU_CFS_QUOTA);
+
+      options.cpuQuota = static_cast<uint64_t>(quota.us());
     }
+  } else if (enableCfsQuota && cpuRequest.isSome()) {
+    const Duration quota =
+      std::max(CPU_CFS_PERIOD * cpuRequest.get(), MIN_CPU_CFS_QUOTA);
+
+    options.cpuQuota = static_cast<uint64_t>(quota.us());
+  }
+
+  // Set the `--memory` option to memory limit (if it is not an infinite
+  // value) or to memory request. If memory limits is infinite, `--memory`
+  // will not be set at all which means the Docker container will run with
+  // infinite memory limit.
+  if (memLimit.isSome()) {
+    if (!std::isinf(memLimit.get())) {
+      options.memory =
+        std::max(Megabytes(static_cast<uint64_t>(memLimit.get())), MIN_MEMORY);
+    }
+
+    if (memRequest.isSome()) {
+      options.memoryReservation = std::max(memRequest.get(), MIN_MEMORY);
+
+      if (memRequest.get() < Megabytes(static_cast<uint64_t>(memLimit.get()))) {
+        Try<int> oomScoreAdj = calculateOOMScoreAdj(memRequest.get());
+        if (oomScoreAdj.isError()) {
+          return Error(
+              "Failed to calculate OOM score adjustment: " +
+              oomScoreAdj.error());
+        }
+
+        options.oomScoreAdj = oomScoreAdj.get();
+      }
+    }
+  } else if (memRequest.isSome()) {
+    options.memory = std::max(memRequest.get(), MIN_MEMORY);
   }
 
   if (env.isSome()) {
@@ -681,11 +734,11 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   options.env["MESOS_SANDBOX"] = mappedDirectory;
   options.env["MESOS_CONTAINER_NAME"] = name;
 
-  if (resources.isSome()) {
+  if (resourceRequests.isSome()) {
     // Set the `MESOS_ALLOCATION_ROLE` environment variable. Please note
     // that tasks and executors are not allowed to mix resources allocated
     // to different roles, see MESOS-6636.
-    const Resource resource = *resources->begin();
+    const Resource resource = *resourceRequests->begin();
     options.env["MESOS_ALLOCATION_ROLE"] = resource.allocation_info().role();
   }
 
@@ -848,11 +901,11 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
                    "user-defined networks");
     }
 
-    if (!resources.isSome()) {
+    if (!resourceRequests.isSome()) {
       return Error("Port mappings require resources");
     }
 
-    Option<Value::Ranges> portRanges = resources->ports();
+    Option<Value::Ranges> portRanges = resourceRequests->ports();
 
     if (!portRanges.isSome()) {
       return Error("Port mappings require port resources");
@@ -1027,9 +1080,19 @@ Future<Option<int>> Docker::run(
     argv.push_back(stringify(options.cpuQuota.get()));
   }
 
+  if (options.memoryReservation.isSome()) {
+    argv.push_back("--memory-reservation");
+    argv.push_back(stringify(options.memoryReservation->bytes()));
+  }
+
   if (options.memory.isSome()) {
     argv.push_back("--memory");
     argv.push_back(stringify(options.memory->bytes()));
+  }
+
+  if (options.oomScoreAdj.isSome()) {
+    argv.push_back("--oom-score-adj");
+    argv.push_back(stringify(options.oomScoreAdj.get()));
   }
 
   foreachpair(const string& key, const string& value, options.env) {

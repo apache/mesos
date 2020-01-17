@@ -183,11 +183,14 @@ public:
         const std::string& containerName,
         const std::string& sandboxDirectory,
         const std::string& mappedDirectory,
-        const Option<mesos::Resources>& resources = None(),
+        const Option<mesos::Resources>& resourceRequests = None(),
         bool enableCfsQuota = false,
         const Option<std::map<std::string, std::string>>& env = None(),
         const Option<std::vector<Device>>& devices = None(),
-        const Option<mesos::internal::ContainerDNSInfo>& defaultContainerDNS = None()); // NOLINT(whitespace/line_length)
+        const Option<mesos::internal::ContainerDNSInfo>&
+          defaultContainerDNS = None(),
+        const Option<google::protobuf::Map<std::string, mesos::Value::Scalar>>&
+          resourceLimits = None());
 
     // "--privileged" option.
     bool privileged;
@@ -198,8 +201,14 @@ public:
     // "--cpu-quota" option.
     Option<uint64_t> cpuQuota;
 
+    // "--memory-reservation" options.
+    Option<Bytes> memoryReservation;
+
     // "--memory" option.
     Option<Bytes> memory;
+
+    // "--oom-score-adj" option.
+    Option<int> oomScoreAdj;
 
     // Environment variable overrides. These overrides will be passed
     // to docker container through "--env-file" option.

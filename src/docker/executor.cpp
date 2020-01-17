@@ -208,8 +208,8 @@ public:
         cgroupsEnableCfs,
         taskEnvironment,
         None(), // No extra devices.
-        defaultContainerDNS
-    );
+        defaultContainerDNS,
+        task.limits());
 
     if (runOptions.isError()) {
       // TODO(alexr): Use `protobuf::createTaskStatus()`
