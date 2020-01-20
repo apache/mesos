@@ -3553,7 +3553,8 @@ public:
       authorized, process::Future<bool>(const authorization::Request& request));
 
   MOCK_METHOD2(
-      getObjectApprover, process::Future<process::Owned<ObjectApprover>>(
+      getApprover,
+      process::Future<std::shared_ptr<const ObjectApprover>>(
           const Option<authorization::Subject>& subject,
           const authorization::Action& action));
 };

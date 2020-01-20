@@ -16,6 +16,7 @@
 
 #include "authorizer/local/authorizer.hpp"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -43,12 +44,12 @@
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
 
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
 using process::Failure;
 using process::Future;
-using process::Owned;
 
 using process::dispatch;
 
@@ -832,19 +833,24 @@ public:
       subject = request.subject();
     }
 
-    return getObjectApprover(subject, request.action())
-      .then([=](const Owned<ObjectApprover>& objectApprover) -> Future<bool> {
-        Option<ObjectApprover::Object> object = None();
-        if (request.has_object()) {
-          object = ObjectApprover::Object(request.object());
-        }
+    Option<ObjectApprover::Object> object = None();
+    if (request.has_object()) {
+      object = ObjectApprover::Object(request.object());
+    }
 
-        Try<bool> result = objectApprover->approved(object);
-        if (result.isError()) {
-          return Failure(result.error());
-        }
-        return result.get();
-      });
+    const Try<shared_ptr<const ObjectApprover>> approver =
+      getApprover(subject, request.action());
+
+    if (approver.isError()) {
+      return Failure(approver.error());
+    }
+
+    Try<bool> result = (*approver)->approved(object);
+    if (result.isError()) {
+      return Failure(result.error());
+    }
+
+    return result.get();
   }
 
   template <typename SomeACL>
@@ -895,7 +901,7 @@ public:
     return acls;
   }
 
-  Future<Owned<ObjectApprover>> getHierarchicalRoleApprover(
+  shared_ptr<const ObjectApprover> getHierarchicalRoleApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action) const
   {
@@ -1010,12 +1016,11 @@ public:
         UNREACHABLE();
     }
 
-    return Owned<ObjectApprover>(
-        new LocalHierarchicalRoleApprover(
-            hierarchicalRoleACLs, subject, action, acls.permissive()));
+    return std::make_shared<LocalHierarchicalRoleApprover>(
+        hierarchicalRoleACLs, subject, action, acls.permissive());
   }
 
-  Future<Owned<ObjectApprover>> getNestedContainerObjectApprover(
+  shared_ptr<const ObjectApprover> getNestedContainerObjectApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action) const
   {
@@ -1064,15 +1069,15 @@ public:
       }
     }
 
-    return Owned<ObjectApprover>(new LocalNestedContainerObjectApprover(
+    return std::make_shared<LocalNestedContainerObjectApprover>(
         runAsUserAcls,
         parentRunningAsUserAcls,
         subject,
         action,
-        acls.permissive()));
+        acls.permissive());
   }
 
-  Future<Owned<ObjectApprover>> getImplicitExecutorObjectApprover(
+  shared_ptr<const ObjectApprover> getImplicitExecutorObjectApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
@@ -1098,14 +1103,14 @@ public:
     if (subjectContainerId.isNone()) {
       // If the subject's claims do not include a ContainerID,
       // we deny all objects.
-      return Owned<ObjectApprover>(new RejectingObjectApprover());
+      return std::make_shared<RejectingObjectApprover>();
     }
 
-    return Owned<ObjectApprover>(new LocalImplicitExecutorObjectApprover(
-        subjectContainerId.get()));
+    return std::make_shared<LocalImplicitExecutorObjectApprover>(
+        subjectContainerId.get());
   }
 
-  Future<Owned<ObjectApprover>> getImplicitResourceProviderObjectApprover(
+  shared_ptr<const ObjectApprover> getImplicitResourceProviderObjectApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
@@ -1128,15 +1133,14 @@ public:
     if (subjectPrefix.isNone()) {
       // If the subject's claims do not include a namespace string,
       // we deny all objects.
-      return Owned<ObjectApprover>(new RejectingObjectApprover());
+      return std::make_shared<RejectingObjectApprover>();
     }
 
-    return Owned<ObjectApprover>(
-        new LocalImplicitResourceProviderObjectApprover(
-            subjectPrefix.get()));
+    return std::make_shared<LocalImplicitResourceProviderObjectApprover>(
+        subjectPrefix.get());
   }
 
-  Future<Owned<ObjectApprover>> getObjectApprover(
+  Try<shared_ptr<const ObjectApprover>> getApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
@@ -1173,7 +1177,7 @@ public:
     // subjects that do not have the `value` field set. If the previous case was
     // not true and `value` is not set, then we should fail all requests.
     if (subject.isSome() && !subject->has_value()) {
-      return Owned<ObjectApprover>(new RejectingObjectApprover());
+      return std::make_shared<RejectingObjectApprover>();
     }
 
     switch (action) {
@@ -1238,16 +1242,15 @@ public:
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
         if (genericACLs.isError()) {
-          return Failure(genericACLs.error());
+          return Error(genericACLs.error());
         }
         if (genericACLs.isNone()) {
           // If we could not create acls, we deny all objects.
-          return Owned<ObjectApprover>(new RejectingObjectApprover());
+          return std::make_shared<RejectingObjectApprover>();
         }
 
-        return Owned<ObjectApprover>(
-            new LocalAuthorizerObjectApprover(
-                genericACLs.get(), subject, action, acls.permissive()));
+        return std::make_shared<LocalAuthorizerObjectApprover>(
+            genericACLs.get(), subject, action, acls.permissive());
       }
     }
 
@@ -1944,15 +1947,24 @@ process::Future<bool> LocalAuthorizer::authorized(
 }
 
 
-Future<Owned<ObjectApprover>> LocalAuthorizer::getObjectApprover(
-      const Option<authorization::Subject>& subject,
-      const authorization::Action& action)
+Future<shared_ptr<const ObjectApprover>> LocalAuthorizer::getApprover(
+    const Option<authorization::Subject>& subject,
+    const authorization::Action& action)
 {
   return dispatch(
       process,
-      &LocalAuthorizerProcess::getObjectApprover,
+      &LocalAuthorizerProcess::getApprover,
       subject,
-      action);
+      action)
+    .then(
+        [](const Try<shared_ptr<const ObjectApprover>>& approver)
+          -> Future<shared_ptr<const ObjectApprover>> {
+          if (approver.isError()) {
+            return Failure(approver.error());
+          }
+
+          return *approver;
+        });
 }
 
 } // namespace internal {

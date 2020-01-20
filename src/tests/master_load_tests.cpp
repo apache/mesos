@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include <mesos/mesos.hpp>
 
 #include <process/async.hpp>
@@ -25,6 +27,8 @@
 #include <process/pid.hpp>
 
 #include "tests/mesos.hpp"
+
+using std::shared_ptr;
 
 using mesos::authorization::VIEW_EXECUTOR;
 using mesos::authorization::VIEW_FLAGS;
@@ -104,10 +108,13 @@ protected:
 };
 
 
-// This authorizer will not satisfy any futures from `getObjectApprover()`
+// This authorizer will not satisfy any futures from `getApprover()`
 // until it is told to, presumably from the test body.
 //
 // It effectively acts as a giant gate for certain requests.
+//
+// TODO(asekretenko): Find a way to gate requests without relying on
+// authorizer.
 class BlockingAuthorizerProcess
   : public process::Process<BlockingAuthorizerProcess>
 {
@@ -122,12 +129,12 @@ public:
     return underlying_->authorized(request);
   }
 
-  Future<Owned<ObjectApprover>> getObjectApprover(
+  Future<shared_ptr<const ObjectApprover>> getApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
-    Future<Owned<ObjectApprover>> future =
-      underlying_->getObjectApprover(subject, action);
+    Future<shared_ptr<const ObjectApprover>> future =
+      underlying_->getApprover(subject, action);
 
     if (!blocked_) {
       return future;
@@ -144,7 +151,7 @@ public:
     return promises_.size();
   }
 
-  // Satisfies all future and prior calls made to `getObjectApprover`.
+  // Satisfies all future and prior calls made to `getApprover`.
   Future<Nothing> unleash()
   {
     CHECK_EQ(promises_.size(), futures_.size());
@@ -163,8 +170,8 @@ public:
 
 private:
   Authorizer* underlying_;
-  std::queue<Future<Owned<ObjectApprover>>> futures_;
-  std::queue<Promise<Owned<ObjectApprover>>> promises_;
+  std::queue<Future<shared_ptr<const ObjectApprover>>> futures_;
+  std::queue<Promise<shared_ptr<const ObjectApprover>>> promises_;
   bool blocked_;
 };
 
@@ -192,13 +199,13 @@ public:
         request);
   }
 
-  Future<Owned<ObjectApprover>> getObjectApprover(
+  Future<shared_ptr<const ObjectApprover>> getApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action) override
   {
     return process::dispatch(
         process_.get(),
-        &BlockingAuthorizerProcess::getObjectApprover,
+        &BlockingAuthorizerProcess::getApprover,
         subject,
         action);
   }

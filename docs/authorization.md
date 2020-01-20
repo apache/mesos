@@ -911,7 +911,7 @@ backwards compatibility when adding new fields (see
 Third, the `ObjectApprover` interface. In order to support efficient
 authorization of large objects and multiple objects a user can request an
 `ObjectApprover` via
-`Future<Owned<ObjectApprover>> getObjectApprover(const authorization::Subject& subject, const authorization::Action& action)`.
+`Future<shared_ptr<const ObjectApprover>> getApprover(const authorization::Subject& subject, const authorization::Action& action)`.
 The resulting `ObjectApprover` provides
 `Try<bool> approved(const ObjectApprover::Object& object)` to synchronously
 check whether objects are authorized. The `ObjectApprover::Object` follows the
@@ -931,6 +931,14 @@ struct Object
 
 As the fields take pointer to each entity the `ObjectApprover::Object` does not
 require the entity to be copied.
+
+Authorizer must ensure that `ObjectApprover`s returned by `getApprover(...)` method
+are valid throughout their whole lifetime. This is relied upon by parts of Mesos code
+(Scheduler API, Operator API events and so on) that have a need to frequently authorize
+a limited number of long-lived authorization subjects.
+This code on the Mesos side, on its part, must ensure that it does not store
+`ObjectApprover` for authorization subjects that it no longer uses (i.e. that it
+does not leak `ObjectApprover`s).
 
 NOTE: As the `ObjectApprover` is run synchronously in a different actor process
 `ObjectApprover.approved()` call must not block!

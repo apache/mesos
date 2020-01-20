@@ -36,6 +36,13 @@ class ACLs;
  * This interface represents a function object returned by the
  * authorizer which can be used locally (and synchronously) to
  * check whether a specific object is authorized.
+ *
+ * Authorizer implementations must ensure that ObjectApprover is valid
+ * throughout its lifetime (by updating the internal state of ObjectApprover
+ * if/when necessary). Components of Mesos side are allowed
+ * to store `ObjectApprover`s for long-lived authorization subjects indefinitely
+ * (as long as they have a potential need to authorize objects for corresponding
+ * subject-action pair) and can rely on ObjectApprover being valid at any time.
  */
 class ObjectApprover
 {
@@ -214,11 +221,29 @@ public:
   };
 
   /**
-   * NOTE: As this function can be used synchronously by actors
-   * it is essential that it does not block!
+   * This method returns whether access to the specified object is authorized
+   * or not, or `Error`. The `Error` is returned in case of:
+   * - transient authorization failures
+   * - authorizer or underlying systems being in invalid state
+   * - the `Object` provided by Mesos is invalid
+   *
+   * Note that this method is not idempotent; the result might change due to
+   * modifications of internal state of `ObjectApprover` performed by the
+   * authorizer to keep `ObjectApprover` valid.
+   *
+   * For example, if the authorizer is backed by an external IAM, from which it
+   * fetches permissions, changing permissions for the authorization Subject in
+   * the IAM might result in the response changing from `false` to `true` for
+   * the same Object. Also, in this example, failure to keep permissions
+   * up-to-date due to malfunctions of the IAM/network will be reported as an
+   * Error being returned by this method until the permissions are updated
+   * successfully.
+   *
+   * NOTE: As this method can be used synchronously by actors,
+   * it is essential that its implementation does not block. Specifically,
+   * calling blocking libprocess functions from this method can cause deadlock!
    */
-  virtual Try<bool> approved(
-      const Option<Object>& object) const noexcept = 0;
+  virtual Try<bool> approved(const Option<Object>& object) const noexcept = 0;
 
   virtual ~ObjectApprover() = default;
 };
@@ -287,8 +312,15 @@ public:
       const authorization::Request& request) = 0;
 
   /**
-   * Creates an `ObjectApprover` which can synchronously check authorization on
+   * Returns an `ObjectApprover` which can synchronously check authorization on
    * an object.
+   *
+   * The returned `ObjectApprover` is valid throuhout its whole
+   * lifetime or the lifetime of the authorizer, whichever is smaller.
+   *
+   * Calls to `approved(...)` method can return different values depending
+   * on the internal state maintained by the authorizer (which can change
+   * due to the need to keep `ObjectApprover` up-to-date).
    *
    * @param subject `authorization::Subject` subject for which the
    *     `ObjectApprover` should be created.
@@ -298,7 +330,8 @@ public:
    *
    * @return An `ObjectApprover` for the given `subject` and `action`.
    */
-  virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
+  virtual process::Future<std::shared_ptr<const ObjectApprover>>
+  getApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action) = 0;
 

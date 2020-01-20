@@ -371,7 +371,7 @@ public:
       std::initializer_list<authorization::Action> actions);
 
   template <authorization::Action action, typename... Args>
-  bool approved(const Args&... args)
+  bool approved(const Args&... args) const
   {
     if (!approvers.contains(action)) {
       LOG(WARNING)
@@ -381,10 +381,16 @@ public:
       return false;
     }
 
-    Try<bool> approved = approvers[action]->approved(
-        ObjectApprover::Object(args...));
+    Try<bool> approved =
+      approvers.at(action)->approved(ObjectApprover::Object(args...));
 
     if (approved.isError()) {
+      // NOTE: Silently dropping errors here creates a potential for
+      // _transient_ authorization errors to make API events subscriber's view
+      // inconsistent (see MESOS-10085). Also, this creates potential for an
+      // object to silently disappear from Operator API endpoint response in
+      // case of an authorization error (see MESOS-10099).
+      //
       // TODO(joerg84): Expose these errors back to the caller.
       LOG(WARNING)
           << "Failed to authorize principal "
@@ -402,18 +408,19 @@ private:
   ObjectApprovers(
       hashmap<
           authorization::Action,
-          process::Owned<ObjectApprover>>&& _approvers,
+          std::shared_ptr<const ObjectApprover>>&& _approvers,
       const Option<process::http::authentication::Principal>& _principal)
     : principal(_principal),
       approvers(std::move(_approvers)) {}
 
-  hashmap<authorization::Action, process::Owned<ObjectApprover>> approvers;
+  hashmap<authorization::Action, std::shared_ptr<const ObjectApprover>>
+    approvers;
 };
 
 
 template <>
 inline bool ObjectApprovers::approved<authorization::VIEW_ROLE>(
-    const Resource& resource)
+    const Resource& resource) const
 {
   // Necessary because recovered agents are presented in old format.
   if (resource.has_role() && resource.role() != "*" &&

@@ -65,9 +65,10 @@ public:
   process::Future<bool> authorized(
       const authorization::Request& request) override;
 
-  process::Future<process::Owned<ObjectApprover>> getObjectApprover(
+  process::Future<std::shared_ptr<const ObjectApprover>> getApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action) override;
+
 
 private:
   LocalAuthorizer(const ACLs& acls);

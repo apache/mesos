@@ -543,9 +543,8 @@ MockAuthorizer::MockAuthorizer()
   EXPECT_CALL(*this, authorized(_))
     .WillRepeatedly(Return(true));
 
-  EXPECT_CALL(*this, getObjectApprover(_, _))
-    .WillRepeatedly(Return(Owned<ObjectApprover>(
-        new AcceptingObjectApprover())));
+  EXPECT_CALL(*this, getApprover(_, _))
+    .WillRepeatedly(Return(std::make_shared<AcceptingObjectApprover>()));
 }
 
 

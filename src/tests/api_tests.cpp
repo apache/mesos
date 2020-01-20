@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -71,6 +72,7 @@
 
 namespace http = process::http;
 
+using std::shared_ptr;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -3358,24 +3360,24 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
 
   // When the authorizer is called, return pending futures
   // that we can satisfy later.
-  Promise<Owned<ObjectApprover>> taskAddedApprover;
-  Promise<Owned<ObjectApprover>> updateRunningApprover;
-  Promise<Owned<ObjectApprover>> updateFinishedApprover;
+  Promise<shared_ptr<const ObjectApprover>> taskAddedApprover;
+  Promise<shared_ptr<const ObjectApprover>> updateRunningApprover;
+  Promise<shared_ptr<const ObjectApprover>> updateFinishedApprover;
 
   Sequence approverSequence;
 
   // Each event results in 4 calls into the authorizer.
   // NOTE: This may change when the operator event stream code is refactored
   // to avoid unnecessary authorizer calls. See MESOS-8475.
-  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+  EXPECT_CALL(authorizer, getApprover(_, _))
     .Times(4)
     .InSequence(approverSequence)
     .WillRepeatedly(Return(taskAddedApprover.future()));
-  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+  EXPECT_CALL(authorizer, getApprover(_, _))
     .Times(4)
     .InSequence(approverSequence)
     .WillRepeatedly(Return(updateRunningApprover.future()));
-  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+  EXPECT_CALL(authorizer, getApprover(_, _))
     .Times(4)
     .InSequence(approverSequence)
     .WillRepeatedly(Return(updateFinishedApprover.future()));
@@ -3432,7 +3434,8 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
   AWAIT_READY(acknowledgeFinished);
 
   {
-    taskAddedApprover.set(Owned<ObjectApprover>(new AcceptingObjectApprover()));
+    taskAddedApprover.set(shared_ptr<const ObjectApprover>(
+        std::make_shared<AcceptingObjectApprover>()));
 
     AWAIT_READY(event);
 
@@ -3444,8 +3447,8 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
   event = decoder.read();
 
   {
-    updateRunningApprover.set(Owned<ObjectApprover>(
-        new AcceptingObjectApprover()));
+    updateRunningApprover.set(shared_ptr<const ObjectApprover>(
+        std::make_shared<AcceptingObjectApprover>()));
 
     AWAIT_READY(event);
 
@@ -3461,8 +3464,8 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
   event = decoder.read();
 
   {
-    updateFinishedApprover.set(Owned<ObjectApprover>(
-        new AcceptingObjectApprover()));
+    updateFinishedApprover.set(shared_ptr<const ObjectApprover>(
+        std::make_shared<AcceptingObjectApprover>()));
 
     AWAIT_READY(event);
 
@@ -3477,9 +3480,8 @@ TEST_P(MasterAPITest, EventAuthorizationDelayed)
 
   EXPECT_TRUE(reader.close());
 
-  EXPECT_CALL(authorizer, getObjectApprover(_, _))
-    .WillRepeatedly(Return(Owned<ObjectApprover>(
-        new AcceptingObjectApprover())));
+  EXPECT_CALL(authorizer, getApprover(_, _))
+    .WillRepeatedly(Return(std::make_shared<AcceptingObjectApprover>()));
 
   EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
