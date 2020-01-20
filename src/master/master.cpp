@@ -1262,7 +1262,8 @@ void Master::exited(
     const StreamingHttpConnection<v1::scheduler::Event>& http)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (framework->http.isSome() && framework->http->writer == http.writer) {
+    if (framework->http().isSome() &&
+        framework->http()->writer == http.writer) {
       CHECK_EQ(frameworkId, framework->id());
       _exited(framework);
       return;
@@ -1283,7 +1284,7 @@ void Master::exited(
 void Master::exited(const UPID& pid)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (framework->pid == pid) {
+    if (framework->pid() == pid) {
       // See comments in `receive()` on why we send an error message
       // to the framework upon detecting a disconnection.
       FrameworkErrorMessage message;
@@ -2307,7 +2308,7 @@ void Master::drop(
   // of validation, it's possible that this function will be called before the
   // master validates that operations from v0 frameworks should not have their
   // ID set.
-  if (operation.has_id() && framework->http.isSome()) {
+  if (operation.has_id() && framework->http().isSome()) {
     scheduler::Event update;
     update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
 
@@ -2396,7 +2397,7 @@ void Master::receive(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     drop(from, call, "Call is not from registered framework");
     return;
   }
@@ -2825,7 +2826,7 @@ void Master::sendFrameworkUpdates(const Framework& framework)
     // TODO(anand): We set 'pid' to UPID() for http frameworks
     // as 'pid' was made optional in 0.24.0. In 0.25.0, we
     // no longer have to set pid here for http frameworks.
-    message.set_pid(framework.pid.getOrElse(UPID()));
+    message.set_pid(framework.pid().getOrElse(UPID()));
     message.mutable_framework_info()->CopyFrom(framework.info);
     send(slave->pid, message);
   }
@@ -2979,7 +2980,7 @@ void Master::_subscribe(
     // If we are here the framework is subscribing for the first time.
     // Check if this framework is already subscribed (because it retries).
     foreachvalue (Framework* framework, frameworks.registered) {
-      if (framework->pid == from) {
+      if (framework->pid() == from) {
         LOG(INFO) << "Framework " << *framework
                   << " already subscribed, resending acknowledgement";
 
@@ -3021,7 +3022,7 @@ void Master::_subscribe(
   // response because that would go to the framework that is already connected.
   if (frameworks.principals.contains(from)) {
     foreachvalue (Framework* framework, frameworks.registered) {
-      if (framework->pid == from && framework->id() != frameworkInfo.id()) {
+      if (framework->pid() == from && framework->id() != frameworkInfo.id()) {
         LOG(ERROR) << "Dropping SUBSCRIBE call for framework '"
                    << frameworkInfo.name() << "': " << *framework
                    << " already connected at " << from;
@@ -3073,7 +3074,7 @@ void Master::_subscribe(
     // another instance of their scheduler has reconnected.
 
     // Test for the error case first.
-    if ((framework->pid != from) && !force) {
+    if ((framework->pid() != from) && !force) {
       LOG(ERROR) << "Disallowing subscription attempt of"
                  << " framework " << *framework
                  << " because it is not expected from " << from;
@@ -3127,7 +3128,7 @@ void Master::_subscribe(
 
       // Relink to the framework. This might be necessary if the
       // framework link previously broke.
-      link(framework->pid.get());
+      link(framework->pid().get());
 
       // Reactivate the framework.
       // NOTE: We do this after recovering resources (above) so that
@@ -3249,7 +3250,7 @@ void Master::unregisterFramework(
 
   Framework* framework = getFramework(frameworkId);
   if (framework != nullptr) {
-    if (framework->pid == from) {
+    if (framework->pid() == from) {
       teardown(framework);
     } else {
       LOG(WARNING)
@@ -3276,7 +3277,7 @@ void Master::deactivateFramework(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring deactivate framework message for framework " << *framework
       << " because it is not expected from " << from;
@@ -3311,10 +3312,10 @@ void Master::disconnect(Framework* framework)
 
   framework->setFrameworkState(Framework::State::DISCONNECTED);
 
-  if (framework->pid.isSome()) {
+  if (framework->pid().isSome()) {
     // Remove the framework from authenticated. This is safe because
     // a framework will always reauthenticate before (re-)registering.
-    authenticated.erase(framework->pid.get());
+    authenticated.erase(framework->pid().get());
   } else {
     framework->closeHttpConnection();
   }
@@ -3432,7 +3433,7 @@ void Master::resourceRequest(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring resource request message from framework " << *framework
       << " because it is not expected from " << from;
@@ -3647,7 +3648,7 @@ void Master::launchTasks(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring launch tasks message for offers "
       << stringify(launchTasksMessage.offer_ids())
@@ -4116,7 +4117,7 @@ void Master::accept(
           case Offer::Operation::SHRINK_VOLUME:
           case Offer::Operation::CREATE_DISK:
           case Offer::Operation::DESTROY_DISK: {
-            if (framework->http.isNone()) {
+            if (framework->http().isNone()) {
               const string message =
                 "The 'id' field was set in an offer operation, but operation"
                 " feedback is not supported for the SchedulerDriver API";
@@ -5230,7 +5231,7 @@ void Master::_accept(
             // TODO(anand): We set 'pid' to UPID() for http frameworks
             // as 'pid' was made optional in 0.24.0. In 0.25.0, we
             // no longer have to set pid here for http frameworks.
-            message.set_pid(framework->pid.getOrElse(UPID()));
+            message.set_pid(framework->pid().getOrElse(UPID()));
             message.mutable_task()->MergeFrom(task);
 
             message.set_launch_executor(launchExecutor);
@@ -5928,7 +5929,7 @@ void Master::reviveOffers(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring revive offers message for framework " << *framework
       << " because it is not expected from " << from;
@@ -6000,7 +6001,7 @@ void Master::killTask(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring kill task message for task " << taskId << " of framework "
       << *framework << " because it is not expected from " << from;
@@ -6168,7 +6169,7 @@ void Master::statusUpdateAcknowledgement(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring status update acknowledgement for status "
       << uuid_.get() << " of task " << taskId << " of framework "
@@ -6434,7 +6435,7 @@ void Master::schedulerMessage(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring framework message for executor '" << executorId
       << "' of framework " << *framework
@@ -7797,7 +7798,7 @@ void Master::updateSlaveFrameworks(
       // TODO(anand): We set 'pid' to UPID() for http frameworks
       // as 'pid' was made optional in 0.24.0. In 0.25.0, we
       // no longer have to set pid here for http frameworks.
-      message.set_pid(framework->pid.getOrElse(UPID()));
+      message.set_pid(framework->pid().getOrElse(UPID()));
 
       send(slave->pid, message);
     } else {
@@ -9225,7 +9226,7 @@ void Master::sendBulkOperationFeedback(
     Option<Framework*> framework =
       frameworks.registered.get(operation->framework_id());
 
-    if (!framework.isSome() || !framework.get()->http.isSome()) {
+    if (!framework.isSome() || !framework.get()->http().isSome()) {
       continue;
     }
 
@@ -9268,7 +9269,7 @@ void Master::reconcileTasks(
     return;
   }
 
-  if (framework->pid != from) {
+  if (framework->pid() != from) {
     LOG(WARNING)
       << "Ignoring reconcile tasks message for framework " << *framework
       << " because it is not expected from " << from;
@@ -10388,13 +10389,13 @@ void Master::addFramework(
   frameworks.registered[framework->id()] = framework;
 
   if (framework->connected()) {
-    if (framework->pid.isSome()) {
-      link(framework->pid.get());
+    if (framework->pid().isSome()) {
+      link(framework->pid().get());
     } else {
-      CHECK_SOME(framework->http);
+      CHECK_SOME(framework->http());
 
       const StreamingHttpConnection<v1::scheduler::Event>& http =
-        framework->http.get();
+        framework->http().get();
 
       http.closed()
         .onAny(defer(self(), &Self::exited, framework->id(), http));
@@ -10417,9 +10418,9 @@ void Master::addFramework(
       ? Option<string>(framework->info.principal())
       : None();
 
-  if (framework->pid.isSome()) {
-    CHECK(!frameworks.principals.contains(framework->pid.get()));
-    frameworks.principals.put(framework->pid.get(), principal);
+  if (framework->pid().isSome()) {
+    CHECK(!frameworks.principals.contains(framework->pid().get()));
+    frameworks.principals.put(framework->pid().get(), principal);
   }
 
   if (principal.isSome()) {
@@ -10555,8 +10556,8 @@ void Master::activateRecoveredFramework(
   CHECK(framework->recovered());
   CHECK(framework->offers.empty());
   CHECK(framework->inverseOffers.empty());
-  CHECK(framework->pid.isNone());
-  CHECK(framework->http.isNone());
+  CHECK(framework->pid().isNone());
+  CHECK(framework->http().isNone());
 
   updateFramework(framework, frameworkInfo, suppressedRoles);
 
@@ -10587,9 +10588,9 @@ void Master::activateRecoveredFramework(
     ? Option<string>(framework->info.principal())
     : None();
 
-  if (framework->pid.isSome()) {
-    CHECK(!frameworks.principals.contains(framework->pid.get()));
-    frameworks.principals.put(framework->pid.get(), principal);
+  if (framework->pid().isSome()) {
+    CHECK(!frameworks.principals.contains(framework->pid().get()));
+    frameworks.principals.put(framework->pid().get(), principal);
   }
 
   // We expect the framework metrics for this principal to be created
@@ -10638,13 +10639,13 @@ void Master::failoverFramework(
   }
 
   // If this is an upgrade, clear the authentication related data.
-  if (framework->pid.isSome()) {
-    authenticated.erase(framework->pid.get());
+  if (framework->pid().isSome()) {
+    authenticated.erase(framework->pid().get());
 
-    CHECK(frameworks.principals.contains(framework->pid.get()));
-    Option<string> principal = frameworks.principals[framework->pid.get()];
+    CHECK(frameworks.principals.contains(framework->pid().get()));
+    Option<string> principal = frameworks.principals[framework->pid().get()];
 
-    frameworks.principals.erase(framework->pid.get());
+    frameworks.principals.erase(framework->pid().get());
   }
 
   framework->updateConnection(http);
@@ -10665,7 +10666,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
   CHECK_NOTNULL(framework);
 
-  const Option<UPID> oldPid = framework->pid;
+  const Option<UPID> oldPid = framework->pid();
 
   // There are a few failover cases to consider:
   //   1. The pid has changed or it was previously a HTTP based scheduler.
@@ -10688,7 +10689,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 
   _failoverFramework(framework);
 
-  CHECK_SOME(framework->pid);
+  CHECK_SOME(framework->pid());
 
   // Update the principal mapping for this framework, which is
   // needed to keep the per-principal framework metrics accurate.
@@ -10901,7 +10902,7 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
-  if (framework->http.isSome()) {
+  if (framework->http().isSome()) {
     framework->closeHttpConnection();
   }
 
@@ -10913,13 +10914,13 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(anand): This only works for pid based frameworks. We would
   // need similar authentication logic for http frameworks.
-  if (framework->pid.isSome()) {
-    authenticated.erase(framework->pid.get());
+  if (framework->pid().isSome()) {
+    authenticated.erase(framework->pid().get());
 
-    CHECK(frameworks.principals.contains(framework->pid.get()));
-    Option<string> principal = frameworks.principals[framework->pid.get()];
+    CHECK(frameworks.principals.contains(framework->pid().get()));
+    Option<string> principal = frameworks.principals[framework->pid().get()];
 
-    frameworks.principals.erase(framework->pid.get());
+    frameworks.principals.erase(framework->pid().get());
 
     // Remove the metrics for the principal if this framework is the
     // last one with this principal.

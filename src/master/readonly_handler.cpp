@@ -483,8 +483,8 @@ void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
   writer->field("name", framework.info.name());
 
   // Omit pid for http frameworks.
-  if (framework.pid.isSome()) {
-    writer->field("pid", string(framework.pid.get()));
+  if (framework.pid().isSome()) {
+    writer->field("pid", string(framework.pid().get()));
   }
 
   // TODO(bmahler): Use these in the webui.

@@ -634,7 +634,7 @@ Future<Response> Master::Http::scheduler(
     return Forbidden("Framework is not subscribed");
   }
 
-  if (framework->http.isNone()) {
+  if (framework->http().isNone()) {
     return Forbidden("Framework is not connected via HTTP");
   }
 
@@ -645,7 +645,7 @@ Future<Response> Master::Http::scheduler(
   }
 
   const string& streamId = request.headers.at("Mesos-Stream-Id");
-  if (streamId != framework->http->streamId.toString()) {
+  if (streamId != framework->http()->streamId.toString()) {
     return BadRequest(
         "The stream ID '" + streamId + "' included in this request "
         "didn't match the stream ID currently associated with framework ID "

@@ -27,11 +27,11 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
-    const process::UPID& _pid,
+    const process::UPID& pid,
     const process::Time& time)
   : Framework(master, masterFlags, info, ACTIVE, time)
 {
-  pid = _pid;
+  pid_ = pid;
 }
 
 
@@ -39,11 +39,11 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
-    const StreamingHttpConnection<v1::scheduler::Event>& _http,
+    const StreamingHttpConnection<v1::scheduler::Event>& http,
     const process::Time& time)
   : Framework(master, masterFlags, info, ACTIVE, time)
 {
-  http = _http;
+  http_ = http;
 }
 
 
@@ -89,7 +89,7 @@ Framework::Framework(
 
 Framework::~Framework()
 {
-  if (http.isSome()) {
+  if (http_.isSome()) {
     closeHttpConnection();
   }
 }
@@ -563,23 +563,23 @@ void Framework::updateConnection(const process::UPID& newPid)
 {
   // Cleanup the HTTP connnection if this is a downgrade from HTTP
   // to PID. Note that the connection may already be closed.
-  if (http.isSome()) {
+  if (http_.isSome()) {
     closeHttpConnection();
   }
 
   // TODO(benh): unlink(oldPid);
-  pid = newPid;
+  pid_ = newPid;
 }
 
 
 void Framework::updateConnection(
     const StreamingHttpConnection<v1::scheduler::Event>& newHttp)
 {
-  if (pid.isSome()) {
+  if (pid_.isSome()) {
     // Wipe the PID if this is an upgrade from PID to HTTP.
     // TODO(benh): unlink(oldPid);
-    pid = None();
-  } else if (http.isSome()) {
+    pid_ = None();
+  } else if (http_.isSome()) {
     // Cleanup the old HTTP connection.
     // Note that master creates a new HTTP connection for every
     // subscribe request, so 'newHttp' should always be different
@@ -587,28 +587,28 @@ void Framework::updateConnection(
     closeHttpConnection();
   }
 
-  CHECK_NONE(http);
+  CHECK_NONE(http_);
 
-  http = newHttp;
+  http_ = newHttp;
 }
 
 
 void Framework::closeHttpConnection()
 {
-  CHECK_SOME(http);
+  CHECK_SOME(http_);
 
-  if (connected() && !http->close()) {
+  if (connected() && !http_->close()) {
     LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
   }
 
-  http = None();
+  http_ = None();
   heartbeater.reset();
 }
 
 
 void Framework::heartbeat()
 {
-  CHECK_SOME(http);
+  CHECK_SOME(http_);
 
   // TODO(vinod): Make heartbeat interval configurable and include
   // this information in the SUBSCRIBED response.
@@ -619,7 +619,7 @@ void Framework::heartbeat()
       new ResponseHeartbeater<scheduler::Event, v1::scheduler::Event>(
           "framework " + stringify(info.id()),
           event,
-          http.get(),
+          http_.get(),
           DEFAULT_HEARTBEAT_INTERVAL,
           None(),
           [this, event]() {

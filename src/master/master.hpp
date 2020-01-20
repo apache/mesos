@@ -2548,6 +2548,13 @@ struct Framework
 
   void setFrameworkState(const State& _state);
 
+  const Option<StreamingHttpConnection<v1::scheduler::Event>>& http() const
+  {
+    return http_;
+  }
+
+  const Option<process::UPID>& pid() const { return pid_; }
+
   Master* const master;
 
   FrameworkInfo info;
@@ -2555,13 +2562,6 @@ struct Framework
   std::set<std::string> roles;
 
   protobuf::framework::Capabilities capabilities;
-
-  // Frameworks can either be connected via HTTP or by message passing
-  // (scheduler driver). At most one of `http` and `pid` will be set
-  // according to the last connection made by the framework; neither
-  // field will be set if the framework is in state `RECOVERED`.
-  Option<StreamingHttpConnection<v1::scheduler::Event>> http;
-  Option<process::UPID> pid;
 
   State state;
 
@@ -2640,10 +2640,6 @@ struct Framework
   Resources totalOfferedResources;
   hashmap<SlaveID, Resources> offeredResources;
 
-  // This is only set for HTTP frameworks.
-  process::Owned<ResponseHeartbeater<scheduler::Event, v1::scheduler::Event>>
-    heartbeater;
-
   // This is used for per-framework metrics.
   FrameworkMetrics metrics;
 
@@ -2656,6 +2652,17 @@ private:
 
   Framework(const Framework&);              // No copying.
   Framework& operator=(const Framework&); // No assigning.
+
+  // Frameworks can either be connected via HTTP or by message passing
+  // (scheduler driver). At most one of `http` and `pid` will be set
+  // according to the last connection made by the framework; neither
+  // field will be set if the framework is in state `RECOVERED`.
+  Option<StreamingHttpConnection<v1::scheduler::Event>> http_;
+  Option<process::UPID> pid_;
+
+  // This is only set for HTTP frameworks.
+  process::Owned<ResponseHeartbeater<scheduler::Event, v1::scheduler::Event>>
+    heartbeater;
 };
 
 
@@ -2682,13 +2689,13 @@ void Framework::send(const Message& message)
     // that one of `http` or `pid` is set if the framework is connected.
   }
 
-  if (http.isSome()) {
-    if (!http->send(message)) {
+  if (http_.isSome()) {
+    if (!http_->send(message)) {
       LOG(WARNING) << "Unable to send message to framework " << *this << ":"
                    << " connection closed";
     }
-  } else if (pid.isSome()) {
-    master->send(pid.get(), message);
+  } else if (pid().isSome()) {
+    master->send(pid().get(), message);
   } else {
     LOG(WARNING) << "Unable to send message to framework " << *this << ":"
                  << " framework is recovered but has not reregistered";
@@ -2730,8 +2737,8 @@ inline std::ostream& operator<<(
   // updated on framework failover (MESOS-1784).
   stream << framework.id() << " (" << framework.info.name() << ")";
 
-  if (framework.pid.isSome()) {
-    stream << " at " << framework.pid.get();
+  if (framework.pid().isSome()) {
+    stream << " at " << framework.pid().get();
   }
 
   return stream;
