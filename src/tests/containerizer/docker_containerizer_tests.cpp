@@ -4187,11 +4187,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
 #endif // __WINDOWS__
 
 
+#ifdef __linux__
 // This test ensures that when `cgroups_enable_cfs` is set on agent,
 // the docker container launched through docker containerizer has
 // `cpuQuotas` limit.
 // Cgroups cpu quota is only available on Linux.
-#ifdef __linux__
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -4297,6 +4297,185 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 
   const Duration expectedCpuQuota = mesos::internal::slave::CPU_CFS_PERIOD * 1;
   EXPECT_EQ(expectedCpuQuota, cfsQuota.get());
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+}
+
+
+// This test verifies that a task launched with resource limits specified
+// will have its CPU and memory's soft & hard limits and OOM score adjustment
+// set correctly.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CommandTaskLimits)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  // Start agent with 2 CPUs and total host memory.
+  Try<os::Memory> memory = os::memory();
+  ASSERT_SOME(memory);
+
+  uint64_t totalMemInMB = memory->total.bytes() / 1024 / 1024;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources =
+    strings::format("cpus:2;mem:%d", totalMemInMB).get();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Launch a task with 1 cpu request, 2 cpu limit, half of host total
+  // memory as memory request and host total memory as memory limit.
+  string resourceRequests = strings::format(
+      "cpus:1;mem:%d;disk:1024",
+      totalMemInMB/2).get();
+
+  Value::Scalar cpuLimit, memLimit;
+  cpuLimit.set_value(2);
+  memLimit.set_value(totalMemInMB);
+
+  google::protobuf::Map<string, Value::Scalar> resourceLimits;
+  resourceLimits.insert({"cpus", cpuLimit});
+  resourceLimits.insert({"mem", memLimit});
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      Resources::parse(resourceRequests).get(),
+      SLEEP_COMMAND(1000),
+      None(),
+      "test-task",
+      id::UUID::random().toString(),
+      resourceLimits);
+
+  // TODO(tnachen): Use local image to test if possible.
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
+
+  string name = containerName(containerId.get());
+  Future<Docker::Container> inspect = docker->inspect(name);
+  AWAIT_READY(inspect);
+
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  Result<string> memoryHierarchy = cgroups::hierarchy("memory");
+
+  ASSERT_SOME(cpuHierarchy);
+  ASSERT_SOME(memoryHierarchy);
+
+  Option<pid_t> pid = inspect->pid;
+  ASSERT_SOME(pid);
+
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+  ASSERT_SOME(cpuCgroup);
+
+  EXPECT_SOME_EQ(
+      mesos::internal::slave::CPU_SHARES_PER_CPU,
+      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get()));
+
+  Try<Duration> cfsQuota =
+    cgroups::cpu::cfs_quota_us(cpuHierarchy.get(), cpuCgroup.get());
+
+  ASSERT_SOME(cfsQuota);
+
+  const Duration expectedCpuQuota =
+    mesos::internal::slave::CPU_CFS_PERIOD * cpuLimit.value();
+
+  EXPECT_EQ(expectedCpuQuota, cfsQuota.get());
+
+  Result<string> memoryCgroup = cgroups::memory::cgroup(pid.get());
+  ASSERT_SOME(memoryCgroup);
+
+  EXPECT_SOME_EQ(
+      Megabytes(totalMemInMB/2),
+      cgroups::memory::soft_limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get()));
+
+  EXPECT_SOME_EQ(
+      Megabytes(memLimit.value()),
+      cgroups::memory::limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get()));
+
+  // Ensure the OOM score adjustment is correctly set for the container.
+  Try<string> read = os::read(
+      strings::format("/proc/%d/oom_score_adj", pid.get()).get());
+
+  ASSERT_SOME(read);
+
+  // Since the memory request is half of host total memory so the OOM score
+  // adjustment should be about 500.
+  Try<int32_t> oomScoreAdj = numify<int32_t>(strings::trim(read.get()));
+  ASSERT_SOME(oomScoreAdj);
+
+  EXPECT_GT(502, oomScoreAdj.get());
+  EXPECT_LT(498, oomScoreAdj.get());
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
