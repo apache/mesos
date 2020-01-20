@@ -370,21 +370,34 @@ public:
       const Option<process::http::authentication::Principal>& principal,
       std::initializer_list<authorization::Action> actions);
 
-  template <authorization::Action action, typename... Args>
-  bool approved(const Args&... args) const
+  Try<bool> approved(
+      authorization::Action action,
+      const ObjectApprover::Object& object) const
   {
     if (!approvers.contains(action)) {
       LOG(WARNING)
         << "Attempted to authorize principal "
         << " '" << (principal.isSome() ? stringify(*principal) : "") << "'"
-        << " for unexpected action " << stringify(action);
+        << " for unexpected action " << authorization::Action_Name(action);
+
       return false;
     }
 
-    Try<bool> approved =
-      approvers.at(action)->approved(ObjectApprover::Object(args...));
+    return approvers.at(action)->approved(object);
+  }
 
-    if (approved.isError()) {
+  // Constructs one (or more) authorization objects, depending on the
+  // action, and returns true if all action-object pairs are authorized.
+  //
+  // NOTE: This template has specializations that actually check
+  // more than one action-object pair.
+  template <authorization::Action action, typename... Args>
+  bool approved(const Args&... args) const
+  {
+    const Try<bool> approval =
+      approved(action, ObjectApprover::Object(args...));
+
+    if (approval.isError()) {
       // NOTE: Silently dropping errors here creates a potential for
       // _transient_ authorization errors to make API events subscriber's view
       // inconsistent (see MESOS-10085). Also, this creates potential for an
@@ -392,14 +405,15 @@ public:
       // case of an authorization error (see MESOS-10099).
       //
       // TODO(joerg84): Expose these errors back to the caller.
-      LOG(WARNING)
-          << "Failed to authorize principal "
-          << " '" << (principal.isSome() ? stringify(*principal) : "") << "'"
-          << " for action " << stringify(action) << ": " << approved.error();
+      LOG(WARNING) << "Failed to authorize principal "
+                   << " '" << (principal.isSome() ? stringify(*principal) : "")
+                   << "' for action " << authorization::Action_Name(action)
+                   << ": " << approval.error();
+
       return false;
     }
 
-    return approved.get();
+    return approval.get();
   }
 
   const Option<process::http::authentication::Principal> principal;
