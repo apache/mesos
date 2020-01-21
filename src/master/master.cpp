@@ -2629,6 +2629,39 @@ Option<Error> Master::validateFramework(
 }
 
 
+// Returns None if the framework object approvers are ready and the scheduler
+// trying to SUBSCRIBE is authorized to do so with provided framework info.
+// Otherwise, returns an error to be sent to the scheduler trying to subscribe.
+static Option<Error> checkSubscribeAuthorization(
+    const Future<Owned<ObjectApprovers>>& frameworkObjectApprovers,
+    const FrameworkInfo& frameworkInfo)
+{
+  if (frameworkObjectApprovers.isFailed()) {
+    return Error(
+        "Authorization failure: could not create ObjectApprovers for a "
+        "framework: " +
+        frameworkObjectApprovers.failure());
+  }
+
+  auto actionObject = ActionObject::frameworkRegistration(frameworkInfo);
+
+  CHECK(frameworkObjectApprovers.isReady());
+  Try<bool> approved = frameworkObjectApprovers.get()->approved(
+      actionObject.action(),
+      actionObject.object().getOrElse(authorization::Object()));
+
+  if (approved.isError()) {
+    return Error("Authorization failure: " + approved.error());
+  }
+
+  if (!*approved) {
+    return Error("Not authorized to " + stringify(actionObject));
+  }
+
+  return None();
+};
+
+
 void Master::subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
     scheduler::Call::Subscribe&& subscribe)
@@ -2669,11 +2702,12 @@ void Master::subscribe(
       FrameworkInfo&&,
       bool,
       google::protobuf::RepeatedPtrField<string>&&,
-      const Future<bool>&) = &Self::_subscribe;
+      const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
 
-  Future<bool> authorized = authorizeFramework(frameworkInfo);
+  Future<Owned<ObjectApprovers>> objectApprovers =
+    Framework::createObjectApprovers(authorizer, frameworkInfo);
 
-  authorized.onAny(
+  objectApprovers.onAny(
       defer(self(),
             _subscribe,
             http,
@@ -2689,21 +2723,12 @@ void Master::_subscribe(
     FrameworkInfo&& frameworkInfo,
     bool force,
     google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
-    const Future<bool>& authorized)
+    const Future<Owned<ObjectApprovers>>& objectApprovers)
 {
-  CHECK(!authorized.isDiscarded());
+  CHECK(!objectApprovers.isDiscarded());
 
-  Option<Error> authorizationError = None();
-
-  if (authorized.isFailed()) {
-    authorizationError =
-      Error("Authorization failure: " + authorized.failure());
-  } else if (!authorized.get()) {
-    authorizationError = Error(
-        "Not authorized to use roles '" +
-        stringify(protobuf::framework::getRoles(frameworkInfo)) + "'");
-  }
-
+  Option<Error> authorizationError =
+    checkSubscribeAuthorization(objectApprovers, frameworkInfo);
   if (authorizationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "'"
@@ -2715,6 +2740,8 @@ void Master::_subscribe(
     http.close();
     return;
   }
+
+  CHECK(objectApprovers.isReady());
 
   LOG(INFO) << "Subscribing framework '" << frameworkInfo.name()
             << "' with checkpointing "
@@ -2731,7 +2758,8 @@ void Master::_subscribe(
     FrameworkInfo frameworkInfo_ = frameworkInfo;
     frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework = new Framework(this, flags, frameworkInfo_, http);
+    Framework* framework =
+      new Framework(this, flags, frameworkInfo_, http, objectApprovers.get());
 
     addFramework(framework, suppressedRoles);
 
@@ -2798,11 +2826,16 @@ void Master::_subscribe(
     framework->reregisteredTime = Clock::now();
 
     // Always failover the old framework connection. See MESOS-4712 for details.
-    failoverFramework(framework, http);
+    failoverFramework(framework, http, objectApprovers.get());
   } else {
     // The framework has not yet reregistered after master failover.
     connectAndActivateRecoveredFramework(
-        framework, frameworkInfo, None(), http, suppressedRoles);
+        framework,
+        frameworkInfo,
+        None(),
+        http,
+        objectApprovers.get(),
+        suppressedRoles);
   }
 
   sendFrameworkUpdates(*framework);
@@ -2906,18 +2939,19 @@ void Master::subscribe(
       FrameworkInfo&&,
       bool,
       google::protobuf::RepeatedPtrField<string>&&,
-      const Future<bool>&) = &Self::_subscribe;
+      const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
 
-  Future<bool> authorized = authorizeFramework(frameworkInfo);
+  Future<Owned<ObjectApprovers>> objectApprovers =
+    Framework::createObjectApprovers(authorizer, frameworkInfo);
 
-  authorized.onAny(
-      defer(self(),
-            _subscribe,
-            from,
-            std::move(frameworkInfo),
-            subscribe.force(),
-            std::move(*subscribe.mutable_suppressed_roles()),
-            lambda::_1));
+  objectApprovers.onAny(defer(
+      self(),
+      _subscribe,
+      from,
+      std::move(frameworkInfo),
+      subscribe.force(),
+      std::move(*subscribe.mutable_suppressed_roles()),
+      lambda::_1));
 }
 
 
@@ -2926,20 +2960,12 @@ void Master::_subscribe(
     FrameworkInfo&& frameworkInfo,
     bool force,
     google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
-    const Future<bool>& authorized)
+    const Future<Owned<ObjectApprovers>>& objectApprovers)
 {
-  CHECK(!authorized.isDiscarded());
+  CHECK(!objectApprovers.isDiscarded());
 
-  Option<Error> authorizationError = None();
-
-  if (authorized.isFailed()) {
-    authorizationError =
-      Error("Authorization failure: " + authorized.failure());
-  } else if (!authorized.get()) {
-    authorizationError = Error(
-        "Not authorized to use roles '" +
-        stringify(protobuf::framework::getRoles(frameworkInfo)) + "'");
-  }
+  Option<Error> authorizationError =
+    checkSubscribeAuthorization(objectApprovers, frameworkInfo);
 
   if (authorizationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -2952,6 +2978,8 @@ void Master::_subscribe(
     send(from, message);
     return;
   }
+
+  CHECK(objectApprovers.isReady());
 
   // At this point, authentications errors will be due to
   // re-authentication during the authorization process,
@@ -2997,7 +3025,8 @@ void Master::_subscribe(
     // Assign a new FrameworkID.
     frameworkInfo.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework = new Framework(this, flags, frameworkInfo, from);
+    Framework* framework =
+      new Framework(this, flags, frameworkInfo, from, objectApprovers.get());
 
     addFramework(framework, suppressedRoles);
 
@@ -3099,7 +3128,7 @@ void Master::_subscribe(
       // FrameworkReregisteredMessage back and activate the framework
       // if necesssary.
       LOG(INFO) << "Framework " << *framework << " failed over";
-      failoverFramework(framework, from);
+      failoverFramework(framework, from, objectApprovers.get());
     } else {
       LOG(INFO) << "Allowing framework " << *framework
                 << " to subscribe with an already used id";
@@ -3130,7 +3159,7 @@ void Master::_subscribe(
       // framework link previously broke.
       link(framework->pid().get());
 
-      framework->updateConnection(*(framework->pid()));
+      framework->updateConnection(*(framework->pid()), objectApprovers.get());
       if (framework->activate()) {
         // The framework was not active and needs to be activated in allocator.
         //
@@ -3147,7 +3176,12 @@ void Master::_subscribe(
   } else {
     // The framework has not yet reregistered after master failover.
     connectAndActivateRecoveredFramework(
-        framework, frameworkInfo, from, None(), suppressedRoles);
+        framework,
+        frameworkInfo,
+        from,
+        None(),
+        objectApprovers.get(),
+        suppressedRoles);
   }
 
   sendFrameworkUpdates(*framework);
@@ -10563,6 +10597,7 @@ void Master::connectAndActivateRecoveredFramework(
     const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
     const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
+    const Owned<ObjectApprovers>& objectApprovers,
     const set<string>& suppressedRoles)
 {
   // Exactly one of `pid` or `http` must be provided.
@@ -10587,10 +10622,10 @@ void Master::connectAndActivateRecoveredFramework(
 
   // Update the framework's connection state.
   if (pid.isSome()) {
-    framework->updateConnection(pid.get());
+    framework->updateConnection(pid.get(), objectApprovers);
     link(pid.get());
   } else {
-    framework->updateConnection(http.get());
+    framework->updateConnection(http.get(), objectApprovers);
     http->closed()
       .onAny(defer(self(), &Self::exited, framework->id(), http.get()));
   }
@@ -10641,7 +10676,8 @@ void Master::connectAndActivateRecoveredFramework(
 
 void Master::failoverFramework(
     Framework* framework,
-    const StreamingHttpConnection<v1::scheduler::Event>& http)
+    const StreamingHttpConnection<v1::scheduler::Event>& http,
+    const Owned<ObjectApprovers>& objectApprovers)
 {
   CHECK_NOTNULL(framework);
 
@@ -10665,7 +10701,7 @@ void Master::failoverFramework(
     frameworks.principals.erase(framework->pid().get());
   }
 
-  framework->updateConnection(http);
+  framework->updateConnection(http, objectApprovers);
 
   http.closed()
     .onAny(defer(self(), &Self::exited, framework->id(), http));
@@ -10679,7 +10715,10 @@ void Master::failoverFramework(
 
 // Replace the scheduler for a framework with a new process ID, in the
 // event of a scheduler failover.
-void Master::failoverFramework(Framework* framework, const UPID& newPid)
+void Master::failoverFramework(
+    Framework* framework,
+    const UPID& newPid,
+    const Owned<ObjectApprovers>& objectApprovers)
 {
   CHECK_NOTNULL(framework);
 
@@ -10701,7 +10740,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
     framework->send(message);
   }
 
-  framework->updateConnection(newPid);
+  framework->updateConnection(newPid, objectApprovers);
   link(newPid);
 
   _failoverFramework(framework);

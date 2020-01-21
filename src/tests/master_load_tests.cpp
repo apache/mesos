@@ -122,7 +122,7 @@ public:
   BlockingAuthorizerProcess(Authorizer* underlying)
     : ProcessBase(process::ID::generate("blocking-authorizer")),
       underlying_(underlying),
-      blocked_(true) {}
+      blocked_(false) {}
 
   Future<bool> authorized(const authorization::Request& request)
   {
@@ -151,7 +151,14 @@ public:
     return promises_.size();
   }
 
-  // Satisfies all future and prior calls made to `getApprover`.
+  Future<Nothing> block()
+  {
+    blocked_ = true;
+
+    return Nothing();
+  }
+
+  // Satisfies all future and prending calls made to `getApprover`.
   Future<Nothing> unleash()
   {
     CHECK_EQ(promises_.size(), futures_.size());
@@ -217,6 +224,13 @@ public:
         &BlockingAuthorizerProcess::pending);
   }
 
+  Future<Nothing> block()
+  {
+    return process::dispatch(
+        process_.get(),
+        &BlockingAuthorizerProcess::block);
+  }
+
   Future<Nothing> unleash()
   {
     return process::dispatch(
@@ -266,6 +280,11 @@ void MasterLoadTest::prepareCluster(Authorizer* authorizer)
   slave_ = slave.get();
 
   AWAIT_READY(slaveRegisteredMessage);
+
+  // NOTE: Authorizer is blocked after preparing the cluster, otherwise
+  // framework registration, which also uses `prepareObjectApprover(...) will
+  // be blocked too.
+  authorizer_->block();
 }
 
 

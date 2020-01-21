@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <atomic>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
@@ -68,6 +69,8 @@
 
 namespace http = process::http;
 
+using std::shared_ptr;
+
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
@@ -102,6 +105,7 @@ using testing::An;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Ne;
 using testing::Invoke;
 using testing::Return;
 using testing::Truly;
@@ -1084,6 +1088,10 @@ TEST_F(MasterAuthorizationTest, UnauthorizedRole)
   driver.join();
 }
 
+static shared_ptr<const ObjectApprover> getAcceptingObjectApprover()
+{
+  return std::make_shared<AcceptingObjectApprover>();
+}
 
 // This test verifies that an authentication request that comes from
 // the same instance of the framework (e.g., ZK blip) before
@@ -1108,15 +1116,18 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
 
   // Return pending futures from authorizer.
   Future<Nothing> authorize1;
-  Promise<bool> promise1;
+  Promise<shared_ptr<const ObjectApprover>> promise1;
   Future<Nothing> authorize2;
-  Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorized(_))
-    .WillOnce(DoAll(FutureSatisfy(&authorize1),
-                    Return(promise1.future())))
-    .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())))
-    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
+  Promise<shared_ptr<const ObjectApprover>> promise2;
+
+  // Expect requests for two approvers for REGISTER_FRAMEWORK.
+  EXPECT_CALL(authorizer, getApprover(_, authorization::REGISTER_FRAMEWORK))
+    .WillOnce(DoAll(FutureSatisfy(&authorize1), Return(promise1.future())))
+    .WillOnce(DoAll(FutureSatisfy(&authorize2), Return(promise2.future())));
+
+  // Handle requests for all other approvers.
+  EXPECT_CALL(authorizer, getApprover(_, Ne(authorization::REGISTER_FRAMEWORK)))
+    .WillRepeatedly(Return(getAcceptingObjectApprover()));
 
   // Pause the clock to avoid registration retries.
   Clock::pause();
@@ -1133,7 +1144,7 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
   AWAIT_READY(authorize2);
 
   // Now complete the first authorization attempt.
-  promise1.set(true);
+  promise1.set(getAcceptingObjectApprover());
 
   // First registration request should succeed because the
   // framework PID did not change.
@@ -1143,7 +1154,7 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
     FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
 
   // Now complete the second authorization attempt.
-  promise2.set(true);
+  promise2.set(getAcceptingObjectApprover());
 
   // Master should acknowledge the second registration attempt too.
   AWAIT_READY(frameworkRegisteredMessage);
@@ -1176,16 +1187,16 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
 
   // Return pending futures from authorizer after the first attempt.
   Future<Nothing> authorize2;
-  Promise<bool> promise2;
+  Promise<shared_ptr<const ObjectApprover>> promise2;
   Future<Nothing> authorize3;
-  Promise<bool> promise3;
-  EXPECT_CALL(authorizer, authorized(_))
-    .WillOnce(Return(true))
-    .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())))
-    .WillOnce(DoAll(FutureSatisfy(&authorize3),
-                    Return(promise3.future())))
-    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
+  Promise<shared_ptr<const ObjectApprover>> promise3;
+  EXPECT_CALL(authorizer, getApprover(_, authorization::REGISTER_FRAMEWORK))
+    .WillOnce(Return(getAcceptingObjectApprover()))
+    .WillOnce(DoAll(FutureSatisfy(&authorize2), Return(promise2.future())))
+    .WillOnce(DoAll(FutureSatisfy(&authorize3), Return(promise3.future())));
+
+  EXPECT_CALL(authorizer, getApprover(_, Ne(authorization::REGISTER_FRAMEWORK)))
+    .WillRepeatedly(Return(getAcceptingObjectApprover()));
 
   // Pause the clock to avoid re-registration retries.
   Clock::pause();
@@ -1214,7 +1225,7 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
     .WillOnce(FutureSatisfy(&reregistered));
 
   // Now complete the second authorization attempt.
-  promise2.set(true);
+  promise2.set(getAcceptingObjectApprover());
 
   // First re-registration request should succeed because the
   // framework PID did not change.
@@ -1224,7 +1235,7 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
     FUTURE_PROTOBUF(FrameworkReregisteredMessage(), _, _);
 
   // Now complete the third authorization attempt.
-  promise3.set(true);
+  promise3.set(getAcceptingObjectApprover());
 
   // Master should acknowledge the second re-registration attempt too.
   AWAIT_READY(frameworkReregisteredMessage);
@@ -1235,7 +1246,7 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
 
 
 // This test ensures that a framework that is removed while
-// authorization for registration is in progress is properly handled.
+// obtaining ObjectApprovers during registration is properly handled.
 TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
 {
   MockAuthorizer authorizer;
@@ -1248,11 +1259,13 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
 
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
-  Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorized(_))
-    .WillOnce(DoAll(FutureSatisfy(&authorize),
-                    Return(promise.future())))
-    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
+  Promise<shared_ptr<const ObjectApprover>> promise;
+  EXPECT_CALL(authorizer, getApprover(_, authorization::REGISTER_FRAMEWORK))
+    .WillRepeatedly(DoAll(FutureSatisfy(&authorize), Return(promise.future())));
+
+  EXPECT_CALL(authorizer, getApprover(_, Ne(authorization::REGISTER_FRAMEWORK)))
+    .WillRepeatedly(Return(getAcceptingObjectApprover()));
+
 
   // Pause the clock to avoid scheduler registration retries.
   Clock::pause();
@@ -1276,8 +1289,8 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   Future<Nothing> removeFramework =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
-  // Now complete authorization.
-  promise.set(true);
+  // Now make all the returned approvers ready.
+  promise.set(getAcceptingObjectApprover());
 
   // When the master tries to link to a non-existent framework PID
   // it should realize the framework is gone and remove it.
@@ -1305,13 +1318,17 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  // Return a pending future from authorizer after first attempt.
+  // Return a pending future from authorizer after first request for
+  // REGISTER_FRAMEWORK approver
   Future<Nothing> authorize2;
-  Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorized(_))
-    .WillOnce(Return(true))
-    .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())));
+  Promise<shared_ptr<const ObjectApprover>> promise2;
+  EXPECT_CALL(authorizer, getApprover(_, authorization::REGISTER_FRAMEWORK))
+    .WillOnce(Return(getAcceptingObjectApprover()))
+    .WillOnce(DoAll(FutureSatisfy(&authorize2), Return(promise2.future())));
+
+  // Handle all other actions.
+  EXPECT_CALL(authorizer, getApprover(_, Ne(authorization::REGISTER_FRAMEWORK)))
+    .WillRepeatedly(Return(getAcceptingObjectApprover()));
 
   // Pause the clock to avoid scheduler registration retries.
   Clock::pause();
@@ -1344,7 +1361,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   AWAIT_READY(removeFramework);
 
   // Now complete the second authorization attempt.
-  promise2.set(true);
+  promise2.set(getAcceptingObjectApprover());
 
   // Master should drop the second framework re-registration request
   // because the framework PID was removed from 'authenticated' map.

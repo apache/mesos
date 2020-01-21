@@ -640,17 +640,22 @@ protected:
       const FrameworkInfo& frameworkInfo,
       const Option<process::UPID>& pid,
       const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
+      const process::Owned<ObjectApprovers>& objectApprovers,
       const std::set<std::string>& suppressedRoles);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
-  void failoverFramework(Framework* framework, const process::UPID& newPid);
+  void failoverFramework(
+      Framework* framework,
+      const process::UPID& newPid,
+      const process::Owned<ObjectApprovers>& objectApprovers);
 
   // Replace the scheduler for a framework with a new HTTP connection,
   // in the event of a scheduler failover.
   void failoverFramework(
       Framework* framework,
-      const StreamingHttpConnection<v1::scheduler::Event>& http);
+      const StreamingHttpConnection<v1::scheduler::Event>& http,
+      const process::Owned<ObjectApprovers>& objectApprovers);
 
   void _failoverFramework(Framework* framework);
 
@@ -919,7 +924,7 @@ private:
       FrameworkInfo&& frameworkInfo,
       bool force,
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
-      const process::Future<bool>& authorized);
+      const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
 
   void subscribe(
       const process::UPID& from,
@@ -930,7 +935,7 @@ private:
       FrameworkInfo&& frameworkInfo,
       bool force,
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
-      const process::Future<bool>& authorized);
+      const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
 
   // Update framework via SchedulerDriver (i.e. no response
   // code feedback, FrameworkErrorMessage on error).
@@ -2441,12 +2446,14 @@ struct Framework
       const Flags& masterFlags,
       const FrameworkInfo& info,
       const process::UPID& _pid,
+      const process::Owned<ObjectApprovers>& objectApprovers,
       const process::Time& time = process::Clock::now());
 
   Framework(Master* const master,
             const Flags& masterFlags,
             const FrameworkInfo& info,
             const StreamingHttpConnection<v1::scheduler::Event>& _http,
+            const process::Owned<ObjectApprovers>& objectApprovers,
             const process::Time& time = process::Clock::now());
 
   Framework(Master* const master,
@@ -2515,14 +2522,18 @@ struct Framework
 
   // Reactivate framework with new connection: update connection-related state
   // and mark the framework as CONNECTED, regardless of the previous state.
-  void updateConnection(const process::UPID& newPid);
   void updateConnection(
-      const StreamingHttpConnection<v1::scheduler::Event>& newHttp);
+      const process::UPID& newPid,
+      const process::Owned<ObjectApprovers>& objectApprovers);
+
+  void updateConnection(
+      const StreamingHttpConnection<v1::scheduler::Event>& newHttp,
+      const process::Owned<ObjectApprovers>& objectApprovers);
 
   // If the framework is CONNECTED, clear all state associated with
   // the scheduler being connected (close http connection, stop heartbeater,
-  // etc.), mark the framework DISCONNECTED and return `true`.
-  // Otherwise, return `false`.
+  // clear object approvers, etc.), mark the framework DISCONNECTED and return
+  // `true`. Otherwise, return `false`.
   bool disconnect();
 
   // Mark the framework as active (eligible to receive offers if connected)
@@ -2547,6 +2558,16 @@ struct Framework
   }
 
   const Option<process::UPID>& pid() const { return pid_; }
+
+  // Returns ObjectApprovers for all actions
+  // needed to authorize scheduler API calls.
+  static process::Future<process::Owned<ObjectApprovers>> createObjectApprovers(
+      const Option<Authorizer*>& _authorizer,
+      const FrameworkInfo& frameworkInfo);
+
+  // Returns whether the framework principal is authorized to perform
+  // action on object.
+  Try<bool> approved(const authorization::ActionObject& actionObject) const;
 
   Master* const master;
 
@@ -2640,6 +2661,7 @@ private:
             const FrameworkInfo& _info,
             State state,
             bool active,
+            const process::Owned<ObjectApprovers>& objectApprovers,
             const process::Time& time);
 
   Framework(const Framework&);              // No copying.
@@ -2667,6 +2689,9 @@ private:
   // This is only set for HTTP frameworks.
   process::Owned<ResponseHeartbeater<scheduler::Event, v1::scheduler::Event>>
     heartbeater;
+
+  // ObjectApprovers for the framework's principal.
+  process::Owned<ObjectApprovers> objectApprovers;
 };
 
 
