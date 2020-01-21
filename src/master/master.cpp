@@ -2235,17 +2235,6 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
 }
 
 
-Future<bool> Master::authorizeFramework(
-    const FrameworkInfo& frameworkInfo)
-{
-  return authorize(
-      frameworkInfo.has_principal()
-        ? Option<Principal>(frameworkInfo.principal())
-        : Option<Principal>::none(),
-       ActionObject::frameworkRegistration(frameworkInfo));
-}
-
-
 Option<Error> Master::validateFrameworkAuthentication(
     const FrameworkInfo& frameworkInfo,
     const UPID& from)
@@ -3210,6 +3199,12 @@ void Master::updateFramework(
 Future<process::http::Response> Master::updateFramework(
     mesos::scheduler::Call::UpdateFramework&& call)
 {
+  Framework* const framework =
+    CHECK_NOTNULL(getFramework(call.framework_info().id()));
+
+  LOG(INFO) << "Processing UPDATE_FRAMEWORK call for framework "
+            << call.framework_info().id();
+
   Option<Error> error =
     validateFramework(call.framework_info(), call.suppressed_roles());
 
@@ -3218,52 +3213,29 @@ Future<process::http::Response> Master::updateFramework(
         "Supplied FrameworkInfo is not valid: " + error->message);
   }
 
-  LOG(INFO) << "Processing UPDATE_FRAMEWORK call for framework "
-            << call.framework_info().id();
-
-  Future<bool> authorized = authorizeFramework(call.framework_info());
-
-  return authorized
-    .then(defer(self(), &Self::_updateFramework, std::move(call), lambda::_1));
-}
-
-
-Future<process::http::Response> Master::_updateFramework(
-    mesos::scheduler::Call::UpdateFramework&& call,
-    const Future<bool>& authorized)
-{
-  if (authorized.isFailed()) {
-    return process::http::BadRequest(
-        "Authorization failure: " + authorized.failure());
-  }
-
-  // TODO(asekretenko): We should make it possible for the authorizer to return
-  // the exact cause of declined authorization, after which we can simply
-  // forward it here.
-  if (!authorized.get()) {
-    return process::http::Forbidden(
-        "Not authorized to use roles '" +
-        stringify(protobuf::framework::getRoles(call.framework_info())) + "'");
-  }
-
-  Framework* framework = getFramework(call.framework_info().id());
-
-  // TODO(asekretenko): Test against the race with framework removal.
-  if (framework == nullptr) {
-    return process::http::Conflict(
-        "Framework was removed while this call was being processed");
-  }
-
-  // We need to validate the FrameworkInfo update here
-  // to avoid races with SUBSCRIBE or another UPDATE_FRAMEWORK call.
-  //
-  // TODO(asekretenko): Test against these races.
-  Option<Error> error = validation::framework::validateUpdate(
-    framework->info, call.framework_info());
+  error = validation::framework::validateUpdate(
+      framework->info, call.framework_info());
 
   if (error.isSome()) {
     return process::http::BadRequest(
         "FrameworkInfo update is not valid: " + error->message);
+  }
+
+  ActionObject actionObject =
+    ActionObject::frameworkRegistration(call.framework_info());
+
+  Try<bool> approved = framework->approved(actionObject);
+  if (approved.isError()) {
+    return process::http::BadRequest(
+        "Authorization failure: " + approved.error());
+  }
+
+  if (!*approved) {
+    // TODO(asekretenko): We should make it possible for the objectApprover to
+    // return the exact cause of declined authorization, after which we can
+    // simply forward it here.
+    return process::http::Forbidden(
+        "Not authorized to " + stringify(actionObject));
   }
 
   set<string> suppressedRoles(

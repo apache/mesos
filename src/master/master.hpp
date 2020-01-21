@@ -762,11 +762,6 @@ protected:
       const Option<process::http::authentication::Principal>& principal,
       std::vector<authorization::ActionObject>&& actionObjects);
 
-  // Returns whether the framework is authorized.
-  // Returns failure for transient authorization failures.
-  process::Future<bool> authorizeFramework(
-      const FrameworkInfo& frameworkInfo);
-
   // Determine if a new executor needs to be launched.
   bool isLaunchExecutor (
       const ExecutorID& executorId,
@@ -946,10 +941,6 @@ private:
   // Update framework via HTTP API (i.e. returns 200 OK).
   process::Future<process::http::Response> updateFramework(
       mesos::scheduler::Call::UpdateFramework&& call);
-
-  process::Future<process::http::Response> _updateFramework(
-      mesos::scheduler::Call::UpdateFramework&& call,
-      const process::Future<bool>& authorized);
 
   // Subscribes a client to the 'api/vX' endpoint.
   void subscribe(
