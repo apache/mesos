@@ -635,7 +635,7 @@ protected:
   // activate it. This happens at most once after master failover, the
   // first time that the framework reregisters with the new master.
   // Exactly one of `newPid` or `http` must be provided.
-  void activateRecoveredFramework(
+  void connectAndActivateRecoveredFramework(
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
       const Option<process::UPID>& pid,
@@ -2427,23 +2427,21 @@ struct Framework
     // agents that are running tasks for the framework.
     RECOVERED,
 
-    // Framework was previously connected to this master. A framework
-    // becomes disconnected when there is a socket error.
-    DISCONNECTED,
+    // The framework is connected. The framework may or may not be eligible to
+    // receive offers; this property is tracked separately.
+    CONNECTED,
 
-    // The framework is connected but not active.
-    INACTIVE,
-
-    // Framework is connected and eligible to receive offers. No
-    // offers will be made to frameworks that are not active.
-    ACTIVE
+    // Framework was previously connected to this master,
+    // but is not connected now.
+    DISCONNECTED
   };
 
-  Framework(Master* const master,
-            const Flags& masterFlags,
-            const FrameworkInfo& info,
-            const process::UPID& _pid,
-            const process::Time& time = process::Clock::now());
+  Framework(
+      Master* const master,
+      const Flags& masterFlags,
+      const FrameworkInfo& info,
+      const process::UPID& _pid,
+      const process::Time& time = process::Clock::now());
 
   Framework(Master* const master,
             const Flags& masterFlags,
@@ -2515,28 +2513,33 @@ struct Framework
   // 'webui_url', 'capabilities', and 'labels'.
   void update(const FrameworkInfo& newInfo);
 
+  // Reactivate framework with new connection: update connection-related state
+  // and mark the framework as CONNECTED, regardless of the previous state.
   void updateConnection(const process::UPID& newPid);
-
   void updateConnection(
       const StreamingHttpConnection<v1::scheduler::Event>& newHttp);
 
-  // Closes the HTTP connection and stops the heartbeat.
-  //
-  // TODO(vinod): Currently `state` variable is set separately
-  // from this method. We need to make sure these are in sync.
-  void closeHttpConnection();
+  // If the framework is CONNECTED, clear all state associated with
+  // the scheduler being connected (close http connection, stop heartbeater,
+  // etc.), mark the framework DISCONNECTED and return `true`.
+  // Otherwise, return `false`.
+  bool disconnect();
+
+  // Mark the framework as active (eligible to receive offers if connected)
+  // or inactive. Returns true if this property changed, false otherwise.
+  bool activate();
+  bool deactivate();
 
   void heartbeat();
 
-  bool active() const;
-  bool connected() const;
-  bool recovered() const;
+  bool active() const { return active_; }
+
+  bool connected() const {return state == State::CONNECTED;}
+  bool recovered() const {return state == State::RECOVERED;}
 
   bool isTrackedUnderRole(const std::string& role) const;
   void trackUnderRole(const std::string& role);
   void untrackUnderRole(const std::string& role);
-
-  void setFrameworkState(const State& _state);
 
   const Option<StreamingHttpConnection<v1::scheduler::Event>>& http() const
   {
@@ -2552,8 +2555,6 @@ struct Framework
   std::set<std::string> roles;
 
   protobuf::framework::Capabilities capabilities;
-
-  State state;
 
   process::Time registeredTime;
   process::Time reregisteredTime;
@@ -2638,10 +2639,23 @@ private:
             const Flags& masterFlags,
             const FrameworkInfo& _info,
             State state,
+            bool active,
             const process::Time& time);
 
   Framework(const Framework&);              // No copying.
   Framework& operator=(const Framework&); // No assigning.
+
+  // Indicates whether this framework should be receiving offers
+  // when it is connected.
+  bool active_;
+
+  // NOTE: `state` should never modified by means other than `setState()`.
+  //
+  // TODO(asekretenko): Encapsulate `state` to ensure that `metrics.subscribed`
+  // is updated together with any `state` change.
+  State state;
+
+  void setState(State state_);
 
   // Frameworks can either be connected via HTTP or by message passing
   // (scheduler driver). At most one of `http` and `pid` will be set
@@ -2700,23 +2714,6 @@ inline const FrameworkID Framework::id() const
   return info.id();
 }
 
-
-inline bool Framework::active() const
-{
-  return state == ACTIVE;
-}
-
-
-inline bool Framework::connected() const
-{
-  return state == ACTIVE || state == INACTIVE;
-}
-
-
-inline bool Framework::recovered() const
-{
-  return state == RECOVERED;
-}
 
 
 inline std::ostream& operator<<(

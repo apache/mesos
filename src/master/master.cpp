@@ -2801,7 +2801,7 @@ void Master::_subscribe(
     failoverFramework(framework, http);
   } else {
     // The framework has not yet reregistered after master failover.
-    activateRecoveredFramework(
+    connectAndActivateRecoveredFramework(
         framework, frameworkInfo, None(), http, suppressedRoles);
   }
 
@@ -3130,11 +3130,12 @@ void Master::_subscribe(
       // framework link previously broke.
       link(framework->pid().get());
 
-      // Reactivate the framework.
-      // NOTE: We do this after recovering resources (above) so that
-      // the allocator has the correct view of the framework's share.
-      if (!framework->active()) {
-        framework->setFrameworkState(Framework::State::ACTIVE);
+      framework->updateConnection(*(framework->pid()));
+      if (framework->activate()) {
+        // The framework was not active and needs to be activated in allocator.
+        //
+        // NOTE: We do this after recovering resources (above) so that
+        // the allocator has the correct view of the framework's share.
         allocator->activateFramework(framework->id());
       }
 
@@ -3145,7 +3146,7 @@ void Master::_subscribe(
     }
   } else {
     // The framework has not yet reregistered after master failover.
-    activateRecoveredFramework(
+    connectAndActivateRecoveredFramework(
         framework, frameworkInfo, from, None(), suppressedRoles);
   }
 
@@ -3310,26 +3311,23 @@ void Master::disconnect(Framework* framework)
 
   LOG(INFO) << "Disconnecting framework " << *framework;
 
-  framework->setFrameworkState(Framework::State::DISCONNECTED);
-
   if (framework->pid().isSome()) {
     // Remove the framework from authenticated. This is safe because
     // a framework will always reauthenticate before (re-)registering.
     authenticated.erase(framework->pid().get());
-  } else {
-    framework->closeHttpConnection();
   }
+
+  CHECK(framework->disconnect());
 }
 
 
 void Master::deactivate(Framework* framework, bool rescind)
 {
   CHECK_NOTNULL(framework);
-  CHECK(framework->active());
 
   LOG(INFO) << "Deactivating framework " << *framework;
 
-  framework->setFrameworkState(Framework::State::INACTIVE);
+  CHECK(framework->deactivate());
 
   // Tell the allocator to stop allocating resources to this framework.
   allocator->deactivateFramework(framework->id());
@@ -9779,10 +9777,12 @@ void Master::offer(
 {
   Framework* framework = getFramework(frameworkId);
 
-  if (framework == nullptr || !framework->active()) {
+  if (framework == nullptr ||
+      !framework->connected() ||
+      !framework->active()) {
     LOG(WARNING) << "Master returning resources offered to framework "
                  << frameworkId << " because the framework"
-                 << " has terminated or is inactive";
+                 << " has terminated, is not connected, or is inactive";
 
     foreachkey (const string& role, resources) {
       foreachpair (const SlaveID& slaveId,
@@ -9989,18 +9989,24 @@ void Master::inverseOffer(
     const FrameworkID& frameworkId,
     const hashmap<SlaveID, UnavailableResources>& resources)
 {
-  if (!frameworks.registered.contains(frameworkId) ||
-      !frameworks.registered[frameworkId]->active()) {
+  if (!frameworks.registered.contains(frameworkId)) {
     LOG(INFO) << "Master ignoring inverse offers to framework " << frameworkId
-              << " because the framework has terminated or is inactive";
-
+              << " because the framework has terminated";
     return;
   }
 
+  Framework* framework = CHECK_NOTNULL(frameworks.registered.at(frameworkId));
+
+  if (!framework->connected() || !framework->active()) {
+    LOG(INFO) << "Master ignoring inverse offers to framework " << frameworkId
+              << " because the framework is "
+              << (framework->active() ? "not connected" : "inactive");
+    return;
+  }
+
+
   // Create an inverse offer for each slave and add it to the message.
   InverseOffersMessage message;
-
-  Framework* framework = CHECK_NOTNULL(frameworks.registered[frameworkId]);
   foreachpair (const SlaveID& slaveId,
                const UnavailableResources& unavailableResources,
                resources) {
@@ -10552,7 +10558,7 @@ void Master::recoverFramework(
 }
 
 
-void Master::activateRecoveredFramework(
+void Master::connectAndActivateRecoveredFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
@@ -10589,8 +10595,9 @@ void Master::activateRecoveredFramework(
       .onAny(defer(self(), &Self::exited, framework->id(), http.get()));
   }
 
-  // Activate the framework.
-  framework->setFrameworkState(Framework::State::ACTIVE);
+  CHECK(framework->activate())
+    << "RECOVERED framework is expected not to be active";
+
   allocator->activateFramework(framework->id());
 
   // Export framework metrics if a principal is specified in `FrameworkInfo`.
@@ -10733,11 +10740,11 @@ void Master::_failoverFramework(Framework* framework)
 
   CHECK(!framework->recovered());
 
-  // Reactivate the framework, if needed.
-  // NOTE: We do this after recovering resources (above) so that
-  // the allocator has the correct view of the framework's share.
-  if (!framework->active()) {
-    framework->setFrameworkState(Framework::State::ACTIVE);
+  if (framework->activate()) {
+    // The framework was inactive and needs to be activated in the allocator.
+    //
+    // NOTE: We do this after recovering resources (above) so that
+    // the allocator has the correct view of the framework's share.
     allocator->activateFramework(framework->id());
   }
 
@@ -10912,9 +10919,7 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
-  if (framework->http().isSome()) {
-    framework->closeHttpConnection();
-  }
+  framework->disconnect();
 
   framework->unregisteredTime = Clock::now();
 

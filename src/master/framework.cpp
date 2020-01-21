@@ -29,7 +29,7 @@ Framework::Framework(
     const FrameworkInfo& info,
     const process::UPID& pid,
     const process::Time& time)
-  : Framework(master, masterFlags, info, ACTIVE, time)
+  : Framework(master, masterFlags, info, CONNECTED, true, time)
 {
   pid_ = pid;
 }
@@ -41,7 +41,7 @@ Framework::Framework(
     const FrameworkInfo& info,
     const StreamingHttpConnection<v1::scheduler::Event>& http,
     const process::Time& time)
-  : Framework(master, masterFlags, info, ACTIVE, time)
+  : Framework(master, masterFlags, info, CONNECTED, true, time)
 {
   http_ = http;
 }
@@ -51,7 +51,7 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info)
-  : Framework(master, masterFlags, info, RECOVERED, process::Time())
+  : Framework(master, masterFlags, info, RECOVERED, false, process::Time())
 {}
 
 
@@ -60,21 +60,23 @@ Framework::Framework(
     const Flags& masterFlags,
     const FrameworkInfo& _info,
     State state,
+    bool active_,
     const process::Time& time)
   : master(_master),
     info(_info),
     roles(protobuf::framework::getRoles(_info)),
     capabilities(_info.capabilities()),
-    state(state),
     registeredTime(time),
     reregisteredTime(time),
     completedTasks(masterFlags.max_completed_tasks_per_framework),
     unreachableTasks(masterFlags.max_unreachable_tasks_per_framework),
-    metrics(_info, masterFlags.publish_per_framework_metrics)
+    metrics(_info, masterFlags.publish_per_framework_metrics),
+    active_(active_),
+    state(state)
 {
   CHECK(_info.has_id());
 
-  setFrameworkState(state);
+  setState(state);
 
   foreach (const std::string& role, roles) {
     // NOTE: It's possible that we're already being tracked under the role
@@ -89,9 +91,7 @@ Framework::Framework(
 
 Framework::~Framework()
 {
-  if (http_.isSome()) {
-    closeHttpConnection();
-  }
+  disconnect();
 }
 
 
@@ -561,48 +561,67 @@ void Framework::update(const FrameworkInfo& newInfo)
 
 void Framework::updateConnection(const process::UPID& newPid)
 {
-  // Cleanup the HTTP connnection if this is a downgrade from HTTP
-  // to PID. Note that the connection may already be closed.
-  if (http_.isSome()) {
-    closeHttpConnection();
-  }
+  // Cleanup the old connection state if exists.
+  disconnect();
+  CHECK_NONE(http_);
 
   // TODO(benh): unlink(oldPid);
   pid_ = newPid;
+  setState(State::CONNECTED);
 }
 
 
 void Framework::updateConnection(
     const StreamingHttpConnection<v1::scheduler::Event>& newHttp)
 {
-  if (pid_.isSome()) {
-    // Wipe the PID if this is an upgrade from PID to HTTP.
-    // TODO(benh): unlink(oldPid);
-    pid_ = None();
-  } else if (http_.isSome()) {
-    // Cleanup the old HTTP connection.
-    // Note that master creates a new HTTP connection for every
-    // subscribe request, so 'newHttp' should always be different
-    // from 'http'.
-    closeHttpConnection();
-  }
+  // Note that master creates a new HTTP connection for every
+  // subscribe request, so 'newHttp' should always be different
+  // from 'http'.
+  CHECK(http_.isNone() || newHttp.writer != http_->writer);
+
+  // Cleanup the old connection state if exists.
+  disconnect();
+
+  // TODO(benh): unlink(oldPid) if this is an upgrade from PID to HTTP.
+  pid_ = None();
 
   CHECK_NONE(http_);
-
   http_ = newHttp;
+  setState(State::CONNECTED);
 }
 
 
-void Framework::closeHttpConnection()
+bool Framework::activate()
 {
-  CHECK_SOME(http_);
+  bool noop = active_;
+  active_ = true;
+  return !noop;
+}
 
-  if (connected() && !http_->close()) {
+
+bool Framework::deactivate()
+{
+  bool noop = !active_;
+  active_ = false;
+  return !noop;
+}
+
+
+bool Framework::disconnect()
+{
+  if (state != State::CONNECTED) {
+    CHECK(http_.isNone());
+    return false;
+  }
+
+  if (http_.isSome() && connected() && !http_->close()) {
     LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
   }
 
   http_ = None();
   heartbeater.reset();
+  setState(State::DISCONNECTED);
+  return true;
 }
 
 
@@ -678,10 +697,10 @@ void Framework::untrackUnderRole(const std::string& role)
 }
 
 
-void Framework::setFrameworkState(const Framework::State& _state)
+void Framework::setState(Framework::State _state)
 {
   state = _state;
-  metrics.subscribed = state == Framework::State::ACTIVE ? 1 : 0;
+  metrics.subscribed = state == Framework::State::CONNECTED ? 1 : 0;
 }
 
 } // namespace master {
