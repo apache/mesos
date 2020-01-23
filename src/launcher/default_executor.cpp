@@ -470,11 +470,9 @@ protected:
       forward(status);
 
       agent::Call call;
-      call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER);
+      call.set_type(agent::Call::LAUNCH_CONTAINER);
 
-      agent::Call::LaunchNestedContainer* launch =
-        call.mutable_launch_nested_container();
-
+      agent::Call::LaunchContainer* launch = call.mutable_launch_container();
       launch->mutable_container_id()->CopyFrom(containerId);
 
       if (task.has_command()) {
@@ -485,12 +483,19 @@ protected:
         launch->mutable_container()->CopyFrom(task.container());
       }
 
-      // Currently, it is not possible to specify resources for nested
-      // containers (i.e., all resources are merged in the top level
-      // executor container). This means that any disk resources used by
-      // the task are mounted on the top level container. As a workaround,
-      // we set up the volume mapping allowing child containers to share
-      // the volumes from their parent containers sandbox.
+      launch->mutable_resources()->CopyFrom(task.resources());
+
+      if (!task.limits().empty()) {
+        *launch->mutable_limits() = task.limits();
+      }
+
+      // Currently any disk resources used by the task are mounted
+      // on the top level container. As a workaround, we set up the
+      // volume mapping allowing child containers to share the volumes
+      // from their parent containers sandbox.
+      //
+      // TODO(qianzhang): Mount the disk resources on the task containers
+      // directly and then remove this workaround.
       foreach (const Resource& resource, task.resources()) {
         // Ignore if there are no disk resources or if the
         // disk resources did not specify a volume mapping.
@@ -564,7 +569,7 @@ protected:
     // happens.
     if (!responses.isReady()) {
       LOG(ERROR) << "Unable to receive a response from the agent for "
-                 << "the LAUNCH_NESTED_CONTAINER call: "
+                 << "the LAUNCH_CONTAINER call: "
                  << (responses.isFailed() ? responses.failure() : "discarded");
       _shutdown();
       return;
@@ -584,7 +589,7 @@ protected:
       Container* container = containers.at(taskId).get();
 
       // Check if we received a 200 OK response for the
-      // `LAUNCH_NESTED_CONTAINER` call. Skip the rest of the container
+      // `LAUNCH_CONTAINER` call. Skip the rest of the container
       // initialization if this is not the case.
       if (response.code != process::http::Status::OK) {
         LOG(ERROR) << "Received '" << response.status << "' (" << response.body
@@ -883,7 +888,7 @@ protected:
         // `killTask()` or `shutdown()`.
         taskState = TASK_KILLED;
       } else if (container->launchError.isSome()) {
-        // Send TASK_FAILED if we know that `LAUNCH_NESTED_CONTAINER` returned
+        // Send TASK_FAILED if we know that `LAUNCH_CONTAINER` returned
         // an error.
         taskState = TASK_FAILED;
         message = container->launchError;
