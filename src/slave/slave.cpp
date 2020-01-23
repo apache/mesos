@@ -9479,13 +9479,9 @@ Executor::Executor(
   // hacky. We rely on the fact that docker executor launch command is
   // set in the docker containerizer so that this check is still valid
   // in the slave.
-  Result<string> executorPath =
-    os::realpath(path::join(slave->flags.launcher_dir, MESOS_EXECUTOR));
-
-  if (executorPath.isSome()) {
-    isGeneratedForCommandTask_ =
-      strings::contains(info.command().value(), executorPath.get());
-  }
+  isGeneratedForCommandTask_ =
+    strings::endsWith(info.command().value(), MESOS_EXECUTOR) &&
+    strings::startsWith(info.name(), "Command Executor");
 }
 
 
