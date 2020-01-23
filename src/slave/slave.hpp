@@ -171,7 +171,8 @@ public:
       Option<TaskGroupInfo> taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
       const process::UPID& pid,
-      const Option<bool>& launchExecutor);
+      const Option<bool>& launchExecutor,
+      bool executorGeneratedForCommandTask);
 
   // Made 'virtual' for Slave mocking.
   //
@@ -195,7 +196,8 @@ public:
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
-      const Option<bool>& launchExecutor);
+      const Option<bool>& launchExecutor,
+      bool executorGeneratedForCommandTask);
 
   // This is called when the resource limits of the container have
   // been updated for the given tasks and task groups. If the update is
@@ -896,7 +898,8 @@ public:
       const ContainerID& containerId,
       const std::string& directory,
       const Option<std::string>& user,
-      bool checkpoint);
+      bool checkpoint,
+      bool isGeneratedForCommandTask);
 
   ~Executor();
 
@@ -1093,7 +1096,10 @@ public:
 
   const FrameworkID id() const { return info.id(); }
 
-  Try<Executor*> addExecutor(const ExecutorInfo& executorInfo);
+  Try<Executor*> addExecutor(
+    const ExecutorInfo& executorInfo,
+    bool isGeneratedForCommandTask);
+
   Executor* getExecutor(const ExecutorID& executorId) const;
   Executor* getExecutor(const TaskID& taskId) const;
 
