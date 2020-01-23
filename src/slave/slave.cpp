@@ -1944,13 +1944,16 @@ void Slave::runTask(
 
   const ExecutorInfo executorInfo = getExecutorInfo(frameworkInfo, task);
 
+  bool executorGeneratedForCommandTask = !task.has_executor();
+
   run(frameworkInfo,
       executorInfo,
       task,
       None(),
       resourceVersionUuids,
       pid,
-      launchExecutor);
+      launchExecutor,
+      executorGeneratedForCommandTask);
 }
 
 
@@ -1961,7 +1964,8 @@ void Slave::run(
     Option<TaskGroupInfo> taskGroup,
     const vector<ResourceVersionUUID>& resourceVersionUuids,
     const UPID& pid,
-    const Option<bool>& launchExecutor)
+    const Option<bool>& launchExecutor,
+    bool executorGeneratedForCommandTask)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
@@ -2279,7 +2283,8 @@ void Slave::run(
             task,
             taskGroup,
             resourceVersionUuids,
-            launchExecutor))
+            launchExecutor,
+            executorGeneratedForCommandTask))
         .onFailed(defer(self(), [=](const string& failure) {
           Framework* _framework = getFramework(frameworkId);
           if (_framework == nullptr) {
@@ -2509,7 +2514,8 @@ void Slave::__run(
     const Option<TaskInfo>& task,
     const Option<TaskGroupInfo>& taskGroup,
     const vector<ResourceVersionUUID>& resourceVersionUuids,
-    const Option<bool>& launchExecutor)
+    const Option<bool>& launchExecutor,
+    bool executorGeneratedForCommandTask)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
@@ -2931,7 +2937,8 @@ void Slave::__run(
   // or we are in the legacy case of launching one if there wasn't
   // one already. Either way, let's launch executor now.
   if (executor == nullptr) {
-    Try<Executor*> added = framework->addExecutor(executorInfo);
+    Try<Executor*> added =
+      framework->addExecutor(executorInfo, executorGeneratedForCommandTask);
 
     if (added.isError()) {
       CHECK(framework->getExecutor(executorId) == nullptr);
@@ -3599,13 +3606,17 @@ void Slave::runTaskGroup(
     return;
   }
 
+  // Executors for task groups are injected by the master, not the agent.
+  constexpr bool executorGeneratedForCommandTask = false;
+
   run(frameworkInfo,
       executorInfo,
       None(),
       taskGroupInfo,
       resourceVersionUuids,
       UPID(),
-      launchExecutor);
+      launchExecutor,
+      executorGeneratedForCommandTask);
 }
 
 
@@ -8921,7 +8932,9 @@ void Framework::checkpointFramework() const
 }
 
 
-Try<Executor*> Framework::addExecutor(const ExecutorInfo& executorInfo)
+Try<Executor*> Framework::addExecutor(
+  const ExecutorInfo& executorInfo,
+  bool isGeneratedForCommandTask)
 {
   // Verify that Resource.AllocationInfo is set, if coming
   // from a MULTI_ROLE master this will be set, otherwise
@@ -8977,7 +8990,8 @@ Try<Executor*> Framework::addExecutor(const ExecutorInfo& executorInfo)
       containerId,
       directory.get(),
       user,
-      info.checkpoint());
+      info.checkpoint(),
+      isGeneratedForCommandTask);
 
   if (executor->checkpoint) {
     executor->checkpointExecutor();
@@ -9172,7 +9186,8 @@ void Framework::recoverExecutor(
       latest,
       directory,
       info.user(),
-      info.checkpoint());
+      info.checkpoint(),
+      state.generatedForCommandTask);
 
   // Recover the libprocess PID if possible for PID based executors.
   if (run->http.isSome()) {
@@ -9504,7 +9519,8 @@ Executor::Executor(
     const ContainerID& _containerId,
     const string& _directory,
     const Option<string>& _user,
-    bool _checkpoint)
+    bool _checkpoint,
+    bool isGeneratedForCommandTask)
   : state(REGISTERING),
     slave(_slave),
     id(_info.executor_id()),
@@ -9515,7 +9531,8 @@ Executor::Executor(
     user(_user),
     checkpoint(_checkpoint),
     http(None()),
-    pid(None())
+    pid(None()),
+    isGeneratedForCommandTask_(isGeneratedForCommandTask)
 {
   CHECK_NOTNULL(slave);
 
@@ -9532,16 +9549,6 @@ Executor::Executor(
 
   completedTasks =
     boost::circular_buffer<shared_ptr<Task>>(MAX_COMPLETED_TASKS_PER_EXECUTOR);
-
-  // TODO(jieyu): The way we determine if an executor is generated for
-  // a command task (either command or docker executor) is really
-  // hacky. We rely on the fact that docker executor launch command is
-  // set in the docker containerizer so that this check is still valid
-  // in the slave.
-  // TODO(bbannier): Initialize this field with a value passed to constructor.
-  isGeneratedForCommandTask_ =
-    strings::endsWith(info.command().value(), MESOS_EXECUTOR) &&
-    strings::startsWith(info.name(), "Command Executor");
 }
 
 
