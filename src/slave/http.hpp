@@ -253,7 +253,9 @@ private:
   process::Future<process::http::Response> _launchContainer(
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
-      const Option<Resources>& resources,
+      const Option<Resources>& resourceRequests,
+      const Option<
+          google::protobuf::Map<std::string, Value::Scalar>>& resourceLimits,
       const Option<ContainerInfo>& containerInfo,
       const Option<mesos::slave::ContainerClass>& containerClass,
       ContentType acceptType,

@@ -375,15 +375,6 @@ Option<Error> validate(
             "'launch_container.container_id' is invalid: " + error->message);
       }
 
-      // Nested containers share resources with their parent so are
-      // not allowed to specify resources in this call.
-      if (call.launch_container().container_id().has_parent() &&
-          call.launch_container().resources().size() != 0) {
-        return Error(
-            "Resources may not be specified when using "
-            "'launch_container' to launch nested containers");
-      }
-
       // General resource validation first.
       error = Resources::validate(call.launch_container().resources());
       if (error.isSome()) {
@@ -399,31 +390,33 @@ Option<Error> validate(
 
       // Because standalone containers are launched outside of the master's
       // offer cycle, some resource types or fields may not be specified.
-      foreach (Resource resource, call.launch_container().resources()) {
-        // Upgrade the resources (in place) to simplify validation.
-        upgradeResource(&resource);
+      if (!call.launch_container().container_id().has_parent()) {
+        foreach (Resource resource, call.launch_container().resources()) {
+          // Upgrade the resources (in place) to simplify validation.
+          upgradeResource(&resource);
 
-        // Standalone containers may only use unreserved resources.
-        // There is no accounting in the master for resources consumed
-        // by standalone containers, so allowing reserved resources would
-        // only increase code complexity with no change in behavior.
-        if (Resources::isReserved(resource)) {
-          return Error("'launch_container.resources' must be unreserved");
-        }
+          // Standalone containers may only use unreserved resources.
+          // There is no accounting in the master for resources consumed
+          // by standalone containers, so allowing reserved resources would
+          // only increase code complexity with no change in behavior.
+          if (Resources::isReserved(resource)) {
+            return Error("'launch_container.resources' must be unreserved");
+          }
 
-        // NOTE: The master normally requires all volumes be persistent,
-        // and that all persistent volumes belong to a role. Standalone
-        // containers therefore cannot use persistent volumes.
-        if (Resources::isPersistentVolume(resource)) {
-          return Error(
-              "'launch_container.resources' may not use persistent volumes");
-        }
+          // NOTE: The master normally requires all volumes be persistent,
+          // and that all persistent volumes belong to a role. Standalone
+          // containers therefore cannot use persistent volumes.
+          if (Resources::isPersistentVolume(resource)) {
+            return Error(
+                "'launch_container.resources' may not use persistent volumes");
+          }
 
-        // Standalone containers are expected to occupy resources *not*
-        // advertised by the agent and hence do not need to worry about
-        // being preempted or throttled.
-        if (Resources::isRevocable(resource)) {
-          return Error("'launch_container.resources' must be non-revocable");
+          // Standalone containers are expected to occupy resources *not*
+          // advertised by the agent and hence do not need to worry about
+          // being preempted or throttled.
+          if (Resources::isRevocable(resource)) {
+            return Error("'launch_container.resources' must be non-revocable");
+          }
         }
       }
 

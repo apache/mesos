@@ -249,6 +249,9 @@ message Call {
     repeated Resource resources = 3;
 
     optional ContainerInfo container = 4;
+
+    // Resource limits associated with the container during launch.
+    map<string, Value.Scalar> limits = 5;
   }
 
   // Waits for the standalone or nested container to terminate

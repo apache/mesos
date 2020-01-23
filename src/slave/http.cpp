@@ -3267,6 +3267,7 @@ Future<Response> Http::launchNestedContainer(
               call.launch_nested_container().container_id(),
               call.launch_nested_container().command(),
               None(),
+              None(),
               call.launch_nested_container().has_container()
                 ? call.launch_nested_container().container()
                 : Option<ContainerInfo>::none(),
@@ -3319,6 +3320,7 @@ Future<Response> Http::launchContainer(
               call.launch_container().container_id(),
               call.launch_container().command(),
               call.launch_container().resources(),
+              call.launch_container().limits(),
               call.launch_container().has_container()
                 ? call.launch_container().container()
                 : Option<ContainerInfo>::none(),
@@ -3333,7 +3335,8 @@ template <authorization::Action action>
 Future<Response> Http::_launchContainer(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
-    const Option<Resources>& resources,
+    const Option<Resources>& resourceRequests,
+    const Option<google::protobuf::Map<string, Value::Scalar>>& resourceLimits,
     const Option<ContainerInfo>& containerInfo,
     const Option<ContainerClass>& containerClass,
     ContentType,
@@ -3367,8 +3370,12 @@ Future<Response> Http::_launchContainer(
   }
 #endif // __WINDOWS__
 
-  if (resources.isSome()) {
-    containerConfig.mutable_resources()->CopyFrom(resources.get());
+  if (resourceRequests.isSome()) {
+    containerConfig.mutable_resources()->CopyFrom(resourceRequests.get());
+  }
+
+  if (resourceLimits.isSome()) {
+    *containerConfig.mutable_limits() = resourceLimits.get();
   }
 
   if (containerInfo.isSome()) {
@@ -4227,6 +4234,7 @@ Future<Response> Http::launchNestedContainerSession(
         return _launchContainer<LAUNCH_NESTED_CONTAINER_SESSION>(
             call.launch_nested_container_session().container_id(),
             call.launch_nested_container_session().command(),
+            None(),
             None(),
             call.launch_nested_container_session().has_container()
               ? call.launch_nested_container_session().container()
