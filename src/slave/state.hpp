@@ -333,6 +333,7 @@ struct ExecutorState
   Option<ContainerID> latest;
   hashmap<ContainerID, RunState> runs;
   unsigned int errors;
+  bool generatedForCommandTask = false;
 };
 
 
