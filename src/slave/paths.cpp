@@ -295,6 +295,21 @@ string getExecutorRunPath(
 }
 
 
+string getExecutorGeneratedForCommandTaskPath(
+  const string& rootDir,
+  const SlaveID& slaveId,
+  const FrameworkID& frameworkId,
+  const ExecutorID& executorId)
+{
+  constexpr char EXECUTOR_GENERATED_FOR_COMMAND_TASK_PATH[] =
+    "executor_generated_for_command_task";
+
+  return path::join(
+    getExecutorPath(rootDir, slaveId, frameworkId, executorId),
+    EXECUTOR_GENERATED_FOR_COMMAND_TASK_PATH);
+}
+
+
 string getExecutorHttpMarkerPath(
     const string& rootDir,
     const SlaveID& slaveId,
