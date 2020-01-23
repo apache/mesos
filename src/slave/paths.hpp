@@ -239,6 +239,13 @@ std::string getExecutorRunPath(
     const ContainerID& containerId);
 
 
+std::string getExecutorGeneratedForCommandTaskPath(
+  const std::string& rootDir,
+  const SlaveID& slaveId,
+  const FrameworkID& frameworkId,
+  const ExecutorID& executorId);
+
+
 std::string getExecutorHttpMarkerPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
