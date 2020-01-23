@@ -394,6 +394,61 @@ TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_FetchImage)
 }
 
 
+// Fetches an image from a registry for which fetcher falls back to generating
+// repository scope (see MESOS-10092). This test uses 'nvcr.io' as a registry
+// that does not provide scope on its own.
+//
+// TODO(asekretenko): Set up a mock registry and use it in this test.
+TEST_F(DockerFetcherPluginTest, INTERNET_CURL_GeneratedRepositoryScope)
+{
+  // Using `nvidia/k8s/cuda-sample:nbody` as it seems to be the smallest one
+  // on nvcr.io
+  const URI uri =
+    uri::docker::image("nvidia/k8s/cuda-sample", "nbody", "nvcr.io");
+
+  const string dir = path::join(os::getcwd(), "dir");
+
+  // First, we create a docker fetcher plugin with fallback disabled
+  // to make sure that nvcr.io is still suitable for the purpose of this test.
+  Try<process::Owned<uri::Fetcher::Plugin>> fetcherWithDisabledFallback =
+    DockerFetcherPlugin::create(DockerFetcherPlugin::Flags(), false);
+
+  ASSERT_SOME(fetcherWithDisabledFallback);
+  Future<Nothing> NoFallbackFetch =
+    fetcherWithDisabledFallback.get()->fetch(uri, dir);
+
+  AWAIT_FAILED_FOR(NoFallbackFetch, Seconds(120));
+
+  ASSERT_TRUE(strings::contains(
+      NoFallbackFetch.failure(),
+      "Missing 'realm', 'service' or 'scope' in header WWW-Authenticate"));
+
+  // Now, we can proceed with testing the fallback.
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir), Seconds(120));
+
+  Try<string> _manifest = os::read(path::join(dir, "manifest"));
+  ASSERT_SOME(_manifest);
+
+  Try<docker::spec::v2_2::ImageManifest> manifest =
+    docker::spec::v2_2::parse(_manifest.get());
+
+  ASSERT_SOME(manifest);
+  EXPECT_EQ(2u, manifest->schemaversion());
+  EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
+            manifest->mediatype());
+
+  EXPECT_TRUE(os::exists(path::join(dir, manifest->config().digest())));
+
+  for (int i = 0; i < manifest->layers_size(); i++) {
+    EXPECT_TRUE(os::exists(
+        DockerFetcherPlugin::getBlobPath(dir, manifest->layers(i).digest())));
+  }
+}
+
+
 // This test verifies invoking 'fetch' by plugin name.
 TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_InvokeFetchByName)
 {
