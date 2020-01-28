@@ -214,6 +214,116 @@ JSON::Object model(const FileInfo& fileInfo);
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 
+
+// NOTE: The `metrics` object provided as an argument must outlive
+// the returned function, since the function captures `metrics`
+// by reference to avoid a really expensive map copy. This is a
+// rather unsafe approach, but in typical jsonify usage this is
+// not an issue.
+//
+// TODO(bmahler): Use std::enable_if with std::is_same to check
+// that T is either the master or agent GetMetrics.
+template <typename T>
+std::function<void(JSON::ObjectWriter*)> jsonifyGetMetrics(
+    const std::map<std::string, double>& metrics)
+{
+  // Serialize the following message:
+  //
+  //   mesos::master::Response::GetMetrics getMetrics;
+  //   // or: mesos::agent::Response::GetMetrics getMetrics;
+  //
+  //   foreachpair (const string& key, double value, metrics) {
+  //     Metric* metric = getMetrics->add_metrics();
+  //     metric->set_name(key);
+  //     metric->set_value(value);
+  //   }
+
+  return [&](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor = T::descriptor();
+
+    int field = T::kMetricsFieldNumber;
+
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreachpair (const std::string& key, double value, metrics) {
+            writer->element([&](JSON::ObjectWriter* writer) {
+              const google::protobuf::Descriptor* descriptor =
+                v1::Metric::descriptor();
+
+              int field;
+
+              field = v1::Metric::kNameFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(), key);
+
+              field = v1::Metric::kValueFieldNumber;
+              writer->field(
+                  descriptor->FindFieldByNumber(field)->name(), value);
+            });
+          }
+        });
+  };
+}
+
+
+// TODO(bmahler): Use std::enable_if with std::is_same to check
+// that T is either the master or agent GetMetrics.
+template <typename T>
+std::string serializeGetMetrics(
+    const std::map<std::string, double>& metrics)
+{
+  // Serialize the following message:
+  //
+  //   v1::master::Response::GetMetrics getMetrics;
+  //   // or: v1::agent::Response::GetMetrics getMetrics;
+  //
+  //   foreachpair (const string& key, double value, metrics) {
+  //     Metric* metric = getMetrics->add_metrics();
+  //     metric->set_name(key);
+  //     metric->set_value(value);
+  //   }
+
+  auto serializeMetric = [](const std::string& key, double value) {
+    std::string output;
+    google::protobuf::io::StringOutputStream stream(&output);
+    google::protobuf::io::CodedOutputStream writer(&stream);
+
+    google::protobuf::internal::WireFormatLite::WriteString(
+        v1::Metric::kNameFieldNumber, key, &writer);
+    google::protobuf::internal::WireFormatLite::WriteDouble(
+        v1::Metric::kValueFieldNumber, value, &writer);
+
+    // While an explicit Trim() isn't necessary (since the coded
+    // output stream is destructed before the string is returned),
+    // it's a quite tricky bug to diagnose if Trim() is missed, so
+    // we always do it explicitly to signal the reader about this
+    // subtlety.
+    writer.Trim();
+    return output;
+  };
+
+  std::string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  foreachpair (const std::string& key, double value, metrics) {
+    google::protobuf::internal::WireFormatLite::WriteBytes(
+        T::kMetricsFieldNumber,
+        serializeMetric(key, value),
+        &writer);
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+  return output;
+}
+
+
 } // namespace internal {
 
 void json(JSON::ObjectWriter* writer, const Attributes& attributes);

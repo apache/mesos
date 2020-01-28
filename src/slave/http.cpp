@@ -82,6 +82,8 @@
 
 #include "version/version.hpp"
 
+using google::protobuf::internal::WireFormatLite;
+
 using mesos::agent::ProcessIO;
 
 using mesos::authorization::createSubject;
@@ -108,6 +110,8 @@ using mesos::authorization::REMOVE_STANDALONE_CONTAINER;
 using mesos::authorization::MODIFY_RESOURCE_PROVIDER_CONFIG;
 using mesos::authorization::MARK_RESOURCE_PROVIDER_GONE;
 using mesos::authorization::PRUNE_IMAGES;
+
+using mesos::internal::protobuf::WireFormatLite2;
 
 using mesos::internal::recordio::Reader;
 
@@ -151,6 +155,7 @@ using process::metrics::internal::MetricsProcess;
 
 using ::recordio::Decoder;
 
+using std::function;
 using std::list;
 using std::map;
 using std::string;
@@ -1049,7 +1054,7 @@ Future<Response> Http::getVersion(
 
 Future<Response> Http::getMetrics(
     const mesos::agent::Call& call,
-    ContentType acceptType,
+    ContentType contentType,
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_METRICS, call.type());
@@ -1063,21 +1068,64 @@ Future<Response> Http::getMetrics(
   }
 
   return process::metrics::snapshot(timeout)
-      .then([acceptType](const map<string, double>& metrics) -> Response {
-          mesos::agent::Response response;
-        response.set_type(mesos::agent::Response::GET_METRICS);
-        mesos::agent::Response::GetMetrics* _getMetrics =
-          response.mutable_get_metrics();
+    .then([contentType](const map<string, double>& metrics) -> Response {
+      // Serialize the following message:
+      //
+      //   v1::agent::Response response;
+      //   response.set_type(v1::agent::Response::GET_METRICS);
+      //   v1::agent::Response::GetMetrics* getMetrics = ...;
 
-        foreachpair (const string& key, double value, metrics) {
-          Metric* metric = _getMetrics->add_metrics();
-          metric->set_name(key);
-          metric->set_value(value);
+      switch (contentType) {
+        case ContentType::PROTOBUF: {
+          string output;
+          google::protobuf::io::StringOutputStream stream(&output);
+          google::protobuf::io::CodedOutputStream writer(&stream);
+
+          WireFormatLite::WriteEnum(
+              v1::agent::Response::kTypeFieldNumber,
+              v1::agent::Response::GET_METRICS,
+              &writer);
+
+          WireFormatLite::WriteBytes(
+              v1::agent::Response::kGetMetricsFieldNumber,
+              serializeGetMetrics<v1::agent::Response::GetMetrics>(metrics),
+              &writer);
+
+          // We must manually trim the unused buffer space since
+          // we use the string before the coded output stream is
+          // destructed.
+          writer.Trim();
+
+          return OK(std::move(output), stringify(contentType));
         }
 
-        return OK(serialize(acceptType, evolve(response)),
-                  stringify(acceptType));
-      });
+        case ContentType::JSON: {
+          string body = jsonify([&](JSON::ObjectWriter* writer) {
+            const google::protobuf::Descriptor* descriptor =
+              v1::agent::Response::descriptor();
+
+            int field;
+
+            field = v1::agent::Response::kTypeFieldNumber;
+            writer->field(
+                descriptor->FindFieldByNumber(field)->name(),
+                v1::agent::Response::Type_Name(
+                    v1::agent::Response::GET_METRICS));
+
+            field = v1::agent::Response::kGetMetricsFieldNumber;
+            writer->field(
+                descriptor->FindFieldByNumber(field)->name(),
+                jsonifyGetMetrics<v1::agent::Response::GetMetrics>(metrics));
+          });
+
+          // TODO(bmahler): Pass jsonp query parameter through here.
+          return OK(std::move(body), stringify(contentType));
+        }
+
+        default:
+          return NotAcceptable("Request must accept json or protobuf");
+      }
+    });
 }
 
 

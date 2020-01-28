@@ -1670,108 +1670,6 @@ Future<Response> Master::Http::getVersion(
 }
 
 
-// NOTE: The `metrics` object provided as an argument must outlive
-// the returned function, since the function captures `metrics`
-// by reference to avoid a really expensive map copy. This is a
-// rather unsafe approach, but in typical jsonify usage this is
-// not an issue.
-function<void(JSON::ObjectWriter*)> jsonifyGetMetrics(
-    const map<string, double>& metrics)
-{
-  // Serialize the following message:
-  //
-  //   mesos::master::Response::GetMetrics getMetrics;
-  //
-  //   foreachpair (const string& key, double value, metrics) {
-  //     Metric* metric = getMetrics->add_metrics();
-  //     metric->set_name(key);
-  //     metric->set_value(value);
-  //   }
-
-  return [&](JSON::ObjectWriter* writer) {
-    const google::protobuf::Descriptor* descriptor =
-      v1::master::Response::GetMetrics::descriptor();
-
-    int field;
-
-    field = v1::master::Response::GetMetrics::kMetricsFieldNumber;
-    writer->field(
-        descriptor->FindFieldByNumber(field)->name(),
-        [&](JSON::ArrayWriter* writer) {
-          foreachpair (const string& key, double value, metrics) {
-            writer->element([&](JSON::ObjectWriter* writer) {
-              const google::protobuf::Descriptor* descriptor =
-                v1::Metric::descriptor();
-
-              int field;
-
-              field = v1::Metric::kNameFieldNumber;
-              writer->field(
-                  descriptor->FindFieldByNumber(field)->name(), key);
-
-              field = v1::Metric::kValueFieldNumber;
-              writer->field(
-                  descriptor->FindFieldByNumber(field)->name(), value);
-            });
-          }
-        });
-  };
-}
-
-
-string serializeGetMetrics(const map<string, double>& metrics)
-{
-  // Serialize the following message:
-  //
-  //   mesos::master::Response::GetMetrics getMetrics;
-  //
-  //   foreachpair (const string& key, double value, metrics) {
-  //     Metric* metric = getMetrics->add_metrics();
-  //     metric->set_name(key);
-  //     metric->set_value(value);
-  //   }
-
-  auto serializeMetric = [](const string& key, double value) {
-    string output;
-    google::protobuf::io::StringOutputStream stream(&output);
-    google::protobuf::io::CodedOutputStream writer(&stream);
-
-    WireFormatLite::WriteString(
-        mesos::v1::Metric::kNameFieldNumber, key, &writer);
-
-    WireFormatLite::WriteDouble(
-        mesos::v1::Metric::kValueFieldNumber, value, &writer);
-
-    // While an explicit Trim() isn't necessary (since the coded
-    // output stream is destructed before the string is returned),
-    // it's a quite tricky bug to diagnose if Trim() is missed, so
-    // we always do it explicitly to signal the reader about this
-    // subtlety.
-    writer.Trim();
-    return output;
-  };
-
-  string output;
-  google::protobuf::io::StringOutputStream stream(&output);
-  google::protobuf::io::CodedOutputStream writer(&stream);
-
-  foreachpair (const string& key, double value, metrics) {
-    WireFormatLite::WriteBytes(
-        mesos::v1::master::Response::GetMetrics::kMetricsFieldNumber,
-        serializeMetric(key, value),
-        &writer);
-  }
-
-  // While an explicit Trim() isn't necessary (since the coded
-  // output stream is destructed before the string is returned),
-  // it's a quite tricky bug to diagnose if Trim() is missed, so
-  // we always do it explicitly to signal the reader about this
-  // subtlety.
-  writer.Trim();
-  return output;
-}
-
-
 Future<Response> Master::Http::getMetrics(
     const mesos::master::Call& call,
     const Option<Principal>& principal,
@@ -1806,7 +1704,8 @@ Future<Response> Master::Http::getMetrics(
 
           WireFormatLite::WriteBytes(
               mesos::v1::master::Response::kGetMetricsFieldNumber,
-              serializeGetMetrics(metrics),
+              serializeGetMetrics<mesos::v1::master::Response::GetMetrics>(
+                  metrics),
               &writer);
 
           // We must manually trim the unused buffer space since
@@ -1833,7 +1732,8 @@ Future<Response> Master::Http::getMetrics(
             field = v1::master::Response::kGetMetricsFieldNumber;
             writer->field(
                 descriptor->FindFieldByNumber(field)->name(),
-                jsonifyGetMetrics(metrics));
+                jsonifyGetMetrics<mesos::v1::master::Response::GetMetrics>(
+                    metrics));
           });
 
           // TODO(bmahler): Pass jsonp query parameter through here.
