@@ -244,7 +244,7 @@ def verify_review(review_request):
         else:
             # Launch docker build script.
             configuration = ("export "
-                             "OS='ubuntu:14.04' "
+                             "OS='ubuntu:16.04' "
                              "BUILDTOOL='autotools' "
                              "COMPILER='gcc' "
                              "CONFIGURATION='--verbose "
