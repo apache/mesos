@@ -1866,29 +1866,30 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPULarge)
       "cpus:64");
   flags.resources = strings::join(";", resources);
 
-  const Bytes linkSpeed = 3125000000; // 25 Gbit/s
-  const Bytes ratePerCpu = linkSpeed / 64;
+  const Bytes linkSpeed = 12500000000; // 100 Gbit/s
   flags.network_link_speed = linkSpeed;
 
-  const Bytes minRate = 225000000; // 1.8 Gbit/s
+  const Bytes minRate = 625000000; // 5 Gbit/s
   flags.minimum_egress_rate_limit = minRate;
 
-  const Bytes maxRate = 2187500000; // 17.5 Gbit/s
+  const Bytes maxRate = 11250000000; // 90 Gbit/s
   flags.maximum_egress_rate_limit = maxRate;
 
+  const Bytes ratePerCpu = linkSpeed / 64;
+
   // CPU high enough to be in linear scaling region and to trigger uint32_t
-  // overflow of scaled rate represented as bit/s: 16 * 3125000000 / 64 =
-  // 781250000 B/s or 6250000000 bits/s.
-  Try<Resources> linearCpu = Resources::parse("cpus:16;mem:1024;disk:1024");
+  // overflow of scaled rate represented as bit/s: 30 * 12500000000 / 64 =
+  // 5859375000 or 46875000000 bits/s.
+  Try<Resources> linearCpu = Resources::parse("cpus:30;mem:1024;disk:1024");
   ASSERT_SOME(linearCpu);
 
   // CPU low enough for scaled network egress to be increased to the min limit:
-  // 4 * 3125000000 / 64 = 195312500 B/s
-  Try<Resources> lowCpu = Resources::parse("cpus:4;mem:1024;disk:1024");
+  // 1 * 12500000000 / 64 = 195312500 B/s.
+  Try<Resources> lowCpu = Resources::parse("cpus:1;mem:1024;disk:1024");
   ASSERT_SOME(lowCpu);
 
   // CPU high enough for scaled network egress to be reduced to the max limit:
-  // 60 * 3125000000 / 64 = 2929687500 B/s.
+  // 60 * 12500000000 / 64 = 11718750000 B/s.
   Try<Resources> highCpu = Resources::parse("cpus:60;mem:1024;disk:1024");
   ASSERT_SOME(highCpu);
 
@@ -1945,7 +1946,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPULarge)
 
   Result<htb::cls::Config> config = recoverHTBConfig(pid.get(), eth0, flags);
   ASSERT_SOME(config);
-  ASSERT_EQ(ratePerCpu * 16, config->rate);
+  ASSERT_EQ(ratePerCpu * floor(linearCpu->cpus().get()), config->rate);
 
   // Reduce CPU to get to hit the min limit.
   Future<Nothing> update = isolator.get()->update(containerId1, lowCpu.get());
@@ -1954,6 +1955,14 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPULarge)
   config = recoverHTBConfig(pid.get(), eth0, flags);
   ASSERT_SOME(config);
   ASSERT_EQ(minRate, config->rate);
+
+  // Increase CPU back to the linear limit.
+  update = isolator.get()->update(containerId1, linearCpu.get());
+  AWAIT_READY(update);
+
+  config = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(config);
+  ASSERT_EQ(ratePerCpu * floor(linearCpu->cpus().get()), config->rate);
 
   // Increase CPU to hit the max limit.
   update = isolator.get()->update(containerId1, highCpu.get());

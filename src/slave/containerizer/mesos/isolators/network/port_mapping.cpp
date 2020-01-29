@@ -617,8 +617,8 @@ static Result<htb::cls::Config> parseHTBConfig(const JSON::Object& object)
   }
 
   return htb::cls::Config(
-      rate->as<uint32_t>(),
-      ceil.isSome() ? Option<uint32_t>(ceil->as<uint32_t>())
+      rate->as<uint64_t>(),
+      ceil.isSome() ? Option<uint64_t>(ceil->as<uint64_t>())
                     : None(),
       burst.isSome() ? Option<uint32_t>(burst->as<uint32_t>())
                      : None());
@@ -5093,7 +5093,7 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::egressHTBConfig(
     rate = std::min(flags.maximum_egress_rate_limit.get(), rate);
   }
 
-  Option<uint32_t> ceil;
+  Option<uint64_t> ceil;
   Option<uint32_t> burst;
 
   if (flags.egress_ceil_limit.isSome() &&
@@ -5132,7 +5132,7 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::ingressHTBConfig(
     rate = std::min(flags.maximum_ingress_rate_limit.get(), rate);
   }
 
-  Option<uint32_t> ceil;
+  Option<uint64_t> ceil;
   Option<uint32_t> burst;
 
   if (flags.ingress_ceil_limit.isSome() &&
