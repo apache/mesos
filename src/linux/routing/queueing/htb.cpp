@@ -85,13 +85,13 @@ Try<Nothing> encode<htb::cls::Config>(
     const Netlink<struct rtnl_class>& cls,
     const htb::cls::Config& config)
 {
-  int error = rtnl_htb_set_rate(cls.get(), config.rate);
+  int error = rtnl_htb_set_rate64(cls.get(), config.rate);
   if (error != 0) {
     return Error(string(nl_geterror(error)));
   }
 
   if (config.ceil.isSome()) {
-    error = rtnl_htb_set_ceil(cls.get(), config.ceil.get());
+    error = rtnl_htb_set_ceil64(cls.get(), config.ceil.get());
     if (error != 0) {
       return Error(string(nl_geterror(error)));
     }
@@ -127,8 +127,15 @@ Result<htb::cls::Config> decode<htb::cls::Config>(
 
   htb::cls::Config config;
 
-  uint32_t rate = rtnl_htb_get_rate(cls.get());
-  uint32_t ceil = rtnl_htb_get_ceil(cls.get());
+  // With 32bit rates this function used to return 0 rate and ceil in
+  // case of an error. We keep the same behavior even though 64bit
+  // getters from libnl are capable of returning an error when class
+  // data cannot be recorded or an attribute is not present.
+  uint64_t rate = 0;
+  uint64_t ceil = 0;
+  rtnl_htb_get_rate64(cls.get(), &rate);
+  rtnl_htb_get_ceil64(cls.get(), &ceil);
+
   // NOTE: The libnl documentation is incorrect/confusing. The
   // correct buffer for sending at the ceil rate is rbuffer, *not*
   // the cbuffer.
@@ -138,7 +145,7 @@ Result<htb::cls::Config> decode<htb::cls::Config>(
 
   return htb::cls::Config(
       rate,
-      (ceil > 0) ? Option<uint32_t>(ceil) : None(),
+      (ceil > 0) ? Option<uint64_t>(ceil) : None(),
       (burst > 0) ? Option<uint32_t>(burst) : None());
 }
 
