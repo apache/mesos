@@ -409,9 +409,28 @@ protected:
       return;
     }
 
+    if (!updates.contains(uuid_.get())) {
+      LOG(WARNING) << "Ignoring unknown status update acknowledgement "
+                   << uuid_.get() << " for task " << taskId
+                   << " of framework " << frameworkId;
+      return;
+    }
+
     VLOG(1) << "Executor received status update acknowledgement "
             << uuid_.get() << " for task " << taskId
             << " of framework " << frameworkId;
+
+    // If this is a terminal status update acknowledgment for the Docker
+    // executor, stop the driver to terminate the executor.
+    //
+    // TODO(abudnik): This is a workaround for MESOS-9847. A better solution
+    // is to update supported API for the Docker executor from V0 to V1. It
+    // will allow the executor to handle status update acknowledgments itself.
+    if (mesos::internal::protobuf::isTerminalState(
+            updates[uuid_.get()].status().state()) &&
+        dynamic_cast<docker::DockerExecutor*>(executor)) {
+      driver->stop();
+    }
 
     // Remove the corresponding update.
     updates.erase(uuid_.get());
