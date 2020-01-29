@@ -279,6 +279,12 @@ public:
           containers.at(taskId)->acknowledged = true;
         }
 
+        // Terminate the executor if all status updates have been acknowledged
+        // by the agent and no running containers left.
+        if (containers.empty() && unacknowledgedUpdates.empty()) {
+          terminate(self());
+        }
+
         break;
       }
 
@@ -1088,14 +1094,21 @@ protected:
 
   void _shutdown()
   {
-    const Duration duration = Seconds(1);
+    if (unacknowledgedUpdates.empty()) {
+      terminate(self());
+    } else {
+      // This is a fail safe in case the agent doesn't send an ACK for
+      // a status update for some reason.
+      const Duration duration = Seconds(60);
 
-    LOG(INFO) << "Terminating after " << duration;
+      LOG(INFO) << "Terminating after " << duration;
 
-    // TODO(qianzhang): Remove this hack since the executor now receives
-    // acknowledgements for status updates. The executor can terminate
-    // after it receives an ACK for a terminal status update.
-    os::sleep(duration);
+      delay(duration, self(), &Self::__shutdown);
+    }
+  }
+
+  void __shutdown()
+  {
     terminate(self());
   }
 
