@@ -199,7 +199,9 @@ public:
 
       driver->sendStatusUpdate(status);
 
-      _stop();
+      // This is a fail safe in case the agent doesn't send an ACK for
+      // the terminal update for some reason.
+      delay(Seconds(60), self(), &Self::_stop);
       return;
     }
 
@@ -691,17 +693,13 @@ private:
     CHECK_SOME(driver);
     driver.get()->sendStatusUpdate(taskStatus);
 
-    _stop();
+    // This is a fail safe in case the agent doesn't send an ACK for
+    // the terminal update for some reason.
+    delay(Seconds(60), self(), &Self::_stop);
   }
 
   void _stop()
   {
-    // A hack for now ... but we need to wait until the status update
-    // is sent to the slave before we shut ourselves down.
-    // TODO(tnachen): Remove this hack and also the same hack in the
-    // command executor when we have the new HTTP APIs to wait until
-    // an ack.
-    os::sleep(Seconds(1));
     driver.get()->stop();
   }
 
