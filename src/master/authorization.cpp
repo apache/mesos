@@ -387,10 +387,20 @@ ostream& operator<<(ostream& stream, const ActionObject& actionObject)
   }
 
   switch (actionObject.action()) {
-    case authorization::RUN_TASK:
+    case authorization::RUN_TASK: {
+      const TaskInfo& task = object->task_info();
+      const FrameworkInfo& framework = object->framework_info();
       return stream
-        << "launch task " << object->task_info().task_id()
-        << " of framework " << object->framework_info().id();
+        << "launch task " << task.task_id()
+        << " of framework " << framework.id()
+        << " under user '"
+        << (task.has_command() && task.command().has_user()
+            ? task.command().user()
+            : task.has_executor() && task.executor().command().has_user()
+              ? task.executor().command().user()
+              : framework.user())
+        << "'";
+    }
 
     case authorization::REGISTER_FRAMEWORK:
       return stream

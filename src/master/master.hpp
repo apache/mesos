@@ -956,9 +956,7 @@ private:
   void _accept(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      mesos::scheduler::Call::Accept&& accept,
-      const process::Future<
-          std::vector<process::Future<bool>>>& authorizations);
+      mesos::scheduler::Call::Accept&& accept);
 
   void acceptInverseOffers(
       Framework* framework,

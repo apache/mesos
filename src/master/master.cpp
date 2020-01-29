@@ -3721,8 +3721,6 @@ Future<bool> Master::authorize(
     *request.mutable_object() = *(std::move(actionObject).object());
   }
 
-  // TODO(asekretenko): Use a background-refreshed ObjectApprover
-  // when they become available (see MESOS-10056).
   return authorizer.get()->authorized(request);
 }
 
@@ -4317,126 +4315,18 @@ void Master::accept(
     }
   }
 
-  const Option<Principal> principal = framework->info.has_principal()
-    ? Principal(framework->info.principal())
-    : Option<Principal>::none();
-
-  // TODO(asekretenko): Use background-refreshed ObjectApprovers
-  // instead of asynchronous authorization.
-  vector<Future<bool>> futures;
-  for (const Offer::Operation& operation : accept.operations()) {
-    switch (operation.type()) {
-      case Offer::Operation::LAUNCH:
-      case Offer::Operation::LAUNCH_GROUP: {
-        for (const TaskInfo& task : getOperationTasks(operation)) {
-          futures.emplace_back(authorize(
-              principal, ActionObject::taskLaunch(task, framework->info)));
-        }
-        break;
-      }
-
-      // NOTE: When handling RESERVE and UNRESERVE operations, authorization
-      // will proceed even if no principal is specified, although currently
-      // resources cannot be reserved or unreserved unless a principal is
-      // provided. Any RESERVE/UNRESERVE operation with no associated principal
-      // will be found invalid when `validate()` is called in `_accept()` below.
-
-      // The RESERVE operation allows a principal to reserve resources.
-      case Offer::Operation::RESERVE: {
-        futures.push_back(authorize(
-            principal, ActionObject::reserve(operation.reserve())));
-
-        break;
-      }
-
-      // The UNRESERVE operation allows a principal to unreserve resources.
-      case Offer::Operation::UNRESERVE: {
-        futures.push_back(authorize(
-            principal, ActionObject::unreserve(operation.unreserve())));
-
-        break;
-      }
-
-      // The CREATE operation allows the creation of a persistent volume.
-      case Offer::Operation::CREATE: {
-        futures.push_back(authorize(
-            principal, ActionObject::createVolume(operation.create())));
-
-        break;
-      }
-
-      // The DESTROY operation allows the destruction of a persistent volume.
-      case Offer::Operation::DESTROY: {
-        futures.push_back(authorize(
-            principal, ActionObject::destroyVolume(operation.destroy())));
-
-        break;
-      }
-
-      case Offer::Operation::GROW_VOLUME: {
-        futures.push_back(authorize(
-            principal, ActionObject::growVolume(operation.grow_volume())));
-
-        break;
-      }
-
-      case Offer::Operation::SHRINK_VOLUME: {
-        futures.push_back(authorize(
-            principal, ActionObject::shrinkVolume(operation.shrink_volume())));
-
-        break;
-      }
-
-      case Offer::Operation::CREATE_DISK: {
-        Try<ActionObject> actionObject =
-          ActionObject::createDisk(operation.create_disk());
-
-        if (actionObject.isError()) {
-          futures.push_back(Failure(actionObject.error()));
-        } else {
-          futures.push_back(authorize(principal, std::move(*actionObject)));
-        }
-
-        break;
-      }
-
-      case Offer::Operation::DESTROY_DISK: {
-        Try<ActionObject> actionObject =
-          ActionObject::destroyDisk(operation.destroy_disk());
-
-        if (actionObject.isError()) {
-          futures.push_back(Failure(actionObject.error()));
-        } else {
-          futures.push_back(authorize(principal, std::move(*actionObject)));
-        }
-
-        break;
-      }
-
-      case Offer::Operation::UNKNOWN: {
-        // TODO(vinod): Send an error event to the scheduler?
-        LOG(WARNING) << "Ignoring unknown operation";
-        break;
-      }
-    }
-  }
-
-  // Wait for all the tasks to be authorized.
-  await(futures)
-    .onAny(defer(self(),
-                 &Master::_accept,
-                 framework->id(),
-                 slaveId,
-                 std::move(accept),
-                 lambda::_1));
+  // TODO(asekretenko): Dismantle `_accept(...)` (which, before synchronous
+  // authorization was introduced, used to be a deferred continuation of ACCEPT
+  // call processing, but now is kept only for limiting variable scopes) and
+  // handle operations one-by-one.
+  _accept(framework->id(), slaveId, std::move(accept));
 }
 
 
 void Master::_accept(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    scheduler::Call::Accept&& accept,
-    const Future<vector<Future<bool>>>& _authorizations)
+    scheduler::Call::Accept&& accept)
 {
   auto discardOffers = [this](const RepeatedPtrField<OfferID>& ids) {
     for (const OfferID& offerId : ids) {
@@ -4583,56 +4473,60 @@ void Master::_accept(
   // The order of the conversions is important and preserved.
   vector<ResourceConversion> conversions;
 
-  // The order of `authorizations` must match the order of the operations and/or
-  // tasks in `accept.operations()` as they are iterated through simultaneously.
-  CHECK_READY(_authorizations);
-  std::deque<Future<bool>> authorizations(
-      _authorizations->begin(), _authorizations->end());
-
   foreach (const Offer::Operation& operation, accept.operations()) {
+    auto authorized_ =
+      [&framework, &operation](const ActionObject& actionObject)
+        -> Option<Error> {
+      const Try<bool> authorized = framework->approved(actionObject);
+      if (authorized.isError()) {
+        return Error(
+            "Failed to authorize principal '" + framework->info.principal() +
+            "' to perform " + Offer::Operation::Type_Name(operation.type()) +
+            ": " + authorized.error());
+      }
+
+      if (!*authorized) {
+        return Error(
+            "Principal '" + framework->info.principal() +
+            "' no authorized to " + stringify(actionObject));
+      }
+
+      return None();
+    };
+
+    auto authorized = overload(
+        authorized_,
+        [&authorized_](const vector<ActionObject>& actionObjects) {
+          for (const ActionObject& actionObject : actionObjects) {
+            const Option<Error> error = authorized_(actionObject);
+            if (error.isSome()) {
+              return error;
+            }
+          }
+
+          return Option<Error>::none();
+        });
+
+
     switch (operation.type()) {
       // The RESERVE operation allows a principal to reserve resources.
       case Offer::Operation::RESERVE: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to reserve resources failed: " + authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to reserve resources as '" +
-               framework->info.principal() + "'");
-
-          continue;
-        }
-
         Option<Principal> principal = framework->info.has_principal()
                                         ? Principal(framework->info.principal())
                                         : Option<Principal>::none();
 
-        // Make sure this reserve operation is valid.
         Option<Error> error = validation::operation::validate(
             operation.reserve(),
             principal,
             slave->capabilities,
             framework->info);
 
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::reserve(operation.reserve()));
+
         if (error.isSome()) {
-          drop(
-              framework,
-              operation,
-              error->message + "; on agent " + stringify(*slave));
+          drop(framework, operation, error->message);
           continue;
         }
 
@@ -4669,34 +4563,12 @@ void Master::_accept(
 
       // The UNRESERVE operation allows a principal to unreserve resources.
       case Offer::Operation::UNRESERVE: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to unreserve resources failed: " +
-               authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to unreserve resources as '" +
-                 framework->info.principal() + "'");
-
-          continue;
-        }
-
-        // Make sure this unreserve operation is valid.
         Option<Error> error =
           validation::operation::validate(operation.unreserve());
+
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::unreserve(operation.unreserve()));
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
@@ -4735,31 +4607,6 @@ void Master::_accept(
       }
 
       case Offer::Operation::CREATE: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to create persistent volumes failed: " +
-               authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to create persistent volumes as '" +
-                 framework->info.principal() + "'");
-
-          continue;
-        }
-
         Option<Principal> principal = framework->info.has_principal()
                                         ? Principal(framework->info.principal())
                                         : Option<Principal>::none();
@@ -4772,11 +4619,12 @@ void Master::_accept(
             slave->capabilities,
             framework->info);
 
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::createVolume(operation.create()));
+
         if (error.isSome()) {
-          drop(
-              framework,
-              operation,
-              error->message + "; on agent " + stringify(*slave));
+          drop(framework, operation, error->message);
           continue;
         }
 
@@ -4813,37 +4661,15 @@ void Master::_accept(
       }
 
       case Offer::Operation::DESTROY: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to destroy persistent volumes failed: " +
-               authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to destroy persistent volumes as '" +
-                 framework->info.principal() + "'");
-
-          continue;
-        }
-
-        // Make sure this destroy operation is valid.
         Option<Error> error = validation::operation::validate(
             operation.destroy(),
             slave->checkpointedResources,
             slave->usedResources,
             slave->pendingTasks);
+
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::destroyVolume(operation.destroy()));
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
@@ -4901,40 +4727,15 @@ void Master::_accept(
       }
 
       case Offer::Operation::GROW_VOLUME: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to grow a volume failed: " +
-               authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to grow a volume as '" +
-                 framework->info.principal() + "'");
-
-          continue;
-        }
-
-        // Make sure this grow volume operation is valid.
         Option<Error> error = validation::operation::validate(
             operation.grow_volume(), slave->capabilities);
 
+        error = error.isSome() ?
+          Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::growVolume(operation.grow_volume()));
+
         if (error.isSome()) {
-          drop(
-              framework,
-              operation,
-              error->message + "; on agent " + stringify(*slave));
+          drop(framework, operation, error->message);
           continue;
         }
 
@@ -4984,40 +4785,15 @@ void Master::_accept(
       }
 
       case Offer::Operation::SHRINK_VOLUME: {
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-               "' to shrink a volume failed: " +
-               authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to shrink a volume as '" +
-                 framework->info.principal() + "'");
-
-          continue;
-        }
-
-        // Make sure this shrink volume operation is valid.
         Option<Error> error = validation::operation::validate(
             operation.shrink_volume(), slave->capabilities);
 
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(ActionObject::shrinkVolume(operation.shrink_volume()));
+
         if (error.isSome()) {
-          drop(
-              framework,
-              operation,
-              error->message + "; on agent " + stringify(*slave));
+          drop(framework, operation, error->message);
           continue;
         }
 
@@ -5068,10 +4844,6 @@ void Master::_accept(
 
       case Offer::Operation::LAUNCH: {
         foreach (const TaskInfo& task, operation.launch().task_infos()) {
-          CHECK(!authorizations.empty());
-          Future<bool> authorization = authorizations.front();
-          authorizations.pop_front();
-
           // The task will not be in `pendingTasks` if it has been
           // killed in the interim. No need to send TASK_KILLED in
           // this case as it has already been sent. Note however that
@@ -5084,7 +4856,10 @@ void Master::_accept(
           // TODO(bmahler): We may send TASK_ERROR after a TASK_KILLED
           // if a task was killed (removed from `pendingTasks`) *and*
           // the task is invalid or unauthorized here.
-
+          //
+          // TODO(asekretenko): Now that ACCEPT is authorized synchronously,
+          // master state cannot change while the task is being authorized,
+          // and all the code for tracking pending tasks can be removed.
           bool pending = framework->pendingTasks.contains(task.task_id());
           framework->pendingTasks.erase(task.task_id());
           slave->pendingTasks[framework->id()].erase(task.task_id());
@@ -5092,17 +4867,10 @@ void Master::_accept(
             slave->pendingTasks.erase(framework->id());
           }
 
-          CHECK(!authorization.isDiscarded());
+          const Option<Error> authorizationError =
+            authorized(ActionObject::taskLaunch(task, framework->info));
 
-          if (authorization.isFailed() || !authorization.get()) {
-            string user = framework->info.user(); // Default user.
-            if (task.has_command() && task.command().has_user()) {
-              user = task.command().user();
-            } else if (task.has_executor() &&
-                       task.executor().command().has_user()) {
-              user = task.executor().command().user();
-            }
-
+          if (authorizationError.isSome()) {
             const StatusUpdate& update = protobuf::createStatusUpdate(
                 framework->id(),
                 task.slave_id(),
@@ -5110,9 +4878,7 @@ void Master::_accept(
                 TASK_ERROR,
                 TaskStatus::SOURCE_MASTER,
                 None(),
-                authorization.isFailed() ?
-                    "Authorization failure: " + authorization.failure() :
-                    "Not authorized to launch as user '" + user + "'",
+                authorizationError->message,
                 TaskStatus::REASON_TASK_UNAUTHORIZED);
 
             metrics->tasks_error++;
@@ -5315,29 +5081,19 @@ void Master::_accept(
         Option<Error> error;
         Option<TaskStatus::Reason> reason;
 
-        // NOTE: We check for the authorization errors first and never break the
-        // loop to ensure that all authorization futures for this task group are
-        // iterated through.
         foreach (const TaskInfo& task, taskGroup.tasks()) {
-          CHECK(!authorizations.empty());
-          Future<bool> authorization = authorizations.front();
-          authorizations.pop_front();
+          const ActionObject actionObject =
+            ActionObject::taskLaunch(task, framework->info);
 
-          CHECK(!authorization.isDiscarded());
+          const Try<bool> approval = framework->approved(actionObject);
 
-          if (authorization.isFailed()) {
+          if (approval.isError()) {
             error = Error("Failed to authorize task"
                           " '" + stringify(task.task_id()) + "'"
-                          ": " + authorization.failure());
-          } else if (!authorization.get()) {
-            string user = framework->info.user(); // Default user.
-            if (task.has_command() && task.command().has_user()) {
-              user = task.command().user();
-            }
-
+                          ": " + approval.error());
+          } else if (!*approval) {
             error = Error("Task '" + stringify(task.task_id()) + "'"
-                          " is not authorized to launch as"
-                          " user '" + user + "'");
+                          " is not authorized to" + stringify(actionObject));
           }
         }
 
@@ -5498,34 +5254,6 @@ void Master::_accept(
       }
 
       case Offer::Operation::CREATE_DISK: {
-        const Resource::DiskInfo::Source::Type diskType =
-          operation.create_disk().target_type();
-
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-                 "' to create a " + stringify(diskType) + " disk failed: " +
-                 authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to create a " + stringify(diskType) +
-                 " disk as '" + framework->info.principal() + "'");
-
-          continue;
-        }
-
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
@@ -5536,6 +5264,11 @@ void Master::_accept(
 
         Option<Error> error = validation::operation::validate(
             operation.create_disk());
+
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(CHECK_NOTERROR(
+              ActionObject::createDisk(operation.create_disk())));
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
@@ -5565,34 +5298,6 @@ void Master::_accept(
       }
 
       case Offer::Operation::DESTROY_DISK: {
-        const Resource::DiskInfo::Source::Type diskType =
-          operation.destroy_disk().source().disk().source().type();
-
-        CHECK(!authorizations.empty());
-        Future<bool> authorization = authorizations.front();
-        authorizations.pop_front();
-
-        CHECK(!authorization.isDiscarded());
-
-        if (authorization.isFailed()) {
-          // TODO(greggomann): We may want to retry this failed authorization
-          // request rather than dropping it immediately.
-          drop(framework,
-               operation,
-               "Authorization of principal '" + framework->info.principal() +
-                 "' to destroy a " + stringify(diskType) + " disk failed: " +
-                 authorization.failure());
-
-          continue;
-        } else if (!authorization.get()) {
-          drop(framework,
-               operation,
-               "Not authorized to destroy a " + stringify(diskType) +
-                 " disk as '" + framework->info.principal() + "'");
-
-          continue;
-        }
-
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
@@ -5603,6 +5308,12 @@ void Master::_accept(
 
         Option<Error> error = validation::operation::validate(
             operation.destroy_disk());
+
+        error = error.isSome()
+          ? Error(error->message + "; on agent " + stringify(*slave))
+          : authorized(CHECK_NOTERROR(
+              ActionObject::destroyDisk(operation.destroy_disk())));
+
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
@@ -5637,11 +5348,6 @@ void Master::_accept(
       }
     }
   }
-
-  CHECK(authorizations.empty())
-    << "Authorization results not processed: "
-    << stringify(
-           vector<Future<bool>>(authorizations.begin(), authorizations.end()));
 
   // Update the allocator based on the operations.
   if (!conversions.empty()) {
