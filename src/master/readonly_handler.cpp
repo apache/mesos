@@ -191,47 +191,6 @@ void FullFrameworkWriter::operator()(JSON::ObjectWriter* writer) const
 
   // Model all of the tasks associated with a framework.
   writer->field("tasks", [this](JSON::ArrayWriter* writer) {
-    foreachvalue (const TaskInfo& taskInfo, framework_->pendingTasks) {
-      // Skip unauthorized tasks.
-      if (!approvers_->approved<VIEW_TASK>(taskInfo, framework_->info)) {
-        continue;
-      }
-
-      writer->element([this, &taskInfo](JSON::ObjectWriter* writer) {
-        writer->field("id", taskInfo.task_id().value());
-        writer->field("name", taskInfo.name());
-        writer->field("framework_id", framework_->id().value());
-
-        writer->field(
-            "executor_id",
-            taskInfo.executor().executor_id().value());
-
-        writer->field("slave_id", taskInfo.slave_id().value());
-        writer->field("state", TaskState_Name(TASK_STAGING));
-        writer->field("resources", taskInfo.resources());
-
-        // Tasks are not allowed to mix resources allocated to
-        // different roles, see MESOS-6636.
-        writer->field(
-            "role",
-            taskInfo.resources().begin()->allocation_info().role());
-
-        writer->field("statuses", std::initializer_list<TaskStatus>{});
-
-        if (taskInfo.has_labels()) {
-          writer->field("labels", taskInfo.labels());
-        }
-
-        if (taskInfo.has_discovery()) {
-          writer->field("discovery", JSON::Protobuf(taskInfo.discovery()));
-        }
-
-        if (taskInfo.has_container()) {
-          writer->field("container", JSON::Protobuf(taskInfo.container()));
-        }
-      });
-    }
-
     foreachvalue (Task* task, framework_->tasks) {
       // Skip unauthorized tasks.
       if (!approvers_->approved<VIEW_TASK>(*task, framework_->info)) {
@@ -511,11 +470,6 @@ public:
     foreachpair (const FrameworkID& frameworkId,
                  const Framework* framework,
                  frameworks) {
-      foreachvalue (const TaskInfo& taskInfo, framework->pendingTasks) {
-        frameworksToSlaves[frameworkId].insert(taskInfo.slave_id());
-        slavesToFrameworks[taskInfo.slave_id()].insert(frameworkId);
-      }
-
       foreachvalue (const Task* task, framework->tasks) {
         frameworksToSlaves[frameworkId].insert(task->slave_id());
         slavesToFrameworks[task->slave_id()].insert(frameworkId);
@@ -632,11 +586,6 @@ public:
     foreachpair (const FrameworkID& frameworkId,
                  const Framework* framework,
                  frameworks) {
-      foreachvalue (const TaskInfo& taskInfo, framework->pendingTasks) {
-        frameworkTaskSummaries[frameworkId].staging++;
-        slaveTaskSummaries[taskInfo.slave_id()].staging++;
-      }
-
       foreachvalue (const Task* task, framework->tasks) {
         frameworkTaskSummaries[frameworkId].count(*task);
         slaveTaskSummaries[task->slave_id()].count(*task);
@@ -1983,26 +1932,6 @@ function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetTasks(
 
     int field;
 
-    // Pending tasks.
-    field = v1::master::Response::GetTasks::kPendingTasksFieldNumber;
-    writer->field(
-        descriptor->FindFieldByNumber(field)->name(),
-        [&](JSON::ArrayWriter* writer) {
-          foreach (const Framework* framework, frameworks) {
-            foreachvalue (const TaskInfo& t, framework->pendingTasks) {
-              // Skip unauthorized tasks.
-              if (!approvers->approved<VIEW_TASK>(t, framework->info)) {
-                continue;
-              }
-
-              Task task =
-                  protobuf::createTask(t, TASK_STAGING, framework->id());
-
-              writer->element(asV1Protobuf(task));
-            }
-          }
-        });
-
     // Active tasks.
     field = v1::master::Response::GetTasks::kTasksFieldNumber;
     writer->field(
@@ -2095,26 +2024,6 @@ string Master::ReadOnlyHandler::serializeGetTasks(
   google::protobuf::io::CodedOutputStream writer(&stream);
 
   foreach (const Framework* framework, frameworks) {
-    // Pending tasks.
-    foreachvalue (const TaskInfo& taskInfo, framework->pendingTasks) {
-      // Skip unauthorized tasks.
-      if (!approvers->approved<VIEW_TASK>(taskInfo, framework->info)) {
-        continue;
-      }
-
-      // TODO(bmahler): Consider not constructing the temporary task
-      // object and instead serialize directly. Since we don't expect
-      // a large number of pending tasks, we currently don't bother
-      // with the more efficient approach.
-      //
-      // *getTasks.add_pending_tasks() =
-      //   protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
-      WireFormatLite2::WriteMessageWithoutCachedSizes(
-          mesos::v1::master::Response::GetTasks::kPendingTasksFieldNumber,
-          protobuf::createTask(taskInfo, TASK_STAGING, framework->id()),
-          &writer);
-    }
-
     // Active tasks.
     foreachvalue (const Task* task, framework->tasks) {
       // Skip unauthorized tasks.

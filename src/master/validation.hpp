@@ -326,7 +326,6 @@ Option<Error> validate(
     const Offer::Operation::Destroy& destroy,
     const Resources& checkpointedResources,
     const hashmap<FrameworkID, Resources>& usedResources,
-    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks,
     const Option<FrameworkInfo>& frameworkInfo = None());
 
 

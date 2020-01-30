@@ -2543,7 +2543,6 @@ Option<Error> validate(
     const Offer::Operation::Destroy& destroy,
     const Resources& checkpointedResources,
     const hashmap<FrameworkID, Resources>& usedResources,
-    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks,
     const Option<FrameworkInfo>& frameworkInfo)
 {
   // The operation can either contain allocated resources
@@ -2597,27 +2596,6 @@ Option<Error> validate(
     foreach (const Resource& volume, volumes) {
       if (unallocated(resources).contains(volume)) {
         return Error("Persistent volumes in use");
-      }
-    }
-  }
-
-  // Ensure that the volumes being destroyed are not requested by any pending
-  // task. This check is mainly to validate destruction of shared volumes.
-  // Note that resource requirements in pending tasks are not validated yet
-  // so it is possible that the DESTROY validation fails due to invalid
-  // pending tasks.
-  typedef hashmap<TaskID, TaskInfo> TaskMap;
-  foreachvalue(const TaskMap& tasks, pendingTasks) {
-    foreachvalue (const TaskInfo& task, tasks) {
-      Resources resources = task.resources();
-      if (task.has_executor()) {
-        resources += task.executor().resources();
-      }
-
-      foreach (const Resource& volume, destroy.volumes()) {
-        if (unallocated(resources).contains(volume)) {
-          return Error("Persistent volume in pending tasks");
-        }
       }
     }
   }

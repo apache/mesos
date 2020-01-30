@@ -1029,8 +1029,7 @@ Future<Response> Master::Http::_destroyVolumes(
   error = validation::operation::validate(
       operation.destroy(),
       slave->checkpointedResources,
-      slave->usedResources,
-      slave->pendingTasks);
+      slave->usedResources);
 
   if (error.isSome()) {
     return BadRequest("Invalid DESTROY operation: " + error->message);
@@ -3782,13 +3781,6 @@ Future<Response> Master::Http::_drainAgent(
           // It's possible for the slave to be removed in the interim
           // if it is marked unreachable.
           if (slave != nullptr) {
-            hashmap<FrameworkID, hashset<TaskID>> pendingTaskIds;
-            foreachpair (const FrameworkID& frameworkId,
-                         const auto& tasks,
-                         slave->pendingTasks) {
-              pendingTaskIds[frameworkId] = tasks.keys();
-            }
-
             hashmap<FrameworkID, hashset<TaskID>> taskIds;
             foreachpair (const FrameworkID& frameworkId,
                          const auto& tasks,
@@ -3798,8 +3790,7 @@ Future<Response> Master::Http::_drainAgent(
 
             LOG(INFO)
               << "Transitioning agent " << slaveId << " to the DRAINING state"
-              << "; agent has (pending tasks, tasks, operations) == ("
-              << stringify(pendingTaskIds) << ", "
+              << "; agent has (tasks, operations) == ("
               << stringify(taskIds) << ", "
               << stringify(slave->operations.keys()) << ")";
 

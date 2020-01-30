@@ -237,12 +237,6 @@ Slave(Master* const _master,
   // the executors.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
-  // Tasks that have not yet been launched because they are currently
-  // being authorized. This is similar to Framework's pendingTasks but we
-  // track pendingTasks per agent separately to determine if any offer
-  // operation for this agent would change resources requested by these tasks.
-  hashmap<FrameworkID, hashmap<TaskID, TaskInfo>> pendingTasks;
-
   // Tasks present on this slave.
   //
   // TODO(bmahler): Make this private to enforce that `addTask()` and
@@ -2569,10 +2563,6 @@ struct Framework
   process::Time registeredTime;
   process::Time reregisteredTime;
   process::Time unregisteredTime;
-
-  // Tasks that have not yet been launched because they are currently
-  // being authorized.
-  hashmap<TaskID, TaskInfo> pendingTasks;
 
   // TODO(bmahler): Make this private to enforce that `addTask()` and
   // `removeTask()` are used, and provide a const view into the tasks.

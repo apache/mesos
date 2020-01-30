@@ -542,7 +542,7 @@ message Response {
   message GetTasks {
     // Tasks that are enqueued on the master waiting (e.g., authorizing)
     // to be launched.
-    repeated Task pending_tasks = 1;
+    repeated Task pending_tasks = 1 [deprecated=true];
 
     // Tasks that have been forwarded to the agent for launch. This
     // includes tasks that are staging or running; it also includes
