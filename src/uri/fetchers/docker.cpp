@@ -438,6 +438,35 @@ static http::Headers getAuthHeaderBearer(
   return headers;
 }
 
+
+static URI constructRegistryUri(const URI& imageUri, string&& path)
+{
+  const string scheme = imageUri.has_fragment() ? imageUri.fragment() : "https";
+  return uri::construct(
+      scheme,
+      std::move(path),
+      imageUri.host(),
+      (imageUri.has_port() ? Option<int>(imageUri.port()) : None()));
+}
+
+
+static URI getManifestUri(const URI& imageUri)
+{
+  return constructRegistryUri(
+      imageUri,
+      strings::join(
+          "/", "/v2", imageUri.path(), "manifests", imageUri.query()));
+}
+
+
+static URI getBlobUri(const URI& imageUri)
+{
+  return constructRegistryUri(
+      imageUri,
+      strings::join("/", "/v2", imageUri.path(), "blobs", imageUri.query()));
+}
+
+
 //-------------------------------------------------------------------
 // DockerFetcherPlugin implementation.
 //-------------------------------------------------------------------
@@ -509,9 +538,6 @@ private:
       const URI& uri,
       const http::Headers& basicAuthHeaders,
       const http::Response& response);
-
-  URI getManifestUri(const URI& uri);
-  URI getBlobUri(const URI& uri);
 
   // This is a lookup table for credentials in docker config file,
   // keyed by registry URL.
@@ -1129,35 +1155,6 @@ Future<http::Headers> DockerFetcherPluginProcess::getAuthHeader(
   return Failure("Unsupported auth-scheme: " + authScheme);
 }
 
-
-URI DockerFetcherPluginProcess::getManifestUri(const URI& uri)
-{
-  string scheme = "https";
-  if (uri.has_fragment()) {
-    scheme = uri.fragment();
-  }
-
-  return uri::construct(
-      scheme,
-      strings::join("/", "/v2", uri.path(), "manifests", uri.query()),
-      uri.host(),
-      (uri.has_port() ? Option<int>(uri.port()) : None()));
-}
-
-
-URI DockerFetcherPluginProcess::getBlobUri(const URI& uri)
-{
-  string scheme = "https";
-  if (uri.has_fragment()) {
-    scheme = uri.fragment();
-  }
-
-  return uri::construct(
-      scheme,
-      strings::join("/", "/v2", uri.path(), "blobs", uri.query()),
-      uri.host(),
-      (uri.has_port() ? Option<int>(uri.port()) : None()));
-}
 
 } // namespace uri {
 } // namespace mesos {
