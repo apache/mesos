@@ -212,6 +212,10 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  std::function<void(JSON::ObjectWriter*)> jsonifyGetTasks(
+      const process::Owned<ObjectApprovers>& approvers) const;
+  std::string serializeGetTasks(
+      const process::Owned<ObjectApprovers>& approvers) const;
   mesos::agent::Response::GetTasks _getTasks(
       const process::Owned<ObjectApprovers>& approvers) const;
 
