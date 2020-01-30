@@ -234,6 +234,10 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
+      const process::Owned<ObjectApprovers>& approvers) const;
+  std::string serializeGetState(
+      const process::Owned<ObjectApprovers>& approvers) const;
   mesos::agent::Response::GetState _getState(
       const process::Owned<ObjectApprovers>& approvers) const;
 

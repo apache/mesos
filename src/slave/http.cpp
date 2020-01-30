@@ -2690,7 +2690,7 @@ Future<Response> Http::getResourceProviders(
 
 Future<Response> Http::getState(
     const mesos::agent::Call& call,
-    ContentType acceptType,
+    ContentType contentType,
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_STATE, call.type());
@@ -2704,13 +2704,138 @@ Future<Response> Http::getState(
     .then(defer(
         slave->self(),
         [=](const Owned<ObjectApprovers>& approvers) -> Response {
-          mesos::agent::Response response;
-          response.set_type(mesos::agent::Response::GET_STATE);
-          *response.mutable_get_state() = _getState(approvers);
+          // Serialize the following message:
+          //
+          //   v1::agent::Response response;
+          //   response.set_type(mesos::agent::Response::GET_STATE);
+          //   *response.mutable_get_state() = _...;
 
-          return OK(serialize(acceptType, evolve(response)),
-                    stringify(acceptType));
-        }));
+          switch (contentType) {
+            case ContentType::PROTOBUF: {
+              string output;
+              google::protobuf::io::StringOutputStream stream(&output);
+              google::protobuf::io::CodedOutputStream writer(&stream);
+
+              WireFormatLite::WriteEnum(
+                  v1::agent::Response::kTypeFieldNumber,
+                  v1::agent::Response::GET_STATE,
+                  &writer);
+
+              WireFormatLite::WriteBytes(
+                  v1::agent::Response::kGetStateFieldNumber,
+                  serializeGetState(approvers),
+                  &writer);
+
+              // We must manually trim the unused buffer space since
+              // we use the string before the coded output stream is
+              // destructed.
+              writer.Trim();
+
+              return OK(std::move(output), stringify(contentType));
+            }
+
+            case ContentType::JSON: {
+              string body = jsonify([&](JSON::ObjectWriter* writer) {
+                const google::protobuf::Descriptor* descriptor =
+                  v1::agent::Response::descriptor();
+
+                int field;
+
+                field = v1::agent::Response::kTypeFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    v1::agent::Response::Type_Name(
+                        v1::agent::Response::GET_STATE));
+
+                field = v1::agent::Response::kGetStateFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    jsonifyGetState(approvers));
+              });
+
+              // TODO(bmahler): Pass jsonp query parameter through here.
+              return OK(std::move(body), stringify(contentType));
+            }
+
+            default:
+              return NotAcceptable("Request must accept json or protobuf");
+          }
+  }));
+}
+
+
+function<void(JSON::ObjectWriter*)> Http::jsonifyGetState(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   v1::agent::Response::GetState getState;
+  //   *getState.mutable_get_tasks() = ...;
+  //   *getState.mutable_get_executors() = ...;
+  //   *getState.mutable_get_frameworks() = ...;
+
+  // TODO(bmahler): This copies the Owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::agent::Response::GetState::descriptor();
+
+    int field;
+
+    field = v1::agent::Response::GetState::kGetTasksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetTasks(approvers));
+
+    field = v1::agent::Response::GetState::kGetExecutorsFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetExecutors(approvers));
+
+    field = v1::agent::Response::GetState::kGetFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        jsonifyGetFrameworks(approvers));
+  };
+}
+
+
+string Http::serializeGetState(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   v1::agent::Response::GetState getState;
+  //   *getState.mutable_get_tasks() = ...;
+  //   *getState.mutable_get_executors() = ...;
+  //   *getState.mutable_get_frameworks() = ...;
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  WireFormatLite::WriteBytes(
+      v1::agent::Response::GetState::kGetTasksFieldNumber,
+      serializeGetTasks(approvers),
+      &writer);
+
+  WireFormatLite::WriteBytes(
+      v1::agent::Response::GetState::kGetExecutorsFieldNumber,
+      serializeGetExecutors(approvers),
+      &writer);
+
+  WireFormatLite::WriteBytes(
+      v1::agent::Response::GetState::kGetFrameworksFieldNumber,
+      serializeGetFrameworks(approvers),
+      &writer);
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
 }
 
 
