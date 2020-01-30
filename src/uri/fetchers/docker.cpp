@@ -467,6 +467,59 @@ static URI getBlobUri(const URI& imageUri)
 }
 
 
+// Obtains URI of the V2 authorization service based on the
+// initial "401 unauthorized" response of the Docker V2 registry.
+static Future<string> getAuthServiceUri(const http::Response& initialResponse)
+{
+  Result<http::header::WWWAuthenticate> header =
+    initialResponse.headers.get<http::header::WWWAuthenticate>();
+
+  if (header.isError()) {
+    return Failure("Failed to get WWW-Authenticate header: " + header.error());
+  } else if (header.isNone()) {
+    return Failure("Unexpected empty WWW-Authenticate header");
+  }
+
+  // According to RFC, auth scheme should be case insensitive.
+  const string authScheme = strings::upper(header->authScheme());
+
+  if (authScheme == "BASIC") {
+    return Failure(
+        "Unexpected BASIC Authorization response status: " +
+        initialResponse.status);
+  }
+
+  if (authScheme != "BEARER") {
+    return Failure("Unsupported auth-scheme: " + authScheme);
+  }
+
+  hashmap<string, string> authParam = header->authParam();
+
+  // `authParam` is supposed to contain the 'realm', 'service'
+  // and 'scope' information for bearer authentication.
+  //
+  // TODO(asekretenko): Fall back to querying repository root and
+  // constructing scope if one of these is missing (see MESOS-10092).
+  if (!authParam.contains("realm")) {
+    return Failure("Missing 'realm' in WWW-Authenticate header");
+  }
+
+  if (!authParam.contains("service")) {
+    return Failure("Missing 'service' in WWW-Authenticate header");
+  }
+
+  if (!authParam.contains("scope")) {
+    return Failure("Missing 'scope' in WWW-Authenticate header");
+  }
+
+  // TODO(jieyu): Currently, we don't expect the auth server to return
+  // a service or a scope that needs encoding.
+  return authParam.at("realm") + "?" +
+    "service=" + authParam.at("service") + "&" +
+    "scope=" + authParam.at("scope");
+}
+
+
 //-------------------------------------------------------------------
 // DockerFetcherPlugin implementation.
 //-------------------------------------------------------------------
@@ -1068,91 +1121,51 @@ Future<Nothing> DockerFetcherPluginProcess::_urlFetchBlob(
 #endif
 
 
+// If a '401 Unauthorized' response is received and the auth-scheme
+// is 'Bearer', we expect a header 'Www-Authenticate' containing the
+// auth server information. We extract the auth server information
+// from the auth-param, and then contacts the auth server to get the
+// token. The token will then be placed in the subsequent HTTP
+// requests as a header.
+//
+// See details here:
+// https://docs.docker.com/registry/spec/auth/token/
 Future<http::Headers> DockerFetcherPluginProcess::getAuthHeader(
     const URI& uri,
     const http::Headers& basicAuthHeaders,
     const http::Response& response)
 {
-  Result<http::header::WWWAuthenticate> header =
-    response.headers.get<http::header::WWWAuthenticate>();
+  const auto stallTimeout = this->stallTimeout;
 
-  if (header.isError()) {
-    return Failure(
-        "Failed to get WWW-Authenticate header: " + header.error());
-  } else if (header.isNone()) {
-    return Failure("Unexpected empty WWW-Authenticate header");
-  }
+  return getAuthServiceUri(response)
+    .then([basicAuthHeaders, stallTimeout](const string& authServiceUri) {
+      return curl(authServiceUri, basicAuthHeaders, stallTimeout)
+        .then([authServiceUri](const http::Response& response)
+        -> Future<http::Headers> {
+          if (response.code != http::Status::OK) {
+            return Failure(
+                "Unexpected HTTP response '" + response.status + "' "
+                "when trying to GET '" + authServiceUri + "'");
+          }
 
-  // According to RFC, auth scheme should be case insensitive.
-  const string authScheme = strings::upper(header->authScheme());
+          CHECK_EQ(response.type, http::Response::BODY);
 
-  // If a '401 Unauthorized' response is received and the auth-scheme
-  // is 'Bearer', we expect a header 'Www-Authenticate' containing the
-  // auth server information. We extract the auth server information
-  // from the auth-param, and then contacts the auth server to get the
-  // token. The token will then be placed in the subsequent HTTP
-  // requests as a header.
-  //
-  // See details here:
-  // https://docs.docker.com/registry/spec/auth/token/
-  if (authScheme == "BEARER") {
-    hashmap<string, string> authParam = header->authParam();
+          Try<JSON::Object> object = JSON::parse<JSON::Object>(response.body);
+          if (object.isError()) {
+            return Failure("Parsing the JSON object failed: " + object.error());
+          }
 
-    // `authParam` is supposed to contain the 'realm', 'service'
-    // and 'scope' information for bearer authentication.
-    if (!authParam.contains("realm")) {
-      return Failure("Missing 'realm' in WWW-Authenticate header");
-    }
+          Result<JSON::String> token = object->find<JSON::String>("token");
+          if (token.isError()) {
+            return Failure(
+                "Finding token in JSON object failed: " + token.error());
+          } else if (token.isNone()) {
+            return Failure("Failed to find token in JSON object");
+          }
 
-    if (!authParam.contains("service")) {
-      return Failure("Missing 'service' in WWW-Authenticate header");
-    }
-
-    if (!authParam.contains("scope")) {
-      return Failure("Missing 'scope' in WWW-Authenticate header");
-    }
-
-    // TODO(jieyu): Currently, we don't expect the auth server to return
-    // a service or a scope that needs encoding.
-    string authServerUri =
-      authParam.at("realm") + "?" +
-      "service=" + authParam.at("service") + "&" +
-      "scope=" + authParam.at("scope");
-
-    return curl(authServerUri, basicAuthHeaders, stallTimeout)
-      .then([authServerUri](
-          const http::Response& response) -> Future<http::Headers> {
-        if (response.code != http::Status::OK) {
-          return Failure(
-            "Unexpected HTTP response '" + response.status + "' "
-            "when trying to GET '" + authServerUri + "'");
-        }
-
-        CHECK_EQ(response.type, http::Response::BODY);
-
-        Try<JSON::Object> object = JSON::parse<JSON::Object>(response.body);
-        if (object.isError()) {
-          return Failure("Parsing the JSON object failed: " + object.error());
-        }
-
-        Result<JSON::String> token = object->find<JSON::String>("token");
-        if (token.isError()) {
-          return Failure(
-              "Finding token in JSON object failed: " + token.error());
-        } else if (token.isNone()) {
-          return Failure("Failed to find token in JSON object");
-        }
-
-        return getAuthHeaderBearer(token->value);
-      });
-  }
-
-  if (authScheme == "BASIC"){
-    return Failure(
-        "Unexpected BASIC Authorization response status: " + response.status);
-  }
-
-  return Failure("Unsupported auth-scheme: " + authScheme);
+          return getAuthHeaderBearer(token->value);
+        });
+    });
 }
 
 
