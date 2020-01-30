@@ -1555,7 +1555,7 @@ Future<Response> Http::state(
 
 Future<Response> Http::getFrameworks(
     const mesos::agent::Call& call,
-    ContentType acceptType,
+    ContentType contentType,
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_FRAMEWORKS, call.type());
@@ -1565,15 +1565,203 @@ Future<Response> Http::getFrameworks(
   return ObjectApprovers::create(slave->authorizer, principal, {VIEW_FRAMEWORK})
     .then(defer(
         slave->self(),
-        [this, acceptType](
+        [this, contentType](
             const Owned<ObjectApprovers>& approvers) -> Response {
-          mesos::agent::Response response;
-          response.set_type(mesos::agent::Response::GET_FRAMEWORKS);
-          *response.mutable_get_frameworks() = _getFrameworks(approvers);
+          // Serialize the following message:
+          //
+          //   v1::agent::Response response;
+          //   response.set_type(mesos::agent::Response::GET_FRAMEWORKS);
+          //   *response.mutable_get_frameworks() = _...;
 
-          return OK(serialize(acceptType, evolve(response)),
-                    stringify(acceptType));
+          switch (contentType) {
+            case ContentType::PROTOBUF: {
+              string output;
+              google::protobuf::io::StringOutputStream stream(&output);
+              google::protobuf::io::CodedOutputStream writer(&stream);
+
+              WireFormatLite::WriteEnum(
+                  v1::agent::Response::kTypeFieldNumber,
+                  v1::agent::Response::GET_FRAMEWORKS,
+                  &writer);
+
+              WireFormatLite::WriteBytes(
+                  v1::agent::Response::kGetFrameworksFieldNumber,
+                  serializeGetFrameworks(approvers),
+                  &writer);
+
+              // We must manually trim the unused buffer space since
+              // we use the string before the coded output stream is
+              // destructed.
+              writer.Trim();
+
+              return OK(std::move(output), stringify(contentType));
+            }
+
+            case ContentType::JSON: {
+              string body = jsonify([&](JSON::ObjectWriter* writer) {
+                const google::protobuf::Descriptor* descriptor =
+                  v1::agent::Response::descriptor();
+
+                int field;
+
+                field = v1::agent::Response::kTypeFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    v1::agent::Response::Type_Name(
+                        v1::agent::Response::GET_FRAMEWORKS));
+
+                field = v1::agent::Response::kGetFrameworksFieldNumber;
+                writer->field(
+                    descriptor->FindFieldByNumber(field)->name(),
+                    jsonifyGetFrameworks(approvers));
+              });
+
+              // TODO(bmahler): Pass jsonp query parameter through here.
+              return OK(std::move(body), stringify(contentType));
+            }
+
+            default:
+              return NotAcceptable("Request must accept json or protobuf");
+          }
         }));
+}
+
+
+function<void(JSON::ObjectWriter*)> Http::jsonifyGetFrameworks(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   v1::agent::Response::GetFrameworks getFrameworks;
+  //
+  //   for each framework:
+  //     *getFrameworks.add_frameworks()
+  //       ->mutable_framework_info() = ...;
+  //
+  //   for each completed framework:
+  //     *getFrameworks.add_completed_frameworks()
+  //       ->mutable_framework_info() = ...;
+
+  // Lambda for jsonifying the following message:
+  //
+  //   v1::agent::Response::GetFrameworks::Framework framework;
+  //   *framework.mutable_framework_info() = frameworkInfo;
+  auto jsonifyGetFramework = [](const FrameworkInfo& f) {
+    return [&](JSON::ObjectWriter* writer) {
+      const google::protobuf::Descriptor* descriptor =
+        v1::agent::Response::GetFrameworks::Framework::descriptor();
+
+      int field = v1::agent::Response::GetFrameworks::Framework
+        ::kFrameworkInfoFieldNumber;
+
+      writer->field(
+          descriptor->FindFieldByNumber(field)->name(),
+          asV1Protobuf(f));
+    };
+  };
+
+  // TODO(bmahler): This copies the owned object approvers.
+  return [=](JSON::ObjectWriter* writer) {
+    const google::protobuf::Descriptor* descriptor =
+      v1::agent::Response::GetFrameworks::descriptor();
+
+    int field;
+
+    field = v1::agent::Response::GetFrameworks::kFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreachvalue (const Framework* f, slave->frameworks) {
+            if (approvers->approved<VIEW_FRAMEWORK>(f->info)) {
+              writer->element(jsonifyGetFramework(f->info));
+            }
+          }
+        });
+
+    field = v1::agent::Response::GetFrameworks::kCompletedFrameworksFieldNumber;
+    writer->field(
+        descriptor->FindFieldByNumber(field)->name(),
+        [&](JSON::ArrayWriter* writer) {
+          foreachvalue (const Owned<Framework>& f, slave->completedFrameworks) {
+            if (approvers->approved<VIEW_FRAMEWORK>(f->info)) {
+              writer->element(jsonifyGetFramework(f->info));
+            }
+          }
+        });
+  };
+}
+
+
+string Http::serializeGetFrameworks(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  // Serialize the following message:
+  //
+  //   v1::agent::Response::GetFrameworks getFrameworks;
+  //
+  //   for each framework:
+  //     *getFrameworks.add_frameworks()
+  //       ->mutable_framework_info() = ...;
+  //
+  //   for each completed framework:
+  //     *getFrameworks.add_completed_frameworks()
+  //       ->mutable_framework_info() = ...;
+
+  // Lambda for serializing the following message:
+  //
+  //   v1::agent::Response::GetFrameworks::Framework framework;
+  //   *framework.mutable_framework_info() = frameworkInfo;
+  auto serializeFramework = [](const FrameworkInfo& f) {
+    string output;
+    google::protobuf::io::StringOutputStream stream(&output);
+    google::protobuf::io::CodedOutputStream writer(&stream);
+
+    WireFormatLite2::WriteMessageWithoutCachedSizes(
+        v1::agent::Response::GetFrameworks::Framework
+          ::kFrameworkInfoFieldNumber,
+        f,
+        &writer);
+
+    // While an explicit Trim() isn't necessary (since the coded
+    // output stream is destructed before the string is returned),
+    // it's a quite tricky bug to diagnose if Trim() is missed, so
+    // we always do it explicitly to signal the reader about this
+    // subtlety.
+    writer.Trim();
+
+    return output;
+  };
+
+  string output;
+  google::protobuf::io::StringOutputStream stream(&output);
+  google::protobuf::io::CodedOutputStream writer(&stream);
+
+  foreachvalue (const Framework* f, slave->frameworks) {
+    if (approvers->approved<VIEW_FRAMEWORK>(f->info)) {
+      WireFormatLite::WriteBytes(
+          v1::agent::Response::GetFrameworks::kFrameworksFieldNumber,
+          serializeFramework(f->info),
+          &writer);
+    }
+  }
+
+  foreachvalue (const Owned<Framework>& f, slave->completedFrameworks) {
+    if (approvers->approved<VIEW_FRAMEWORK>(f->info)) {
+      WireFormatLite::WriteBytes(
+          v1::agent::Response::GetFrameworks::kCompletedFrameworksFieldNumber,
+          serializeFramework(f->info),
+          &writer);
+    }
+  }
+
+  // While an explicit Trim() isn't necessary (since the coded
+  // output stream is destructed before the string is returned),
+  // it's a quite tricky bug to diagnose if Trim() is missed, so
+  // we always do it explicitly to signal the reader about this
+  // subtlety.
+  writer.Trim();
+
+  return output;
 }
 
 

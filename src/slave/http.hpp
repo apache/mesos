@@ -183,6 +183,10 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  std::function<void(JSON::ObjectWriter*)> jsonifyGetFrameworks(
+      const process::Owned<ObjectApprovers>& approvers) const;
+  std::string serializeGetFrameworks(
+      const process::Owned<ObjectApprovers>& approvers) const;
   mesos::agent::Response::GetFrameworks _getFrameworks(
       const process::Owned<ObjectApprovers>& approvers ) const;
 
