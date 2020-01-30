@@ -195,6 +195,10 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  std::function<void(JSON::ObjectWriter*)> jsonifyGetExecutors(
+      const process::Owned<ObjectApprovers>& approvers) const;
+  std::string serializeGetExecutors(
+      const process::Owned<ObjectApprovers>& approvers) const;
   mesos::agent::Response::GetExecutors _getExecutors(
       const process::Owned<ObjectApprovers>& approvers) const;
 
