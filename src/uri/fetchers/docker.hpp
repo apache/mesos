@@ -45,7 +45,14 @@ public:
 
   static const char NAME[];
 
-  static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
+  // `enableAuthServiceUriFallback` switches on the fallback auth service URI
+  // generation scheme for V2 registries that do not provide 'service'/'scope'
+  // parameters in the initial 'WWW-Authenticate' header.
+  //
+  // NOTE: switching the fallback off is required for testing purposes.
+  static Try<process::Owned<Fetcher::Plugin>> create(
+      const Flags& flags,
+      bool enableAuthServiceUriFallback = true);
 
   static std::string getBlobPath(
       const std::string& directory,
