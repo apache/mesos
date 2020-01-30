@@ -1765,34 +1765,6 @@ string Http::serializeGetFrameworks(
 }
 
 
-mesos::agent::Response::GetFrameworks Http::_getFrameworks(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  mesos::agent::Response::GetFrameworks getFrameworks;
-  foreachvalue (const Framework* framework, slave->frameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    getFrameworks.add_frameworks()->mutable_framework_info()
-      ->CopyFrom(framework->info);
-  }
-
-  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    getFrameworks.add_completed_frameworks()->mutable_framework_info()
-      ->CopyFrom(framework->info);
-  }
-
-  return getFrameworks;
-}
-
-
 Future<Response> Http::getExecutors(
     const mesos::agent::Call& call,
     ContentType contentType,
@@ -2028,61 +2000,6 @@ string Http::serializeGetExecutors(
   writer.Trim();
 
   return output;
-}
-
-
-mesos::agent::Response::GetExecutors Http::_getExecutors(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  // Construct framework list with both active and completed frameworks.
-  vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, slave->frameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    frameworks.push_back(framework);
-  }
-
-  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    frameworks.push_back(framework.get());
-  }
-
-  mesos::agent::Response::GetExecutors getExecutors;
-
-  foreach (const Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      // Skip unauthorized executors.
-      if (!approvers->approved<VIEW_EXECUTOR>(
-              executor->info,
-              framework->info)) {
-        continue;
-      }
-
-      getExecutors.add_executors()->mutable_executor_info()->CopyFrom(
-          executor->info);
-    }
-
-    foreach (const Owned<Executor>& executor, framework->completedExecutors) {
-      // Skip unauthorized executors.
-      if (!approvers->approved<VIEW_EXECUTOR>(
-              executor->info,
-              framework->info)) {
-        continue;
-      }
-
-      getExecutors.add_completed_executors()->mutable_executor_info()->CopyFrom(
-          executor->info);
-    }
-  }
-
-  return getExecutors;
 }
 
 
@@ -2496,126 +2413,6 @@ string Http::serializeGetTasks(
 }
 
 
-mesos::agent::Response::GetTasks Http::_getTasks(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  // Construct framework list with both active and completed frameworks.
-  vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, slave->frameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    frameworks.push_back(framework);
-  }
-
-  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
-    // Skip unauthorized frameworks.
-    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-      continue;
-    }
-
-    frameworks.push_back(framework.get());
-  }
-
-  // Construct executor list with both active and completed executors.
-  hashmap<const Executor*, const Framework*> executors;
-  foreach (const Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      // Skip unauthorized executors.
-      if (!approvers->approved<VIEW_EXECUTOR>(
-              executor->info, framework->info)) {
-        continue;
-      }
-
-      executors.put(executor, framework);
-    }
-
-    foreach (const Owned<Executor>& executor, framework->completedExecutors) {
-      // Skip unauthorized executors.
-      if (!approvers->approved<VIEW_EXECUTOR>(
-              executor->info, framework->info)) {
-        continue;
-      }
-
-      executors.put(executor.get(), framework);
-    }
-  }
-
-  mesos::agent::Response::GetTasks getTasks;
-
-  foreach (const Framework* framework, frameworks) {
-    // Pending tasks.
-    typedef hashmap<TaskID, TaskInfo> TaskMap;
-    foreachvalue (const TaskMap& taskInfos, framework->pendingTasks) {
-      foreachvalue (const TaskInfo& taskInfo, taskInfos) {
-        // Skip unauthorized tasks.
-        if (!approvers->approved<VIEW_TASK>(taskInfo, framework->info)) {
-          continue;
-        }
-
-        const Task& task =
-          protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
-
-        getTasks.add_pending_tasks()->CopyFrom(task);
-      }
-    }
-  }
-
-  foreachpair (const Executor* executor,
-               const Framework* framework,
-               executors) {
-    // Queued tasks.
-    foreachvalue (const TaskInfo& taskInfo, executor->queuedTasks) {
-      // Skip unauthorized tasks.
-      if (!approvers->approved<VIEW_TASK>(taskInfo, framework->info)) {
-        continue;
-      }
-
-      const Task& task =
-        protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
-
-      getTasks.add_queued_tasks()->CopyFrom(task);
-    }
-
-    // Launched tasks.
-    foreachvalue (Task* task, executor->launchedTasks) {
-      CHECK_NOTNULL(task);
-      // Skip unauthorized tasks.
-      if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
-        continue;
-      }
-
-      getTasks.add_launched_tasks()->CopyFrom(*task);
-    }
-
-    // Terminated tasks.
-    foreachvalue (Task* task, executor->terminatedTasks) {
-      CHECK_NOTNULL(task);
-      // Skip unauthorized tasks.
-      if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
-        continue;
-      }
-
-      getTasks.add_terminated_tasks()->CopyFrom(*task);
-    }
-
-    // Completed tasks.
-    foreach (const std::shared_ptr<Task>& task, executor->completedTasks) {
-      // Skip unauthorized tasks.
-      if (!approvers->approved<VIEW_TASK>(*task.get(), framework->info)) {
-        continue;
-      }
-
-      getTasks.add_completed_tasks()->CopyFrom(*task);
-    }
-  }
-
-  return getTasks;
-}
-
-
 Future<Response> Http::getAgent(
     const mesos::agent::Call& call,
     ContentType acceptType,
@@ -2836,19 +2633,6 @@ string Http::serializeGetState(
   writer.Trim();
 
   return output;
-}
-
-
-mesos::agent::Response::GetState Http::_getState(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  mesos::agent::Response::GetState getState;
-
-  *getState.mutable_get_tasks() = _getTasks(approvers);
-  *getState.mutable_get_executors() = _getExecutors(approvers);
-  *getState.mutable_get_frameworks() = _getFrameworks(approvers);
-
-  return getState;
 }
 
 

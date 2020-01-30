@@ -1742,8 +1742,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-    mesos::master::Response::GetAgents _getAgents(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
@@ -1839,8 +1837,6 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-    mesos::master::Response::GetTasks _getTasks(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> createVolumes(
         const mesos::master::Call& call,
@@ -1876,22 +1872,16 @@ private:
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-    mesos::master::Response::GetFrameworks _getFrameworks(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getExecutors(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-    mesos::master::Response::GetExecutors _getExecutors(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getState(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
-    mesos::master::Response::GetState _getState(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     static std::function<void(JSON::ObjectWriter*)> jsonifySubscribe(
         const Master* master,

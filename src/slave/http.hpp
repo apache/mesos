@@ -187,8 +187,6 @@ private:
       const process::Owned<ObjectApprovers>& approvers) const;
   std::string serializeGetFrameworks(
       const process::Owned<ObjectApprovers>& approvers) const;
-  mesos::agent::Response::GetFrameworks _getFrameworks(
-      const process::Owned<ObjectApprovers>& approvers ) const;
 
   process::Future<process::http::Response> getExecutors(
       const mesos::agent::Call& call,
@@ -198,8 +196,6 @@ private:
   std::function<void(JSON::ObjectWriter*)> jsonifyGetExecutors(
       const process::Owned<ObjectApprovers>& approvers) const;
   std::string serializeGetExecutors(
-      const process::Owned<ObjectApprovers>& approvers) const;
-  mesos::agent::Response::GetExecutors _getExecutors(
       const process::Owned<ObjectApprovers>& approvers) const;
 
   process::Future<process::http::Response> getOperations(
@@ -215,8 +211,6 @@ private:
   std::function<void(JSON::ObjectWriter*)> jsonifyGetTasks(
       const process::Owned<ObjectApprovers>& approvers) const;
   std::string serializeGetTasks(
-      const process::Owned<ObjectApprovers>& approvers) const;
-  mesos::agent::Response::GetTasks _getTasks(
       const process::Owned<ObjectApprovers>& approvers) const;
 
   process::Future<process::http::Response> getAgent(
@@ -237,8 +231,6 @@ private:
   std::function<void(JSON::ObjectWriter*)> jsonifyGetState(
       const process::Owned<ObjectApprovers>& approvers) const;
   std::string serializeGetState(
-      const process::Owned<ObjectApprovers>& approvers) const;
-  mesos::agent::Response::GetState _getState(
       const process::Owned<ObjectApprovers>& approvers) const;
 
   process::Future<process::http::Response> launchNestedContainer(
