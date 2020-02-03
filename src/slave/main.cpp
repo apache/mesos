@@ -62,7 +62,11 @@
 
 #include "common/authorization.hpp"
 #include "common/build.hpp"
+
+#ifndef __WINDOWS__
 #include "common/domain_sockets.hpp"
+#endif // __WINDOWS__
+
 #include "common/http.hpp"
 
 #include "hook/manager.hpp"
@@ -112,7 +116,9 @@ using process::Owned;
 using process::firewall::DisabledEndpointsFirewallRule;
 using process::firewall::FirewallRule;
 
+#ifndef __WINDOWS__
 using process::network::unix::Socket;
+#endif // __WINDOWS__
 
 using std::cerr;
 using std::cout;
@@ -352,6 +358,7 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", flags.advertise_port.get());
   }
 
+#ifndef __WINDOWS__
   if (flags.http_executor_domain_sockets) {
     if (flags.domain_socket_location.isNone()) {
       flags.domain_socket_location =
@@ -365,6 +372,7 @@ int main(int argc, char** argv)
         << " must have less than 108 characters.";
     }
   }
+#endif // __WINDOWS__
 
   os::setenv("LIBPROCESS_MEMORY_PROFILING", stringify(flags.memory_profiling));
 
@@ -629,6 +637,7 @@ int main(int argc, char** argv)
   }
 #endif // USE_SSL_SOCKET
 
+#ifndef __WINDOWS__
   // Create executor domain socket if the user so desires.
   Option<Socket> executorSocket = None();
   if (flags.http_executor_domain_sockets) {
@@ -696,6 +705,7 @@ int main(int argc, char** argv)
 
     LOG(INFO) << "Using domain socket at " << *flags.domain_socket_location;
   }
+#endif // __WINDOWS__
 
   Slave* slave = new Slave(
       id,
@@ -710,7 +720,9 @@ int main(int argc, char** argv)
       secretGenerator,
       volumeGidManager,
       futureTracker.get(),
+#ifndef __WINDOWS__
       executorSocket,
+#endif // __WINDOWS__
       authorizer_);
 
   process::spawn(slave);

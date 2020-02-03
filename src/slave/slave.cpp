@@ -200,7 +200,9 @@ Slave::Slave(const string& id,
              SecretGenerator* _secretGenerator,
              VolumeGidManager* _volumeGidManager,
              PendingFutureTracker* _futureTracker,
+#ifndef __WINDOWS__
              const Option<process::network::unix::Socket>& _executorSocket,
+#endif // __WINDOWS__
              const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
@@ -232,7 +234,9 @@ Slave::Slave(const string& id,
     secretGenerator(_secretGenerator),
     volumeGidManager(_volumeGidManager),
     futureTracker(_futureTracker),
+#ifndef __WINDOWS__
     executorSocket(_executorSocket),
+#endif // __WINDOWS__
     authorizer(_authorizer),
     resourceVersion(protobuf::createUUID()) {}
 
@@ -776,6 +780,7 @@ void Slave::initialize()
         },
         options);
 
+#ifndef __WINDOWS__
   if (executorSocket.isSome()) {
     // We use `http::Server` to manage the communication channel.
     // Since `http::Server` currently doesn't offer support for
@@ -837,6 +842,7 @@ void Slave::initialize()
       }
     }
   }
+#endif // __WINDOWS__
 
   route("/api/v1/executor",
         EXECUTOR_HTTP_AUTHENTICATION_REALM,

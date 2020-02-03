@@ -130,7 +130,9 @@ public:
         mesos::SecretGenerator* secretGenerator,
         VolumeGidManager* volumeGidManager,
         PendingFutureTracker* futureTracker,
+#ifndef __WINDOWS__
         const Option<process::network::unix::Socket>& executorSocket,
+#endif // __WINDOWS__
         const Option<Authorizer*>& authorizer);
 
   ~Slave() override;
@@ -874,7 +876,10 @@ private:
 
   PendingFutureTracker* futureTracker;
 
+#ifndef __WINDOWS__
   Option<process::network::unix::Socket> executorSocket;
+#endif // __WINDOWS__
+
   Option<process::http::Server> executorSocketServer;
 
   const Option<Authorizer*> authorizer;

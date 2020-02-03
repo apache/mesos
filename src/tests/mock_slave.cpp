@@ -124,7 +124,9 @@ MockSlave::MockSlave(
         secretGenerator,
         volumeGidManager,
         futureTracker,
+#ifndef __WINDOWS__
         None(),
+#endif // __WINDOWS__
         authorizer)
 {
   // Set up default behaviors, calling the original methods.

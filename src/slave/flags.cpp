@@ -25,7 +25,10 @@
 
 #include <mesos/type_utils.hpp>
 
+#ifndef __WINDOWS__
 #include "common/domain_sockets.hpp"
+#endif // __WINDOWS__
+
 #include "common/http.hpp"
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
@@ -985,6 +988,7 @@ mesos::internal::slave::Flags::Flags()
 #endif // __WINDOWS__
       );
 
+#ifndef __WINDOWS__
   add(&Flags::domain_socket_location,
       "domain_socket_location",
       "Location on the host filesystem of the domain socket used for\n"
@@ -1003,6 +1007,7 @@ mesos::internal::slave::Flags::Flags()
 
         return None();
       });
+#endif // __WINDOWS__
 
   add(&Flags::default_container_dns,
       "default_container_dns",
@@ -1401,12 +1406,14 @@ mesos::internal::slave::Flags::Flags()
       false);
 #endif // USE_SSL_SOCKET
 
+#ifndef __WINDOWS__
   add(&Flags::http_executor_domain_sockets,
       "http_executor_domain_sockets",
       "If true, the agent will provide a unix domain sockets that the\n"
       "executor can use to connect to the agent, instead of relying on\n"
       "a TCP connection.",
       false);
+#endif // __WINDOWS__
 
   add(&Flags::http_credentials,
       "http_credentials",

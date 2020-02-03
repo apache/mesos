@@ -43,7 +43,10 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
+#ifndef __WINDOWS__
 #include "common/domain_sockets.hpp"
+#endif // __WINDOWS__
+
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 #include "common/validation.hpp"
@@ -233,6 +236,7 @@ public:
     }
 #endif // USE_SSL_SOCKET
 
+#ifndef __WINDOWS__
     value = env.get("MESOS_DOMAIN_SOCKET");
     if (value.isSome()) {
       string scheme = "http+unix";
@@ -269,7 +273,9 @@ public:
           scheme,
           path,
           upid.id + "/api/v1/executor");
-    } else {
+    } else
+#endif
+    {
       agent = ::URL(
           scheme,
           upid.address.ip,
