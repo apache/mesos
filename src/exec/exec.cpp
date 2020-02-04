@@ -47,6 +47,8 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "docker/executor.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
