@@ -304,6 +304,13 @@ canonical list is located on
       <td>andschwa@apache.org</td>
     </tr>
     <tr>
+      <td>+1</td>
+      <td>Andrei Sekretenko</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>asekretenko@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Gilbert Song</td>
       <td>Mesosphere</td>
