@@ -6313,10 +6313,20 @@ void Master::checkAndTransitionDrainingAgent(Slave* slave)
   if (!slave->pendingTasks.empty() ||
       !slave->tasks.empty() ||
       !slave->operations.empty()) {
+    size_t numTasks = 0u;
+    foreachvalue (const auto& frameworkTasks, slave->tasks) {
+      numTasks += frameworkTasks.size();
+    }
+
+    size_t numPendingTasks = 0u;
+    foreachvalue (const auto& frameworkTasks, slave->pendingTasks) {
+      numPendingTasks += frameworkTasks.size();
+    }
+
     VLOG(1)
       << "DRAINING Agent " << slaveId << " has "
-      << slave->pendingTasks.size() << " pending tasks, "
-      << slave->tasks.size() << " tasks, and "
+      << numPendingTasks << " pending tasks, "
+      << numTasks << " tasks, and "
       << slave->operations.size() << " operations";
     return;
   }
