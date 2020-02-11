@@ -496,6 +496,7 @@ TEST_P(CommandExecutorTest, AllocationRoleEnvironmentVariable)
 }
 
 
+#ifndef __WINDOWS__
 // This test checks that the command executor can communicate
 // with the agent using unix domain sockets, when the necessary
 // flags are set on the agent.
@@ -572,6 +573,7 @@ TEST_P(CommandExecutorTest, ExecutorDomainSockets)
   driver.stop();
   driver.join();
 }
+#endif // __WINDOWS__
 
 
 class HTTPCommandExecutorTest
