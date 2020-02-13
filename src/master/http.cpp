@@ -3940,7 +3940,31 @@ Future<Response> Master::Http::_drainAgent(
           master->slaves.deactivated.insert(slaveId);
 
           Slave* slave = master->slaves.registered.get(slaveId);
+
+          // It's possible for the slave to be removed in the interim
+          // if it is marked unreachable.
           if (slave != nullptr) {
+            hashmap<FrameworkID, hashset<TaskID>> pendingTaskIds;
+            foreachpair (const FrameworkID& frameworkId,
+                         const auto& tasks,
+                         slave->pendingTasks) {
+              pendingTaskIds[frameworkId] = tasks.keys();
+            }
+
+            hashmap<FrameworkID, hashset<TaskID>> taskIds;
+            foreachpair (const FrameworkID& frameworkId,
+                         const auto& tasks,
+                         slave->tasks) {
+              taskIds[frameworkId] = tasks.keys();
+            }
+
+            LOG(INFO)
+              << "Transitioning agent " << slaveId << " to the DRAINING state"
+              << "; agent has (pending tasks, tasks, operations) == ("
+              << stringify(pendingTaskIds) << ", "
+              << stringify(taskIds) << ", "
+              << stringify(slave->operations.keys()) << ")";
+
             master->deactivate(slave);
 
             // Tell the agent to start draining.

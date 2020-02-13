@@ -998,10 +998,42 @@ void Slave::drain(
     const UPID& from,
     DrainSlaveMessage&& drainSlaveMessage)
 {
+  hashmap<FrameworkID, hashset<TaskID>> pendingTaskIds;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (const auto& taskMap, framework->pendingTasks) {
+      pendingTaskIds[framework->id()] = taskMap.keys();
+    }
+  }
+
+  hashmap<FrameworkID, hashset<TaskID>> queuedTaskIds;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreachkey (const TaskID& taskId, executor->queuedTasks) {
+        queuedTaskIds[framework->id()].insert(taskId);
+      }
+    }
+  }
+
+  hashmap<FrameworkID, hashset<TaskID>> launchedTaskIds;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreachkey (const TaskID& taskId, executor->launchedTasks) {
+        launchedTaskIds[framework->id()].insert(taskId);
+      }
+    }
+  }
+
   LOG(INFO)
-    << "Checkpointing DrainConfig. Previous drain config was "
-    << (drainConfig.isSome() ? stringify(drainConfig.get()) : "NONE")
-    << ", new drain config is " << drainSlaveMessage.config();
+    << "Initiating drain with DrainConfig " << drainSlaveMessage.config()
+    << (drainConfig.isSome()
+        ? "; overwriting previous DrainConfig " + stringify(*drainConfig)
+        : "")
+    << "; agent has (pending tasks, queued tasks, launched tasks, operations)"
+    << " == ("
+    << stringify(pendingTaskIds) << ", "
+    << stringify(queuedTaskIds) << ", "
+    << stringify(launchedTaskIds) << ", "
+    << stringify(operations.keys()) << ")";
 
   CHECK_SOME(state::checkpoint(
       paths::getDrainConfigPath(metaDir, info.id()),
