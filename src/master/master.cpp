@@ -3316,11 +3316,7 @@ void Master::disconnect(Framework* framework)
     // a framework will always reauthenticate before (re-)registering.
     authenticated.erase(framework->pid.get());
   } else {
-    CHECK_SOME(framework->http);
-
-    // Close the HTTP connection, which may already have
-    // been closed due to scheduler disconnection.
-    framework->http->close();
+    framework->closeHttpConnection();
   }
 }
 
@@ -10905,9 +10901,8 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
-  // For http frameworks, close the connection.
   if (framework->http.isSome()) {
-    framework->http->close();
+    framework->closeHttpConnection();
   }
 
   framework->unregisteredTime = Clock::now();
