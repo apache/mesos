@@ -4127,6 +4127,11 @@ Future<Response> Master::Http::_reactivateAgent(
     return BadRequest("Agent is not deactivated");
   }
 
+  if (master->slaves.draining.contains(slaveId) &&
+      master->slaves.draining.at(slaveId).state() == DRAINING) {
+    return BadRequest("Agent is still in the DRAINING state");
+  }
+
   // Save the reactivation to the registry.
   return master->registrar->apply(Owned<RegistryOperation>(
       new ReactivateAgent(slaveId)))
