@@ -20,6 +20,7 @@
 #include <process/subprocess.hpp>
 
 #include <stout/flags.hpp>
+#include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
@@ -101,7 +102,7 @@ Try<std::vector<int>> listenFds();
 // The names are set by the `FileDescriptorName=` directive in the unit file.
 // This requires systemd 227 or newer. Since any number of unit files can
 // specify the same name, this can return more than one file descriptor.
-Try<std::vector<int>> listenFdsWithName(const std::string& name);
+Try<std::vector<int>> listenFdsWithNames(const hashset<std::string>& names);
 
 // Clear the `$LISTEN_PID`, `$LISTEN_FDS` and `$LISTEN_FDNAMES` environment
 // variables.

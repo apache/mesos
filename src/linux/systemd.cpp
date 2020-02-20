@@ -395,7 +395,7 @@ Try<std::vector<int>> listenFds()
 }
 
 
-Try<std::vector<int>> listenFdsWithName(const std::string& name)
+Try<std::vector<int>> listenFdsWithNames(const hashset<string>& names)
 {
   Try<std::vector<int>> fds = listenFds();
   if (fds.isError()) {
@@ -420,8 +420,8 @@ Try<std::vector<int>> listenFdsWithName(const std::string& name)
   }
 
   std::vector<int> result;
-  for (size_t i=0; i < listenFdnames.size(); ++i) {
-    if (listenFdnames[i] == name) {
+  for (size_t i = 0; i < listenFdnames.size(); ++i) {
+    if (names.contains(listenFdnames[i])) {
       result.push_back(fds->at(i));
     }
   }

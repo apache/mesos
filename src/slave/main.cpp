@@ -651,8 +651,11 @@ int main(int argc, char** argv)
       // Chop off `systemd:` prefix.
       std::string name = flags.domain_socket_location->substr(8);
 #ifdef __linux__
+      // NOTE: Some systemd versions do not support FileDescriptorName,
+      // thus we also need to listen on descriptors with name "unknown",
+      // which is used for sockets where no name could be determined.
       Try<std::vector<int>> socketFds =
-        systemd::socket_activation::listenFdsWithName(name);
+        systemd::socket_activation::listenFdsWithNames({name, "unknown"});
 #else
       Try<std::vector<int>> socketFds =
         Try<std::vector<int>>({}); // Dummy to avoid compile errors.
