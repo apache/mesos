@@ -337,30 +337,6 @@ Try<Nothing> start(const string& name)
 
 namespace socket_activation {
 
-static Try<Nothing> setCloexecFlag(int fd, bool cloexec)
-{
-  CHECK(fd >= 0) << "Invalid file desciptor was passed";
-
-  int flags = ::fcntl(fd, F_GETFD, 0);
-  if (flags < 0) {
-    return ErrnoError();
-  }
-
-  int nflags = cloexec == true ? flags | FD_CLOEXEC
-                               : flags & ~FD_CLOEXEC;
-
-  if (nflags == flags) {
-    return Nothing();
-  }
-
-  if (::fcntl(fd, F_SETFD, nflags) < 0) {
-    return ErrnoError();
-  }
-
-  return Nothing();
-}
-
-
 // See `src/libsystemd/sd-daemon/sd-daemon.c` in the systemd source tree
 // for the reference implementation. We follow that implementation to
 // decide which conditions should result in errors and which should return
@@ -404,7 +380,7 @@ Try<std::vector<int>> listenFds()
   }
 
   for (int fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; ++fd) {
-    Try<Nothing> cloexec = setCloexecFlag(fd, true);
+    Try<Nothing> cloexec = os::cloexec(fd);
     if (cloexec.isError()) {
       return Error(
           "Could not set CLOEXEC flag for file descriptor " + stringify(fd) +
