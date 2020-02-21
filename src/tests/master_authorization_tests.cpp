@@ -70,6 +70,7 @@
 namespace http = process::http;
 
 using std::shared_ptr;
+using std::weak_ptr;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -107,6 +108,7 @@ using testing::DoAll;
 using testing::Eq;
 using testing::Ne;
 using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::Truly;
 
@@ -470,6 +472,55 @@ static shared_ptr<const ObjectApprover> getAcceptingObjectApprover()
 {
   return std::make_shared<AcceptingObjectApprover>();
 }
+
+
+// This test verifies that disconnected frameworks do not own
+// `ObjectApprover`s.
+TEST_F(MasterAuthorizationTest, ObjectApproversDeletedOnDisconnection)
+{
+  shared_ptr<const ObjectApprover> approver = getAcceptingObjectApprover();
+
+  MockAuthorizer authorizer;
+  const weak_ptr<const ObjectApprover> weakApprover {approver};
+
+  EXPECT_CALL(authorizer, getApprover(_, _))
+    .WillRepeatedly(InvokeWithoutArgs([weakApprover]() {
+      auto approver = weakApprover.lock();
+      CHECK(approver);
+      return approver;
+    }));
+
+  const Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_failover_timeout(Weeks(2).secs());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Disconnect framework but do not tear it down.
+  driver.stop(true);
+  driver.join();
+
+  Clock::pause();
+  Clock::settle();
+
+  // Make sure that the test itself doesn't store approver anymore.
+  approver.reset();
+
+  ASSERT_TRUE(weakApprover.expired());
+}
+
 
 // This test verifies that an authentication request that comes from
 // the same instance of the framework (e.g., ZK blip) before
