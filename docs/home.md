@@ -146,7 +146,7 @@ layout: documentation
   </div>
   <div class="col-xs-6 col-md-4">
     <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-essentials" class="thumbnail">
-      <img src="https://www.packtpub.com/sites/default/files/9781783288762.png" alt="Apache Mesos Essentials by Dharmesh Kakadia">
+      <img src="https://www.packtpub.com/media/catalog/product/cache/e4d64343b1bc593f1c5348fe05efa4a6/9/7/9781783288762.png" alt="Apache Mesos Essentials by Dharmesh Kakadia">
     </a>
     <p class="text-center">Apache Mesos Essentials by Dharmesh Kakadia (Packt, 2015)</p>
   </div>
