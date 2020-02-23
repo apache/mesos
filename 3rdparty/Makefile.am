@@ -127,6 +127,14 @@ EXTRA_DIST +=			\
 EXTRA_DIST +=			\
   $(ZOOKEEPER).patch
 
+# We need to patch RapidJSON to make it write infinite floating point numbers
+# as "Infinity" and "-Infinity" (i.e., with double quotes) rather than Infinity
+# and -Infinity. This is to ensure the strings converted from JSON objects
+# conform to the rule defined by Protobuf:
+#   https://developers.google.com/protocol-buffers/docs/proto3#json
+EXTRA_DIST +=			\
+  $(RAPIDJSON).patch
+
 # We need the following patches for CMake and/or Windows builds.
 EXTRA_DIST +=			\
   $(BOOST).patch		\

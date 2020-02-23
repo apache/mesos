@@ -1,0 +1,45 @@
+diff --git a/include/rapidjson/writer.h b/include/rapidjson/writer.h
+index 94f22dd5..ac522f6b 100644
+--- a/include/rapidjson/writer.h
++++ b/include/rapidjson/writer.h
+@@ -324,13 +324,17 @@ protected:
+                 return true;
+             }
+             if (internal::Double(d).Sign()) {
+-                PutReserve(*os_, 9);
++                PutReserve(*os_, 11);
++                PutUnsafe(*os_, '\"');
+                 PutUnsafe(*os_, '-');
+             }
+-            else
+-                PutReserve(*os_, 8);
++            else {
++                PutReserve(*os_, 10);
++                PutUnsafe(*os_, '\"');
++            }
+             PutUnsafe(*os_, 'I'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'f');
+             PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 't'); PutUnsafe(*os_, 'y');
++            PutUnsafe(*os_, '\"');
+             return true;
+         }
+
+@@ -518,13 +522,17 @@ inline bool Writer<StringBuffer>::WriteDouble(double d) {
+             return true;
+         }
+         if (internal::Double(d).Sign()) {
+-            PutReserve(*os_, 9);
++            PutReserve(*os_, 11);
++            PutUnsafe(*os_, '\"');
+             PutUnsafe(*os_, '-');
+         }
+-        else
+-            PutReserve(*os_, 8);
++        else {
++            PutReserve(*os_, 10);
++            PutUnsafe(*os_, '\"');
++        }
+         PutUnsafe(*os_, 'I'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'f');
+         PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 't'); PutUnsafe(*os_, 'y');
++        PutUnsafe(*os_, '\"');
+         return true;
+     }
