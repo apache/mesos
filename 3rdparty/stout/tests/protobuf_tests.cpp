@@ -15,6 +15,7 @@
 #include <gmock/gmock.h>
 
 #include <algorithm>
+#include <limits>
 #include <string>
 
 #include <google/protobuf/util/message_differencer.h>
@@ -49,6 +50,25 @@ bool operator==(const SimpleMessage& left, const SimpleMessage& right)
 
 
 bool operator!=(const SimpleMessage& left, const SimpleMessage& right)
+{
+  return !(left == right);
+}
+
+
+bool operator==(const FloatMessage& left, const FloatMessage& right)
+{
+  if (left.f1() == right.f1() &&
+      left.f2() == right.f2() &&
+      left.d1() == right.d1() &&
+      left.d2() == right.d2()) {
+    return true;
+  }
+
+  return false;
+}
+
+
+bool operator!=(const FloatMessage& left, const FloatMessage& right)
 {
   return !(left == right);
 }
@@ -851,4 +871,66 @@ TEST(ProtobufTest, JsonifyMap)
 
   EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
       message, *protoFromJson));
+}
+
+
+TEST(ProtobufTest, JsonInfinity)
+{
+  tests::FloatMessage message;
+  message.set_f1(std::numeric_limits<float>::infinity());
+  message.set_f2(-std::numeric_limits<float>::infinity());
+  message.set_d1(std::numeric_limits<double>::infinity());
+  message.set_d2(-std::numeric_limits<double>::infinity());
+
+  // The keys are in alphabetical order.
+  string expected =
+    R"~(
+    {
+      "d1": "Infinity",
+      "d2": "-Infinity",
+      "f1": "Infinity",
+      "f2": "-Infinity"
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
+
+  JSON::Object referenceObject;
+  referenceObject.values["d1"] = JSON::Number(std::numeric_limits<double>::infinity());
+  referenceObject.values["d2"] = JSON::Number(-std::numeric_limits<double>::infinity());
+  referenceObject.values["f1"] = JSON::Number(std::numeric_limits<double>::infinity());
+  referenceObject.values["f2"] = JSON::Number(-std::numeric_limits<double>::infinity());
+
+  // Check Protobuf -> JSON.
+  JSON::Object protobufObject = JSON::protobuf(message);
+  EXPECT_EQ(referenceObject, protobufObject);
+  EXPECT_EQ(expected, stringify(protobufObject));
+
+  // Check JSON -> Protobuf.
+  Try<tests::FloatMessage> parse =
+    protobuf::parse<tests::FloatMessage>(protobufObject);
+
+  ASSERT_SOME(parse);
+  EXPECT_EQ(message, parse.get());
+
+  // Check String -> JSON.
+  Try<JSON::Object> parsedObject = JSON::parse<JSON::Object>(expected);
+
+  // Unlike `JSON::protobuf()`, `JSON::parse()` does not have the
+  // field type information, so it will just parse "Infinity" as a
+  // `JSON::String` instead of `JSON::Number`.
+  referenceObject.values["d1"] = JSON::String("Infinity");
+  referenceObject.values["d2"] = JSON::String("-Infinity");
+  referenceObject.values["f1"] = JSON::String("Infinity");
+  referenceObject.values["f2"] = JSON::String("-Infinity");
+
+  EXPECT_SOME_EQ(referenceObject, parsedObject);
+
+  // Check JSON -> Protobuf.
+  parse = protobuf::parse<tests::FloatMessage>(parsedObject.get());
+  ASSERT_SOME(parse);
+  EXPECT_EQ(message, parse.get());
 }

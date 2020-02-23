@@ -130,3 +130,12 @@ message MapMessage {
   map<sint32, string> sint32_to_string = 19;
   map<sint64, string> sint64_to_string = 20;
 }
+
+
+// A message for testing infinite floating point numbers.
+message FloatMessage {
+  required float f1 = 1;
+  required float f2 = 2;
+  required double d1 = 3;
+  required double d2 = 4;
+}

@@ -14,6 +14,7 @@
 #define __STOUT_JSONIFY__
 
 #define RAPIDJSON_HAS_STDSTRING 1
+#define RAPIDJSON_WRITE_DEFAULT_FLAGS kWriteNanAndInfFlag
 
 // TODO(bmahler): Consider enabling UTF-8 validation when writing
 // json. Prior to the introduction of rapidjson, we performed no

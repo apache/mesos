@@ -540,7 +540,24 @@ struct Parser : boost::static_visitor<Try<Nothing>>
         break;
       }
       case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
-      case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+      case google::protobuf::FieldDescriptor::TYPE_FLOAT: {
+        if (string.value == "Infinity") {
+          return operator()(JSON::Number(
+              std::numeric_limits<double>::infinity()));
+        } else if (string.value == "-Infinity") {
+          return operator()(JSON::Number(
+              -std::numeric_limits<double>::infinity()));
+        } else {
+          Try<JSON::Number> number = JSON::parse<JSON::Number>(string.value);
+          if (number.isError()) {
+            return Error(
+                "Failed to parse '" + string.value + "' as a JSON number "
+                "for field '" + field->name() + "': " + number.error());
+          }
+
+          return operator()(number.get());
+        }
+      }
       case google::protobuf::FieldDescriptor::TYPE_INT64:
       case google::protobuf::FieldDescriptor::TYPE_SINT64:
       case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
