@@ -1218,7 +1218,7 @@ pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
 
   // Construct framework list with both active and completed frameworks.
   vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
+  foreachvalue (const Framework* framework, master->frameworks.registered) {
     // Skip unauthorized frameworks or frameworks without matching
     // framework ID.
     if (!selectFrameworkId.accept(framework->id()) ||
@@ -1246,7 +1246,6 @@ pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
   vector<const Task*> tasks;
   foreach (const Framework* framework, frameworks) {
     foreachvalue (Task* task, framework->tasks) {
-      CHECK_NOTNULL(task);
       // Skip unauthorized tasks or tasks without matching task ID.
       if (!selectTaskId.accept(task->task_id()) ||
           !approvers->approved<VIEW_TASK>(*task, framework->info)) {
@@ -1715,7 +1714,7 @@ function<void(JSON::ObjectWriter*)>
   return [=](JSON::ObjectWriter* writer) {
     // Construct framework list with both active and completed frameworks.
     vector<const Framework*> frameworks;
-    foreachvalue (Framework* framework, master->frameworks.registered) {
+    foreachvalue (const Framework* framework, master->frameworks.registered) {
       // Skip unauthorized frameworks.
       if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
         frameworks.push_back(framework);
@@ -1785,7 +1784,7 @@ string Master::ReadOnlyHandler::serializeGetExecutors(
 {
   // Construct framework list with both active and completed frameworks.
   vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
+  foreachvalue (const Framework* framework, master->frameworks.registered) {
     // Skip unauthorized frameworks.
     if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
       frameworks.push_back(framework);
@@ -1965,7 +1964,7 @@ function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetTasks(
   return [=](JSON::ObjectWriter* writer) {
     // Construct framework list with both active and completed frameworks.
     vector<const Framework*> frameworks;
-    foreachvalue (Framework* framework, master->frameworks.registered) {
+    foreachvalue (const Framework* framework, master->frameworks.registered) {
       // Skip unauthorized frameworks.
       if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
         frameworks.push_back(framework);
@@ -2010,8 +2009,7 @@ function<void(JSON::ObjectWriter*)> Master::ReadOnlyHandler::jsonifyGetTasks(
         descriptor->FindFieldByNumber(field)->name(),
         [&](JSON::ArrayWriter* writer) {
           foreach (const Framework* framework, frameworks) {
-            foreachvalue (Task* task, framework->tasks) {
-              CHECK_NOTNULL(task);
+            foreachvalue (const Task* task, framework->tasks) {
               // Skip unauthorized tasks.
               if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
                 continue;
@@ -2065,7 +2063,7 @@ string Master::ReadOnlyHandler::serializeGetTasks(
 {
   // Construct framework list with both active and completed frameworks.
   vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
+  foreachvalue (const Framework* framework, master->frameworks.registered) {
     // Skip unauthorized frameworks.
     if (approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
       frameworks.push_back(framework);
@@ -2118,8 +2116,7 @@ string Master::ReadOnlyHandler::serializeGetTasks(
     }
 
     // Active tasks.
-    foreachvalue (Task* task, framework->tasks) {
-      CHECK_NOTNULL(task);
+    foreachvalue (const Task* task, framework->tasks) {
       // Skip unauthorized tasks.
       if (!approvers->approved<VIEW_TASK>(*task, framework->info)) {
         continue;
@@ -2276,16 +2273,16 @@ pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
     response.mutable_get_operations();
 
   foreachvalue (const Slave* slave, master->slaves.registered) {
-    foreachvalue (Operation* operation, slave->operations) {
+    foreachvalue (const Operation* operation, slave->operations) {
       if (approved(*operation)) {
         operations->add_operations()->CopyFrom(*operation);
       }
     }
 
     foreachvalue (
-        const Slave::ResourceProvider resourceProvider,
+        const Slave::ResourceProvider& resourceProvider,
         slave->resourceProviders) {
-      foreachvalue (Operation* operation, resourceProvider.operations) {
+      foreachvalue (const Operation* operation, resourceProvider.operations) {
         if (approved(*operation)) {
           operations->add_operations()->CopyFrom(*operation);
         }
