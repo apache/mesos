@@ -573,6 +573,72 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
             return Break();
           }
 
+          // If we support downgrading the connection, first wait for this
+          // socket to become readable. We will then MSG_PEEK it to test
+          // whether we want to dispatch as SSL or non-SSL.
+          if (openssl::flags().support_downgrade) {
+#ifdef __WINDOWS__
+            // Since there is no `io::poll` on Windows, we instead make
+            // a 0-byte read, which will only return once there is something
+            // to read.
+            return io::read(socket->get(), nullptr, 0)
+#else
+            return io::poll(socket->get(), process::io::READ)
+#endif // __WINDOWS__
+              .then([weak_self, socket]() -> Future<ControlFlow<Nothing>> {
+                std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+
+                if (self == nullptr) {
+                  return Break();
+                }
+
+                char data[6];
+
+                // Try to peek the first 6 bytes of the message.
+                ssize_t size = ::recv(socket->get(), data, 6, MSG_PEEK);
+
+                // Based on the function 'ssl23_get_client_hello' in openssl, we
+                // test whether to dispatch to the SSL or non-SSL based accept
+                // based on the following rules:
+                //   1. If there are fewer than 3 bytes: non-SSL.
+                //   2. If the 1st bit of the 1st byte is set AND the 3rd byte
+                //      is equal to SSL2_MT_CLIENT_HELLO: SSL.
+                //   3. If the 1st byte is equal to SSL3_RT_HANDSHAKE AND the
+                //      2nd byte is equal to SSL3_VERSION_MAJOR and the 6th byte
+                //      is equal to SSL3_MT_CLIENT_HELLO: SSL.
+                //   4. Otherwise: non-SSL.
+
+                // For an ascii based protocol to falsely get dispatched to SSL
+                // it needs to:
+                //   1. Start with an invalid ascii character (0x80).
+                //   2. OR have the first 2 characters be a SYN followed by ETX,
+                //      and then the 6th character be SOH.
+                // These conditions clearly do not constitute valid HTTP
+                // requests, and are unlikely to collide with other existing
+                // protocols.
+
+                bool ssl = false; // Default to rule 4.
+
+                if (size < 2) { // Rule 1.
+                  ssl = false;
+                } else if ((data[0] & 0x80) &&
+                           data[2] == SSL2_MT_CLIENT_HELLO) { // Rule 2.
+                  ssl = true;
+                } else if (data[0] == SSL3_RT_HANDSHAKE &&
+                           data[1] == SSL3_VERSION_MAJOR &&
+                           data[5] == SSL3_MT_CLIENT_HELLO) { // Rule 3.
+                  ssl = true;
+                }
+
+                if (ssl) {
+                  return self->handle_accept_callback(socket);
+                } else {
+                  self->accept_queue.put(socket);
+                  return Continue();
+                }
+              });
+          }
+
           return self->handle_accept_callback(socket);
         });
 
