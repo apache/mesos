@@ -483,8 +483,6 @@ TEST_F(SSLTest, ECDHESupport)
 }
 
 
-// TODO(josephw): Support downgrades on the native OpenSSL socket (MESOS-10073).
-#ifdef USE_LIBEVENT
 // Ensure we can communicate between a POLL based socket and an SSL
 // socket if 'SSL_SUPPORT_DOWNGRADE' is enabled.
 TEST_F(SSLTest, ValidDowngrade)
@@ -583,7 +581,6 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
     AWAIT_ASSERT_READY(await_subprocess(client.get(), 0));
   }
 }
-#endif // USE_LIBEVENT
 
 
 // For each protocol: ensure we CANNOT communicate between a POLL
