@@ -573,93 +573,7 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
             return Break();
           }
 
-          // Wrap this new socket up into our SSL wrapper class by releasing
-          // the FD and creating a new OpenSSLSocketImpl object with the FD.
-          const std::shared_ptr<OpenSSLSocketImpl> ssl_socket =
-            std::make_shared<OpenSSLSocketImpl>(socket->release());
-
-          // Set up SSL object.
-          SSL* accept_ssl = SSL_new(openssl::context());
-          if (accept_ssl == nullptr) {
-            self->accept_queue.put(Failure("Accept failed, SSL_new"));
-            return Continue();
-          }
-
-          Try<Address> peer_address = network::peer(ssl_socket->get());
-          if (!peer_address.isSome()) {
-            SSL_free(accept_ssl);
-            self->accept_queue.put(
-                Failure("Could not determine peer IP for connection"));
-            return Continue();
-          }
-
-          // NOTE: Right now, `openssl::configure_socket` does not do anything
-          // in server mode, but we still pass the correct peer address to
-          // enable modules to implement application-level logic in the future.
-          Try<Nothing> configured = openssl::configure_socket(
-              accept_ssl, Mode::SERVER, peer_address.get(), None());
-
-          if (configured.isError()) {
-            SSL_free(accept_ssl);
-            self->accept_queue.put(
-                Failure("Could not configure socket: " + configured.error()));
-            return Continue();
-          }
-
-          // Set the SSL context in server mode.
-          SSL_set_accept_state(accept_ssl);
-
-          // Pass ownership of `accept_ssl` to the newly accepted socket,
-          // and wtart the SSL handshake. When the SSL handshake completes,
-          // the listening socket will place the result (failure or success)
-          // onto the listening socket's `accept_queue`.
-          //
-          // TODO(josephw): Add a timeout to catch/close incoming sockets which
-          // never finish the SSL handshake.
-          ssl_socket->set_ssl_and_do_handshake(accept_ssl)
-            .onAny([weak_self, ssl_socket](Future<size_t> result) {
-              std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
-
-              if (self == nullptr) {
-                return;
-              }
-
-              if (result.isFailed()) {
-                self->accept_queue.put(Failure(result.failure()));
-                return;
-              }
-
-              // For verification purposes, we need to grab the address (again).
-              Try<Address> address = network::address(ssl_socket->get());
-              if (address.isError()) {
-                self->accept_queue.put(
-                    Failure("Failed to get address: " + address.error()));
-                return;
-              }
-
-              Try<inet::Address> inet_address =
-                network::convert<inet::Address>(address.get());
-
-              Try<Nothing> verify = openssl::verify(
-                  ssl_socket->ssl,
-                  Mode::SERVER,
-                  None(),
-                  inet_address.isSome()
-                    ? Some(inet_address->ip)
-                    : Option<net::IP>::none());
-
-              if (verify.isError()) {
-                VLOG(1) << "Failed accept, verification error: "
-                        << verify.error();
-
-                self->accept_queue.put(Failure(verify.error()));
-                return;
-              }
-
-              self->accept_queue.put(ssl_socket);
-            });
-
-          return Continue();
+          return self->handle_accept_callback(socket);
         });
 
     accept_loop_started.done();
@@ -732,6 +646,103 @@ Try<Nothing, SocketError> OpenSSLSocketImpl::shutdown(int how)
       });
 
   return Nothing();
+}
+
+
+Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
+    const std::shared_ptr<SocketImpl>& socket)
+{
+  // Wrap this new socket up into our SSL wrapper class by releasing
+  // the FD and creating a new OpenSSLSocketImpl object with the FD.
+  const std::shared_ptr<OpenSSLSocketImpl> ssl_socket =
+    std::make_shared<OpenSSLSocketImpl>(socket->release());
+
+  // Set up SSL object.
+  SSL* accept_ssl = SSL_new(openssl::context());
+  if (accept_ssl == nullptr) {
+    accept_queue.put(Failure("Accept failed, SSL_new"));
+    return Continue();
+  }
+
+  Try<Address> peer_address = network::peer(ssl_socket->get());
+  if (!peer_address.isSome()) {
+    SSL_free(accept_ssl);
+    accept_queue.put(
+        Failure("Could not determine peer IP for connection"));
+    return Continue();
+  }
+
+  // NOTE: Right now, `openssl::configure_socket` does not do anything
+  // in server mode, but we still pass the correct peer address to
+  // enable modules to implement application-level logic in the future.
+  Try<Nothing> configured = openssl::configure_socket(
+      accept_ssl, Mode::SERVER, peer_address.get(), None());
+
+  if (configured.isError()) {
+    SSL_free(accept_ssl);
+    accept_queue.put(
+        Failure("Could not configure socket: " + configured.error()));
+    return Continue();
+  }
+
+  // Set the SSL context in server mode.
+  SSL_set_accept_state(accept_ssl);
+
+  // Hold a weak pointer since we do not want this accept function to extend
+  // the lifetime of `this` unnecessarily.
+  std::weak_ptr<OpenSSLSocketImpl> weak_self(shared(this));
+
+  // Pass ownership of `accept_ssl` to the newly accepted socket,
+  // and start the SSL handshake. When the SSL handshake completes,
+  // the listening socket will place the result (failure or success)
+  // onto the listening socket's `accept_queue`.
+  //
+  // TODO(josephw): Add a timeout to catch/close incoming sockets which
+  // never finish the SSL handshake.
+  ssl_socket->set_ssl_and_do_handshake(accept_ssl)
+    .onAny([weak_self, ssl_socket](Future<size_t> result) {
+      std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
+
+      if (self == nullptr) {
+        return;
+      }
+
+      if (result.isFailed()) {
+        self->accept_queue.put(Failure(result.failure()));
+        return;
+      }
+
+      // For verification purposes, we need to grab the address (again).
+      Try<Address> address = network::address(ssl_socket->get());
+      if (address.isError()) {
+        self->accept_queue.put(
+            Failure("Failed to get address: " + address.error()));
+        return;
+      }
+
+      Try<inet::Address> inet_address =
+        network::convert<inet::Address>(address.get());
+
+      Try<Nothing> verify = openssl::verify(
+          ssl_socket->ssl,
+          Mode::SERVER,
+          None(),
+          inet_address.isSome()
+            ? Some(inet_address->ip)
+            : Option<net::IP>::none());
+
+      if (verify.isError()) {
+        VLOG(1) << "Failed accept, verification error: "
+                << verify.error();
+
+        self->accept_queue.put(Failure(verify.error()));
+        return;
+      }
+
+      self->accept_queue.put(ssl_socket);
+    });
+
+  return Continue();
 }
 
 
