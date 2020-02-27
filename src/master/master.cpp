@@ -12239,6 +12239,9 @@ void Master::Subscribers::send(
   VLOG(1) << "Notifying all active subscribers about " << event.type()
           << " event";
 
+  // TODO(asekretenko): Now that we have synchronous authorization,
+  // we can get rid of Shared in this code.
+
   // Create a single copy of the event for all subscribers to share.
   Shared<mesos::master::Event> sharedEvent(
       new mesos::master::Event(std::move(event)));
@@ -12251,39 +12254,13 @@ void Master::Subscribers::send(
   Shared<Task> sharedTask(task.isSome() ? new Task(task.get()) : nullptr);
 
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
-    subscriber->getApprovers(
-        master->authorizer,
-        {VIEW_ROLE, VIEW_FRAMEWORK, VIEW_TASK, VIEW_EXECUTOR})
-      .then(defer(
-          master->self(),
-          [=](const Owned<ObjectApprovers>& approvers) {
-            subscriber->send(
-                sharedEvent,
-                approvers,
-                sharedFrameworkInfo,
-                sharedTask);
-
-            return Nothing();
-          }));
+    subscriber->send(sharedEvent, sharedFrameworkInfo, sharedTask);
   }
-}
-
-
-Future<Owned<ObjectApprovers>> Master::Subscribers::Subscriber::getApprovers(
-    const Option<Authorizer*>& authorizer,
-    std::initializer_list<authorization::Action> actions)
-{
-  Future<Owned<ObjectApprovers>> approvers =
-    ObjectApprovers::create(authorizer, principal, actions);
-
-  return approversSequence.add<Owned<ObjectApprovers>>(
-      [approvers] { return approvers; });
 }
 
 
 void Master::Subscribers::Subscriber::send(
     const Shared<mesos::master::Event>& event,
-    const Owned<ObjectApprovers>& approvers,
     const Shared<FrameworkInfo>& frameworkInfo,
     const Shared<Task>& task)
 {
@@ -12425,7 +12402,7 @@ void Master::exited(const id::UUID& id)
 
 void Master::subscribe(
     const StreamingHttpConnection<v1::master::Event>& http,
-    const Option<Principal>& principal)
+    const Owned<ObjectApprovers>& approvers)
 {
   LOG(INFO) << "Added subscriber " << http.streamId
             << " to the list of active subscribers";
@@ -12448,7 +12425,7 @@ void Master::subscribe(
   subscribers.subscribed.set(
       http.streamId,
       Owned<Subscribers::Subscriber>(
-          new Subscribers::Subscriber{http, principal}));
+          new Subscribers::Subscriber{http, approvers}));
 
   metrics->operator_event_stream_subscribers =
     subscribers.subscribed.size();

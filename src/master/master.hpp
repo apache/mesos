@@ -52,7 +52,6 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/sequence.hpp>
 #include <process/timer.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -939,7 +938,7 @@ private:
   // Subscribes a client to the 'api/vX' endpoint.
   void subscribe(
       const StreamingHttpConnection<v1::master::Event>& http,
-      const Option<process::http::authentication::Principal>& principal);
+      const process::Owned<ObjectApprovers>& approvers);
 
   void teardown(Framework* framework);
 
@@ -1307,7 +1306,7 @@ public:
     {
       struct Subscribe
       {
-        Option<process::http::authentication::Principal> principal;
+        process::Owned<ObjectApprovers> approvers;
         StreamingHttpConnection<v1::master::Event> connection;
       };
 
@@ -2215,7 +2214,7 @@ private:
     {
       Subscriber(
           const StreamingHttpConnection<v1::master::Event>& _http,
-          const Option<process::http::authentication::Principal> _principal)
+          const process::Owned<ObjectApprovers>& _approvers)
         : http(_http),
           heartbeater(
               "subscriber " + stringify(http.streamId),
@@ -2227,23 +2226,17 @@ private:
               http,
               DEFAULT_HEARTBEAT_INTERVAL,
               DEFAULT_HEARTBEAT_INTERVAL),
-          principal(_principal) {}
+          approvers(_approvers) {}
+
 
       // Not copyable, not assignable.
       Subscriber(const Subscriber&) = delete;
       Subscriber& operator=(const Subscriber&) = delete;
 
-      // Creates object approvers. The futures returned by this method will be
-      // completed in the calling order.
-      process::Future<process::Owned<ObjectApprovers>> getApprovers(
-          const Option<Authorizer*>& authorizer,
-          std::initializer_list<authorization::Action> actions);
-
       // TODO(greggomann): Refactor this function into multiple event-specific
       // overloads. See MESOS-8475.
       void send(
           const process::Shared<mesos::master::Event>& event,
-          const process::Owned<ObjectApprovers>& approvers,
           const process::Shared<FrameworkInfo>& frameworkInfo,
           const process::Shared<Task>& task);
 
@@ -2258,11 +2251,7 @@ private:
 
       StreamingHttpConnection<v1::master::Event> http;
       ResponseHeartbeater<mesos::master::Event, v1::master::Event> heartbeater;
-      const Option<process::http::authentication::Principal> principal;
-
-      // We maintain a sequence to coordinate the creation of object approvers
-      // in order to sequentialize all events to the subscriber.
-      process::Sequence approversSequence;
+      const process::Owned<ObjectApprovers> approvers;
     };
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.

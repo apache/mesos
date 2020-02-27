@@ -2511,8 +2511,7 @@ pair<Response, Option<Master::ReadOnlyHandler::PostProcessing>>
   http.send(heartbeatEvent);
 
   // This new subscriber needs to be added in the post-processing step.
-  Master::ReadOnlyHandler::PostProcessing::Subscribe s =
-    { approvers->principal, http };
+  Master::ReadOnlyHandler::PostProcessing::Subscribe s = {approvers, http};
 
   Master::ReadOnlyHandler::PostProcessing postProcessing = { std::move(s) };
 

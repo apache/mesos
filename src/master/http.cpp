@@ -2454,7 +2454,7 @@ void Master::Http::processRequestsBatch() const
 
     postProcessing.state.visit(
         [&](const ReadOnlyHandler::PostProcessing::Subscribe& s) {
-          master->subscribe(s.connection, s.principal);
+          master->subscribe(s.connection, s.approvers);
         });
   }
 }
