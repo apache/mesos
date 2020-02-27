@@ -27,6 +27,9 @@
 //
 // See stout/variant.hpp for how this is used to visit variants.
 //
+// NOTE: If an lvalue/rvalue reference to a callable is passed,
+// the callable will be copied/moved into the returned object.
+//
 // NOTE: `overload` is declared and defined below `Overload` because
 // and we can't declare `overload` here and define it below because it
 // uses an `auto` return type.
@@ -36,34 +39,40 @@ struct Overload;
 
 
 template <typename F>
-struct Overload<F> : F
+struct Overload<F> : std::remove_reference<F>::type
 {
-  using F::operator();
+  using Callable = typename std::remove_reference<F>::type;
+
+  using Callable::operator();
 
   // NOTE: while not strictly necessary, we include `result_type` so
   // that this can be used places where `result_type` is required,
   // e.g., `boost::apply_visitor`.
-  using result_type = typename LambdaTraits<F>::result_type;
+  using result_type = typename LambdaTraits<Callable>::result_type;
 
   template <typename G>
-  Overload(G&& g) : F(std::forward<G>(g)) {}
+  Overload(G&& g) : Callable(std::forward<G>(g)) {}
 };
 
 
 template <typename F, typename... Fs>
-struct Overload : F, Overload<Fs...>
+struct Overload : std::remove_reference<F>::type, Overload<Fs...>
 {
-  using F::operator();
+  using Callable = typename std::remove_reference<F>::type;
+
+  using Callable::operator();
   using Overload<Fs...>::operator();
 
   // NOTE: while not strictly necessary, we include `result_type` so
-  // that this can be used places where `result_type` is required,
+  // that this can be used in places where `result_type` is required,
   // e.g., `boost::apply_visitor`.
-  using result_type = typename LambdaTraits<F>::result_type;
+  using result_type = typename LambdaTraits<Callable>::result_type;
 
   template <typename G, typename... Gs>
   Overload(G&& g, Gs&&... gs)
-    : F(std::forward<G>(g)), Overload<Fs...>(std::forward<Gs>(gs)...) {}
+    : Callable(std::forward<G>(g)),
+      Overload<Fs...>(std::forward<Gs>(gs)...)
+  {}
 };
 
 
