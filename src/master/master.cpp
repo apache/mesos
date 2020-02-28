@@ -12232,63 +12232,49 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 
 
 void Master::Subscribers::send(
-    mesos::master::Event&& event,
+    const mesos::master::Event& event,
     const Option<FrameworkInfo>& frameworkInfo,
     const Option<Task>& task)
 {
   VLOG(1) << "Notifying all active subscribers about " << event.type()
           << " event";
 
-  // TODO(asekretenko): Now that we have synchronous authorization,
-  // we can get rid of Shared in this code.
-
-  // Create a single copy of the event for all subscribers to share.
-  Shared<mesos::master::Event> sharedEvent(
-      new mesos::master::Event(std::move(event)));
-
-  // Create a single copy of `FrameworkInfo` and `Task` for all
-  // subscribers to share.
-  Shared<FrameworkInfo> sharedFrameworkInfo(
-      frameworkInfo.isSome()
-        ? new FrameworkInfo(frameworkInfo.get()) : nullptr);
-  Shared<Task> sharedTask(task.isSome() ? new Task(task.get()) : nullptr);
-
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
-    subscriber->send(sharedEvent, sharedFrameworkInfo, sharedTask);
+    subscriber->send(event, frameworkInfo, task);
   }
 }
 
 
 void Master::Subscribers::Subscriber::send(
-    const Shared<mesos::master::Event>& event,
-    const Shared<FrameworkInfo>& frameworkInfo,
-    const Shared<Task>& task)
+    const mesos::master::Event& event,
+    const Option<FrameworkInfo>& frameworkInfo,
+    const Option<Task>& task)
 {
-  switch (event->type()) {
+  switch (event.type()) {
     case mesos::master::Event::TASK_ADDED: {
-      CHECK_NOTNULL(frameworkInfo.get());
+      CHECK_SOME(frameworkInfo);
 
       if (approvers->approved<VIEW_TASK>(
-              event->task_added().task(), *frameworkInfo) &&
+              event.task_added().task(), *frameworkInfo) &&
           approvers->approved<VIEW_FRAMEWORK>(*frameworkInfo)) {
-        http.send(*event);
+        http.send(event);
       }
       break;
     }
     case mesos::master::Event::TASK_UPDATED: {
-      CHECK_NOTNULL(frameworkInfo.get());
-      CHECK_NOTNULL(task.get());
+      CHECK_SOME(frameworkInfo);
+      CHECK_SOME(task);
 
       if (approvers->approved<VIEW_TASK>(*task, *frameworkInfo) &&
           approvers->approved<VIEW_FRAMEWORK>(*frameworkInfo)) {
-        http.send(*event);
+        http.send(event);
       }
       break;
     }
     case mesos::master::Event::FRAMEWORK_ADDED: {
       if (approvers->approved<VIEW_FRAMEWORK>(
-              event->framework_added().framework().framework_info())) {
-        mesos::master::Event event_(*event);
+              event.framework_added().framework().framework_info())) {
+        mesos::master::Event event_(event);
         event_.mutable_framework_added()->mutable_framework()->
             mutable_allocated_resources()->Clear();
         event_.mutable_framework_added()->mutable_framework()->
@@ -12296,7 +12282,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event->framework_added().framework().allocated_resources()) {
+            event.framework_added().framework().allocated_resources()) {
           if (approvers->approved<VIEW_ROLE>(resource)) {
             event_.mutable_framework_added()->mutable_framework()->
               add_allocated_resources()->CopyFrom(resource);
@@ -12305,7 +12291,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event->framework_added().framework().offered_resources()) {
+            event.framework_added().framework().offered_resources()) {
           if (approvers->approved<VIEW_ROLE>(resource)) {
             event_.mutable_framework_added()->mutable_framework()->
               add_offered_resources()->CopyFrom(resource);
@@ -12318,8 +12304,8 @@ void Master::Subscribers::Subscriber::send(
     }
     case mesos::master::Event::FRAMEWORK_UPDATED: {
       if (approvers->approved<VIEW_FRAMEWORK>(
-              event->framework_updated().framework().framework_info())) {
-        mesos::master::Event event_(*event);
+              event.framework_updated().framework().framework_info())) {
+        mesos::master::Event event_(event);
         event_.mutable_framework_updated()->mutable_framework()->
           mutable_allocated_resources()->Clear();
         event_.mutable_framework_updated()->mutable_framework()->
@@ -12327,7 +12313,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event->framework_updated().framework().allocated_resources()) {
+            event.framework_updated().framework().allocated_resources()) {
           if (approvers->approved<VIEW_ROLE>(resource)) {
             event_.mutable_framework_updated()->mutable_framework()->
               add_allocated_resources()->CopyFrom(resource);
@@ -12336,7 +12322,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event->framework_updated().framework().offered_resources()) {
+            event.framework_updated().framework().offered_resources()) {
           if (approvers->approved<VIEW_ROLE>(resource)) {
             event_.mutable_framework_updated()->mutable_framework()->
               add_offered_resources()->CopyFrom(resource);
@@ -12349,19 +12335,19 @@ void Master::Subscribers::Subscriber::send(
     }
     case mesos::master::Event::FRAMEWORK_REMOVED: {
       if (approvers->approved<VIEW_FRAMEWORK>(
-              event->framework_removed().framework_info())) {
-        http.send(*event);
+              event.framework_removed().framework_info())) {
+        http.send(event);
       }
       break;
     }
     case mesos::master::Event::AGENT_ADDED: {
-      mesos::master::Event event_(*event);
+      mesos::master::Event event_(event);
       event_.mutable_agent_added()->mutable_agent()->
         mutable_total_resources()->Clear();
 
       foreach(
           const Resource& resource,
-          event->agent_added().agent().total_resources()) {
+          event.agent_added().agent().total_resources()) {
         if (approvers->approved<VIEW_ROLE>(resource)) {
           event_.mutable_agent_added()->mutable_agent()->add_total_resources()
             ->CopyFrom(resource);
@@ -12375,7 +12361,7 @@ void Master::Subscribers::Subscriber::send(
     case mesos::master::Event::SUBSCRIBED:
     case mesos::master::Event::HEARTBEAT:
     case mesos::master::Event::UNKNOWN:
-      http.send(*event);
+      http.send(event);
       break;
   }
 }

@@ -2236,9 +2236,9 @@ private:
       // TODO(greggomann): Refactor this function into multiple event-specific
       // overloads. See MESOS-8475.
       void send(
-          const process::Shared<mesos::master::Event>& event,
-          const process::Shared<FrameworkInfo>& frameworkInfo,
-          const process::Shared<Task>& task);
+          const mesos::master::Event& event,
+          const Option<FrameworkInfo>& frameworkInfo,
+          const Option<Task>& task);
 
       ~Subscriber()
       {
@@ -2256,7 +2256,7 @@ private:
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.
     void send(
-        mesos::master::Event&& event,
+        const mesos::master::Event& event,
         const Option<FrameworkInfo>& frameworkInfo = None(),
         const Option<Task>& task = None());
 
