@@ -53,7 +53,7 @@
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
-
+using mesos::internal::slave::containerizer::paths::getCgroupPath;
 using mesos::internal::slave::containerizer::paths::getContainerConfig;
 using mesos::internal::slave::containerizer::paths::getRuntimePath;
 using mesos::internal::slave::containerizer::paths::getSandboxPath;
@@ -271,6 +271,93 @@ TEST_P(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
   ASSERT_SOME(termination.get());
   ASSERT_TRUE(termination.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+}
+
+
+// This test verifies that a separate cgroup is created for a nested
+// container only if it does not share cgroups with its parent container.
+TEST_P(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedShareCgroups)
+{
+  const bool shareCgroups = GetParam();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createNestedContainerConfig("cpus:0.1", createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Check that a separate cgroup is created for a nested container only
+  // if `share_cgroups` field is set to false.
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
+
+  const string cgroup = getCgroupPath(flags.cgroups_root, nestedContainerId);
+
+  ASSERT_NE(shareCgroups, cgroups::exists(cpuHierarchy.get(), cgroup));
+
+  Future<Option<ContainerTermination>> nestedTermination =
+    containerizer->destroy(nestedContainerId);
+
+  AWAIT_READY(nestedTermination);
+  ASSERT_SOME(nestedTermination.get());
+  ASSERT_TRUE(nestedTermination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, nestedTermination.get()->status());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  // Check that the cgroups isolator cleaned up a nested cgroup
+  // for the nested container.
+  ASSERT_FALSE(cgroups::exists(cpuHierarchy.get(), cgroup));
 }
 
 
