@@ -56,10 +56,6 @@ AM_DISTCHECK_CONFIGURE_FLAGS = --disable-python-dependency-install
 AM_DISTCHECK_CONFIGURE_FLAGS += --disable-dependency-tracking
 
 
-# MPI framework.
-EXTRA_DIST += mpi/README mpi/mpiexec-mesos.in mpi/mpiexec-mesos.py
-
-
 if HAS_JAVA
 maven-install:
 	@cd src && $(MAKE) $(AM_MAKEFLAGS) maven-install
