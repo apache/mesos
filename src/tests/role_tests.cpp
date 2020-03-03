@@ -491,7 +491,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, RolesEndpointContainsQuota)
 //   - Outstanding offer
 //
 // TODO(bmahler): Test hierarchical accounting accuracy.
-TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
+//
+// TODO(asekretenko): This test is disabled on Windows because it needs "posix"
+// isolator to test quota consumption with multiple agents. After we have a
+// simple way to obtain such setup regardless of the platform, this test should
+// be re-enabled on Windows.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, RolesEndpointContainsConsumedQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
