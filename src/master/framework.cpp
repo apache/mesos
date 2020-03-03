@@ -739,24 +739,6 @@ Try<bool> Framework::approved(const ActionObject& actionObject) const
 }
 
 
-constexpr std::initializer_list<authorization::Action> SCHEDULER_API_ACTIONS{
-  authorization::REGISTER_FRAMEWORK,
-  authorization::RUN_TASK,
-
-  authorization::UNRESERVE_RESOURCES,
-  authorization::RESERVE_RESOURCES,
-
-  authorization::CREATE_VOLUME,
-  authorization::DESTROY_VOLUME,
-  authorization::RESIZE_VOLUME,
-
-  authorization::CREATE_MOUNT_DISK,
-  authorization::CREATE_BLOCK_DISK,
-  authorization::DESTROY_MOUNT_DISK,
-  authorization::DESTROY_BLOCK_DISK,
-  authorization::DESTROY_RAW_DISK};
-
-
 Future<Owned<ObjectApprovers>> Framework::createObjectApprovers(
     const Option<Authorizer*>& authorizer,
     const FrameworkInfo& frameworkInfo)
@@ -766,7 +748,18 @@ Future<Owned<ObjectApprovers>> Framework::createObjectApprovers(
       frameworkInfo.has_principal()
         ? Option<Principal>(frameworkInfo.principal())
         : Option<Principal>::none(),
-      SCHEDULER_API_ACTIONS);
+      {authorization::REGISTER_FRAMEWORK,
+       authorization::RUN_TASK,
+       authorization::UNRESERVE_RESOURCES,
+       authorization::RESERVE_RESOURCES,
+       authorization::CREATE_VOLUME,
+       authorization::DESTROY_VOLUME,
+       authorization::RESIZE_VOLUME,
+       authorization::CREATE_MOUNT_DISK,
+       authorization::CREATE_BLOCK_DISK,
+       authorization::DESTROY_MOUNT_DISK,
+       authorization::DESTROY_BLOCK_DISK,
+       authorization::DESTROY_RAW_DISK});
 }
 
 
