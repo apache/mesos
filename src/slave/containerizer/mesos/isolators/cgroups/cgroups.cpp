@@ -206,10 +206,17 @@ Future<Nothing> CgroupsIsolatorProcess::recover(
   // Recover active containers first.
   vector<Future<Nothing>> recovers;
   foreach (const ContainerState& state, states) {
-    // If we are a nested container, we do not need to recover
-    // anything since only top-level containers will have cgroups
+    // If we are a nested container with shared cgroups, we do not
+    // need to recover anything since its ancestor will have cgroups
     // created for them.
-    if (state.container_id().has_parent()) {
+    const bool shareCgroups =
+      (state.has_container_info() &&
+       state.container_info().has_linux_info() &&
+       state.container_info().linux_info().has_share_cgroups())
+        ? state.container_info().linux_info().share_cgroups()
+        : true;
+
+    if (state.container_id().has_parent() && shareCgroups) {
       continue;
     }
 
@@ -248,7 +255,6 @@ Future<Nothing> CgroupsIsolatorProcess::_recover(
   hashset<ContainerID> unknownOrphans;
 
   foreach (const string& hierarchy, subsystems.keys()) {
-    // TODO(jieyu): Use non-recursive version of `cgroups::get`.
     Try<vector<string>> cgroups = cgroups::get(
         hierarchy,
         flags.cgroups_root);
@@ -267,18 +273,28 @@ Future<Nothing> CgroupsIsolatorProcess::_recover(
         continue;
       }
 
-      ContainerID containerId;
-      containerId.set_value(Path(cgroup).basename());
+      // Need to parse the cgroup to see if it's one we created (i.e.,
+      // matches our separator structure) or one that someone else
+      // created (e.g., in the future we might have nested containers
+      // that are managed by something else rooted within the cgroup
+      // hierarchy).
+      Option<ContainerID> containerId =
+        containerizer::paths::parseCgroupPath(flags.cgroups_root, cgroup);
 
-      // Skip containerId which already have been recovered.
-      if (infos.contains(containerId)) {
+      if (containerId.isNone()) {
+        LOG(INFO) << "Not recovering cgroup " << cgroup;
         continue;
       }
 
-      if (orphans.contains(containerId)) {
-        knownOrphans.insert(containerId);
+      // Skip containerId which already have been recovered.
+      if (infos.contains(containerId.get())) {
+        continue;
+      }
+
+      if (orphans.contains(containerId.get())) {
+        knownOrphans.insert(containerId.get());
       } else {
-        unknownOrphans.insert(containerId);
+        unknownOrphans.insert(containerId.get());
       }
     }
   }
@@ -335,7 +351,8 @@ Future<Nothing> CgroupsIsolatorProcess::__recover(
 Future<Nothing> CgroupsIsolatorProcess::___recover(
     const ContainerID& containerId)
 {
-  const string cgroup = path::join(flags.cgroups_root, containerId.value());
+  const string cgroup =
+    containerizer::paths::getCgroupPath(flags.cgroups_root, containerId);
 
   vector<Future<Nothing>> recovers;
   hashset<string> recoveredSubsystems;
@@ -397,7 +414,7 @@ Future<Nothing> CgroupsIsolatorProcess::____recover(
 
   infos[containerId] = Owned<Info>(new Info(
       containerId,
-      path::join(flags.cgroups_root, containerId.value())));
+      containerizer::paths::getCgroupPath(flags.cgroups_root, containerId)));
 
   infos[containerId]->subsystems = recoveredSubsystems;
 
