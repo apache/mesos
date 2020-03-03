@@ -1556,7 +1556,8 @@ TEST_F(SlaveTest, StateEndpoint)
         "RESOURCE_PROVIDER",
         "RESIZE_VOLUME",
         "AGENT_OPERATION_FEEDBACK",
-        "AGENT_DRAINING"
+        "AGENT_DRAINING",
+        "TASK_RESOURCE_LIMITS"
       ]
     )~");
 

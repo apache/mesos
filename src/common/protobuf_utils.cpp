@@ -1140,7 +1140,8 @@ bool operator==(const Capabilities& left, const Capabilities& right)
          left.resourceProvider == right.resourceProvider &&
          left.resizeVolume == right.resizeVolume &&
          left.agentOperationFeedback == right.agentOperationFeedback &&
-         left.agentDraining == right.agentDraining;
+         left.agentDraining == right.agentDraining &&
+         left.taskResourceLimits == right.taskResourceLimits;
 }
 
 

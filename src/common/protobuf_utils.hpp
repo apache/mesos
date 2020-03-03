@@ -361,6 +361,9 @@ struct Capabilities
         case SlaveInfo::Capability::AGENT_DRAINING:
           agentDraining = true;
           break;
+        case SlaveInfo::Capability::TASK_RESOURCE_LIMITS:
+          taskResourceLimits = true;
+          break;
         // If adding another case here be sure to update the
         // equality operator.
       }
@@ -375,6 +378,7 @@ struct Capabilities
   bool resizeVolume = false;
   bool agentOperationFeedback = false;
   bool agentDraining = false;
+  bool taskResourceLimits = false;
 
   google::protobuf::RepeatedPtrField<SlaveInfo::Capability>
   toRepeatedPtrField() const
@@ -400,6 +404,9 @@ struct Capabilities
     }
     if (agentDraining) {
       result.Add()->set_type(SlaveInfo::Capability::AGENT_DRAINING);
+    }
+    if (taskResourceLimits) {
+      result.Add()->set_type(SlaveInfo::Capability::TASK_RESOURCE_LIMITS);
     }
 
     return result;

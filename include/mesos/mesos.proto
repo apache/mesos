@@ -1050,6 +1050,10 @@ message SlaveInfo {
       // This expresses the ability for the agent to automatically drain tasks
       // in preparation for operator maintenance. This capability is required.
       AGENT_DRAINING = 7;
+
+      // This expresses the ability for the agent to launch tasks which specify
+      // resource limits for CPU and/or memory.
+      TASK_RESOURCE_LIMITS = 8;
     }
 
     // Enum fields should be optional, see: MESOS-4997.

@@ -54,6 +54,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-10-x-agent-features">agent_features</a></li>
     </ul>
   </td>
 
@@ -557,6 +558,10 @@ We categorize the changes as follows:
 * The canonical name for the environment variable `LIBPROCESS_SSL_VERIFY_CERT` was changed to `LIBPROCESS_SSL_VERIFY_SERVER_CERT`.
   The canonical name for the environment variable `LIBPROCESS_SSL_REQUIRE_CERT` was changed to `LIBPROCESS_SSL_REQUIRE_CLIENT_CERT`.
   The old names will continue to work as before, but operators are encouraged to update their configuration to reduce confusion.
+
+<a name="1-10-x-agent-features"></a>
+
+* The Mesos agent now requires the new `TASK_RESOURCE_LIMITS` feature. This capability is set by default, but if the `--agent_features` flag is specified explicitly, `TASK_RESOURCE_LIMITS` must be included.
 
 ## Upgrading from 1.8.x to 1.9.x ##
 

@@ -43,6 +43,7 @@ vector<SlaveInfo::Capability> AGENT_CAPABILITIES()
     SlaveInfo::Capability::RESIZE_VOLUME,
     SlaveInfo::Capability::AGENT_OPERATION_FEEDBACK,
     SlaveInfo::Capability::AGENT_DRAINING,
+    SlaveInfo::Capability::TASK_RESOURCE_LIMITS,
   };
 
   vector<SlaveInfo::Capability> result;
