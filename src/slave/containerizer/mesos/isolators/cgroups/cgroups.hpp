@@ -149,6 +149,8 @@ private:
       const ContainerID& containerId,
       const std::vector<process::Future<Nothing>>& futures);
 
+  process::Owned<Info> findCgroupInfo(const ContainerID& containerId) const;
+
   const Flags flags;
 
   // We map hierarchy path and `Subsystem` in subsystems. Same hierarchy may
