@@ -812,7 +812,7 @@ mesos::internal::slave::Flags::Flags()
       "agent_features",
       "JSON representation of agent features to whitelist. We always require\n"
       "'MULTI_ROLE', 'HIERARCHICAL_ROLE', 'RESERVATION_REFINEMENT',\n"
-      "'AGENT_OPERATION_FEEDBACK', 'AGENT_DRAINING', and\n"
+      "'AGENT_OPERATION_FEEDBACK', 'RESOURCE_PROVIDER', 'AGENT_DRAINING', and\n"
       "'TASK_RESOURCE_LIMITS'.\n"
       "\n"
       "Example:\n"
@@ -822,6 +822,7 @@ mesos::internal::slave::Flags::Flags()
       "        {\"type\": \"HIERARCHICAL_ROLE\"},\n"
       "        {\"type\": \"RESERVATION_REFINEMENT\"},\n"
       "        {\"type\": \"AGENT_OPERATION_FEEDBACK\"},\n"
+      "        {\"type\": \"RESOURCE_PROVIDER\"},\n"
       "        {\"type\": \"AGENT_DRAINING\"},\n"
       "        {\"type\": \"TASK_RESOURCE_LIMITS\"}\n"
       "    ]\n"
@@ -836,25 +837,14 @@ mesos::internal::slave::Flags::Flags()
               !capabilities.hierarchicalRole ||
               !capabilities.reservationRefinement ||
               !capabilities.agentOperationFeedback ||
+              !capabilities.resourceProvider ||
               !capabilities.agentDraining ||
               !capabilities.taskResourceLimits) {
             return Error(
                 "At least the following agent features need to be enabled:"
                 " MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT,"
-                " AGENT_OPERATION_FEEDBACK, AGENT_DRAINING, and"
-                " TASK_RESOURCE_LIMITS");
-          }
-
-          if (capabilities.resizeVolume && !capabilities.resourceProvider) {
-            return Error(
-                "RESIZE_VOLUME feature requires RESOURCE_PROVIDER feature");
-          }
-
-          if (capabilities.agentOperationFeedback &&
-              !capabilities.resourceProvider) {
-            return Error(
-                "AGENT_OPERATION_FEEDBACK feature"
-                " requires RESOURCE_PROVIDER feature");
+                " AGENT_OPERATION_FEEDBACK, RESOURCE_PROVIDER, AGENT_DRAINING,"
+                " and TASK_RESOURCE_LIMITS");
           }
         }
 
