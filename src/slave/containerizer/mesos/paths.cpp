@@ -22,7 +22,9 @@
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 
+#include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
+
 #include "slave/state.hpp"
 
 #ifndef __WINDOWS__
@@ -592,6 +594,64 @@ Try<string> getParentShmPath(
   }
 
   return parentShmPath;
+}
+
+
+string getCgroupPath(
+    const string& cgroupsRoot,
+    const ContainerID& containerId)
+{
+  return path::join(
+      cgroupsRoot,
+      containerizer::paths::buildPath(
+          containerId,
+          CGROUP_SEPARATOR,
+          containerizer::paths::JOIN));
+}
+
+
+Option<ContainerID> parseCgroupPath(
+    const string& cgroupsRoot,
+    const string& cgroup)
+{
+  Option<ContainerID> current;
+
+  // Start not expecting to see a separator and adjust after each
+  // non-separator we see.
+  bool separator = false;
+
+  vector<string> tokens = strings::tokenize(
+      strings::remove(cgroup, cgroupsRoot, strings::PREFIX),
+      stringify(os::PATH_SEPARATOR));
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (separator && tokens[i] == CGROUP_SEPARATOR) {
+      separator = false;
+
+      // If the cgroup has CGROUP_SEPARATOR as the last segment,
+      // should just ignore it because this cgroup belongs to us.
+      if (i == tokens.size() - 1) {
+        return None();
+      } else {
+        continue;
+      }
+    } else if (separator) {
+      return None();
+    } else {
+      separator = true;
+    }
+
+    ContainerID id;
+    id.set_value(tokens[i]);
+
+    if (current.isSome()) {
+      id.mutable_parent()->CopyFrom(current.get());
+    }
+
+    current = id;
+  }
+
+  return current;
 }
 
 } // namespace paths {

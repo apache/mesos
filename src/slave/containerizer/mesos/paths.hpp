@@ -272,6 +272,20 @@ Try<std::string> getParentShmPath(
     const std::string runtimeDir,
     const ContainerID& containerId);
 
+
+// Helper for determining the cgroup for a container (i.e., the path
+// in a cgroup subsystem).
+std::string getCgroupPath(
+    const std::string& cgroupsRoot,
+    const ContainerID& containerId);
+
+
+// Helper for parsing the cgroup path to determine the container ID
+// it belongs to.
+Option<ContainerID> parseCgroupPath(
+    const std::string& cgroupsRoot,
+    const std::string& cgroup);
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {

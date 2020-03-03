@@ -38,7 +38,7 @@
 
 #include "slave/constants.hpp"
 
-#include "slave/containerizer/mesos/linux_launcher.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 
 using std::list;
 using std::set;
@@ -94,7 +94,8 @@ collectContainerListeners(
 
   foreach (const ContainerID& containerId, containerIds) {
     // Reconstruct the cgroup path from the container ID.
-    string cgroup = LinuxLauncher::cgroup(cgroupsRoot, containerId);
+    string cgroup =
+      containerizer::paths::getCgroupPath(cgroupsRoot, containerId);
 
     VLOG(1) << "Checking processes for container " << containerId
             << " in cgroup " << cgroup;

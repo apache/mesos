@@ -37,7 +37,6 @@
 
 #include "mesos/resources.hpp"
 
-#include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
 
@@ -104,10 +103,6 @@ private:
   };
 
   Future<Nothing> _destroy(const ContainerID& containerId);
-
-  // Helper for parsing the cgroup path to determine the container ID
-  // it belongs to.
-  Option<ContainerID> parse(const string& cgroup);
 
   static const string subsystem;
   const Flags flags;
@@ -191,19 +186,6 @@ bool LinuxLauncher::available()
   //   2. 'freezer' subsystem is enabled.
   Try<bool> freezer = cgroups::enabled("freezer");
   return ::geteuid() == 0 && freezer.isSome() && freezer.get();
-}
-
-
-string LinuxLauncher::cgroup(
-    const string& cgroupsRoot,
-    const ContainerID& containerId)
-{
-  return path::join(
-      cgroupsRoot,
-      containerizer::paths::buildPath(
-          containerId,
-          CGROUP_SEPARATOR,
-          containerizer::paths::JOIN));
 }
 
 
@@ -326,7 +308,9 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
     // created (e.g., in the future we might have nested containers
     // that are managed by something else rooted within the freezer
     // hierarchy).
-    Option<ContainerID> containerId = parse(cgroup);
+    Option<ContainerID> containerId =
+      containerizer::paths::parseCgroupPath(flags.cgroups_root, cgroup);
+
     if (containerId.isNone()) {
       LOG(INFO) << "Not recovering cgroup " << cgroup;
       continue;
@@ -510,7 +494,9 @@ Try<pid_t> LinuxLauncherProcess::fork(
   parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
     return cgroups::isolate(
         freezerHierarchy,
-        LinuxLauncher::cgroup(this->flags.cgroups_root, containerId),
+        containerizer::paths::getCgroupPath(
+            this->flags.cgroups_root,
+            containerId),
         child);
   }));
 
@@ -519,7 +505,9 @@ Try<pid_t> LinuxLauncherProcess::fork(
     parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
       return cgroups::isolate(
           systemdHierarchy.get(),
-          LinuxLauncher::cgroup(this->flags.cgroups_root, containerId),
+          containerizer::paths::getCgroupPath(
+              this->flags.cgroups_root,
+              containerId),
           child);
     }));
   }
@@ -591,7 +579,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   }
 
   const string cgroup =
-    LinuxLauncher::cgroup(flags.cgroups_root, container->id);
+    containerizer::paths::getCgroupPath(flags.cgroups_root, container->id);
 
   // We remove the container so that we don't attempt multiple
   // destroys simultaneously and no other functions will return
@@ -641,7 +629,7 @@ Future<Nothing> LinuxLauncherProcess::_destroy(const ContainerID& containerId)
   }
 
   const string cgroup =
-    LinuxLauncher::cgroup(flags.cgroups_root, containerId);
+    containerizer::paths::getCgroupPath(flags.cgroups_root, containerId);
 
   if (!cgroups::exists(systemdHierarchy.get(), cgroup)) {
     return Nothing();
@@ -673,49 +661,6 @@ Future<ContainerStatus> LinuxLauncherProcess::status(
   }
 
   return status;
-}
-
-
-Option<ContainerID> LinuxLauncherProcess::parse(const string& cgroup)
-{
-  Option<ContainerID> current;
-
-  // Start not expecting to see a separator and adjust after each
-  // non-separator we see.
-  bool separator = false;
-
-  vector<string> tokens = strings::tokenize(
-      strings::remove(cgroup, flags.cgroups_root, strings::PREFIX),
-      stringify(os::PATH_SEPARATOR));
-
-  for (size_t i = 0; i < tokens.size(); i++) {
-    if (separator && tokens[i] == CGROUP_SEPARATOR) {
-      separator = false;
-
-      // If the cgroup has CGROUP_SEPARATOR as the last segment,
-      // should just ignore it because this cgroup belongs to us.
-      if (i == tokens.size() - 1) {
-        return None();
-      } else {
-        continue;
-      }
-    } else if (separator) {
-      return None();
-    } else {
-      separator = true;
-    }
-
-    ContainerID id;
-    id.set_value(tokens[i]);
-
-    if (current.isSome()) {
-      id.mutable_parent()->CopyFrom(current.get());
-    }
-
-    current = id;
-  }
-
-  return current;
 }
 
 } // namespace slave {
