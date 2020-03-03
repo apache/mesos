@@ -646,7 +646,19 @@ Try<Nothing> create(
     const string& cgroup,
     bool recursive)
 {
+  vector<string> missingCgroups;
+  string currentCgroup;
+  Path cgroupPath(cgroup);
+  for (auto it = cgroupPath.begin(); it != cgroupPath.end(); ++it) {
+    currentCgroup = path::join(currentCgroup, *it);
+    if (!missingCgroups.empty() ||
+        !os::exists(path::join(hierarchy, currentCgroup))) {
+      missingCgroups.push_back(currentCgroup);
+    }
+  }
+
   string path = path::join(hierarchy, cgroup);
+
   Try<Nothing> mkdir = os::mkdir(path, recursive);
   if (mkdir.isError()) {
     return Error(
@@ -661,8 +673,18 @@ Try<Nothing> create(
         "Failed to determine if hierarchy '" + hierarchy +
         "' has the 'cpuset' subsystem attached: " + attached.error());
   } else if (attached->count("cpuset") > 0) {
-    string parent = Path(path::join("/", cgroup)).dirname();
-    return internal::cloneCpusetCpusMems(hierarchy, parent, cgroup);
+    foreach (const string& cgroup, missingCgroups) {
+      string parent = Path(cgroup).dirname();
+
+      Try<Nothing> clone =
+        internal::cloneCpusetCpusMems(hierarchy, parent, cgroup);
+
+      if (clone.isError()) {
+        return Error(
+            "Failed to clone `cpuset.cpus` and `cpuset.mems` from '" +
+            parent + "' to '" + cgroup + "': " + clone.error());
+      }
+    }
   }
 
   return Nothing();
