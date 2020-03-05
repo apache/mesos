@@ -445,6 +445,10 @@ TEST(PathTest, FromURI)
 }
 
 
+// TODO(bmahler): This needs to be tested more comprehensively, see:
+// https://www.boost.org/doc/libs/1_72_0/libs/filesystem/doc/reference.html#path-decomposition-table
+//
+// NOLINT(whitespace/line_length)
 TEST(PathTest, PathIteration)
 {
   {
@@ -472,7 +476,12 @@ TEST(PathTest, PathIteration)
 
   {
     // Checks for behavior of absolute paths.
+#ifdef __WINDOWS__
+    const vector<string> components{"C:", "1", "2", "3", "4", "5", "file.ext"};
+#else
     const vector<string> components{"", "1", "2", "3", "4", "5", "file.ext"};
+#endif
+
     const Path absolute_path(
       strings::join(string(1, os::PATH_SEPARATOR), components));
 
