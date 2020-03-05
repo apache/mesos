@@ -354,27 +354,50 @@ TEST(PathTest, IsAbsolute)
 }
 
 
+// TODO(bmahler): This needs to test more valid path cases on windows.
 TEST(PathTest, Relative)
 {
+#ifdef __WINDOWS__
+  // Check that relative paths can only be computed between paths
+  // which are either both absolute or both relative.
+  EXPECT_ERROR(path::relative("a", "C:\\a"));
+  EXPECT_ERROR(path::relative("C:\\a", "a"));
+
+  // Check that a path relative to itself is an empty path.
+  EXPECT_SOME_EQ(".", path::relative("C:\\a\\b\\c", "C:\\a\\b\\c"));
+  EXPECT_SOME_EQ(".", path::relative("a\\b\\c", "a\\b\\c"));
+
+  // Check for relative paths which do not require going up in the filesystem.
+  EXPECT_SOME_EQ("b", path::relative("C:\\a\\b", "C:\\a"));
+  EXPECT_SOME_EQ("b", path::relative("a\\b", "a"));
+
+  // Check for relative paths which do require going up in the filesystem.
+  EXPECT_SOME_EQ("..\\..\\d\\e", path::relative("C:\\a\\d\\e", "C:\\a\\b\\c"));
+  EXPECT_SOME_EQ("..\\..\\d\\e", path::relative("a\\d\\e", "a\\b\\c"));
+
+  // Check for behavior of not normalized paths.
+  EXPECT_SOME_EQ(".", path::relative("C:\\a\\.\\b", "C:\\a\\b"));
+#else
   // Check that relative paths can only be computed between paths
   // which are either both absolute or both relative.
   EXPECT_ERROR(path::relative("a", "/a"));
   EXPECT_ERROR(path::relative("/a", "a"));
 
   // Check that a path relative to itself is an empty path.
-  ASSERT_SOME_EQ(".", path::relative("/a/b/c", "/a/b/c"));
-  ASSERT_SOME_EQ(".", path::relative("a/b/c", "a/b/c"));
+  EXPECT_SOME_EQ(".", path::relative("/a/b/c", "/a/b/c"));
+  EXPECT_SOME_EQ(".", path::relative("a/b/c", "a/b/c"));
 
   // Check for relative paths which do not require going up in the filesystem.
-  ASSERT_SOME_EQ("b", path::relative("/a/b", "/a"));
-  ASSERT_SOME_EQ("b", path::relative("a/b", "a"));
+  EXPECT_SOME_EQ("b", path::relative("/a/b", "/a"));
+  EXPECT_SOME_EQ("b", path::relative("a/b", "a"));
 
   // Check for relative paths which do require going up in the filesystem.
-  ASSERT_SOME_EQ("../../d/e", path::relative("/a/d/e", "/a/b/c"));
-  ASSERT_SOME_EQ("../../d/e", path::relative("a/d/e", "a/b/c"));
+  EXPECT_SOME_EQ("../../d/e", path::relative("/a/d/e", "/a/b/c"));
+  EXPECT_SOME_EQ("../../d/e", path::relative("a/d/e", "a/b/c"));
 
   // Check for behavior of not normalized paths.
-  ASSERT_SOME_EQ(".", path::relative("/a/./b", "/a/b"));
+  EXPECT_SOME_EQ(".", path::relative("/a/./b", "/a/b"));
+#endif // __WINDOWS__
 }
 
 
