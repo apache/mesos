@@ -1495,6 +1495,10 @@ TEST_P(MasterAPITest, ReservationUpdate)
 
   // Helper function to attempt a reservation update from a given `source`
   // to a given reservation using an operator API call.
+  //
+  // Note that RESERVE_RESOURCES call does not wait for the agent to apply
+  // the operation, hence this function might return before the agent changes
+  // its state!
   auto attemptReservation = [&master, &slaveId, &contentType](
       const Resources& source,
       const Resources& resources,
@@ -1566,6 +1570,11 @@ TEST_P(MasterAPITest, ReservationUpdate)
       dynamicallyReservedToFoo,
       accepted);
 
+  // Wait for the agent to apply operation.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   verifyReservation("role/foo");
 
   // Should fail again, since there are still no resources that are
@@ -1580,6 +1589,11 @@ TEST_P(MasterAPITest, ReservationUpdate)
       dynamicallyReservedToFoo,
       dynamicallyReservedToBar,
       accepted);
+
+  // Wait for the agent to apply operation.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   verifyReservation("role/bar");
 }
