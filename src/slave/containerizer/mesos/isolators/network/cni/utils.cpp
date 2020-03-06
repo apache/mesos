@@ -39,8 +39,9 @@ void compressLongLabels(mesos::Labels * labels)
         _sasl_MD5Update(&ctx, (const unsigned char *)value_str, value.length());
         _sasl_MD5Final(md5, &ctx);
 
-        // Keep the first 7 characters of the MD5 sum and the last
-        size_t ofs = value.length() - 10;
+        // Keep the first 7 characters of the MD5 sum and the last 53 characters
+        // of the label, concatenating them with 3 dots (63 chars in total)
+        size_t ofs = value.length() - 53;
         snprintf(short_label, 64, "%02x%02x%02x%02x%02x%02x%02x...%s",
           md5[0], md5[1], md5[2], md5[3], md5[4], md5[5], md5[6],
           &value_str[ofs]
