@@ -4486,6 +4486,156 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CommandTaskLimits)
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 }
+
+
+// This test verifies that a task launched with infinite resource
+// limits specified will have its CPU and memory's hard limits set
+// correctly to infinite values.
+TEST_F(
+    DockerContainerizerTest,
+    ROOT_DOCKER_CGROUPS_CFS_CommandTaskInfiniteLimits)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Launch a task with infinite resource limits.
+  Value::Scalar cpuLimit, memLimit;
+  cpuLimit.set_value(std::numeric_limits<double>::infinity());
+  memLimit.set_value(std::numeric_limits<double>::infinity());
+
+  google::protobuf::Map<string, Value::Scalar> resourceLimits;
+  resourceLimits.insert({"cpus", cpuLimit});
+  resourceLimits.insert({"mem", memLimit});
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      offers.get()[0].resources(),
+      SLEEP_COMMAND(1000),
+      None(),
+      "test-task",
+      id::UUID::random().toString(),
+      resourceLimits);
+
+  // TODO(tnachen): Use local image to test if possible.
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
+
+  string name = containerName(containerId.get());
+  Future<Docker::Container> inspect = docker->inspect(name);
+  AWAIT_READY(inspect);
+
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  Result<string> memoryHierarchy = cgroups::hierarchy("memory");
+
+  ASSERT_SOME(cpuHierarchy);
+  ASSERT_SOME(memoryHierarchy);
+
+  Option<pid_t> pid = inspect->pid;
+  ASSERT_SOME(pid);
+
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+  ASSERT_SOME(cpuCgroup);
+
+  // The CFS quota should be -1 which means infinite quota.
+  Try<string> quota =
+    cgroups::read(cpuHierarchy.get(), cpuCgroup.get(), "cpu.cfs_quota_us");
+
+  ASSERT_SOME(quota);
+  EXPECT_EQ("-1", strings::trim(quota.get()));
+
+  Result<string> memoryCgroup = cgroups::memory::cgroup(pid.get());
+  ASSERT_SOME(memoryCgroup);
+
+  // Root cgroup (e.g., `/sys/fs/cgroup/memory/`) cannot have any limits set, so
+  // its hard limit must be infinity.
+  Try<Bytes> rootCgrouplimit =
+    cgroups::memory::limit_in_bytes(memoryHierarchy.get(), "");
+
+  ASSERT_SOME(rootCgrouplimit);
+
+  // The memory hard limit should be same as root cgroup's, i.e. infinity.
+  EXPECT_SOME_EQ(
+      rootCgrouplimit.get(),
+      cgroups::memory::limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get()));
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+}
 #endif // __linux__
 
 
