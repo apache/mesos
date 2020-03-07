@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits>
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/queue.hpp>
@@ -723,6 +725,124 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskLimits)
 
   EXPECT_GE(0.4, cpuTime);
   EXPECT_LE(0.05, cpuTime);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a task launched with infinite resource
+// limits specified will have its CPU and memory's hard limits set
+// correctly to infinite values.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskInfiniteLimits)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get());
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Launch a task with infinite resource limits.
+  Value::Scalar cpuLimit, memLimit;
+  cpuLimit.set_value(std::numeric_limits<double>::infinity());
+  memLimit.set_value(std::numeric_limits<double>::infinity());
+
+  google::protobuf::Map<string, Value::Scalar> resourceLimits;
+  resourceLimits.insert({"cpus", cpuLimit});
+  resourceLimits.insert({"mem", memLimit});
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      offers.get()[0].resources(),
+      "sleep 1000",
+      None(),
+      "test-task",
+      id::UUID::random().toString(),
+      resourceLimits);
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *(containers->begin());
+
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
+
+  Result<string> memoryHierarchy = cgroups::hierarchy("memory");
+  ASSERT_SOME(memoryHierarchy);
+
+  string cgroup = path::join(flags.cgroups_root, containerId.value());
+
+  // The CFS quota should be -1 which means infinite quota.
+  Try<string> quota =
+    cgroups::read(cpuHierarchy.get(), cgroup, "cpu.cfs_quota_us");
+
+  ASSERT_SOME(quota);
+  EXPECT_EQ("-1", strings::trim(quota.get()));
+
+  // Root cgroup (e.g., `/sys/fs/cgroup/memory/`) cannot have any limits set, so
+  // its hard limit must be infinity.
+  Try<Bytes> rootCgrouplimit =
+    cgroups::memory::limit_in_bytes(memoryHierarchy.get(), "");
+
+  ASSERT_SOME(rootCgrouplimit);
+
+  // The memory hard limit should be same as root cgroup's, i.e. infinity.
+  EXPECT_SOME_EQ(
+      rootCgrouplimit.get(),
+      cgroups::memory::limit_in_bytes(memoryHierarchy.get(), cgroup));
 
   driver.stop();
   driver.join();
