@@ -17,9 +17,18 @@
 #include <signal.h> // For sigaction(), sigemptyset().
 #include <string.h> // For strsignal().
 
+#ifdef __WINDOWS__
+#include <windows.h>
+#include <dbghelp.h>
+#endif
+
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
 
+#ifdef __WINDOWS__
+#include <atomic>
+#include <cstdio>
+#endif
 #include <string>
 
 #include <process/once.hpp>
@@ -104,6 +113,257 @@ inline void handler(int signal, siginfo_t *siginfo, void *context)
   }
 }
 #endif // __WINDOWS__
+
+
+#ifdef __WINDOWS__
+// We use a lock to protect dbghelp.h methods, since they are not
+// thread safe and need to be synchronized.
+std::atomic_flag dbghelpLock = ATOMIC_FLAG_INIT;
+
+// Fills in the stack trace from the provided exception context.
+// NOTE: Do not allocate memory or do anything else that might
+// obtain a lock acquired by code running outside of the exception
+// filter, since that lock may still be held since the stack is
+// unwound. (See POSIX async-signal-safety to better understand
+// the importance of this).
+//
+// NOTE: Rather than returning the number of filled in entries,
+// this returns the number of frames in the stack trace, which may be
+// larger than the provided trace array (in which case, the caller
+// needs to be careful not to index past the end!). This enables
+// the caller to detect that there were more frames that this
+// function was not able to fill in.
+//
+// This code is adapted from Chromium's implementation:
+//
+// https://github.com/chromium/chromium/blob/3771ffb16f922cf9ddc40b733498cc88f82f8fcf/base/debug/stack_trace_win.cc#L295-L339 // NOLINT
+size_t stackTraceFromExceptionContext(
+    const CONTEXT* context, void** trace, size_t size)
+{
+  size_t traceCount = 0;
+
+  // StackWalk64 modifies the context in place; we supply it with a copy
+  // so that downstream exception handlers get the right context.
+  CONTEXT contextCopy;
+  memcpy(&contextCopy, context, sizeof(contextCopy));
+  contextCopy.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
+
+  STACKFRAME64 frame;
+  memset(&frame, 0, sizeof(frame));
+#if defined(_M_X64) || defined(__x86_64__)
+  int machineType = IMAGE_FILE_MACHINE_AMD64;
+  frame.AddrPC.Offset = context->Rip;
+  frame.AddrFrame.Offset = context->Rbp;
+  frame.AddrStack.Offset = context->Rsp;
+#elif defined(__aarch64__)
+  int machineType = IMAGE_FILE_MACHINE_ARM64;
+  frame.AddrPC.Offset = context->Pc;
+  frame.AddrFrame.Offset = context->Fp;
+  frame.AddrStack.Offset = context->Sp;
+#elif defined(_M_IX86) || defined(__i386__)
+  int machineType = IMAGE_FILE_MACHINE_I386;
+  frame.AddrPC.Offset = context->Eip;
+  frame.AddrFrame.Offset = context->Ebp;
+  frame.AddrStack.Offset = context->Esp;
+#else
+#error Unsupported Windows Architecture
+#endif
+  frame.AddrPC.Mode = AddrModeFlat;
+  frame.AddrFrame.Mode = AddrModeFlat;
+  frame.AddrStack.Mode = AddrModeFlat;
+
+  // Acquire the lock to protect StackWalk64.
+  while (dbghelpLock.test_and_set(std::memory_order_acquire));
+
+  while (StackWalk64(machineType, GetCurrentProcess(), GetCurrentThread(),
+                     &frame, &contextCopy, NULL,
+                     &SymFunctionTableAccess64, &SymGetModuleBase64, NULL)) {
+    if (traceCount < size) {
+      trace[traceCount] = reinterpret_cast<void*>(frame.AddrPC.Offset);
+    }
+    ++traceCount;
+  }
+
+  // Release the lock protecting StackWalk64.
+  dbghelpLock.clear(std::memory_order_release);
+
+  for (size_t i = traceCount; i < size; ++i) {
+    trace[i] = NULL;
+  }
+
+  return traceCount;
+}
+
+
+// This code is inspired from the Chromium and Glog projects, as well
+// as the MSDN documentation and examples:
+//
+// https://github.com/chromium/chromium/blob/3771ffb16f922cf9ddc40b733498cc88f82f8fcf/base/debug/stack_trace_win.cc#L197-L256 // NOLINT
+// https://github.com/google/glog/blob/130a3e10de248344cdaeda54aed4c8a5ad7cedac/src/symbolize.cc#L908-L933 // NOLINT
+// https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-symbol-information-by-address // NOLINT
+void Symbolize(void* pc, char* out, size_t size)
+{
+  char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+
+  DWORD64 symbolDisplacement = 0;
+  SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
+  symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+  symbol->MaxNameLen = MAX_SYM_NAME - 1;
+
+  // Acquire the lock to protect SymFromAddr and SymGetLineFromAddr64.
+  while (dbghelpLock.test_and_set(std::memory_order_acquire));
+
+  BOOL symbolFound = SymFromAddr(
+      GetCurrentProcess(),
+      reinterpret_cast<DWORD64>(pc),
+      &symbolDisplacement,
+      symbol);
+
+  DWORD lineDisplacement = 0;
+  IMAGEHLP_LINE64 line = {};
+  line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+
+  BOOL lineFound = SymGetLineFromAddr64(
+      GetCurrentProcess(),
+      reinterpret_cast<DWORD64>(pc),
+      &lineDisplacement,
+      &line);
+
+  // Release the lock protecting SymFromAddr and SymGetLineFromAddr64.
+  dbghelpLock.clear(std::memory_order_release);
+
+  // We handle each case individually here since it winds up being
+  // simpler than dealing with offsets into the output buffer and
+  // error handling, and it's easier to see what the output looks like.
+  if (symbolFound) {
+    if (lineFound) {
+      snprintf(out, size, "\t%s [%p+%llu] (%s:%u)",
+               symbol->Name,
+               pc, symbolDisplacement,
+               line.FileName, line.LineNumber);
+    } else {
+      snprintf(out, size, "\t%s [%p+%llu]",
+               symbol->Name,
+               pc, symbolDisplacement);
+    }
+  } else {
+    if (lineFound) {
+      snprintf(out, size, "\t(No symbol) [%p+%llu] (%s:%u)",
+               pc, symbolDisplacement,
+               line.FileName, line.LineNumber);
+    } else {
+      snprintf(out, size, "\t(No symbol) [%p+%llu]",
+               pc, symbolDisplacement);
+    }
+  }
+}
+
+
+long WINAPI UnhandledExceptionFilter(EXCEPTION_POINTERS* info)
+{
+  // At this point the stack has already been unwound so we have to walk
+  // the exception's stack information from the provided `info` (i.e. we
+  // can't just RAW_LOG(FATAL) like we do on POSIX.
+  //
+  // Use raw logging since the stack has been unwound and locks may be
+  // held (see `handler(...)` above). Log as error even though this is
+  // fatal since we don't want to crash here.
+  //
+  // It appears there is no simple way to convert the error code into
+  // a string, so we hard code the names.
+
+  DWORD code = info->ExceptionRecord->ExceptionCode;
+
+  RAW_LOG(ERROR, "Received fatal exception %#x %s", code, [code]() {
+    switch (code) {
+      case EXCEPTION_ACCESS_VIOLATION:
+        return "EXCEPTION_ACCESS_VIOLATION";
+      case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+        return "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+      case EXCEPTION_BREAKPOINT:
+        return "EXCEPTION_BREAKPOINT";
+      case EXCEPTION_DATATYPE_MISALIGNMENT:
+        return "EXCEPTION_DATATYPE_MISALIGNMENT";
+      case EXCEPTION_FLT_DENORMAL_OPERAND:
+        return "EXCEPTION_FLT_DENORMAL_OPERAND";
+      case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+        return  "EXCEPTION_FLT_DIVIDE_BY_ZERO";
+      case EXCEPTION_FLT_INEXACT_RESULT:
+        return "EXCEPTION_FLT_INEXACT_RESULT";
+      case EXCEPTION_FLT_INVALID_OPERATION:
+        return "EXCEPTION_FLT_INVALID_OPERATION";
+      case EXCEPTION_FLT_OVERFLOW:
+        return "EXCEPTION_FLT_OVERFLOW";
+      case EXCEPTION_FLT_STACK_CHECK:
+        return "EXCEPTION_FLT_STACK_CHECK";
+      case EXCEPTION_FLT_UNDERFLOW:
+        return "EXCEPTION_FLT_UNDERFLOW";
+      case EXCEPTION_ILLEGAL_INSTRUCTION:
+        return "EXCEPTION_ILLEGAL_INSTRUCTION";
+      case EXCEPTION_IN_PAGE_ERROR:
+        return "EXCEPTION_IN_PAGE_ERROR";
+      case EXCEPTION_INT_DIVIDE_BY_ZERO:
+        return "EXCEPTION_INT_DIVIDE_BY_ZERO";
+      case EXCEPTION_INT_OVERFLOW:
+        return "EXCEPTION_INT_OVERFLOW";
+      case EXCEPTION_INVALID_DISPOSITION:
+        return "EXCEPTION_INVALID_DISPOSITION";
+      case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+        return "EXCEPTION_NONCONTINUABLE_EXCEPTION";
+      case EXCEPTION_PRIV_INSTRUCTION:
+        return "EXCEPTION_PRIV_INSTRUCTION";
+      case EXCEPTION_SINGLE_STEP:
+        return "EXCEPTION_SINGLE_STEP";
+      case EXCEPTION_STACK_OVERFLOW:
+        return "EXCEPTION_STACK_OVERFLOW";
+      default:
+        return "UNKNOWN";
+  }}());
+
+  // Acquire the lock to protect SymSetOptions and SymInitialize.
+  while (dbghelpLock.test_and_set(std::memory_order_acquire));
+
+  SymSetOptions(SYMOPT_DEFERRED_LOADS |
+                SYMOPT_UNDNAME |
+                SYMOPT_LOAD_LINES);
+
+  BOOL initialized = SymInitialize(GetCurrentProcess(), NULL, TRUE);
+
+  // Release the lock protecting SymSetOptions and SymInitialize.
+  dbghelpLock.clear(std::memory_order_release);
+
+  if (!initialized) {
+    DWORD error = GetLastError();
+    char buffer[64];
+    strerror_s(buffer, sizeof(buffer), error);
+    RAW_LOG(ERROR, "Unable to print exception stack trace:"
+                   " Failed to SymInitialize: %s", buffer);
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  const size_t MAX_TRACE_SIZE = 250;
+
+  void* trace[MAX_TRACE_SIZE];
+
+  size_t traceCount = stackTraceFromExceptionContext(
+      info->ContextRecord, trace, MAX_TRACE_SIZE);
+
+  for (size_t i = 0; i < std::min(traceCount, MAX_TRACE_SIZE); ++i) {
+    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + 16];
+
+    Symbolize(trace[i], buffer, sizeof(buffer));
+
+    RAW_LOG(ERROR, "%s", buffer);
+  }
+
+  if (traceCount > MAX_TRACE_SIZE) {
+    RAW_LOG(ERROR, "\t< %u additional frames clipped >",
+            traceCount - MAX_TRACE_SIZE);
+  }
+
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
 
 
 google::LogSeverity getLogSeverity(const string& logging_level)
@@ -207,8 +467,28 @@ void initialize(
     (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");
 
   if (installFailureSignalHandler) {
-  // glog on Windows does not support `InstallFailureSignalHandler`.
-#ifndef __WINDOWS__
+#ifdef __WINDOWS__
+    // Glog on windows now supports InstallFailureSignalHandler(),
+    // but it is of little utility since windows handles failures
+    // via structured exception handling (SEH) instead. While some
+    // signals may get mapped by the c runtime library (CRT) [1], when
+    // we tested this out it worked for SIGABRT but it did not work
+    // for SIGSEGV. So, we just use an unhandled exception filter to
+    // catch these exceptions and dump a stack trace.
+    //
+    // [1] https://docs.oracle.com/en/java/javase/13/troubleshoot/handle-signals-and-exceptions.html#GUID-43732853-4FDD-4FED-99A0-56B79B44B3AD // NOLINT
+    //
+    // See the following issues for having glog provide this:
+    //
+    //   https://github.com/google/glog/issues/535
+    //   https://github.com/google/glog/issues/534
+    //
+    // TODO(bmahler): Does it make sense to use AddVectoredContinueHandler
+    // (and push to back of list), this appears to execute after vectored
+    // exception handlers and SEH, which seems like the last chance to
+    // look at the exception.
+    SetUnhandledExceptionFilter(&UnhandledExceptionFilter);
+#else
     // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
     // by default.
     google::InstallFailureSignalHandler();
