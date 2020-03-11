@@ -340,7 +340,7 @@ sharing implementation currently has limitations. E.g. See the problem of
 
 <tr id="filter_gpu_resources">
   <td>
-    --[no_]filter_gpu_resources
+    --[no-]filter_gpu_resources
   </td>
   <td>
 When set to true, this flag will cause the mesos master to filter all offers
