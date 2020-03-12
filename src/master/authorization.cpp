@@ -223,9 +223,9 @@ vector<ActionObject> ActionObject::reserve(
   }
 
   // We request RESERVE_RESOURCES to bring `ancestor` to `target`.
-  const RepeatedPtrField<Resource::ReservationInfo>& targetReservations =
+  const RepeatedPtrField<Resource::ReservationInfo> targetReservations =
     reserve.resources(0).reservations();
-  const RepeatedPtrField<Resource::ReservationInfo>& ancestorReservations =
+  const RepeatedPtrField<Resource::ReservationInfo> ancestorReservations =
     RepeatedPtrField<Resource>(ancestor).begin()->reservations();
 
   // Skip reservations common among `source` and `resources`.
