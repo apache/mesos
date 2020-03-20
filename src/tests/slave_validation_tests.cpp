@@ -495,8 +495,24 @@ TEST(AgentCallValidationTest, LaunchNestedContainerSession)
       "variable 'ENV_VAR_KEY' of type 'VALUE' must have a value set",
       error->message);
 
-  // Test the valid case.
+  // Container with 'share_cgroups' set to 'false', which is not allowed for
+  // nested container sessions.
   variable->set_value("env_var_value");
+
+  launch->mutable_container()->set_type(ContainerInfo::MESOS);
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(false);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'launch_nested_container_session.container.linux_info' is invalid: "
+      "'share_cgroups' cannot be set to 'false' for nested container "
+      "sessions"));
+
+  // Test the valid case.
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(true);
+
   error = validation::agent::call::validate(call);
   EXPECT_NONE(error);
 
@@ -506,6 +522,131 @@ TEST(AgentCallValidationTest, LaunchNestedContainerSession)
 
   launch->mutable_container_id()->mutable_parent()->mutable_parent()->CopyFrom(
       grandparentContainerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
+
+TEST(AgentCallValidationTest, LaunchContainer)
+{
+  // Missing `launch_container`.
+  agent::Call call;
+  call.set_type(agent::Call::LAUNCH_CONTAINER);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // `container_id` is not valid.
+  ContainerID badContainerId;
+  badContainerId.set_value("no spaces allowed");
+
+  agent::Call::LaunchContainer* launch = call.mutable_launch_container();
+
+  launch->mutable_container_id()->CopyFrom(badContainerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Invalid `command.environment`. Set an invalid environment variable to check
+  // that the common validation code for the command's environment is being
+  // executed.
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  launch->mutable_container_id()->CopyFrom(containerId);
+
+  launch->mutable_command()->CopyFrom(createCommandInfo("exit 0"));
+
+  Environment::Variable* variable = launch
+    ->mutable_command()
+    ->mutable_environment()
+    ->mutable_variables()
+    ->Add();
+  variable->set_name("ENV_VAR_KEY");
+  variable->set_type(mesos::Environment::Variable::VALUE);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_container.command' is invalid: Environment variable "
+      "'ENV_VAR_KEY' of type 'VALUE' must have a value set",
+      error->message);
+
+  // Invalid resources.
+  variable->set_value("env_var_value");
+
+  Resource cpus;
+  cpus.set_type(Value::SCALAR);
+  cpus.set_name("cpus");
+  cpus.mutable_scalar()->set_value(-0.1);
+
+  launch->add_resources()->CopyFrom(cpus);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "Invalid resources: Resource 'cpus:-0.1' is invalid: "
+      "Invalid scalar resource: value <= 0",
+      error->message);
+
+  // Invalid 'ContainerInfo'.
+  launch->clear_resources();
+  cpus.mutable_scalar()->set_value(0.1);
+  launch->add_resources()->CopyFrom(cpus);
+
+  launch->mutable_container()->set_type(ContainerInfo::DOCKER);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_container.container' is invalid: DockerInfo 'docker' is not set "
+      "for DOCKER typed ContainerInfo",
+      error->message);
+
+  // Container with 'share_cgroups' set to 'true', which is not allowed for
+  // containers with no parent.
+  launch->mutable_container()->set_type(ContainerInfo::MESOS);
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(true);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_container' is invalid: containers without a parent "
+      "cannot set 'share_cgroups' to 'true'",
+      error->message);
+
+  // Test the valid case.
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(false);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+
+  // Container nested at the second level with 'share_cgroups' set to 'false',
+  // which is not allowed.
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(false);
+  launch->clear_resources();
+
+  ContainerID parentContainerId;
+  ContainerID grandparentContainerId;
+
+  grandparentContainerId.set_value(id::UUID::random().toString());
+  parentContainerId.mutable_parent()->CopyFrom(grandparentContainerId);
+
+  parentContainerId.set_value(id::UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId);
+
+  launch->mutable_container_id()->CopyFrom(containerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_container' is invalid: containers nested at the second level or "
+      "greater cannot set 'share_cgroups' to 'false'",
+      error->message);
+
+  // Test the valid twice-nested case.
+  launch->mutable_container()->mutable_linux_info()->set_share_cgroups(true);
 
   error = validation::agent::call::validate(call);
   EXPECT_NONE(error);
