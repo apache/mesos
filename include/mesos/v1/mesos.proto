@@ -3342,17 +3342,17 @@ message LinuxInfo {
 
   // If set as 'true', the container will share the cgroups from its parent
   // container, otherwise it will have its own cgroups created. Please note:
-  // 1. This field should be only used for the task containers in a task group
-  //    (i.e., the 1st level nested containers). It will be ignored for the
-  //    executor containers (i.e., the top-level containers) since the executor
-  //    container will always have its own cgroups created, and it will also be
-  //    ignored for the nested containers under the 1st nested container (e.g.,
-  //    the debug container running as 2nd level nested container) since those
-  //    containers should always share cgroups from its parent container.
-  // 2. The value of this field should be same for all the tasks launched by a
-  //    single executor.
-  // 3. It is not allowed to set resource limits for the task which has this
-  //    field set as true.
+  // 1. For tasks in a task group launched via the LAUNCH_GROUP operation,
+  //    this field may be set to 'true' or 'false'. Resource limits may only be
+  //    set for tasks in a task group when this field is set to 'false'.
+  // 2. For tasks launched via the LAUNCH operation, this field may only be set
+  //    to 'true', and in this case resource limits may be set on these tasks.
+  // 3. For containers launched via the agent's LAUNCH_NESTED_CONTAINER_SESSION
+  //    call, this field must be set to 'true'.
+  // 4. For executor containers, this field may only be set to 'false'.
+  // 5. All tasks under a single executor must share the same value of this
+  //    field, if it is set. Note that this means that all tasks within a single
+  //    task group must set this field to the same value.
   optional bool share_cgroups = 8 [default = true];
 }
 
