@@ -171,8 +171,11 @@ Option<Error> validate(
         return Error("Expecting 'launch_nested_container' to be present");
       }
 
+      const mesos::agent::Call::LaunchNestedContainer& launch =
+        call.launch_nested_container();
+
       Option<Error> error = validation::container::validateContainerId(
-          call.launch_nested_container().container_id());
+          launch.container_id());
 
       if (error.isSome()) {
         return Error("'launch_nested_container.container_id' is invalid"
@@ -181,26 +184,35 @@ Option<Error> validate(
 
       // The parent `ContainerID` is required, so that we know
       // which container to place it underneath.
-      if (!call.launch_nested_container().container_id().has_parent()) {
+      if (!launch.container_id().has_parent()) {
         return Error("Expecting 'launch_nested_container.container_id.parent'"
                      " to be present");
       }
 
-      if (call.launch_nested_container().has_command()) {
-        error = common::validation::validateCommandInfo(
-            call.launch_nested_container().command());
+      if (launch.has_command()) {
+        error = common::validation::validateCommandInfo(launch.command());
         if (error.isSome()) {
           return Error("'launch_nested_container.command' is invalid"
                        ": " + error->message);
         }
       }
 
-      if (call.launch_nested_container().has_container()) {
-        error = common::validation::validateContainerInfo(
-            call.launch_nested_container().container());
+      if (launch.has_container()) {
+        error = common::validation::validateContainerInfo(launch.container());
         if (error.isSome()) {
           return Error("'launch_nested_container.container' is invalid"
                        ": " + error->message);
+        }
+
+        if (launch.container().has_linux_info() &&
+            launch.container().linux_info().has_share_cgroups() &&
+            !launch.container().linux_info().share_cgroups() &&
+            launch.container_id().has_parent() &&
+            launch.container_id().parent().has_parent()) {
+            return Error(
+                "'launch_nested_container' is invalid: containers nested at "
+                "the second level or greater cannot set 'share_cgroups' to "
+                "'false'");
         }
       }
 
@@ -279,8 +291,11 @@ Option<Error> validate(
             "Expecting 'launch_nested_container_session' to be present");
       }
 
+      const mesos::agent::Call::LaunchNestedContainerSession& launch =
+        call.launch_nested_container_session();
+
       Option<Error> error = validation::container::validateContainerId(
-          call.launch_nested_container_session().container_id());
+          launch.container_id());
 
       if (error.isSome()) {
         return Error("'launch_nested_container_session.container_id' is invalid"
@@ -289,27 +304,33 @@ Option<Error> validate(
 
       // The parent `ContainerID` is required, so that we know
       // which container to place it underneath.
-      if (!call.launch_nested_container_session().container_id().has_parent()) {
+      if (!launch.container_id().has_parent()) {
         return Error(
             "Expecting 'launch_nested_container_session.container_id.parent'"
             " to be present");
       }
 
-      if (call.launch_nested_container_session().has_command()) {
-        error = common::validation::validateCommandInfo(
-            call.launch_nested_container_session().command());
+      if (launch.has_command()) {
+        error = common::validation::validateCommandInfo(launch.command());
         if (error.isSome()) {
           return Error("'launch_nested_container_session.command' is invalid"
                        ": " + error->message);
         }
       }
 
-      if (call.launch_nested_container_session().has_container()) {
-        error = common::validation::validateContainerInfo(
-            call.launch_nested_container_session().container());
+      if (launch.has_container()) {
+        error = common::validation::validateContainerInfo(launch.container());
         if (error.isSome()) {
           return Error("'launch_nested_container_session.container' is invalid"
                        ": " + error->message);
+        }
+
+        if (launch.container().has_linux_info() &&
+            !launch.container().linux_info().share_cgroups()) {
+          return Error(
+              "'launch_nested_container_session.container.linux_info' is "
+              "invalid: 'share_cgroups' cannot be set to 'false' for nested "
+              "container sessions");
         }
       }
 
@@ -367,8 +388,11 @@ Option<Error> validate(
         return Error("Expecting 'launch_container' to be present");
       }
 
+      const mesos::agent::Call::LaunchContainer& launch =
+        call.launch_container();
+
       Option<Error> error = validation::container::validateContainerId(
-          call.launch_container().container_id());
+          launch.container_id());
 
       if (error.isSome()) {
         return Error(
@@ -376,22 +400,20 @@ Option<Error> validate(
       }
 
       // General resource validation first.
-      error = Resources::validate(call.launch_container().resources());
+      error = Resources::validate(launch.resources());
       if (error.isSome()) {
         return Error("Invalid resources: " + error->message);
       }
 
-      error = common::validation::validateGpus(
-          call.launch_container().resources());
-
+      error = common::validation::validateGpus(launch.resources());
       if (error.isSome()) {
         return Error("Invalid GPU resources: " + error->message);
       }
 
       // Because standalone containers are launched outside of the master's
       // offer cycle, some resource types or fields may not be specified.
-      if (!call.launch_container().container_id().has_parent()) {
-        foreach (Resource resource, call.launch_container().resources()) {
+      if (!launch.container_id().has_parent()) {
+        foreach (Resource resource, launch.resources()) {
           // Upgrade the resources (in place) to simplify validation.
           upgradeResource(&resource);
 
@@ -420,22 +442,58 @@ Option<Error> validate(
         }
       }
 
-      if (call.launch_container().has_command()) {
-        error = common::validation::validateCommandInfo(
-            call.launch_container().command());
+      if (launch.has_command()) {
+        error = common::validation::validateCommandInfo(launch.command());
         if (error.isSome()) {
           return Error(
               "'launch_container.command' is invalid: " + error->message);
         }
       }
 
-      if (call.launch_container().has_container()) {
-        error = common::validation::validateContainerInfo(
-            call.launch_container().container());
+      if (launch.has_container()) {
+        error = common::validation::validateContainerInfo(launch.container());
         if (error.isSome()) {
           return Error(
               "'launch_container.container' is invalid: " + error->message);
         }
+      }
+
+      bool shareCgroups =
+        (launch.has_container() &&
+         launch.container().has_linux_info() &&
+         launch.container().linux_info().has_share_cgroups()) ?
+           launch.container().linux_info().share_cgroups() :
+           true;
+
+      bool twiceNested =
+        (launch.container_id().has_parent() &&
+         launch.container_id().parent().has_parent());
+
+      if (twiceNested && !launch.resources().empty()) {
+        return Error(
+            "'launch_container' is invalid: containers nested at the "
+            "second level or greater cannot specify resources");
+      }
+
+      if (twiceNested && !launch.limits().empty()) {
+        return Error(
+            "'launch_container' is invalid: containers nested at the "
+            "second level or greater cannot specify resource limits");
+      }
+
+      if (twiceNested && !shareCgroups) {
+        return Error(
+            "'launch_container' is invalid: containers nested at the "
+            "second level or greater cannot set 'share_cgroups' to "
+            "'false'");
+      }
+
+      if (!launch.container_id().has_parent() &&
+          launch.container().linux_info().has_share_cgroups() &&
+          shareCgroups) {
+        return Error(
+            "'launch_container' is invalid: containers without a parent "
+            "cannot set 'share_cgroups' to 'true'");
       }
 
       return None();
