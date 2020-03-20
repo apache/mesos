@@ -19,6 +19,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/getcwd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>

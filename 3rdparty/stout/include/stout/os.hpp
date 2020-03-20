@@ -47,6 +47,7 @@
 #include <stout/os/chdir.hpp>
 #include <stout/os/chroot.hpp>
 #include <stout/os/dup.hpp>
+#include <stout/os/exec.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/fcntl.hpp>
 #include <stout/os/getenv.hpp>

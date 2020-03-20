@@ -192,27 +192,6 @@ inline void eraseenv(const std::string& key)
 }
 
 
-// This function is a portable version of execvpe ('p' means searching
-// executable from PATH and 'e' means setting environments). We add
-// this function because it is not available on all systems.
-//
-// NOTE: This function is not thread safe. It is supposed to be used
-// only after fork (when there is only one thread). This function is
-// async signal safe.
-inline int execvpe(const char* file, char** argv, char** envp)
-{
-  char** saved = os::raw::environment();
-
-  *os::raw::environmentp() = envp;
-
-  int result = execvp(file, argv);
-
-  *os::raw::environmentp() = saved;
-
-  return result;
-}
-
-
 inline Try<Nothing> chmod(const std::string& path, int mode)
 {
   if (::chmod(path.c_str(), mode) < 0) {

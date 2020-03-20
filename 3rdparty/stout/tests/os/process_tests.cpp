@@ -224,8 +224,8 @@ TEST_F(ProcessTest, Pstree)
               1u == total_children) << stringify(tree.get());
   const bool conhost_spawned = total_children == 1;
 
-  Try<internal::windows::ProcessData> process_data =
-    internal::windows::create_process(
+  Try<os::windows::internal::ProcessData> process_data =
+    os::windows::internal::create_process(
         "powershell",
         {"powershell", "-NoProfile", "-Command", "Start-Sleep", "2"},
         None());

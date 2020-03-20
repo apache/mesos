@@ -29,8 +29,6 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
-#include <stout/os/raw/argv.hpp>
-
 namespace os {
 
 namespace Shell {
@@ -151,50 +149,6 @@ inline Option<int> system(const std::string& command)
 
     return status;
   }
-}
-
-// Executes a command by calling "<command> <arguments...>", and returns after
-// the command has been completed. Returns the exit code on success and `None`
-// on error (e.g., fork/exec/waitpid failed). This function is async signal
-// safe. We return an `Option<int>` instead of a `Try<int>`, because although
-// `Try` does not dynamically allocate, `Error` uses `std::string`, which is
-// not async signal safe.
-inline Option<int> spawn(
-    const std::string& command,
-    const std::vector<std::string>& arguments)
-{
-  pid_t pid = ::fork();
-
-  if (pid == -1) {
-    return None();
-  } else if (pid == 0) {
-    // In child process.
-    ::execvp(command.c_str(), os::raw::Argv(arguments));
-    ::exit(127);
-  } else {
-    // In parent process.
-    int status;
-    while (::waitpid(pid, &status, 0) == -1) {
-      if (errno != EINTR) {
-        return None();
-      }
-    }
-
-    return status;
-  }
-}
-
-
-template<typename... T>
-inline int execlp(const char* file, T... t)
-{
-  return ::execlp(file, t...);
-}
-
-
-inline int execvp(const char* file, char* const argv[])
-{
-  return ::execvp(file, argv);
 }
 
 } // namespace os {

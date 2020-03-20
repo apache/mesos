@@ -75,6 +75,7 @@ nobase_include_HEADERS =			\
   stout/os/copyfile.hpp				\
   stout/os/dup.hpp				\
   stout/os/environment.hpp			\
+  stout/os/exec.hpp				\
   stout/os/exists.hpp				\
   stout/os/fcntl.hpp				\
   stout/os/getenv.hpp				\
@@ -130,6 +131,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/copyfile.hpp			\
   stout/os/posix/dup.hpp			\
   stout/os/posix/environment.hpp		\
+  stout/os/posix/exec.hpp			\
   stout/os/posix/exists.hpp			\
   stout/os/posix/fcntl.hpp			\
   stout/os/posix/fork.hpp			\
@@ -172,6 +174,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/copyfile.hpp			\
   stout/os/windows/dup.hpp			\
   stout/os/windows/environment.hpp		\
+  stout/os/windows/exec.hpp			\
   stout/os/windows/exists.hpp			\
   stout/os/windows/fcntl.hpp			\
   stout/os/windows/fd.hpp			\

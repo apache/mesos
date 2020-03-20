@@ -51,6 +51,7 @@
 #endif
 
 #include <stout/os/environment.hpp>
+#include <stout/os/exec.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
@@ -87,12 +88,12 @@ using std::vector;
 #if defined(__WINDOWS__)
 // NOTE: These are used to partially implement tests which otherwise
 // relied on `os::Exec` and `os::Fork`.
-using ::internal::windows::ProcessData;
+using os::windows::internal::ProcessData;
 
 ProcessData windows_fork()
 {
   // This will unfortunately generate some output.
-  Try<ProcessData> process_data = ::internal::windows::create_process(
+  Try<ProcessData> process_data = ::os::windows::internal::create_process(
       "", {"ping.exe", "127.0.0.1", "-n", "10"}, None());
   CHECK_SOME(process_data);
   return process_data.get();

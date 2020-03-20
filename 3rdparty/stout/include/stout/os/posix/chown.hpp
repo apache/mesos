@@ -21,7 +21,6 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
-#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
 namespace os {
