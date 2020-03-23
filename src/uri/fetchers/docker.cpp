@@ -114,7 +114,7 @@ static Future<http::Response> curl(
     // infrastructures. The '--http1.1' flag got added to curl with
     // with version 7.33.0. Some supported distributions do still come
     // with curl version 7.19.0. See MESOS-8907.
-    http11 = os::system("curl --http1.1 -V  2>&1 >/dev/null") == 0;
+    http11 = os::system("curl --http1.1 -V  > /dev/null 2>&1") == 0;
     VLOG(1) << "Curl accepts --http1.1 flag: " << stringify(http11);
     initialized->done();
   }
