@@ -176,6 +176,7 @@ set(AGENT_SRC
   slave/containerizer/mesos/launcher_tracker.cpp
   slave/containerizer/mesos/mount.cpp
   slave/containerizer/mesos/paths.cpp
+  slave/containerizer/mesos/utils.cpp
   slave/containerizer/mesos/io/switchboard.cpp
   slave/containerizer/mesos/isolators/environment_secret.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp
@@ -188,7 +189,6 @@ set(AGENT_SRC
 
 if (NOT WIN32)
   list(APPEND AGENT_SRC
-    slave/containerizer/mesos/utils.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
     slave/containerizer/mesos/isolators/network/cni/paths.cpp
