@@ -55,7 +55,7 @@ The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is enc
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" event stream.
 
-To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo. Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with either a `SUBSCRIBED` event or an `ERROR` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
+To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo and the list of initially suppressed roles (which must be a subset of roles in FrameworkInfo, see the section for `SUPPRESS` call). Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with either a `SUBSCRIBED` event or an `ERROR` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -73,9 +73,10 @@ Connection: close
       "framework_info"	: {
         "user" :  "foo",
         "name" :  "Example HTTP Framework",
-        "roles": ["test"],
+        "roles": ["test1", "test2"],
         "capabilities" : [{"type": "MULTI_ROLE"}]
-      }
+      },
+      "suppressed_roles" : ["test2"]
   }
 }
 
@@ -101,6 +102,11 @@ Alternatively, if "subscribe.framework_info.id" and "FrameworkID" are set, the m
 with a `SUBSCRIBED` event. For further details, see the **Disconnections** section below.
 
 NOTE: In the old version of the API, (re-)registered callbacks also included MasterInfo, which contained information about the master the driver currently connected to. With the new API, since schedulers explicitly subscribe with the leading master (see details below in **Master Detection** section), it's not relevant anymore.
+
+NOTE: By providing a different FrameworkInfo and/or set of suppressed roles,
+re-subscribing scheduler can change some of the fields of FrameworkInfo and the
+set of suppressed roles. Allowed changes and their effects are consistent with
+those that can be performed via `UPDATE_FRAMEWORK` call (see below).
 
 If subscription fails for whatever reason (e.g., invalid request), an HTTP 4xx response is returned with the error message as part of the body and the connection is closed.
 
@@ -493,6 +499,105 @@ SUPPRESS Response:
 HTTP/1.1 202 Accepted
 
 ```
+
+### UPDATE_FRAMEWORK
+
+Sent by the scheduler to change fields of its `FrameworkInfo` and/or the set of
+suppressed roles. Allowed changes and their effects are consistent with changing
+FrameworkInfo and/or set of suppressed roles when re-subscribing.
+
+#### Disallowed updates
+Updating the following `FrameworkInfo` fields is not allowed:
+  * `principal` (mainly because "changing a principal" effectively means
+  a transfer of a framework by an original principal to the new one; secure
+  mechanism for such transfer is yet to be developed)
+  * `user`
+  * `checkpoint`
+
+`UPDATE_FRAMEWORK` call trying to update any of these fields is not valid,
+unlike an attempt to change `user`/`checkpoint` when resubscribing, in which
+case the new value is ignored.
+
+#### Updating framework roles
+Updating `framework_info.roles` and `suppressed_roles` is supported.
+In a valid `UPDATE_FRAMEWORK` call, new suppressed roles must be a (potentially
+empty) subset of new framework roles.
+
+Updating roles has the following effects:
+  * After the call is processed, master will be sending offers to all
+  non-suppressed roles of the framework.
+  * Offers to old framework roles removed by this call will be rescinded.
+  * Offers to roles from suppressed set will NOT be rescinded.
+  * For roles that were transitioned out of suppressed, offer filters (set by
+  ACCEPT/DECLINE) will be cleared.
+  will be cleared.
+  * Other framework objects that use roles removed by this call (for example,
+  tasks) are not affected.
+
+#### Updating other fields
+  * Updating `name`, `hostname`, `webui_url` and `labels` is fully supported
+  by Mesos; these updates are simply propagated to Mesos API endpoints.
+  * Updating `failover_timeout` and `offer_filters` is supported. Note that
+  there is no way to guarantee that offers issued when the old `offer_filters`
+  were in place will not be received by the framework after the master applies
+  the update.
+  * Schedulers can add capabilities via updating `capabilities` field. The call
+  attempting to remove a capability is not considered invalid; however, there
+  is no guarantee that it is safe for the framework to remove the capability.
+  If you really need your framewok to be able to remove a capability, please
+  reach out to the Mesos dev/user list (dev@mesos.apache.org or
+  user@mesos.apache.org).
+  In future, to prevent accidental unsafe downgrade of frameworks, Mesos will
+  need to implement minimum capabilities for schedulers (similarly to minimum
+  master/agent capabilities, see
+  [MESOS-8878](https://issues.apache.org/jira/browse/MESOS-8878)).
+
+
+```
+
+UPDATE_FRAMEWORK Request (JSON):
+
+POST /api/v1/scheduler  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+Connection: close
+
+{
+   "type"		: "UPDATE_FRAMEWORK",
+   "update_framework"	: {
+      "framework_info"	: {
+        "user" :  "foo",
+        "name" :  "Example HTTP Framework",
+        "roles": ["test1", "test2"],
+        "capabilities" : [{"type": "MULTI_ROLE"}]
+      },
+      "suppressed_roles" : ["test2"]
+  }
+}
+
+UPDATE_FRAMEWORK Response:
+HTTP/1.1 200 OK
+```
+
+Response codes:
+  * "200 OK" after the update has been successfully applied by the master and
+  sent to the agents.
+  * "400 Bad request" if the call was not valid or authorizing the call failed.
+  * "403 Forbidden" if the principal was declined authorization to use the
+  provided FrameworkInfo. (Typical authorizer implementations will check
+  authorization to use specified roles.)
+
+No partial updates occur in error cases: either all fields are updated or none
+of them.
+
+NOTE: In Mesos 1.9, effects of changing roles or suppressed roles set via
+UPDATE_FRAMEWORK could be potentially reordered with related effects of
+`ACCEPT`/`DECLINE`/`SUPPRESS`/`REVIVE` or another `UPDATE_FRAMEWORK`;
+to avoid such reordering, it was necessary to wait for UPDATE_FRAMEWORK response
+before issuing the next call. This issue has been fixed in Mesos 1.10.0 (see
+[MESOS-10056](https://issues.apache.org/jira/browse/MESOS-10056)).
 
 ## Events
 
