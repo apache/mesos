@@ -4357,6 +4357,8 @@ TEST_F(MasterTest, TasksEndpoint)
   task1.mutable_slave_id()->MergeFrom(offer->slave_id());
   task1.mutable_resources()->MergeFrom(
       Resources::parse("cpus:0.1;mem:12").get());
+  (*task1.mutable_limits())["cpus"].set_value(0.5);
+  (*task1.mutable_limits())["mem"].set_value(64);
   task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   TaskInfo task2;
@@ -4418,7 +4420,11 @@ TEST_F(MasterTest, TasksEndpoint)
                 "\"framework_id\":\"" + frameworkId->value() + "\","
                 "\"id\":\"1\","
                 "\"name\":\"test1\","
-                "\"state\":\"TASK_RUNNING\""
+                "\"state\":\"TASK_RUNNING\","
+                "\"limits\":{"
+                "  \"cpus\":0.5,"
+                "  \"mem\":64"
+                "}"
               "},{"
                 "\"executor_id\":\"default\","
                 "\"framework_id\":\"" + frameworkId->value() + "\","
@@ -4442,7 +4448,11 @@ TEST_F(MasterTest, TasksEndpoint)
                 "\"framework_id\":\"" + frameworkId->value() + "\","
                 "\"id\":\"1\","
                 "\"name\":\"test1\","
-                "\"state\":\"TASK_RUNNING\""
+                "\"state\":\"TASK_RUNNING\","
+                "\"limits\":{"
+                "  \"cpus\":0.5,"
+                "  \"mem\":64"
+                "}"
             "}]"
         "}");
 

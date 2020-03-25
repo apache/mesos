@@ -91,6 +91,8 @@ TEST(HTTPTest, ModelTask)
   taskInfo.mutable_command()->set_value("echo hello");
   taskInfo.mutable_command()->set_user("user1");
   taskInfo.mutable_discovery()->CopyFrom(discovery);
+  (*taskInfo.mutable_limits())["cpus"].set_value(1.0);
+  (*taskInfo.mutable_limits())["mem"].set_value(32);
 
   Task task = createTask(taskInfo, state, frameworkId);
   task.add_statuses()->CopyFrom(statuses[0]);
@@ -109,6 +111,11 @@ TEST(HTTPTest, ModelTask)
       "    \"disk\":0,"
       "    \"gpus\":0,"
       "    \"mem\":0"
+      "  },"
+      "  \"limits\":"
+      "  {"
+      "    \"cpus\": 1.0,"
+      "    \"mem\": 32"
       "  },"
       "  \"slave_id\":\"s\","
       "  \"state\":\"TASK_RUNNING\","

@@ -633,6 +633,10 @@ JSON::Object model(const Task& task)
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
 
+  if (!task.limits().empty()) {
+    object.values["limits"] = model(task.limits());
+  }
+
   if (task.has_user()) {
     object.values["user"] = task.user();
   }
@@ -783,6 +787,18 @@ JSON::Object model(const FileInfo& fileInfo)
   file.values["gid"] = fileInfo.gid();
 
   return file;
+}
+
+
+JSON::Object model(const google::protobuf::Map<string, Value_Scalar>& map)
+{
+  JSON::Object result, scalar;
+
+  foreach (auto item, map) {
+    result.values[item.first] = item.second.value();
+  }
+
+  return result;
 }
 
 }  // namespace internal {
@@ -1082,6 +1098,17 @@ void json(
 }
 
 
+// Used to include resource limits in JSON output.
+void json(
+    JSON::ObjectWriter* writer,
+    const google::protobuf::Map<string, Value_Scalar>& map)
+{
+  foreach (auto item, map) {
+    writer->field(item.first, item.second.value());
+  }
+}
+
+
 void json(JSON::ObjectWriter* writer, const Task& task)
 {
   writer->field("id", task.task_id().value());
@@ -1091,6 +1118,10 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   writer->field("slave_id", task.slave_id().value());
   writer->field("state", TaskState_Name(task.state()));
   writer->field("resources", task.resources());
+
+  if (!task.limits().empty()) {
+    writer->field("limits", task.limits());
+  }
 
   // Tasks are not allowed to mix resources allocated to
   // different roles, see MESOS-6636.

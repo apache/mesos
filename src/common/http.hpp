@@ -211,6 +211,7 @@ JSON::Object model(const ExecutorInfo& executorInfo);
 JSON::Array model(const Labels& labels);
 JSON::Object model(const Task& task);
 JSON::Object model(const FileInfo& fileInfo);
+JSON::Object model(const google::protobuf::Map<std::string, Value_Scalar>& map);
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 
