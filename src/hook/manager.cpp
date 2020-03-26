@@ -47,8 +47,9 @@ using mesos::modules::ModuleManager;
 namespace mesos {
 namespace internal {
 
-static std::mutex mutex;
-static LinkedHashMap<string, Hook*> availableHooks;
+static std::mutex* mutex = new std::mutex();
+static LinkedHashMap<string, Hook*>* availableHooks =
+  new LinkedHashMap<string, Hook*>();
 
 
 Try<Nothing> HookManager::initialize(const string& hookList)
@@ -56,7 +57,7 @@ Try<Nothing> HookManager::initialize(const string& hookList)
   synchronized (mutex) {
     const vector<string> hooks = strings::split(hookList, ",");
     foreach (const string& hook, hooks) {
-      if (availableHooks.contains(hook)) {
+      if (availableHooks->contains(hook)) {
         return Error("Hook module '" + hook + "' already loaded");
       }
 
@@ -73,7 +74,7 @@ Try<Nothing> HookManager::initialize(const string& hookList)
       }
 
       // Add the hook module to the list of available hooks.
-      availableHooks[hook] = module.get();
+      (*availableHooks)[hook] = module.get();
     }
   }
 
@@ -84,13 +85,13 @@ Try<Nothing> HookManager::initialize(const string& hookList)
 Try<Nothing> HookManager::unload(const string& hookName)
 {
   synchronized (mutex) {
-    if (!availableHooks.contains(hookName)) {
+    if (!availableHooks->contains(hookName)) {
       return Error(
           "Error unloading hook module '" + hookName + "': module not loaded");
     }
 
     // Now remove the hook from the list of available hooks.
-    availableHooks.erase(hookName);
+    availableHooks->erase(hookName);
   }
 
   return Nothing();
@@ -100,7 +101,7 @@ Try<Nothing> HookManager::unload(const string& hookName)
 bool HookManager::hooksAvailable()
 {
   synchronized (mutex) {
-    return !availableHooks.empty();
+    return !availableHooks->empty();
   }
 }
 
@@ -116,7 +117,7 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
   TaskInfo taskInfo_ = taskInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       Result<Labels> result =
         hook->masterLaunchTaskLabelDecorator(
             taskInfo_,
@@ -145,7 +146,7 @@ Resources HookManager::masterLaunchTaskResourceDecorator(
   TaskInfo taskInfo_ = taskInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       Result<Resources> result =
         hook->masterLaunchTaskResourceDecorator(
           taskInfo_,
@@ -165,11 +166,13 @@ Resources HookManager::masterLaunchTaskResourceDecorator(
 
 void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
-    if (result.isError()) {
-      LOG(WARNING) << "Master agent-lost hook failed for module '"
-                   << name << "': " << result.error();
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
+      Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
+      if (result.isError()) {
+        LOG(WARNING) << "Master agent-lost hook failed for module '"
+                     << name << "': " << result.error();
+      }
     }
   }
 }
@@ -184,7 +187,7 @@ Labels HookManager::slaveRunTaskLabelDecorator(
   synchronized (mutex) {
     TaskInfo taskInfo_ = taskInfo;
 
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       const Result<Labels> result = hook->slaveRunTaskLabelDecorator(
           taskInfo_, executorInfo, frameworkInfo, slaveInfo);
 
@@ -207,7 +210,7 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
     ExecutorInfo executorInfo)
 {
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       const Result<Environment> result =
         hook->slaveExecutorEnvironmentDecorator(executorInfo);
 
@@ -240,18 +243,20 @@ Future<DockerTaskExecutorPrepareInfo>
   // `DockerTaskExecutorPrepareInfo` can be deterministically resolved
   // (the last hook takes priority).
   vector<Future<Option<DockerTaskExecutorPrepareInfo>>> futures;
-  futures.reserve(availableHooks.size());
+  synchronized (mutex) {
+    futures.reserve(availableHooks->size());
 
-  foreachvalue (Hook* hook, availableHooks) {
-    // Chain together each hook.
-    futures.push_back(
-        hook->slavePreLaunchDockerTaskExecutorDecorator(
-            taskInfo,
-            executorInfo,
-            containerName,
-            containerWorkDirectory,
-            mappedSandboxDirectory,
-            env));
+    foreachvalue (Hook* hook, *availableHooks) {
+      // Chain together each hook.
+      futures.push_back(
+          hook->slavePreLaunchDockerTaskExecutorDecorator(
+              taskInfo,
+              executorInfo,
+              containerName,
+              containerWorkDirectory,
+              mappedSandboxDirectory,
+              env));
+    }
   }
 
   return collect(futures)
@@ -274,11 +279,13 @@ void HookManager::slavePostFetchHook(
     const ContainerID& containerId,
     const string& directory)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    Try<Nothing> result = hook->slavePostFetchHook(containerId, directory);
-    if (result.isError()) {
-      LOG(WARNING) << "Agent post fetch hook failed for module "
-                   << "'" << name << "': " << result.error();
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
+      Try<Nothing> result = hook->slavePostFetchHook(containerId, directory);
+      if (result.isError()) {
+        LOG(WARNING) << "Agent post fetch hook failed for module "
+                     << "'" << name << "': " << result.error();
+      }
     }
   }
 }
@@ -288,12 +295,14 @@ void HookManager::slaveRemoveExecutorHook(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    const Try<Nothing> result =
-      hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
-    if (result.isError()) {
-      LOG(WARNING) << "Agent remove executor hook failed for module '"
-                   << name << "': " << result.error();
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
+      const Try<Nothing> result =
+        hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
+      if (result.isError()) {
+        LOG(WARNING) << "Agent remove executor hook failed for module '"
+                     << name << "': " << result.error();
+      }
     }
   }
 }
@@ -304,7 +313,7 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
     TaskStatus status)
 {
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       const Result<TaskStatus> result =
         hook->slaveTaskStatusDecorator(frameworkId, status);
 
@@ -340,7 +349,7 @@ Resources HookManager::slaveResourcesDecorator(
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       const Result<Resources> result =
         hook->slaveResourcesDecorator(slaveInfo_);
 
@@ -368,7 +377,7 @@ Attributes HookManager::slaveAttributesDecorator(
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreachpair (const string& name, Hook* hook, *availableHooks) {
       const Result<Attributes> result =
         hook->slaveAttributesDecorator(slaveInfo_);
 
