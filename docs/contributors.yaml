@@ -940,3 +940,12 @@
     - xingzhou@cn.ibm.com
   jira_user: dongdong
   reviewboard_user: dongdong
+
+- name: Dong Zhu
+  affiliations:
+    - {organization: D2IQ}
+  emails:
+    - dzhu@d2iq.com
+    - bluezhudong@gmail.com
+  jira_user: dzhu
+  reviewboard_user: dzhu
