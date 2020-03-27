@@ -43,6 +43,7 @@
 #include <stout/os/chdir.hpp>
 #include <stout/os/close.hpp>
 #include <stout/os/dup.hpp>
+#include <stout/os/exec.hpp>
 #include <stout/os/fcntl.hpp>
 #include <stout/os/signals.hpp>
 
@@ -416,7 +417,7 @@ Try<Subprocess> subprocess(
     process.data->pid = pid.get();
 #else
     // TODO(joerg84): Consider using the childHooks and parentHooks here.
-    Try<::internal::windows::ProcessData> process_data =
+    Try<os::windows::internal::ProcessData> process_data =
       internal::createChildProcess(
           path,
           argv,

@@ -26,6 +26,7 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/int_fd.hpp>
 
@@ -315,7 +316,7 @@ private:
     pid_t pid;
 
 #ifdef __WINDOWS__
-    Option<::internal::windows::ProcessData> process_data;
+    Option<os::windows::internal::ProcessData> process_data;
 #endif // __WINDOWS__
 
     // The parent side of the pipe for stdin/stdout/stderr. If the

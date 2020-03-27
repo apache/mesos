@@ -26,13 +26,12 @@
 #include <stout/foreach.hpp>
 #include <stout/hashset.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
-#include <stout/os/shell.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
 #include <stout/os/close.hpp>
 #include <stout/os/environment.hpp>
+#include <stout/os/exec.hpp>
 
 #include <userEnv.h>
 
@@ -44,7 +43,7 @@ namespace internal {
 // to have been already quoted correctly before we generate `command`.
 // Incorrectly-quoted command arguments will probably lead the child process
 // to terminate with an error. See also NOTE on `process::subprocess`.
-inline Try<::internal::windows::ProcessData> createChildProcess(
+inline Try<os::windows::internal::ProcessData> createChildProcess(
     const std::string& path,
     const std::vector<std::string>& argv,
     const Option<std::map<std::string, std::string>>& environment,
@@ -57,8 +56,8 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
   const std::array<int_fd, 3> fds{
     stdinfds.read, stdoutfds.write, stderrfds.write};
 
-  Try<::internal::windows::ProcessData> process_data =
-    ::internal::windows::create_process(
+  Try<os::windows::internal::ProcessData> process_data =
+    os::windows::internal::create_process(
         path,
         argv,
         environment,
