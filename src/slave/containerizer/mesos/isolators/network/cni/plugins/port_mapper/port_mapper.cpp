@@ -18,6 +18,7 @@
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/which.hpp>
 
 #include <process/collect.hpp>

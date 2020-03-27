@@ -43,9 +43,11 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/realpath.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
 

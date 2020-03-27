@@ -23,6 +23,8 @@
 #include <stout/format.hpp>
 #include <stout/gtest.hpp>
 
+#include <stout/os/exec.hpp>
+
 #include <mesos/v1/scheduler.hpp>
 
 #include "slave/gc_process.hpp"

@@ -25,10 +25,9 @@
 
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
-#include <stout/os/shell.hpp>
+#include <stout/os/exec.hpp>
 
 #include "common/status_utils.hpp"
 

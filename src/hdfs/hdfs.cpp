@@ -33,7 +33,6 @@
 
 #include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
-#include <stout/os/shell.hpp>
 
 #include "common/status_utils.hpp"
 #include "hdfs/hdfs.hpp"

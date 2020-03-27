@@ -51,6 +51,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/shell.hpp>

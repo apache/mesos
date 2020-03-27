@@ -47,9 +47,9 @@ extern "C" {
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 
+#include <stout/os/exec.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
-#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
 #include "common/status_utils.hpp"
