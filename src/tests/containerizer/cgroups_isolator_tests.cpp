@@ -1489,7 +1489,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CreateRecursively)
   // We should remove cgroups_root after the slave being started
   // because slave will create cgroups_root dir during startup
   // if it's not present.
-  ASSERT_SOME(cgroups::remove(hierarchy.get(), flags.cgroups_root));
+  ASSERT_SOME(os::rmdir(
+        path::join(hierarchy.get(), flags.cgroups_root), false));
   ASSERT_FALSE(os::exists(flags.cgroups_root));
 
   MockScheduler sched;

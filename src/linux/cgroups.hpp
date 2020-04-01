@@ -201,20 +201,6 @@ Try<Nothing> create(
     bool recursive = false);
 
 
-// Remove a cgroup in a given hierarchy. To remove a cgroup, one needs
-// to remove the corresponding directory in the cgroups virtual file
-// system. A cgroup cannot be removed if it has processes or
-// sub-cgroups inside. This function does nothing but tries to remove
-// the corresponding directory of the given cgroup. It will return
-// error if the remove operation fails because it has either processes
-// or sub-cgroups inside. The cgroup will NOT be removed recursively.
-// This function assumes that the given hierarchy and cgroup are
-// valid.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-Try<Nothing> remove(const std::string& hierarchy, const std::string& cgroup);
-
-
 // Returns true if the given cgroup under a given hierarchy exists.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.

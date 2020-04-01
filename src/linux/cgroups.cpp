@@ -41,11 +41,13 @@ extern "C" {
 #include <string>
 #include <vector>
 
+#include <process/after.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
+#include <process/loop.hpp>
 #include <process/process.hpp>
 #include <process/reap.hpp>
 
@@ -261,6 +263,73 @@ static Try<Nothing> cloneCpusetCpusMems(
   }
 
   return Nothing();
+}
+
+
+// Removes a cgroup from a given hierachy.
+// @param   hierarchy  Path to hierarchy root.
+// @param   cgroup     Path of the cgroup relative to the hierarchy root.
+// @return  Some if the operation succeeds.
+//          Error if the operation fails.
+Future<Nothing> remove(const string& hierarchy, const string& cgroup)
+{
+  const string path = path::join(hierarchy, cgroup);
+
+  // We retry on EBUSY as a workaround for kernel bug
+  // https://lkml.org/lkml/2020/1/15/1349 and others which cause rmdir to fail
+  // with EBUSY even though the cgroup appears empty.
+
+  Duration delay = Duration::zero();
+  int retry = 10;
+
+  return loop(
+      [=]() mutable {
+        auto timeout = process::after(delay);
+        delay = (delay == Duration::zero()) ? Milliseconds(1) : delay * 2;
+        return timeout;
+      },
+      [=](const Nothing&) mutable -> Future<ControlFlow<Nothing>> {
+        if (::rmdir(path.c_str()) == 0) {
+          return process::Break();
+        } else if ((errno == EBUSY) && (retry > 0)) {
+          --retry;
+          return process::Continue();
+        } else {
+          // If the `cgroup` still exists in the hierarchy, treat this as
+          // an error; otherwise, treat this as a success since the `cgroup`
+          // has actually been cleaned up.
+          // Save the error string as os::exists may clobber errno.
+          const string error = os::strerror(errno);
+          if (os::exists(path::join(hierarchy, cgroup))) {
+            return Failure(
+                "Failed to remove directory '" + path + "': " + error);
+          }
+
+          return process::Break();
+        }
+      }
+    );
+}
+
+
+// Removes a list of cgroups from a given hierachy.
+// The cgroups are removed in order, so this function can be used to remove a
+// cgroup hierarchy in a bottom-up fashion.
+// @param   hierarchy  Path to hierarchy root.
+// @param   cgroups    Path of the cgroups relative to the hierarchy root.
+// @return  Some if the operation succeeds.
+//          Error if the operation fails.
+Future<Nothing> remove(const string& hierarchy, const vector<string>& cgroups)
+{
+  Future<Nothing> f = Nothing();
+
+  foreach (const string& cgroup, cgroups) {
+    f = f.then([=] {
+      return internal::remove(hierarchy, cgroup);
+    });
+  }
+
+  return f;
 }
 
 } // namespace internal {
@@ -688,21 +757,6 @@ Try<Nothing> create(
   }
 
   return Nothing();
-}
-
-
-Try<Nothing> remove(const string& hierarchy, const string& cgroup)
-{
-  string path = path::join(hierarchy, cgroup);
-
-  // Do NOT recursively remove cgroups.
-  Try<Nothing> rmdir = os::rmdir(path, false);
-  if (rmdir.isError()) {
-    return Error(
-        "Failed to remove cgroup '" + path + "': " + rmdir.error());
-  }
-
-  return rmdir;
 }
 
 
@@ -1522,7 +1576,8 @@ private:
   void killed(const Future<vector<Nothing>>& kill)
   {
     if (kill.isReady()) {
-      remove();
+      internal::remove(hierarchy, cgroups)
+        .onAny(defer(self(), &Destroyer::removed, lambda::_1));
     } else if (kill.isDiscarded()) {
       promise.discard();
       terminate(self());
@@ -1533,24 +1588,16 @@ private:
     }
   }
 
-  void remove()
+  void removed(const Future<Nothing>& removeAll)
   {
-    foreach (const string& cgroup, cgroups) {
-      Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
-      if (remove.isError()) {
-        // If the `cgroup` still exists in the hierarchy, treat this as
-        // an error; otherwise, treat this as a success since the `cgroup`
-        // has actually been cleaned up.
-        if (os::exists(path::join(hierarchy, cgroup))) {
-          promise.fail(
-              "Failed to remove cgroup '" + cgroup + "': " + remove.error());
-          terminate(self());
-          return;
-        }
-      }
+    if (removeAll.isReady()) {
+      promise.set(Nothing());
+    } else if (removeAll.isDiscarded()) {
+      promise.discard();
+    } else if (removeAll.isFailed()) {
+      promise.fail("Failed to remove cgroups: " + removeAll.failure());
     }
 
-    promise.set(Nothing());
     terminate(self());
   }
 
@@ -1592,17 +1639,7 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
     return future;
   } else {
     // Otherwise, attempt to remove the cgroups in bottom-up fashion.
-    foreach (const string& cgroup, candidates) {
-      Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
-      if (remove.isError()) {
-        // If the `cgroup` still exists in the hierarchy, treat this as
-        // an error; otherwise, treat this as a success since the `cgroup`
-        // has actually been cleaned up.
-        if (os::exists(path::join(hierarchy, cgroup))) {
-          return Failure(remove.error());
-        }
-      }
-    }
+    return internal::remove(hierarchy, candidates);
   }
 
   return Nothing();
