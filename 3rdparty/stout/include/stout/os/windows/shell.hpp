@@ -52,20 +52,7 @@ constexpr const char* arg1 = "/c";
 
 } // namespace Shell {
 
-// Runs a shell command (with `cmd.exe`) with optional arguments.
-//
-// This assumes that a successful execution will result in the exit
-// code for the command to be `0`; in this case, the contents of the
-// `Try` will be the contents of `stdout`.
-//
-// If the exit code is non-zero, we will return an appropriate error
-// message; but *not* `stderr`.
-//
-// If the caller needs to examine the contents of `stderr` it should
-// be redirected to `stdout` (using, e.g., `2>&1 || exit /b 0` in the
-// command string). The `|| exit /b 0` is required to obtain a success
-// exit code in case of errors, and still obtain `stderr`, as piped to
-// `stdout`.
+
 template <typename... T>
 Try<std::string> shell(const std::string& fmt, const T&... t)
 {
@@ -176,15 +163,6 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 }
 
 
-// Executes a command by calling "cmd /c <command>", and returns
-// after the command has been completed. Returns the process exit
-// code on success and `None` on error.
-//
-// Note: Be cautious about shell injection
-// (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
-// when using this method and use proper validation and sanitization
-// on the `command`. For this reason in general `os::spawn` is
-// preferred if a shell is not required.
 inline Option<int> system(const std::string& command)
 {
   return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
