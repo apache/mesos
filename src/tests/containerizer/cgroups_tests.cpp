@@ -377,9 +377,9 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
   EXPECT_ERROR(cgroups::create(baseHierarchy, "mesos_test_missing/1"));
   ASSERT_SOME(cgroups::create(
         path::join(baseHierarchy, "cpu"), "mesos_test_missing"));
-  EXPECT_ERROR(cgroups::remove(baseHierarchy, "invalid"));
-  ASSERT_SOME(cgroups::remove(
-        path::join(baseHierarchy, "cpu"), "mesos_test_missing"));
+  EXPECT_ERROR(os::rmdir(path::join(baseHierarchy, "invalid"), false));
+  ASSERT_SOME(os::rmdir(path::join(
+        path::join(baseHierarchy, "cpu"), "mesos_test_missing"), false));
 }
 
 
@@ -398,8 +398,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
   EXPECT_NE(cgroups->end(),
             find(cgroups->begin(), cgroups->end(), "mesos_test1"));
 
-  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
-  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
+  ASSERT_SOME(os::rmdir(path::join(hierarchy, "mesos_test1"), false));
+  ASSERT_SOME(os::rmdir(path::join(hierarchy, "mesos_test2"), false));
 }
 
 
@@ -431,8 +431,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
   EXPECT_NE(cgroups->end(),
             find(cgroups->begin(), cgroups->end(), cgroup1));
 
-  ASSERT_SOME(cgroups::remove(hierarchy, cgroup1));
-  ASSERT_SOME(cgroups::remove(hierarchy, cgroup2));
+  ASSERT_SOME(os::rmdir(path::join(hierarchy, cgroup1), false));
+  ASSERT_SOME(os::rmdir(path::join(hierarchy, cgroup2), false));
 }
 
 
