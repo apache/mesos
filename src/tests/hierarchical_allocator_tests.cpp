@@ -1056,6 +1056,65 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
 }
 
 
+// Tests that allocator continues to work after adding an agent
+// that has both maintenance schedule and resources used by not yet known
+// frameworks. This is a regression test for MESOS-10109.
+TEST_F(HierarchicalAllocatorTest, AddAgentWithUnknownFrameworkAndMaintenance)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  // Create a fully used agent which is about to enter maintenance
+  // in a distant future, with resources used by some unknown framework.
+  const SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  const FrameworkInfo unknown = createFrameworkInfo({"role"});
+  const hashmap<FrameworkID, Resources> used{
+    {unknown.id(), agent1.resources()}};
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      protobuf::maintenance::createUnavailability(Clock::now() + Days(365)),
+      agent1.resources(),
+      used);
+
+  const FrameworkInfo framework = createFrameworkInfo({"role"});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  // Create an empty agent.
+  SlaveInfo agent2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Check that resources of agent2 go to the framework.
+  const Allocation expected =
+    Allocation(framework.id(), {{"role", {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Add agent2 unavailability to trigger inverse offer generation.
+  allocator->updateUnavailability(
+      agent2.id(),
+      protobuf::maintenance::createUnavailability(Clock::now() + Seconds(60));
+
+  // Check that resources of agent2 get inverse offered.
+  Future<Deallocation> deallocation = deallocations.get();
+  AWAIT_READY(deallocation);
+  EXPECT_EQ(framework.id(), deallocation->frameworkId);
+  EXPECT_TRUE(deallocation->resources.contains(agent2.id()));
+}
+
+
 // This test ensures that agents which are scheduled for maintenance are
 // properly sent inverse offers after they have accepted or reserved resources.
 // It also verifies that the frameworks declined the offer should get no
