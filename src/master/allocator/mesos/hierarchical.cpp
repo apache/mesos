@@ -2458,7 +2458,17 @@ void HierarchicalAllocatorProcess::generateInverseOffers()
 
       foreachkey (
           const FrameworkID& frameworkId, slave.getOfferedOrAllocated()) {
-        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
+        const Option<Framework*> framework_ = getFramework(frameworkId);
+        // NOTE: This method might be called in-between adding per-framework
+        // used resources on an agent via `addSlave()` and adding a framework
+        // via `addFramework()`.
+        if (framework_.isNone()) {
+          // Framework is using resources on an agent but has not yet been
+          // re-added to allocator via addFramework().
+          continue;
+        }
+
+        const Framework& framework = **framework_;
 
         // No need to deallocate for an inactive framework as the master
         // will not send it inverse offers.

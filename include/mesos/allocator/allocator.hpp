@@ -215,6 +215,11 @@ public:
    * @param used Resources that are allocated on the current agent. The
    *     allocator should avoid double accounting when yet unknown frameworks
    *     are added later in `addFramework()`.
+   *
+   * TODO(asekretenko): Ideally, to get rig of an intermediate allocator state
+   * when some resources are used by nonexistent frameworks, we should change
+   * the interface so that per-agent per-framework used resources and the
+   * not yet known frameworks that are using them are added atomically.
    */
   virtual void addSlave(
       const SlaveID& slaveId,
