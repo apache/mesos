@@ -386,8 +386,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
 // This test verifies that a task launched with 0.5 cpu and 32MB memory as its
 // resource requests (but no resource limits specified) will have its CPU and
-// memory's soft & hard limits and OOM score adjustment set correctly, and it
-// cannot consume more cpu time than its CFS quota.
+// memory's soft & hard limits and OOM score adjustment set correctly.
 TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -436,17 +435,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // Generate random numbers to max out a single core. We'll run this
-  // for 0.5 seconds of wall time so it should consume approximately
-  // 300 ms of total cpu time when limited to 0.6 cpu. We use
-  // /dev/urandom to prevent blocking on Linux when there's
-  // insufficient entropy.
-  string command =
-    "cat /dev/urandom > /dev/null & "
-    "export MESOS_TEST_PID=$! && "
-    "sleep 0.5 && "
-    "kill $MESOS_TEST_PID";
-
   // We will launch a task with 0.5 cpu and 32MB memory, and the command
   // executor will be given 0.1 cpu (`DEFAULT_EXECUTOR_CPUS`) and 32MB
   // memory (DEFAULT_EXECUTOR_MEM) by default, so we need 0.6 cpu and 64MB
@@ -462,7 +450,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
       Resources::parse("cpus:0.5;mem:32").get(),
-      command);
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -527,20 +515,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
   Try<int32_t> oomScoreAdj = numify<int32_t>(strings::trim(read.get()));
   ASSERT_SOME_EQ(0, oomScoreAdj);
 
-  Future<ResourceStatistics> usage = containerizer->usage(containerId);
-  AWAIT_READY(usage);
-
-  // Expect that no more than 400 ms of cpu time has been consumed. We
-  // also check that at least 50 ms of cpu time has been consumed so
-  // this test will fail if the host system is very heavily loaded.
-  // This behavior is correct because under such conditions we aren't
-  // actually testing the CFS cpu limiter.
-  double cpuTime = usage->cpus_system_time_secs() +
-                   usage->cpus_user_time_secs();
-
-  EXPECT_GE(0.4, cpuTime);
-  EXPECT_LE(0.05, cpuTime);
-
   driver.stop();
   driver.join();
 }
@@ -548,7 +522,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskNoLimits)
 
 // This test verifies that a task launched with resource limits specified
 // will have its CPU and memory's soft & hard limits and OOM score adjustment
-// set correctly, and it cannot consume more cpu time than its CFS quota.
+// set correctly.
 TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskLimits)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -603,17 +577,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskLimits)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // Generate random numbers to max out a single core. We'll run
-  // this for 0.5 seconds of wall time so it should consume
-  // approximately 300 ms of total cpu time when limited to 0.6
-  // cpu. We use /dev/urandom to prevent blocking on Linux when
-  // there's insufficient entropy.
-  string command =
-    "cat /dev/urandom > /dev/null & "
-    "export MESOS_TEST_PID=$! && "
-    "sleep 0.5 && "
-    "kill $MESOS_TEST_PID";
-
   // Launch a task with 0.2 cpu request, 0.5 cpu limit, half of
   // host total memory - `DEFAULT_EXECUTOR_MEM` as memory request
   // and half of host total memory as memory limit.
@@ -632,7 +595,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskLimits)
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
       Resources::parse(resourceRequests).get(),
-      command,
+      SLEEP_COMMAND(1000),
       None(),
       "test-task",
       id::UUID::random().toString(),
@@ -717,20 +680,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_CommandTaskLimits)
 
   EXPECT_GT(502, oomScoreAdj.get());
   EXPECT_LT(498, oomScoreAdj.get());
-
-  Future<ResourceStatistics> usage = containerizer->usage(containerId);
-  AWAIT_READY(usage);
-
-  // Expect that no more than 400 ms of cpu time has been consumed. We
-  // also check that at least 50 ms of cpu time has been consumed so
-  // this test will fail if the host system is very heavily loaded.
-  // This behavior is correct because under such conditions we aren't
-  // actually testing the CFS cpu limiter.
-  double cpuTime = usage->cpus_system_time_secs() +
-                   usage->cpus_user_time_secs();
-
-  EXPECT_GE(0.4, cpuTime);
-  EXPECT_LE(0.05, cpuTime);
 
   driver.stop();
   driver.join();
