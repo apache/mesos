@@ -4330,7 +4330,15 @@ TEST_F(MasterTest, TasksEndpoint)
   TestContainerizer containerizer(&exec);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+
+  // We must enable the CPU and memory isolators on the agent so that it can
+  // accept resource limits.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, flags);
+
   ASSERT_SOME(slave);
 
   MockScheduler sched;

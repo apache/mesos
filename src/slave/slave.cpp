@@ -2168,6 +2168,34 @@ void Slave::runTask(
 }
 
 
+Option<Error> Slave::validateResourceLimitsAndIsolators(
+    const vector<TaskInfo>& tasks)
+{
+  foreach (const TaskInfo& task, tasks) {
+    if (!(task.has_container() &&
+          task.container().type() == ContainerInfo::DOCKER)) {
+      if (task.limits().count("cpus") &&
+          !(strings::contains(flags.isolation, "cgroups/cpu") ||
+            strings::contains(flags.isolation, "cgroups/all"))) {
+        return Error(
+            "CPU limits can only be set on tasks launched in Mesos containers"
+            " when the agent has loaded the 'cgroups/cpu' isolator");
+      }
+
+      if (task.limits().count("mem") &&
+          !(strings::contains(flags.isolation, "cgroups/mem") ||
+            strings::contains(flags.isolation, "cgroups/all"))) {
+        return Error(
+            "Memory limits can only be set on tasks launched in Mesos"
+            " containers when the agent has loaded the 'cgroups/mem' isolator");
+      }
+    }
+  }
+
+  return None();
+}
+
+
 void Slave::run(
     const FrameworkInfo& frameworkInfo,
     ExecutorInfo executorInfo,
@@ -2320,6 +2348,40 @@ void Slave::run(
     }
   }
 
+  CHECK_NOTNULL(framework);
+
+  Option<Error> error = validateResourceLimitsAndIsolators(tasks);
+  if (error.isSome()) {
+    // We report TASK_DROPPED to the framework because the task was
+    // never launched. For non-partition-aware frameworks, we report
+    // TASK_LOST for backward compatibility.
+    mesos::TaskState taskState = TASK_DROPPED;
+    if (!protobuf::frameworkHasCapability(
+            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      taskState = TASK_LOST;
+    }
+
+    foreach (const TaskInfo& _task, tasks) {
+      const StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          _task.task_id(),
+          taskState,
+          TaskStatus::SOURCE_SLAVE,
+          id::UUID::random(),
+          error->message,
+          TaskStatus::REASON_GC_ERROR);
+
+      statusUpdate(update, UPID());
+    }
+
+    if (framework->idle()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
   const ExecutorID& executorId = executorInfo.executor_id();
 
   if (HookManager::hooksAvailable()) {
@@ -2341,8 +2403,6 @@ void Slave::run(
       }
     }
   }
-
-  CHECK_NOTNULL(framework);
 
   // Track the pending task / task group to ensure the framework is
   // not removed and the framework and top level executor directories

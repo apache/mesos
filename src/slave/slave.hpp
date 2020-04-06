@@ -158,6 +158,9 @@ public:
       const process::UPID& from,
       RunTaskMessage&& runTaskMessage);
 
+  Option<Error> validateResourceLimitsAndIsolators(
+      const std::vector<TaskInfo>& tasks);
+
   // Made 'virtual' for Slave mocking.
   virtual void runTask(
       const process::UPID& from,

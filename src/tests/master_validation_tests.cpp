@@ -5036,7 +5036,13 @@ TEST_F(TaskGroupValidationTest, ResourceLimits)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // Valid, no error.
+  // Erase the memory limit so we can be sure what error message to look for
+  // in the next test case.
+  task1.mutable_limits()->erase("mem");
+  task2.mutable_limits()->erase("mem");
+
+  // Error: the agent does not have any isolators loaded, so it can't enforce
+  // resource limits and does not launch the task group.
   {
     TaskGroupInfo taskGroup;
     taskGroup.add_tasks()->CopyFrom(task1);
@@ -5061,10 +5067,18 @@ TEST_F(TaskGroupValidationTest, ResourceLimits)
     driver.acceptOffers({offers->at(0).id()}, {operation}, filters);
 
     AWAIT_READY(task1Status);
-    EXPECT_EQ(TASK_STARTING, task1Status->state());
+    EXPECT_EQ(TASK_LOST, task1Status->state());
+    EXPECT_EQ(
+        "CPU limits can only be set on tasks launched in Mesos containers"
+        " when the agent has loaded the 'cgroups/cpu' isolator",
+        task1Status->message());
 
     AWAIT_READY(task2Status);
-    EXPECT_EQ(TASK_STARTING, task2Status->state());
+    EXPECT_EQ(TASK_LOST, task2Status->state());
+    EXPECT_EQ(
+        "CPU limits can only be set on tasks launched in Mesos containers"
+        " when the agent has loaded the 'cgroups/cpu' isolator",
+        task2Status->message());
   }
 }
 
