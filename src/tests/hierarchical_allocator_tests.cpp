@@ -1105,7 +1105,7 @@ TEST_F(HierarchicalAllocatorTest, AddAgentWithUnknownFrameworkAndMaintenance)
   // Add agent2 unavailability to trigger inverse offer generation.
   allocator->updateUnavailability(
       agent2.id(),
-      protobuf::maintenance::createUnavailability(Clock::now() + Seconds(60));
+      protobuf::maintenance::createUnavailability(Clock::now() + Seconds(60)));
 
   // Check that resources of agent2 get inverse offered.
   Future<Deallocation> deallocation = deallocations.get();
