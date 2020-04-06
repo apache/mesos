@@ -254,7 +254,8 @@ StatusUpdate createStatusUpdate(
     CHECK(
         reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION ||
         reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION_DISK ||
-        reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY)
+        reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY ||
+        reason.get() == TaskStatus::REASON_CONTAINER_MEMORY_REQUEST_EXCEEDED)
       << reason.get();
 
     status->mutable_limitation()->mutable_resources()->CopyFrom(

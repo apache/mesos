@@ -699,11 +699,33 @@ void MemorySubsystemProcess::oomWaited(
         ? (double) usage->bytes() / Bytes::MEGABYTES : 0),
       "*").get();
 
+  TaskStatus::Reason reason = TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY;
+
+  // If the container has a hard limit set higher than the soft limit, then
+  // check if the memory usage is above the soft limit but less than the hard
+  // limit. If so, we send a task status reason to the scheduler which indicates
+  // that this container was preferentially OOM-killed because it exceeded its
+  // memory request without hitting its memory limit.
+  Try<Bytes> softLimit =
+    cgroups::memory::soft_limit_in_bytes(hierarchy, cgroup);
+
+  if (softLimit.isError()) {
+    LOG(ERROR) << "Failed to read 'memory.soft_limit_in_bytes': "
+               << softLimit.error();
+  } else if (softLimit.get() < limit.get()) {
+    if (!usage.isError() &&
+        !limit.isError() &&
+        usage.get() > softLimit.get() &&
+        usage.get() < limit.get()) {
+      reason = TaskStatus::REASON_CONTAINER_MEMORY_REQUEST_EXCEEDED;
+    }
+  }
+
   infos[containerId]->limitation.set(
       protobuf::slave::createContainerLimitation(
           mem,
           message.str(),
-          TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY));
+          reason));
 }
 
 
