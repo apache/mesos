@@ -39,8 +39,12 @@ inline void post(const process::UPID& to,
                  const google::protobuf::Message& message)
 {
   std::string data;
-  message.SerializeToString(&data);
-  post(to, message.GetTypeName(), data.data(), data.size());
+  if (message.SerializeToString(&data)) {
+    post(to, message.GetTypeName(), data.data(), data.size());
+  } else {
+    LOG(ERROR) << "Failed to post '" << message.GetTypeName() << "' to "
+               << to << ": Failed to serialize";
+  }
 }
 
 
@@ -49,8 +53,12 @@ inline void post(const process::UPID& from,
                  const google::protobuf::Message& message)
 {
   std::string data;
-  message.SerializeToString(&data);
-  post(from, to, message.GetTypeName(), data.data(), data.size());
+  if (message.SerializeToString(&data)) {
+    post(from, to, message.GetTypeName(), data.data(), data.size());
+  } else {
+    LOG(ERROR) << "Failed to post '" << message.GetTypeName() << "' to "
+               << to << ": Failed to serialize";
+  }
 }
 
 } // namespace process {
@@ -119,8 +127,12 @@ protected:
             const google::protobuf::Message& message)
   {
     std::string data;
-    message.SerializeToString(&data);
-    process::Process<T>::send(to, message.GetTypeName(), std::move(data));
+    if (message.SerializeToString(&data)) {
+      process::Process<T>::send(to, message.GetTypeName(), std::move(data));
+    } else {
+      LOG(ERROR) << "Failed to send '" << message.GetTypeName() << "' to "
+                 << to << ": Failed to serialize";
+    }
   }
 
   using process::Process<T>::send;
@@ -261,13 +273,12 @@ private:
   {
     google::protobuf::Arena arena;
     M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
-    m->ParseFromString(data);
 
-    if (m->IsInitialized()) {
+    if (m->ParseFromString(data)) {
       (t->*method)(sender, *m);
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m->InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m->GetTypeName()
+                 << "' from " << sender;
     }
   }
 
@@ -279,13 +290,12 @@ private:
       const std::string& data)
   {
     M m;
-    m.ParseFromString(data);
 
-    if (m.IsInitialized()) {
+    if (m.ParseFromString(data)) {
       (t->*method)(sender, std::move(m));
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m.GetTypeName()
+                 << "' from " << sender;
     }
   }
 
@@ -309,13 +319,12 @@ private:
   {
     google::protobuf::Arena arena;
     M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
-    m->ParseFromString(data);
 
-    if (m->IsInitialized()) {
+    if (m->ParseFromString(data)) {
       (t->*method)(sender, google::protobuf::convert((m->*p)())...);
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m->InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m->GetTypeName()
+                 << "' from " << sender;
     }
   }
 
@@ -324,18 +333,17 @@ private:
   static void _handlerM(
       T* t,
       void (T::*method)(const M&),
-      const process::UPID&,
+      const process::UPID& sender,
       const std::string& data)
   {
     google::protobuf::Arena arena;
     M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
-    m->ParseFromString(data);
 
-    if (m->IsInitialized()) {
+    if (m->ParseFromString(data)) {
       (t->*method)(*m);
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m->InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m->GetTypeName()
+                 << "' from " << sender;
     }
   }
 
@@ -343,17 +351,16 @@ private:
   static void _handlerMutM(
       T* t,
       void (T::*method)(M&&),
-      const process::UPID&,
+      const process::UPID& sender,
       const std::string& data)
   {
     M m;
-    m.ParseFromString(data);
 
-    if (m.IsInitialized()) {
+    if (m.ParseFromString(data)) {
       (t->*method)(std::move(m));
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m.GetTypeName()
+                 << "' from " << sender;
     }
   }
 
@@ -371,19 +378,18 @@ private:
   static void _handlerN(
       T* t,
       void (T::*method)(PC...),
-      const process::UPID&,
+      const process::UPID& sender,
       const std::string& data,
       MessageProperty<M, P>... p)
   {
     google::protobuf::Arena arena;
     M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
-    m->ParseFromString(data);
 
-    if (m->IsInitialized()) {
+    if (m->ParseFromString(data)) {
       (t->*method)(google::protobuf::convert((m->*p)())...);
     } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m->InitializationErrorString();
+      LOG(ERROR) << "Failed to deserialize '" << m->GetTypeName()
+                 << "' from " << sender;
     }
   }
 
