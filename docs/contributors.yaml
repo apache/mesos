@@ -231,6 +231,12 @@
   jira_user: drcrallen
   reviewboard_user: drcrallen
 
+- name: Charles-Francois Natali
+  emails:
+    - cf.natali@gmail.com
+  jira_user: cf.natali
+  reviewboard_user: cf.natali
+
 - name: Chen Runcong
   affiliations:
     - {organization: Asiainfo}
