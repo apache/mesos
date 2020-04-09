@@ -312,6 +312,43 @@ public:
     }
   }
 
+  // The `length` is the size of the data pointed to by `struct sockaddr`.
+  static Try<Address> create(
+      const sockaddr* address,
+      size_t length)
+  {
+    switch (address->sa_family) {
+#ifndef __WINDOWS__
+      case AF_UNIX:
+        // We need to know the length in addition to the address, to
+        // distinguish between e.g. an unnamed socket and an abstract
+        // socket whose name is a single null byte.
+        if (length > sizeof(struct sockaddr_un)) {
+          return Error("Invalid size for AF_UNIX sockaddr: " +
+                       stringify(length) + " actual vs " +
+                       stringify(sizeof(struct sockaddr_un)) + " expected");
+        }
+        return unix::Address(*((const sockaddr_un*)address));
+#endif // __WINDOWS__
+      case AF_INET:
+        if (length < sizeof(struct sockaddr_in)) {
+          return Error("Invalid size for AF_INET sockaddr: " +
+                       stringify(length) + " actual vs " +
+                       stringify(sizeof(struct sockaddr_in)) + " expected");
+        }
+        return inet4::Address(*((const sockaddr_in*)address));
+      case AF_INET6:
+        if (length < sizeof(struct sockaddr_in6)) {
+          return Error("Invalid size for AF_INET6 sockaddr: " +
+                       stringify(length) + " actual vs " +
+                       stringify(sizeof(struct sockaddr_in6)) + " expected");
+        }
+        return inet6::Address(*((const sockaddr_in6*)address));
+      default:
+        return Error("Unsupported family: " + stringify(address->sa_family));
+    }
+  }
+
   // Helper constructor for converting an `inet::Address`.
   Address(const inet::Address& address)
     : Address([](const Try<Address>& address) {
