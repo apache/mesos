@@ -239,7 +239,7 @@ public:
 
     if (_length.isNone()) {
       CHECK(un.sun_path[0] != 0)
-        << "Cannot automatically determine size of abstract socket address.";
+        << "Cannot automatically determine size of abstract socket address";
 
       length = ::strlen(un.sun_path) + offsetof(sockaddr_un, sun_path) + 1;
     } else {
@@ -352,7 +352,7 @@ public:
         // distinguish between e.g. an unnamed socket and an abstract
         // socket whose name is a single null byte.
         if (length.isNone()) {
-          return Error("Need length to create unix address from sockaddr.");
+          return Error("Need length to create unix address from sockaddr");
         }
         return unix::Address((const sockaddr_un&) storage, *length);
 #endif // __WINDOWS__
