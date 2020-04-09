@@ -734,7 +734,7 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
   if (!peer_address.isSome()) {
     SSL_free(accept_ssl);
     accept_queue.put(
-        Failure("Could not determine peer IP for connection"));
+        Failure("Failed to determine peer IP: " + peer_address.error()));
     return Continue();
   }
 
@@ -747,7 +747,8 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
   if (configured.isError()) {
     SSL_free(accept_ssl);
     accept_queue.put(
-        Failure("Could not configure socket: " + configured.error()));
+        Failure("Failed to openssl::configure_socket for " +
+                stringify(*peer_address) + ": " + configured.error()));
     return Continue();
   }
 
@@ -773,16 +774,22 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
         return;
       }
 
+      // For verification purposes, we need to grab the address (again).
+      // We grab it up here (rather than down below) so that we can log
+      // it if the `result` is failed.
+      Try<Address> address = network::address(ssl_socket->get());
+
       if (result.isFailed()) {
-        self->accept_queue.put(Failure(result.failure()));
+        self->accept_queue.put(
+            Failure("Failed to SSL handshake" +
+                    (address.isSome() ? " with " + stringify(*address) : "") +
+                    ": " + result.failure()));
         return;
       }
 
-      // For verification purposes, we need to grab the address (again).
-      Try<Address> address = network::address(ssl_socket->get());
       if (address.isError()) {
         self->accept_queue.put(
-            Failure("Failed to get address: " + address.error()));
+            Failure("Failed to determine peer IP: " + address.error()));
         return;
       }
 
@@ -798,8 +805,8 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
             : Option<net::IP>::none());
 
       if (verify.isError()) {
-        VLOG(1) << "Failed accept, verification error: "
-                << verify.error();
+        VLOG(1) << "Failed accept for " << *address
+                << ", verification error: " << verify.error();
 
         self->accept_queue.put(Failure(verify.error()));
         return;
