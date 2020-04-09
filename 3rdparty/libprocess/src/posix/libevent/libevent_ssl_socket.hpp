@@ -77,16 +77,16 @@ private:
     AcceptRequest(
         int_fd _socket,
         evconnlistener* _listener,
-        const Option<net::IP>& _ip)
+        const Address& _address)
       : peek_event(nullptr),
         listener(_listener),
         socket(_socket),
-        ip(_ip) {}
+        address(_address) {}
     event* peek_event;
     Promise<std::shared_ptr<SocketImpl>> promise;
     evconnlistener* listener;
     int_fd socket;
-    Option<net::IP> ip;
+    Address address;
   };
 
   struct RecvRequest
