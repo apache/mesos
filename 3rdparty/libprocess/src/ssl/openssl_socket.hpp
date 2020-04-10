@@ -58,8 +58,7 @@ protected:
   // Verifies incoming sockets and initiates the SSL handshake.
   // Upon completion or failure of the SSL handshake, the peer socket
   // (or Failure object) will be enqueued on the server socket's accept queue.
-  Future<ControlFlow<Nothing>> handle_accept_callback(
-      const std::shared_ptr<SocketImpl>& socket);
+  void handle_accept_callback(const std::shared_ptr<SocketImpl>& socket);
 
   // Takes ownership of the given SSL object and performs an SSL handshake
   // with the context of the SSL object. Either `SSL_set_connect_state`

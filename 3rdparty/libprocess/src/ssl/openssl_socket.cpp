@@ -559,11 +559,11 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
         [weak_self]() -> Future<std::shared_ptr<SocketImpl>> {
           std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
 
-          if (self != nullptr) {
-            return self->PollSocketImpl::accept();
+          if (self == nullptr) {
+            return Failure("Socket destructed");
           }
 
-          return Failure("Socket destructed");
+          return self->PollSocketImpl::accept();
         },
         [weak_self](const std::shared_ptr<SocketImpl>& socket)
             -> Future<ControlFlow<Nothing>> {
@@ -577,12 +577,12 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
           // socket to become readable. We will then MSG_PEEK it to test
           // whether we want to dispatch as SSL or non-SSL.
           if (openssl::flags().support_downgrade) {
-            return io::poll(socket->get(), process::io::READ)
-              .then([weak_self, socket]() -> Future<ControlFlow<Nothing>> {
+            io::poll(socket->get(), process::io::READ)
+              .onReady([weak_self, socket]() {
                 std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
 
                 if (self == nullptr) {
-                  return Break();
+                  return;
                 }
 
                 char data[6];
@@ -624,15 +624,16 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
                 }
 
                 if (ssl) {
-                  return self->handle_accept_callback(socket);
+                  self->handle_accept_callback(socket);
                 } else {
                   self->accept_queue.put(socket);
-                  return Continue();
                 }
               });
+          } else {
+            self->handle_accept_callback(socket);
           }
 
-          return self->handle_accept_callback(socket);
+          return Continue();
         });
 
     accept_loop_started.done();
@@ -708,7 +709,7 @@ Try<Nothing, SocketError> OpenSSLSocketImpl::shutdown(int how)
 }
 
 
-Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
+void OpenSSLSocketImpl::handle_accept_callback(
     const std::shared_ptr<SocketImpl>& socket)
 {
   // Wrap this new socket up into our SSL wrapper class by releasing
@@ -720,7 +721,7 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
   SSL* accept_ssl = SSL_new(openssl::context());
   if (accept_ssl == nullptr) {
     accept_queue.put(Failure("Accept failed, SSL_new"));
-    return Continue();
+    return;
   }
 
   Try<Address> peer_address = network::peer(ssl_socket->get());
@@ -728,7 +729,7 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
     SSL_free(accept_ssl);
     accept_queue.put(
         Failure("Failed to determine peer IP: " + peer_address.error()));
-    return Continue();
+    return;
   }
 
   // NOTE: Right now, `openssl::configure_socket` does not do anything
@@ -742,7 +743,7 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
     accept_queue.put(
         Failure("Failed to openssl::configure_socket for " +
                 stringify(*peer_address) + ": " + configured.error()));
-    return Continue();
+    return;
   }
 
   // Set the SSL context in server mode.
@@ -807,8 +808,6 @@ Future<ControlFlow<Nothing>> OpenSSLSocketImpl::handle_accept_callback(
 
       self->accept_queue.put(ssl_socket);
     });
-
-  return Continue();
 }
 
 
