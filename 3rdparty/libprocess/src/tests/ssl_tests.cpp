@@ -809,6 +809,67 @@ TEST_F(SSLTest, SilentSocket)
 }
 
 
+// A copy of the SilentSocket test to ensure that the issue
+// also is not present with downgrade support enabled. This
+// was added due to MESOS-10114.
+TEST_F(SSLTest, SilentSocketWithDowngrade)
+{
+  Try<Socket> server = setup_server({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_SUPPORT_DOWNGRADE", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server->address());
+
+  Try<std::string> serverHostname = server->address()->lookup_hostname();
+  ASSERT_SOME(serverHostname);
+
+  Future<Socket> socket = server->accept();
+
+  // We initiate a connection on which we will not send
+  // any data. This means the socket on the server will
+  // not complete the SSL handshake, nor be downgraded.
+  // As a result, we expect that the server will not see
+  // an accepted socket for this connection.
+  Try<Socket> connection = Socket::create(SocketImpl::Kind::POLL);
+  ASSERT_SOME(connection);
+  connection->connect(server->address().get());
+
+  // Note that settling libprocess is not sufficient
+  // for ensuring socket events are processed.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  ASSERT_TRUE(socket.isPending());
+
+  // Now send an HTTP GET request, it should complete
+  // without getting blocked by the socket above
+  // undergoing the SSL handshake.
+  const http::URL url(
+      "https",
+      serverHostname.get(),
+      server->address()->port);
+
+  Future<http::Response> response = http::get(url);
+
+  AWAIT_READY(socket);
+
+  // Send the response from the server.
+  const string buffer = string() +
+    "HTTP/1.1 200 OK\r\n" +
+    "Content-Length: " + stringify(data.length()) + "\r\n" +
+    "\r\n" +
+    data;
+  AWAIT_READY(Socket(socket.get()).send(buffer));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  EXPECT_EQ(data, response->body);
+}
+
+
 // This test was added due to an OOM issue: MESOS-7934.
 TEST_F(SSLTest, ShutdownThenSend)
 {
