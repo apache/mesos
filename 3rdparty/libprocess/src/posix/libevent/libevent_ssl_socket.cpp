@@ -190,7 +190,9 @@ Try<Nothing, SocketError> LibeventSSLSocketImpl::shutdown(int how)
         CHECK(__in_event_loop__);
         CHECK(self);
 
-        CHECK_NOTNULL(self->bev);
+        if (self->bev == nullptr) {
+          return;
+        }
 
         synchronized (self->bev) {
           Owned<RecvRequest> request;
