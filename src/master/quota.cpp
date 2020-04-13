@@ -109,7 +109,7 @@ Try<bool> UpdateQuota::perform(
     google::protobuf::RepeatedPtrField<Registry::Quota>& quotas =
       *registry->mutable_quotas();
 
-    int quotaIndex = find_if(
+    int quotaIndex = std::find_if(
         quotas.begin(),
         quotas.end(),
         [&](const Registry::Quota& quota) {
