@@ -3974,8 +3974,18 @@ Future<Response> Master::Http::_reactivateAgent(
       master->slaves.deactivated.erase(slaveId);
 
       Slave* slave = master->slaves.registered.get(slaveId);
-      if (slave != nullptr) {
-        master->reactivate(slave);
+      if (slave == nullptr) {
+        return Conflict("Agent removed while processing the call");
+      }
+
+      if (slave->connected) {
+        LOG(INFO) << "Reactivating agent " << *slave;
+
+        slave->active = true;
+        master->allocator->activateSlave(slaveId);
+      } else {
+        LOG(INFO) << "Disconnected agent " << *slave
+                  << " will be reactivated upon reregistration.";
       }
 
       slave->estimatedDrainStartTime = None();
