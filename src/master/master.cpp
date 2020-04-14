@@ -3447,18 +3447,6 @@ void Master::deactivate(Slave* slave)
 }
 
 
-void Master::reactivate(Slave* slave)
-{
-  CHECK_NOTNULL(slave);
-  CHECK(!slaves.deactivated.contains(slave->id));
-
-  LOG(INFO) << "Reactivating agent " << *slave;
-
-  slave->active = true;
-  allocator->activateSlave(slave->id);
-}
-
-
 void Master::resourceRequest(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -8173,7 +8161,10 @@ void Master::___reregisterSlave(
     dispatch(slave->observer, &SlaveObserver::reconnect);
 
     if (!slaves.deactivated.contains(slave->id)) {
-      reactivate(slave);
+      LOG(INFO) << "Reactivating re-registered agent " << *slave;
+
+      slave->active = true;
+      allocator->activateSlave(slave->id);
     }
   }
 

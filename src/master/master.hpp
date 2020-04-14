@@ -685,10 +685,6 @@ protected:
   // offers). Other aspects of the agent will continue to function normally.
   void deactivate(Slave* slave);
 
-  // Adds the agent back to the resource offer cycle.
-  // Must *NOT* be called if the agent is `deactivated`.
-  void reactivate(Slave* slave);
-
   // Add a slave.
   void addSlave(
       Slave* slave,
