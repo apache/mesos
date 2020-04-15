@@ -40,7 +40,7 @@ Once you know what you're going to change, you can make your intended modificati
 
 If your changes are documentation-only, then you should view them with a markdown viewer to verify their appearance when rendered.
 
-If you are changing any code in Mesos, then you should build and run the tests before opening a PR. You should run `make check` and ensure that all tests pass before opening a PR.
+If you are changing any code in Mesos, then you should build and run the tests before opening a PR. You should run `make check` and ensure that all tests pass before opening a PR. The tests should preferably be run as root/administrator as certain tests are skipped when run as a non-privileged user.
 
 ## Open a PR
 
