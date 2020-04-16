@@ -1637,12 +1637,10 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
     Future<Nothing> future = destroyer->future();
     spawn(destroyer, true);
     return future;
-  } else {
-    // Otherwise, attempt to remove the cgroups in bottom-up fashion.
-    return internal::remove(hierarchy, candidates);
   }
 
-  return Nothing();
+  // Attempt to remove the cgroups in a bottom-up fashion.
+  return internal::remove(hierarchy, candidates);
 }
 
 
