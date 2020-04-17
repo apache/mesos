@@ -2417,11 +2417,13 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
   Try<JSON::Value> expected = JSON::parse(strings::format(
       "[{"
           "\"statistics\":{"
-              "\"cpus_limit\":%g,"
-              "\"mem_limit_bytes\":%lu"
+              "\"cpus_soft_limit\":%g,"
+              "\"mem_limit_bytes\":%lu,"
+              "\"mem_soft_limit_bytes\":%lu"
           "}"
       "}]",
       1 + slave::DEFAULT_EXECUTOR_CPUS,
+      (Megabytes(32) + slave::DEFAULT_EXECUTOR_MEM).bytes(),
       (Megabytes(32) + slave::DEFAULT_EXECUTOR_MEM).bytes()).get());
 
   ASSERT_SOME(expected);

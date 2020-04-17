@@ -5332,7 +5332,8 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   AWAIT_READY(usage);
 
   // Check the resource limits are set.
-  EXPECT_TRUE(usage->has_cpus_limit());
+  EXPECT_TRUE(usage->has_cpus_soft_limit());
+  EXPECT_TRUE(usage->has_mem_soft_limit_bytes());
   EXPECT_TRUE(usage->has_mem_limit_bytes());
 
   // Destroy the container.

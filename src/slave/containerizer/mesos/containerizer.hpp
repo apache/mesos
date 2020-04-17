@@ -405,9 +405,10 @@ private:
     // calling cleanup after all isolators have finished isolating.
     process::Future<std::vector<Nothing>> isolation;
 
-    // We keep track of the resources for each container so we can set
-    // the ResourceStatistics limits in usage().
-    Resources resources;
+    // We keep track of the resource requests and limits for each container so
+    // we can set the ResourceStatistics limits in usage().
+    Resources resourceRequests;
+    google::protobuf::Map<std::string, Value::Scalar> resourceLimits;
 
     // The configuration for the container to be launched.
     // This can only be None if the underlying container is launched
