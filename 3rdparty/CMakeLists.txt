@@ -99,6 +99,15 @@ else ()
   set(LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif ()
 
+if (WIN32 AND BUILD_SHARED_LIBS)
+  set(3RDPARTY_LIBS_INSTALL_DIR ${MESOS_INSTALL_RUNTIME})
+else()
+  set(3RDPARTY_LIBS_INSTALL_DIR ${MESOS_INSTALL_LIBRARIES})
+endif()
+
+set(LIBPROCESS_INSTALL_RUNTIME ${MESOS_INSTALL_RUNTIME})
+set(LIBPROCESS_INSTALL_LIBRARIES ${MESOS_INSTALL_LIBRARIES})
+
 # Sets a variable CMAKE_NOOP as noop operation.
 #
 # NOTE: This is especially important when building third-party libraries on
@@ -281,6 +290,8 @@ if (WIN32)
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${SASL2_URL}
     URL_HASH          ${SASL2_HASH})
+
+  install(FILES $<TARGET_FILE:sasl2> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 else ()
   find_library(SASL2_LIB sasl2)
 
@@ -442,6 +453,17 @@ ExternalProject_Add(
   INSTALL_DIR       ${GLOG_INSTALL_DIR}
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
+
+if (WIN32 AND BUILD_SHARED_LIBS)
+  # NOTE: glog's install step places DLLs into ${GLOG_INSTALL_DIR}/bin .
+  install(
+    DIRECTORY ${GLOG_INSTALL_DIR}/bin/
+    DESTINATION ${MESOS_INSTALL_RUNTIME})
+endif()
+
+install(
+  DIRECTORY ${GLOG_INSTALL_DIR}/lib/
+  DESTINATION ${MESOS_INSTALL_LIBRARIES})
 
 
 # PicoJSON: JSON parser / serializer.
@@ -626,6 +648,11 @@ if (ENABLE_LIBEVENT)
       INSTALL_COMMAND   ${CMAKE_NOOP}
       URL               ${LIBEVENT_URL}
       URL_HASH          ${LIBEVENT_HASH})
+
+    install(
+      FILES $<TARGET_FILE:libevent>
+      DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+
   else ()
     find_package(LIBEVENT REQUIRED)
     add_library(libevent INTERFACE)
@@ -668,6 +695,10 @@ elseif (NOT WIN32) # Windows defaults to `libwinio`, a native implementation.
     INSTALL_COMMAND   ${MAKE_PROGRAM} install
     URL               ${LIBEV_URL}
     URL_HASH          ${LIBEV_HASH})
+
+  install(
+    DIRECTORY ${LIBEV_ROOT}-build/lib/
+    DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 endif ()
 
 
@@ -700,6 +731,11 @@ if (ENABLE_SECCOMP_ISOLATOR)
       INSTALL_COMMAND   ${CMAKE_NOOP}
       URL               ${LIBSECCOMP_URL}
       URL_HASH          ${LIBSECCOMP_HASH})
+
+    install(
+      FILES $<TARGET_FILE:libseccomp>
+      DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+
   else ()
     find_package(LIBSECCOMP REQUIRED)
     add_library(libseccomp SHARED IMPORTED GLOBAL)
@@ -746,6 +782,8 @@ if (WIN32)
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBAPR_URL}
     URL_HASH          ${LIBAPR_HASH})
+
+  install(FILES $<TARGET_FILE:apr> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 else ()
   find_package(APR REQUIRED)
   add_library(apr SHARED IMPORTED)
@@ -859,12 +897,14 @@ if (WIN32)
 
   # This copies the file `curl.exe` from the `3rdparty` build folder to
   # `build/src`, next to the other produced executables. This is necessary for
-  # code that shells out to cURL on Windows.
-  #
-  # TODO(andschwa): Change this to an `INSTALL` step.
+  # code that shells out to cURL on Windows (in particular, for running Mesos
+  # tests without running cmake install).
   ExternalProject_Add_Step(${CURL_TARGET} copy
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src/curl.exe
     DEPENDEES build)
+
+  install(FILES $<TARGET_FILE:libcurl> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+  install(FILES $<TARGET_FILE:curl> DESTINATION ${MESOS_INSTALL_RUNTIME})
 else ()
   if ("${CURL_ROOT_DIR}" STREQUAL "")
     find_package(CURL REQUIRED)
@@ -917,6 +957,8 @@ if (WIN32)
     INSTALL_COMMAND     ${WCLAYER_INSTALL_CMD}
     DOWNLOAD_NO_EXTRACT FALSE
     URL                 ${WCLAYER_URL})
+
+  install(FILES $<TARGET_FILE:wclayer> DESTINATION ${MESOS_INSTALL_RUNTIME})
 endif ()
 
 # bzip2: A high-quality data compressor.
@@ -963,6 +1005,8 @@ if (WIN32)
     INSTALL_DIR       ${BZIP2_ROOT}-lib
     URL               ${BZIP2_URL}
     URL_HASH          ${BZIP2_HASH})
+
+  install(FILES $<TARGET_FILE:bzip2> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 endif ()
 
 # xz: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
@@ -1070,6 +1114,8 @@ if (WIN32)
     INSTALL_DIR       ${ZLIB_ROOT}-lib
     URL               ${ZLIB_URL}
     URL_HASH          ${ZLIB_HASH})
+
+  install(FILES $<TARGET_FILE:zlib> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 else ()
   find_package(ZLIB REQUIRED)
   add_library(zlib SHARED IMPORTED)
@@ -1342,6 +1388,7 @@ ExternalProject_Add(
   URL               ${PROTOBUF_URL}
   URL_HASH          ${PROTOBUF_HASH})
 
+install(FILES $<TARGET_FILE:protobuf> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
 
 # gRPC: Google's high performance, open-source universal RPC framework.
 # https://grpc.io/
@@ -1474,6 +1521,11 @@ ExternalProject_Add(
   INSTALL_COMMAND  ${CMAKE_NOOP}
   URL              ${GRPC_URL}
   URL_HASH         ${GRPC_HASH})
+
+install(
+  FILES $<TARGET_FILE:libgpr> $<TARGET_FILE:libgrpc> $<TARGET_FILE:libgrpc++>
+  DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+
 
 
 # Jemalloc: General-purpose malloc implementation.

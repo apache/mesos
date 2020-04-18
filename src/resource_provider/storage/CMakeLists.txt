@@ -19,3 +19,8 @@
 # NOTE: This library uses underscores to be consistent with other modules.
 add_library(uri_disk_profile_adaptor uri_disk_profile_adaptor.cpp)
 target_link_libraries(uri_disk_profile_adaptor PRIVATE mesos)
+install(
+  TARGETS uri_disk_profile_adaptor
+  RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+  LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES}
+  ARCHIVE DESTINATION ${MESOS_INSTALL_LIBRARIES})

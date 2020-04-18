@@ -26,6 +26,10 @@ target_link_libraries(mesos-execute PRIVATE mesos)
 add_executable(mesos-resolve resolve.cpp)
 target_link_libraries(mesos-resolve PRIVATE mesos)
 
+install(
+  TARGETS mesos-execute mesos-resolve
+  RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
+
 # MESOS CLI.
 # Soon to be deprecated old version of the Mesos CLI.
 #####################################################

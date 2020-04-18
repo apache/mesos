@@ -20,3 +20,8 @@
 # `src/tests/oversubscription_tests.cpp`.
 add_library(fixed_resource_estimator fixed.cpp)
 target_link_libraries(fixed_resource_estimator PRIVATE mesos)
+install(
+  TARGETS fixed_resource_estimator
+  RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+  LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES}
+  ARCHIVE DESTINATION ${MESOS_INSTALL_LIBRARIES})

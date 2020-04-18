@@ -18,3 +18,6 @@
 #######################
 add_executable(mesos-usage main.cpp)
 target_link_libraries(mesos-usage PRIVATE mesos)
+install(
+  TARGETS mesos-usage
+  RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})

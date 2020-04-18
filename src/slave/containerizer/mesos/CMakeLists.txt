@@ -18,6 +18,9 @@
 ###############################
 add_executable(mesos-containerizer main.cpp)
 target_link_libraries(mesos-containerizer PRIVATE mesos)
+install(
+  TARGETS mesos-containerizer
+  RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})
 
 if (NOT WIN32)
   add_executable(mesos-io-switchboard io/switchboard_main.cpp)
@@ -29,9 +32,16 @@ if (NOT WIN32)
     isolators/network/cni/plugins/port_mapper/port_mapper.cpp)
 
   target_link_libraries(mesos-cni-port-mapper PRIVATE mesos)
+
+  install(
+    TARGETS mesos-io-switchboard mesos-cni-port-mapper
+    RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})
 endif ()
 
 if (ENABLE_PORT_MAPPING_ISOLATOR)
   add_executable(mesos-network-helper isolators/network/helper.cpp)
   target_link_libraries(mesos-network-helper PRIVATE mesos)
+  install(
+    TARGETS mesos-network-helper
+    RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})
 endif ()

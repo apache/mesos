@@ -31,4 +31,14 @@ if (NOT WIN32)
   add_dependencies(
     logrotate_container_logger
     mesos-logrotate-logger)
+
+  install(
+    TARGETS mesos-logrotate-logger
+    RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})
+
+  install(
+    TARGETS logrotate_container_logger
+    RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+    LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES}
+    ARCHIVE DESTINATION ${MESOS_INSTALL_LIBRARIES})
 endif ()

@@ -23,6 +23,7 @@ add_subdirectory(resource_estimators)
 #######################
 add_executable(mesos-agent main.cpp)
 target_link_libraries(mesos-agent PRIVATE mesos)
+install(TARGETS mesos-agent RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
 
 if (ENABLE_JEMALLOC_ALLOCATOR)
   target_link_libraries(mesos-agent PRIVATE jemalloc)

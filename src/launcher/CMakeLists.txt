@@ -29,3 +29,11 @@ target_link_libraries(mesos-fetcher PRIVATE mesos)
 #################################
 add_executable(mesos-docker-executor docker_executor.cpp)
 target_link_libraries(mesos-docker-executor PRIVATE mesos)
+
+install(
+  TARGETS
+    mesos-default-executor
+    mesos-executor
+    mesos-fetcher
+    mesos-docker-executor
+  RUNTIME DESTINATION ${MESOS_INSTALL_LAUNCHER})

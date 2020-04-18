@@ -11,6 +11,7 @@
 #       impossible to use.
 set(MESOS_JAR ${CMAKE_CURRENT_BINARY_DIR}/target/mesos-${MESOS_PACKAGE_VERSION}.jar)
 set(PROTOBUF_JAR ${CMAKE_CURRENT_BINARY_DIR}/target/dependency/protobuf-java-${PROTOBUF_VERSION}.jar)
+set(MESOS_SHADED_PROTOBUF_JAR  ${CMAKE_CURRENT_BINARY_DIR}/target/mesos-${PACKAGE_VERSION}-shaded-protobuf.jar)
 
 # This file is generated into the build tree.
 set(MESOS_JAVA_LIBRARY generated/org/apache/mesos/MesosNativeLibrary.java)
@@ -128,3 +129,16 @@ target_include_directories(
   ${JNI_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}/jni
   ${MESOS_PUBLIC_INCLUDE_DIR})
+
+install(
+  TARGETS mesos-java
+  RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+  LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES}
+  ARCHIVE DESTINATION ${MESOS_INSTALL_LIBRARIES})
+
+# NOTE: Currently, the automake build installs Java packages differently.
+# Namely, `make install` doesn't install Java packages at all, and
+# `make maven-install` calls `mvn install` for package installation.
+install(
+  FILES ${MESOS_JAR} ${MESOS_SHADED_PROTOBUF_JAR}
+  DESTINATION ${MESOS_INSTALL_LIBRARIES})

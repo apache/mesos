@@ -21,4 +21,7 @@ if (NOT WIN32)
   ###################################################
   add_executable(mesos-log main.cpp)
   target_link_libraries(mesos-log PRIVATE mesos)
+  install(
+    TARGETS mesos-log
+    RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
 endif ()

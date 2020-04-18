@@ -19,3 +19,8 @@
 # NOTE: This library uses underscores to be consistent with other modules.
 add_library(load_qos_controller load.cpp)
 target_link_libraries(load_qos_controller PRIVATE mesos)
+install(
+  TARGETS load_qos_controller
+  RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+  LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES}
+  ARCHIVE DESTINATION ${MESOS_INSTALL_LIBRARIES})
