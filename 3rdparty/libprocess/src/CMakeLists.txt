@@ -129,3 +129,9 @@ target_compile_definitions(
 
 target_include_directories(process PUBLIC ../include)
 target_include_directories(process PRIVATE .)
+
+install(
+  TARGETS process
+  RUNTIME DESTINATION ${LIBPROCESS_INSTALL_RUNTIME}
+  LIBRARY DESTINATION ${LIBPROCESS_INSTALL_LIBRARIES}
+  ARCHIVE DESTINATION ${LIBPROCESS_INSTALL_LIBRARIES})
