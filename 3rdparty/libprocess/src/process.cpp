@@ -3842,7 +3842,11 @@ Future<Response> ProcessBase::_consume(
       Future<bool> authorization = true;
 
       if (authorization_callbacks.load() != nullptr) {
-        const string callback_path = path::join("/" + pid.id, name);
+        // Pass the "/" separator to avoid the windows "\" separator
+        // getting implicitly used on windows (we don't want that to
+        // happen for this http request path!)
+        const string callback_path =
+          path::join("/" + pid.id, name, os::POSIX_PATH_SEPARATOR);
 
         synchronized (authorization_callbacks_mutex) {
           AuthorizationCallbacks* callbacks = authorization_callbacks.load();
