@@ -1167,7 +1167,11 @@ protected:
     // TODO(chzhcn): Fail our promise only after 'reading' has
     // completed (ready, failed or discarded).
     if (promise.isSome()) {
-      promise.get()->fail("Event listener is terminating");
+      if (promise.get()->future().hasDiscard()) {
+        promise.get()->discard();
+      } else {
+        promise.get()->fail("Event listener is terminating");
+      }
     }
   }
 
