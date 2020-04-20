@@ -577,14 +577,7 @@ Future<std::shared_ptr<SocketImpl>> OpenSSLSocketImpl::accept()
           // socket to become readable. We will then MSG_PEEK it to test
           // whether we want to dispatch as SSL or non-SSL.
           if (openssl::flags().support_downgrade) {
-#ifdef __WINDOWS__
-            // Since there is no `io::poll` on Windows, we instead make
-            // a 0-byte read, which will only return once there is something
-            // to read.
-            return io::read(socket->get(), nullptr, 0)
-#else
             return io::poll(socket->get(), process::io::READ)
-#endif // __WINDOWS__
               .then([weak_self, socket]() -> Future<ControlFlow<Nothing>> {
                 std::shared_ptr<OpenSSLSocketImpl> self(weak_self.lock());
 
