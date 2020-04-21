@@ -141,7 +141,11 @@ static_assert(
 template <typename T>
 static void set_io_promise(Promise<T>* promise, const T& data, DWORD error)
 {
-  if (promise->future().hasDiscard()) {
+  // If our discard induced CancelIoEx call succeeded, then we
+  // will see ERROR_OPERATION_ABORTED. Otherwise, the discard
+  // lost the race against the operation completing and we
+  // should just surface the result.
+  if (promise->future().hasDiscard() && error == ERROR_OPERATION_ABORTED) {
     promise->discard();
   } else if (error == ERROR_SUCCESS) {
     promise->set(data);
