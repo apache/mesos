@@ -627,8 +627,7 @@ target_link_libraries(
   sasl2
   zookeeper
   mesos-protobufs
-  $<$<AND:$<PLATFORM_ID:Linux>,$<BOOL:${ENABLE_NVML}>>:nvml>
-  $<$<BOOL:${HAS_JAVA}>:mesos-java>)
+  $<$<AND:$<PLATFORM_ID:Linux>,$<BOOL:${ENABLE_NVML}>>:nvml>)
 
 if (NOT WIN32)
   target_link_libraries(mesos PUBLIC leveldb)
