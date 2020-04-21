@@ -31,6 +31,7 @@
 
 namespace io = process::io;
 
+using process::Clock;
 using process::Future;
 
 using std::array;
@@ -38,26 +39,87 @@ using std::string;
 
 class IOTest: public TemporaryDirectoryTest {};
 
-// Polling is the POSIX way to do async IO and Windows does not provide a
-// generic and scalable way to poll on arbitary `HANDLEs`, so this test is
-// removed on Windows.
-#ifndef __WINDOWS__
-TEST_F(IOTest, Poll)
+
+TEST_F(IOTest, PollRead)
 {
-  int pipes[2];
-  ASSERT_NE(-1, pipe(pipes));
+  Try<std::array<int_fd, 2>> pipes = os::pipe();
+  ASSERT_SOME(pipes);
+  ASSERT_SOME(io::prepare_async((*pipes)[0]));
+  ASSERT_SOME(io::prepare_async((*pipes)[1]));
 
   // Test discard when polling.
-  Future<short> future = io::poll(pipes[0], io::READ);
+  Future<short> future = io::poll((*pipes)[0], io::READ);
   EXPECT_TRUE(future.isPending());
   future.discard();
   AWAIT_DISCARDED(future);
 
   // Test successful polling.
-  future = io::poll(pipes[0], io::READ);
+  future = io::poll((*pipes)[0], io::READ);
+
+  // This is not sufficient for ensuring the event loop does
+  // not detect readiness, since it's happening asynchronously
+  // in the kernel.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   EXPECT_TRUE(future.isPending());
-  ASSERT_EQ(3, write(pipes[1], "hi", 3));
+
+  ASSERT_EQ(2, write((*pipes)[1], "hi", 2));
   AWAIT_EXPECT_EQ(io::READ, future);
+
+  ASSERT_SOME(os::close((*pipes)[0]));
+  ASSERT_SOME(os::close((*pipes)[1]));
+}
+
+
+// We do not support write readiness polling on Windows
+// at the current time.
+#ifndef __WINDOWS__
+TEST_F(IOTest, PollWrite)
+{
+  int pipes[2];
+  ASSERT_NE(-1, pipe(pipes));
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
+
+  // Fill up the pipe to test write readiness polling.
+  while (true) {
+    int result = ::write(pipes[1], "hello world!", sizeof("hello world!"));
+
+    if (result < 0) {
+      if (errno == EAGAIN) {
+        break;
+      }
+      FAIL() << "Unexpected error: " << strerror(errno);
+    }
+  }
+
+  // Test discard when polling.
+  Future<short> future = io::poll(pipes[1], io::WRITE);
+  EXPECT_TRUE(future.isPending());
+  future.discard();
+  AWAIT_DISCARDED(future);
+
+  // Test successful polling.
+  future = io::poll(pipes[1], io::WRITE);
+
+  // This is not sufficient for ensuring the event loop does
+  // not detect readiness, since it's happening asynchronously
+  // in the kernel.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_TRUE(future.isPending());
+
+  // It appears that Linux does not notify of write readiness
+  // until the reader reads at least a page of data.
+  size_t size = os::pagesize();
+  std::unique_ptr<char[]> buffer(new char[size]);
+  ASSERT_EQ(size, ::read(pipes[0], buffer.get(), size));
+
+  AWAIT_EXPECT_EQ(io::WRITE, future);
 
   ASSERT_SOME(os::close(pipes[0]));
   ASSERT_SOME(os::close(pipes[1]));
