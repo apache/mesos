@@ -2082,16 +2082,105 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     result = cgroupStats.get();
 #endif // __linux__
 
-    // Set the resource allocations.
-    const Resources& resource = container->resourceRequests;
-    const Option<Bytes> mem = resource.mem();
-    if (mem.isSome()) {
-      result.set_mem_limit_bytes(mem->bytes());
+    Option<double> cpuRequest, cpuLimit, memLimit;
+    Option<Bytes> memRequest;
+
+    // For command tasks, we should subtract the default resources (0.1 cpus and
+    // 32MB memory) for command executor from the container's resource requests
+    // and limits, otherwise we would report wrong resource statistics.
+    if (container->resourceRequests.cpus().isSome()) {
+      if (container->generatedForCommandTask) {
+        cpuRequest =
+          container->resourceRequests.cpus().get() - DEFAULT_EXECUTOR_CPUS;
+      } else {
+        cpuRequest = container->resourceRequests.cpus();
+      }
     }
 
-    const Option<double> cpus = resource.cpus();
-    if (cpus.isSome()) {
-      result.set_cpus_limit(cpus.get());
+    if (container->resourceRequests.mem().isSome()) {
+      if (container->generatedForCommandTask) {
+        memRequest =
+          container->resourceRequests.mem().get() - DEFAULT_EXECUTOR_MEM;
+      } else {
+        memRequest = container->resourceRequests.mem();
+      }
+    }
+
+    foreach (auto&& limit, container->resourceLimits) {
+      if (limit.first == "cpus") {
+        if (container->generatedForCommandTask &&
+            !std::isinf(limit.second.value())) {
+          cpuLimit = limit.second.value() - DEFAULT_EXECUTOR_CPUS;
+        } else {
+          cpuLimit = limit.second.value();
+        }
+      } else if (limit.first == "mem") {
+        if (container->generatedForCommandTask &&
+            !std::isinf(limit.second.value())) {
+          memLimit = limit.second.value() -
+                     DEFAULT_EXECUTOR_MEM.bytes() / Bytes::MEGABYTES;
+        } else {
+          memLimit = limit.second.value();
+        }
+      }
+    }
+
+    if (cpuRequest.isSome()) {
+      result.set_cpus_soft_limit(cpuRequest.get());
+    }
+
+    if (cpuLimit.isSome()) {
+      // Get the total CPU numbers of this node, we will use
+      // it to set container's hard CPU limit if the CPU limit
+      // specified by framework is infinity.
+      static Option<long> totalCPUs;
+      if (totalCPUs.isNone()) {
+        Try<long> cpus = os::cpus();
+        if (cpus.isError()) {
+          return Failure(
+              "Failed to auto-detect the number of cpus: " + cpus.error());
+        }
+
+        totalCPUs = cpus.get();
+      }
+
+      CHECK_SOME(totalCPUs);
+
+      result.set_cpus_limit(
+          std::isinf(cpuLimit.get()) ? totalCPUs.get() : cpuLimit.get());
+#ifdef __linux__
+    } else if (flags.cgroups_enable_cfs && cpuRequest.isSome()) {
+      result.set_cpus_limit(cpuRequest.get());
+#endif
+    }
+
+    if (memLimit.isSome()) {
+      // Get the total memory of this node, we will use it to
+      // set container's hard memory limit if the memory limit
+      // specified by framework is infinity.
+      static Option<Bytes> totalMem;
+      if (totalMem.isNone()) {
+        Try<os::Memory> mem = os::memory();
+        if (mem.isError()) {
+          return Failure(
+              "Failed to auto-detect the size of main memory: " + mem.error());
+        }
+
+        totalMem = mem->total;
+      }
+
+      CHECK_SOME(totalMem);
+
+      result.set_mem_limit_bytes(
+          std::isinf(memLimit.get())
+            ? totalMem->bytes()
+            : Megabytes(static_cast<uint64_t>(memLimit.get())).bytes());
+
+      if (memRequest.isSome()) {
+        result.set_mem_soft_limit_bytes(memRequest->bytes());
+      }
+    } else if (memRequest.isSome()) {
+      result.set_mem_limit_bytes(memRequest->bytes());
     }
 
     return result;

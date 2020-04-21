@@ -946,7 +946,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resources = Option<string>("cpus:2;mem:1024");
+  flags.resources = Option<string>("cpus:1;mem:1024");
 
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
@@ -1000,10 +1000,22 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   command.set_value("dd if=/dev/zero of=/dev/null");
 #endif // __WINDOWS__
 
+  Value::Scalar cpuLimit, memLimit;
+  cpuLimit.set_value(2);
+  memLimit.set_value(2048);
+
+  google::protobuf::Map<string, Value::Scalar> resourceLimits;
+  resourceLimits.insert({"cpus", cpuLimit});
+  resourceLimits.insert({"mem", memLimit});
+
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      command);
+      command,
+      None(),
+      "test-task",
+      id::UUID::random().toString(),
+      resourceLimits);
 
   // TODO(tnachen): Use local image to test if possible.
   task.mutable_container()->CopyFrom(createDockerInfo(DOCKER_TEST_IMAGE));
@@ -1056,10 +1068,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
     waited += Milliseconds(200);
   } while (waited < Seconds(3));
 
-  // Usage includes the executor resources.
-  EXPECT_EQ(2.0 + slave::DEFAULT_EXECUTOR_CPUS, statistics.cpus_limit());
-  EXPECT_EQ((Gigabytes(1) + slave::DEFAULT_EXECUTOR_MEM).bytes(),
-            statistics.mem_limit_bytes());
+  EXPECT_EQ(1, statistics.cpus_soft_limit());
+  EXPECT_EQ(2, statistics.cpus_limit());
+  EXPECT_EQ(Gigabytes(1).bytes(), statistics.mem_soft_limit_bytes());
+  EXPECT_EQ(Gigabytes(2).bytes(), statistics.mem_limit_bytes());
+
 #ifndef __WINDOWS__
   // These aren't provided by the Windows Container APIs, so skip them.
   EXPECT_LT(0, statistics.cpus_user_time_secs());
