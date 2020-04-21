@@ -353,7 +353,8 @@ private:
         symlinked(symlinked),
         containerWorkDir(containerWorkDir),
         containerName(name(id)),
-        launchesExecutorContainer(launchesExecutorContainer)
+        launchesExecutorContainer(launchesExecutorContainer),
+        generatedForCommandTask(_containerConfig.has_task_info())
     {
       // NOTE: The task's resources are included in the executor's
       // resources in order to make sure when launching the executor
@@ -531,6 +532,8 @@ private:
     // Marks if this container launches an executor in a docker
     // container.
     bool launchesExecutorContainer;
+
+    bool generatedForCommandTask;
   };
 
   hashmap<ContainerID, Container*> containers_;

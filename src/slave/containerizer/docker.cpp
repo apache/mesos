@@ -1007,6 +1007,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         Container* container = new Container(containerId);
         containers_[containerId] = container;
         container->state = Container::RUNNING;
+        container->generatedForCommandTask = executor.generatedForCommandTask;
         container->launchesExecutorContainer =
           executorContainers.contains(containerId);
 
@@ -1672,6 +1673,16 @@ Future<Nothing> DockerContainerizerProcess::update(
   if (container->state == Container::DESTROYING)  {
     LOG(INFO) << "Ignoring updating container " << containerId
               << " that is being destroyed";
+    return Nothing();
+  }
+
+  if (container->generatedForCommandTask) {
+    LOG(INFO) << "Ignoring updating container " << containerId
+              << " because it is generated for a command task";
+
+    // Store the resources for usage().
+    container->resources = resourceRequests;
+
     return Nothing();
   }
 
