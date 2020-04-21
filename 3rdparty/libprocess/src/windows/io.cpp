@@ -13,6 +13,7 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/process.hpp> // For process::initialize.
 
 #include <stout/error.hpp>
@@ -29,15 +30,29 @@
 
 namespace process {
 namespace io {
+
+
+Future<short> poll(int_fd fd, short events)
+{
+  if (events != io::READ) {
+    return Failure("Expected io::READ (" + stringify(io::READ) + ")"
+                   " but received " + stringify(events));
+  }
+
+  return io::internal::read(fd, nullptr, 0, false)
+    .then([]() { return io::READ; });
+}
+
+
 namespace internal {
 
-Future<size_t> read(int_fd fd, void* data, size_t size)
+Future<size_t> read(int_fd fd, void* data, size_t size, bool bypassZeroRead)
 {
   process::initialize();
 
   // TODO(benh): Let the system calls do what ever they're supposed to
   // rather than return 0 here?
-  if (size == 0) {
+  if (size == 0 && bypassZeroRead) {
     return 0;
   }
 

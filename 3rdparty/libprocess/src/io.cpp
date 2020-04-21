@@ -65,7 +65,11 @@ Future<size_t> read(int_fd fd, void* data, size_t size)
     return Failure("Expected an asynchronous file descriptor.");
   }
 
+#ifndef ENABLE_LIBWINIO
   return internal::read(fd, data, size);
+#else
+  return internal::read(fd, data, size, true);
+#endif // ENABLE_LIBWINIO
 }
 
 

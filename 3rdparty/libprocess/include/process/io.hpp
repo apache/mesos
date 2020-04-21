@@ -26,7 +26,6 @@
 namespace process {
 namespace io {
 
-#ifndef ENABLE_LIBWINIO
 /**
  * A possible event while polling.
  *
@@ -34,6 +33,7 @@ namespace io {
  */
 const short READ = 0x01;
 
+#ifndef ENABLE_LIBWINIO
 /**
  * @copydoc process::io::READ
  */
@@ -72,17 +72,18 @@ Try<Nothing> prepare_async(int_fd fd);
 Try<bool> is_async(int_fd fd);
 
 
-#ifndef ENABLE_LIBWINIO
 /**
  * Returns the events (a subset of the events specified) that can be
  * performed on the specified file descriptor without blocking.
+ *
+ * Note that on windows, only io::READ is available (under the
+ * covers this is achieved via a zero byte read).
  *
  * @see process::io::READ
  * @see process::io::WRITE
  */
 // TODO(benh): Add a version which takes multiple file descriptors.
 Future<short> poll(int_fd fd, short events);
-#endif // ENABLE_LIBWINIO
 
 
 /**
@@ -93,7 +94,13 @@ Future<short> poll(int_fd fd, short events);
  * The future will become ready when some data is read (may be less than
  * the specified size).
  *
- * @return The number of bytes read or zero on EOF.
+ * To provide a consistent interface, a zero byte will immediately
+ * return a ready future with 0 bytes. For users looking to use
+ * the zero byte read trick on windows to achieve read readiness
+ * polling, just use io::poll with io::READ.
+ *
+ * @return The number of bytes read or zero on EOF (or if zero
+ *     bytes were requested).
  *     A failure will be returned if an error is detected.
  */
 Future<size_t> read(int_fd fd, void* data, size_t size);

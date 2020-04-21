@@ -21,7 +21,15 @@ namespace process {
 namespace io {
 namespace internal {
 
+#ifndef ENABLE_LIBWINIO
 Future<size_t> read(int_fd fd, void* data, size_t size);
+#else
+Future<size_t> read(
+    int_fd fd,
+    void* data,
+    size_t size,
+    bool bypassZeroByteRead);
+#endif // ENABLE_LIBWINIO
 
 Future<size_t> write(int_fd fd, const void* data, size_t size);
 
