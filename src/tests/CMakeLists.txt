@@ -307,9 +307,15 @@ target_compile_definitions(
   PKGLIBEXECDIR="${PKG_LIBEXEC_INSTALL_DIR}"
   TESTLIBEXECDIR="${TEST_LIB_EXEC_DIR}"
   PKGMODULEDIR="${PKG_MODULE_DIR}"
-  SBINDIR="${S_BIN_DIR}")
+  SBINDIR="${S_BIN_DIR}"
+  MESOS_INSTALL_TESTS=${MESOS_INSTALL_TESTS})
 
-add_executable(mesos-tests EXCLUDE_FROM_ALL ${MESOS_TESTS_SRC})
+if(MESOS_INSTALL_TESTS)
+  add_executable(mesos-tests ${MESOS_TESTS_SRC})
+else()
+  add_executable(mesos-tests EXCLUDE_FROM_ALL ${MESOS_TESTS_SRC})
+endif()
+
 target_link_libraries(mesos-tests PRIVATE mesos-tests-interface)
 
 target_compile_definitions(
@@ -317,7 +323,13 @@ target_compile_definitions(
   $<$<BOOL:${HAS_JAVA}>:MESOS_HAS_JAVA>)
 
 # Helper to run tests that require a subprocess.
-add_executable(test-helper EXCLUDE_FROM_ALL ${TEST_HELPER_SRC})
+if (MESOS_INSTALL_TESTS)
+  add_executable(test-helper ${TEST_HELPER_SRC})
+  install(TARGETS test-helper RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
+else()
+  add_executable(test-helper EXCLUDE_FROM_ALL ${TEST_HELPER_SRC})
+endif()
+
 target_link_libraries(test-helper PRIVATE mesos-tests-interface)
 
 # The tests require these binaries.
@@ -392,6 +404,9 @@ if (NOT WIN32)
   endif ()
 endif ()
 
+if (MESOS_INSTALL_TESTS)
+  install(TARGETS mesos-tests RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
+endif()
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################

@@ -14,49 +14,67 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+function(ADD_TEST_MODULE MODULE SOURCES)
+  if (MESOS_INSTALL_TESTS)
+    add_library(${MODULE} SHARED ${SOURCES})
+    install(
+      TARGETS ${MODULE}
+      RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME}
+      LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES})
+  else()
+    add_library(${MODULE} SHARED EXCLUDE_FROM_ALL ${SOURCES})
+  endif()
+endfunction()
+
+function(ADD_TEST_EXECUTABLE EXECUTABLE SOURCES)
+  add_executable(${EXECUTABLE} ${SOURCES})
+  if (MESOS_INSTALL_TESTS)
+    install(TARGETS ${EXECUTABLE} RUNTIME DESTINATION ${MESOS_INSTALL_RUNTIME})
+  endif()
+endfunction()
+
 if (NOT WIN32)
   # Build the test modules.
   #########################
   # NOTE: Modules are not supported on Windows.
-  add_library(testallocator          SHARED EXCLUDE_FROM_ALL test_allocator_module.cpp)
-  add_library(testanonymous          SHARED EXCLUDE_FROM_ALL test_anonymous_module.cpp)
-  add_library(testauthentication     SHARED EXCLUDE_FROM_ALL test_authentication_modules.cpp)
-  add_library(testauthorizer         SHARED EXCLUDE_FROM_ALL test_authorizer_module.cpp)
-  add_library(testcontainer_logger   SHARED EXCLUDE_FROM_ALL test_container_logger_module.cpp)
-  add_library(examplemodule          SHARED EXCLUDE_FROM_ALL example_module_impl.cpp)
-  add_library(testhook               SHARED EXCLUDE_FROM_ALL test_hook_module.cpp)
-  add_library(testhttpauthenticator  SHARED EXCLUDE_FROM_ALL test_http_authenticator_module.cpp)
-  add_library(testisolator           SHARED EXCLUDE_FROM_ALL test_isolator_module.cpp)
-  add_library(testmastercontender    SHARED EXCLUDE_FROM_ALL test_master_contender_module.cpp)
-  add_library(testmasterdetector     SHARED EXCLUDE_FROM_ALL test_master_detector_module.cpp)
-  add_library(testqos_controller     SHARED EXCLUDE_FROM_ALL test_qos_controller_module.cpp)
-  add_library(testresource_estimator SHARED EXCLUDE_FROM_ALL test_resource_estimator_module.cpp)
-
+  ADD_TEST_MODULE(testallocator          test_allocator_module.cpp)
+  ADD_TEST_MODULE(testanonymous          test_anonymous_module.cpp)
+  ADD_TEST_MODULE(testauthentication     test_authentication_modules.cpp)
+  ADD_TEST_MODULE(testauthorizer         test_authorizer_module.cpp)
+  ADD_TEST_MODULE(testcontainer_logger   test_container_logger_module.cpp)
+  ADD_TEST_MODULE(examplemodule          example_module_impl.cpp)
+  ADD_TEST_MODULE(testhook               test_hook_module.cpp)
+  ADD_TEST_MODULE(testhttpauthenticator  test_http_authenticator_module.cpp)
+  ADD_TEST_MODULE(testisolator           test_isolator_module.cpp)
+  ADD_TEST_MODULE(testmastercontender    test_master_contender_module.cpp)
+  ADD_TEST_MODULE(testmasterdetector     test_master_detector_module.cpp)
+  ADD_TEST_MODULE(testqos_controller     test_qos_controller_module.cpp)
+  ADD_TEST_MODULE(testresource_estimator test_resource_estimator_module.cpp)
 
   # Build the example frameworks and executors.
   #############################################
   # TODO(josephw): The scheduler driver is current not built on Windows.
-  add_executable(balloon-executor              balloon_executor.cpp)
-  add_executable(balloon-framework             balloon_framework.cpp)
-  add_executable(disk-full-framework           disk_full_framework.cpp)
-  add_executable(docker-no-executor-framework  docker_no_executor_framework.cpp)
-  add_executable(dynamic-reservation-framework dynamic_reservation_framework.cpp)
-  add_executable(inverse-offer-framework       inverse_offer_framework.cpp)
-  add_executable(load-generator-framework      load_generator_framework.cpp)
-  add_executable(long-lived-executor           long_lived_executor.cpp)
-  add_executable(long-lived-framework          long_lived_framework.cpp)
-  add_executable(operation-feedback-framework  operation_feedback_framework.cpp)
-  add_executable(no-executor-framework         no_executor_framework.cpp)
-  add_executable(persistent-volume-framework   persistent_volume_framework.cpp)
-  add_executable(test-executor                 test_executor.cpp)
-  add_executable(test-framework                test_framework.cpp)
-  add_executable(test-http-executor            test_http_executor.cpp)
-  add_executable(test-http-framework           test_http_framework.cpp)
-  add_executable(test-csi-user-framework       test_csi_user_framework.cpp)
+  ADD_TEST_EXECUTABLE(balloon-executor              balloon_executor.cpp)
+  ADD_TEST_EXECUTABLE(balloon-framework             balloon_framework.cpp)
+  ADD_TEST_EXECUTABLE(disk-full-framework           disk_full_framework.cpp)
+  ADD_TEST_EXECUTABLE(docker-no-executor-framework  docker_no_executor_framework.cpp)
+  ADD_TEST_EXECUTABLE(dynamic-reservation-framework dynamic_reservation_framework.cpp)
+  ADD_TEST_EXECUTABLE(inverse-offer-framework       inverse_offer_framework.cpp)
+  ADD_TEST_EXECUTABLE(load-generator-framework      load_generator_framework.cpp)
+  ADD_TEST_EXECUTABLE(long-lived-executor           long_lived_executor.cpp)
+  ADD_TEST_EXECUTABLE(long-lived-framework          long_lived_framework.cpp)
+  ADD_TEST_EXECUTABLE(operation-feedback-framework  operation_feedback_framework.cpp)
+  ADD_TEST_EXECUTABLE(no-executor-framework         no_executor_framework.cpp)
+  ADD_TEST_EXECUTABLE(persistent-volume-framework   persistent_volume_framework.cpp)
+  ADD_TEST_EXECUTABLE(test-executor                 test_executor.cpp)
+  ADD_TEST_EXECUTABLE(test-framework                test_framework.cpp)
+  ADD_TEST_EXECUTABLE(test-http-executor            test_http_executor.cpp)
+  ADD_TEST_EXECUTABLE(test-http-framework           test_http_framework.cpp)
+  ADD_TEST_EXECUTABLE(test-csi-user-framework       test_csi_user_framework.cpp)
 
   # TODO(chhsiao): The test CSI plugin is Linux only for now.
   if (LINUX)
-    add_executable(test-csi-plugin test_csi_plugin.cpp)
+    ADD_TEST_EXECUTABLE(test-csi-plugin test_csi_plugin.cpp)
   endif ()
 
   # NOTE: Do not replace this with `link_libraries()`. While it may result in

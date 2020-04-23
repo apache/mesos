@@ -252,7 +252,7 @@ public:
       const Option<Duration>& reconciliationInterval = None())
   {
     const string testCsiPluginPath =
-      path::join(tests::flags.build_dir, "src", "test-csi-plugin");
+      path::join(getTestHelperDir(), "test-csi-plugin");
 
     Try<string> resourceProviderConfig = strings::format(
         R"~(

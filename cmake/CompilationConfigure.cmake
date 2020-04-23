@@ -75,6 +75,13 @@ set(
    This is typically used by package managers that use different prefixes on a build
    system and on a target system.")
 
+# TODO(asekretenko): Consider making Mesos tests a separate project
+# that would depend on Mesos installation.
+option(MESOS_INSTALL_TESTS
+  "Add test executables and their dependencies to the install step."
+  FALSE)
+
+
 # 3RDPARTY OPTIONS.
 ###################
 option(

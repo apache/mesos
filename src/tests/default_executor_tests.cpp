@@ -4457,11 +4457,11 @@ TEST_P(DefaultExecutorTest, DomainSockets)
     {"GLOG_v", os::getenv("GLOG_v").getOrElse("0") },
   };
 
-  Result<std::string> path = os::realpath(BUILD_DIR);
+  Result<std::string> path = os::realpath(getLauncherDir());
   ASSERT_SOME(path);
 
   Try<process::Subprocess> executor = process::subprocess(
-        path::join(path.get(), "src/mesos-default-executor"),
+        path::join(path.get(), "mesos-default-executor"),
         argv,
         process::Subprocess::FD(STDIN_FILENO),
         process::Subprocess::FD(STDOUT_FILENO),

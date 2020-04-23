@@ -158,7 +158,7 @@ public:
         "local_" + strings::remove(id::UUID::random().toString(), "-");
 
       const string testCsiPluginPath =
-        path::join(tests::flags.build_dir, "src", "test-csi-plugin");
+        path::join(getTestHelperDir(), "test-csi-plugin");
 
       const string testCsiPluginWorkDir =
         path::join(sandbox.get(), testCsiPluginName);
