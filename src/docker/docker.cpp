@@ -700,7 +700,8 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     if (memRequest.isSome()) {
       options.memoryReservation = std::max(memRequest.get(), MIN_MEMORY);
 
-      if (memRequest.get() < Megabytes(static_cast<uint64_t>(memLimit.get()))) {
+      if (std::isinf(memLimit.get()) ||
+          memRequest.get() < Megabytes(static_cast<uint64_t>(memLimit.get()))) {
         Try<int> oomScoreAdj = calculateOOMScoreAdj(memRequest.get());
         if (oomScoreAdj.isError()) {
           return Error(
