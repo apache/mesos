@@ -103,6 +103,20 @@ if (ENABLE_LIBEVENT)
     "Specify the path to libevent, e.g. \"C:\\libevent-Win64\".")
 endif()
 
+set(
+  BOOST_ROOT_DIR
+  ""
+  CACHE STRING
+  "Specify the path to boost.")
+
+if (NOT WIN32)
+  set(
+    CURL_ROOT_DIR
+    ""
+    CACHE STRING
+    "Specify the path to libcurl.")
+endif()
+
 option(
   UNBUNDLED_LEVELDB
   "Build with an installed leveldb version instead of the bundled."
