@@ -7,48 +7,87 @@ layout: documentation
 
 A Mesos executor can be built in two different ways:
 
-1. By using the `ExecutorDriver` C++ interface. The `ExecutorDriver` handles the
-details of communicating with the Mesos agent. Executor developers implement
-custom executor logic by registering callbacks with the `ExecutorDriver` for
-significant events, such as when a new task launch request is received. Because
-the `ExecutorDriver` interface is written in C++, this typically requires that
-executor developers either use C++ or use a C++ binding to their language of
-choice (e.g., JNI when using JVM-based languages).
+1. By using the HTTP API. This allows Mesos executors to be developed without
+using C++ or a native client library; instead, a custom executor interacts with
+the Mesos agent via HTTP requests, as described below. Although it is
+theoretically possible to use the HTTP executor API "directly" (e.g., by using a
+generic HTTP library), most executor developers should use a library for their
+language of choice that manages the details of the HTTP API; see the document on
+[HTTP API client libraries](api-client-libraries.md) for a list. This is the
+recommended way to develop new Mesos executors.
 
-2. By using the new HTTP API. This allows Mesos executors to be developed
-without using C++ or a native client library; instead, a custom executor
-interacts with the Mesos agent via HTTP requests, as described below. Although
-it is theoretically possible to use the HTTP executor API "directly" (e.g., by
-using a generic HTTP library), most executor developers should use a library for
-their language of choice that manages the details of the HTTP API; see the
-document on [HTTP API client libraries](api-client-libraries.md) for a list.
-
-The v1 Executor HTTP API was introduced in Mesos 0.28.0. As of Mesos 1.0, it is
-considered stable and is the recommended way to develop new Mesos executors.
+2. By using the deprecated `ExecutorDriver` C++ interface. While this interface
+is still supported, note that new features are usually not added to it. The
+`ExecutorDriver` handles the details of communicating with the Mesos agent.
+Executor developers implement custom executor logic by registering callbacks
+with the `ExecutorDriver` for significant events, such as when a new task launch
+request is received. Because the `ExecutorDriver` interface is written in C++,
+this typically requires that executor developers either use C++ or use a C++
+binding to their language of choice (e.g., JNI when using JVM-based languages).
 
 
 ## Overview
 
-The executor interacts with Mesos via the [/api/v1/executor](endpoints/slave/api/v1/executor.md) agent endpoint. We refer to this endpoint with its suffix "/executor" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that the executor sends to "/executor" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked).
+The executor interacts with Mesos via the [/api/v1/executor]
+(endpoints/slave/api/v1/executor.md) agent endpoint. We refer to this endpoint
+with its suffix "/executor" in the rest of this document. The endpoint accepts
+HTTP POST requests with data encoded as JSON (Content-Type: application/json) or
+binary Protobuf (Content-Type: application/x-protobuf). The first request that
+the executor sends to the "/executor" endpoint is called `SUBSCRIBE` and results
+in a streaming response ("200 OK" status code with Transfer-Encoding: chunked).
 
-**Executors are expected to keep the subscription connection open as long as possible (barring network errors, agent process restarts, software bugs, etc.) and incrementally process the response.** HTTP client libraries that can only parse the response after the connection is closed cannot be used. For the encoding used, please refer to **Events** section below.
+**Executors are expected to keep the subscription connection open as long as
+possible (barring network errors, agent process restarts, software bugs, etc.)
+and incrementally process the response.** HTTP client libraries that can only
+parse the response after the connection is closed cannot be used. For the
+encoding used, please refer to **Events** section below.
 
-All subsequent (non-`SUBSCRIBE`) requests to the "/executor" endpoint (see details below in **Calls** section) must be sent using a different connection than the one used for subscription. The agent responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., agent fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection. Executors can submit requests using more than one different HTTP connection.
+All subsequent (non-`SUBSCRIBE`) requests to the "/executor" endpoint (see
+details below in **Calls** section) must be sent using a different connection
+than the one used for subscription. The agent responds to these HTTP POST
+requests with "202 Accepted" status codes (or, for unsuccessful requests, with
+4xx or 5xx status codes; details in later sections). The "202 Accepted" response
+means that a request has been accepted for processing, not that the processing
+of the request has been completed. The request might or might not be acted upon
+by Mesos (e.g., agent fails during the processing of the request). Any
+asynchronous responses from these requests will be streamed on the long-lived
+subscription connection. Executors can submit requests using more than one
+different HTTP connection.
+
+The "/executor" endpoint is served at the Mesos agent's IP:port and in addition,
+when the agent has the `http_executor_domain_sockets` flag set to `true`, the
+executor endpoint is also served on a Unix domain socket, the location of which
+can be found by the executor in the `MESOS_DOMAIN_SOCKET` environment variable.
+Connecting to the domain socket is similar to connecting using a TCP socket, and
+once the connection is established, data is sent and received in the same way.
 
 ## Calls
 
-The following calls are currently accepted by the agent. The canonical source of this information is [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto). When sending JSON-encoded Calls, executors should encode raw bytes in Base64 and strings in UTF-8.
+The following calls are currently accepted by the agent. The canonical source of
+this information is [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto).
+When sending JSON-encoded Calls, executors should encode raw bytes in Base64 and
+strings in UTF-8.
 
 ### SUBSCRIBE
 
-This is the first step in the communication process between the executor and agent. This is also to be considered as subscription to the "/executor" events stream.
+This is the first step in the communication process between the executor and
+agent. This is also to be considered as subscription to the "/executor" events
+stream.
 
-To subscribe with the agent, the executor sends an HTTP POST with a `SUBSCRIBE` message. The HTTP response is a stream in [RecordIO](scheduler-http-api.md#recordio-response-format) format; the event stream will begin with a `SUBSCRIBED` event (see details in **Events** section).
+To subscribe with the agent, the executor sends an HTTP POST with a `SUBSCRIBE`
+message. The HTTP response is a stream in [RecordIO]
+(scheduler-http-api.md#recordio-response-format) format; the event stream will
+begin with a `SUBSCRIBED` event (see details in **Events** section).
 
-Additionally, if the executor is connecting to the agent after a [disconnection](#disconnections), it can also send a list of:
+Additionally, if the executor is connecting to the agent after a
+[disconnection](#disconnections), it can also send a list of:
 
-* **Unacknowledged Status Updates**: The executor is expected to maintain a list of status updates not acknowledged by the agent via the `ACKNOWLEDGE` events.
-* **Unacknowledged Tasks**: The executor is expected to maintain a list of tasks that have not been acknowledged by the agent. A task is considered acknowledged if at least one of the status updates for this task is acknowledged by the agent.
+* **Unacknowledged Status Updates**: The executor is expected to maintain a list
+  of status updates not acknowledged by the agent via the `ACKNOWLEDGE` events.
+* **Unacknowledged Tasks**: The executor is expected to maintain a list of tasks
+  that have not been acknowledged by the agent. A task is considered
+  acknowledged if at least one of the status updates for this task is
+  acknowledged by the agent.
 
 ```
 SUBSCRIBE Request (JSON):
