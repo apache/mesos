@@ -731,12 +731,15 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
 
 ** Bug
   * [MESOS-8467] - Destroyed executors might be used after `Slave::publishResource()`.
+  * [MESOS-8537] - Default executor doesn't wait for status updates to be ack'd before shutting down.
   * [MESOS-9124] - Agent reconfiguration can cause master to unsuppress on scheduler's behalf.
   * [MESOS-9507] - Agent could not recover due to empty docker volume checkpointed files.
   * [MESOS-9529] - `/proc` should be remounted even if a nested container set `share_pid_namespace` to true.
   * [MESOS-9549] - nvidia/cuda 10 does not work on GPU isolator.
   * [MESOS-9564] - Logrotate container logger lets tasks execute arbitrary commands in the Mesos agent's namespace.
   * [MESOS-9568] - SLRP does not clean up mount directories for destroyed MOUNT disks.
+  * [MESOS-9581] - Mesos package naming appears to be undeterministic.
+  * [MESOS-9590] - Mesos CI sometimes, incorrectly, overwrites already-pushed mesos master nightly images with new images built from non-master branches.
   * [MESOS-9607] - Removing a resource provider with consumers breaks resource publishing.
   * [MESOS-9610] - Fetcher vulnerability - escaping from sandbox.
   * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
@@ -752,6 +755,7 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
   * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
   * [MESOS-9803] - Memory leak caused by an infinite chain of futures in `UriDiskProfileAdaptor`.
   * [MESOS-9836] - Docker containerizer overwrites `/mesos/slave` cgroups.
+  * [MESOS-9847] - Docker executor doesn't wait for status updates to be ack'd before shutting down.
   * [MESOS-9852] - Slow memory growth in master due to deferred deletion of offer filters and timers.
   * [MESOS-9856] - REVIVE call with specified role(s) clears filters for all roles of a framework.
   * [MESOS-9868] - NetworkInfo from the agent /state endpoint is not correct.
@@ -762,13 +766,18 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
   * [MESOS-9925] - Default executor takes a couple of seconds to start and subscribe Mesos agent.
   * [MESOS-9964] - Support destroying UCR containers in provisioning state.
   * [MESOS-9966] - Agent crashes when trying to destroy orphaned nested container if root container is orphaned as well.
+  * [MESOS-9968] - WWWAuthenticate header parsing fails when commas are in (quoted) realm.
   * [MESOS-10007] - Command executor can miss exit status for short-lived commands due to double-reaping.
   * [MESOS-10015] - updateAllocation() can stall the allocator with a huge number of reservations on an agent.
+  * [MESOS-10018] - Duplicate tasks if agent partitioned during maintenance down.
+  * [MESOS-10084] - Detecting whether executor is generated for command task should work when the launcher_dir changes.
+  * [MESOS-10092] - Cannot pull image from docker registry which does not reply with 'scope'/'service' in WWW-Authenticate header.
 
 ** Improvements
   * [MESOS-8880] - Add minimum capabilities in the master.
   * [MESOS-9159] - Support Foreign URLs in docker registry puller.
   * [MESOS-9540] - Support `DESTROY_DISK` on preprovisioned CSI volumes.
+  * [MESOS-9545] - Marking an unreachable agent as gone should transition the tasks to terminal state.
   * [MESOS-9675] - Docker Manifest V2 Schema2 Support.
   * [MESOS-9704] - Support docker manifest v2s2 config GC.
   * [MESOS-9759] - Log required quota headroom and available quota headroom in the allocator.
