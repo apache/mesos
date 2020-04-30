@@ -61,13 +61,6 @@ inline Option<int> spawn(
 }
 
 
-template<typename... T>
-inline int execlp(const char* file, T... t)
-{
-  return ::execlp(file, t...);
-}
-
-
 inline int execvp(const char* file, char* const argv[])
 {
   return ::execvp(file, argv);

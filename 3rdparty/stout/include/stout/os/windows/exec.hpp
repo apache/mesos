@@ -442,11 +442,6 @@ inline Option<int> spawn(
 }
 
 
-// TODO(bmahler): Why do we delete this on windows?
-template<typename... T>
-inline int execlp(const char* file, T... t) = delete;
-
-
 // In order to emulate the semantics of `execvp`, `os::spawn` waits for the new
 // process to exit, and returns its error code, which is propagated back to the
 // parent via `exit` here.
