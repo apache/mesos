@@ -541,7 +541,7 @@ Try<Nothing> DockerContainerizerProcess::updatePersistentVolumes(
         continue;
       }
 
-      if (_container->resources.contains(resource)) {
+      if (_container->resourceRequests.contains(resource)) {
         isVolumeInUse = true;
         break;
       }
@@ -612,7 +612,7 @@ Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
   container->state = Container::MOUNTING;
 
   if (!container->containerConfig.has_task_info() &&
-      !container->resources.persistentVolumes().empty()) {
+      !container->resourceRequests.persistentVolumes().empty()) {
     LOG(ERROR) << "Persistent volumes found with container '" << containerId
                << "' but are not supported with custom executors";
     return Nothing();
@@ -622,7 +622,7 @@ Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
       containerId,
       container->containerWorkDir,
       Resources(),
-      container->resources);
+      container->resourceRequests);
 
   if (updateVolumes.isError()) {
     return Failure(updateVolumes.error());
@@ -1333,7 +1333,10 @@ Future<Containerizer::LaunchResult> DockerContainerizerProcess::_launch(
       // --cpu-quota to the 'docker run' call in
       // launchExecutorContainer.
       return update(
-          containerId, containerConfig.executor_info().resources(), {}, true)
+          containerId,
+          containerConfig.executor_info().resources(),
+          containerConfig.limits(),
+          true)
         .then([=]() {
           return Future<Docker::Container>(dockerContainer);
         });
@@ -1384,7 +1387,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         containerName,
         container->containerWorkDir,
         flags.sandbox_directory,
-        container->resources,
+        container->resourceRequests,
 #ifdef __linux__
         flags.cgroups_enable_cfs,
 #else
@@ -1392,8 +1395,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
 #endif
         container->environment,
         None(), // No extra devices.
-        flags.docker_mesos_image.isNone() ? flags.default_container_dns : None()
-    );
+        flags.docker_mesos_image.isNone() ? flags.default_container_dns : None(),
+        container->resourceLimits);
 
     if (runOptions.isError()) {
       return Failure(runOptions.error());
@@ -1516,7 +1519,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   Future<Nothing> allocateGpus = Nothing();
 
 #ifdef __linux__
-  Option<double> gpus = Resources(container->resources).gpus();
+  Option<double> gpus = Resources(container->resourceRequests).gpus();
 
   if (gpus.isSome() && gpus.get() > 0) {
     // Make sure that the `gpus` resource is not fractional.
@@ -1677,19 +1680,23 @@ Future<Nothing> DockerContainerizerProcess::update(
   }
 
   if (container->generatedForCommandTask) {
+    // Store the resources for usage().
+    container->resourceRequests = resourceRequests;
+    container->resourceLimits = resourceLimits;
+
     LOG(INFO) << "Ignoring updating container " << containerId
               << " because it is generated for a command task";
-
-    // Store the resources for usage().
-    container->resources = resourceRequests;
 
     return Nothing();
   }
 
-  if (container->resources == resourceRequests && !force) {
+  if (container->resourceRequests == resourceRequests &&
+      container->resourceLimits == resourceLimits &&
+      !force) {
     LOG(INFO) << "Ignoring updating container " << containerId
               << " because resources passed to update are identical to"
               << " existing resources";
+
     return Nothing();
   }
 
@@ -1699,17 +1706,21 @@ Future<Nothing> DockerContainerizerProcess::update(
   // TODO(gyliu): Support updating GPU resources.
 
   // Store the resources for usage().
-  container->resources = resourceRequests;
+  container->resourceRequests = resourceRequests;
+  container->resourceLimits = resourceLimits;
 
 #ifdef __linux__
-  if (!resourceRequests.cpus().isSome() && !resourceRequests.mem().isSome()) {
+  if (!resourceRequests.cpus().isSome() &&
+      !resourceRequests.mem().isSome() &&
+      !resourceLimits.count("cpus") &&
+      !resourceLimits.count("mem")) {
     LOG(WARNING) << "Ignoring update as no supported resources are present";
     return Nothing();
   }
 
   // Skip inspecting the docker container if we already have the cgroups.
   if (container->cpuCgroup.isSome() && container->memoryCgroup.isSome()) {
-    return __update(containerId, resourceRequests);
+    return __update(containerId, resourceRequests, resourceLimits);
   }
 
   string containerName = containers_.at(containerId)->containerName;
@@ -1753,7 +1764,13 @@ Future<Nothing> DockerContainerizerProcess::update(
       });
 
   return inspectLoop
-    .then(defer(self(), &Self::_update, containerId, resourceRequests, lambda::_1));
+    .then(defer(
+        self(),
+        &Self::_update,
+        containerId,
+        resourceRequests,
+        resourceLimits,
+        lambda::_1));
 #else
   return Nothing();
 #endif // __linux__
@@ -1763,7 +1780,8 @@ Future<Nothing> DockerContainerizerProcess::update(
 #ifdef __linux__
 Future<Nothing> DockerContainerizerProcess::_update(
     const ContainerID& containerId,
-    const Resources& _resources,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits,
     const Docker::Container& container)
 {
   if (container.pid.isNone()) {
@@ -1832,13 +1850,14 @@ Future<Nothing> DockerContainerizerProcess::_update(
     return Nothing();
   }
 
-  return __update(containerId, _resources);
+  return __update(containerId, resourceRequests, resourceLimits);
 }
 
 
 Future<Nothing> DockerContainerizerProcess::__update(
     const ContainerID& containerId,
-    const Resources& _resources)
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   CHECK(containers_.contains(containerId));
 
@@ -1849,7 +1868,7 @@ Future<Nothing> DockerContainerizerProcess::__update(
   // we make these static so we can reuse the result for subsequent
   // calls.
   static Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
-  static Result<string> memoryHierarchy = cgroups::hierarchy("memory");
+  static Result<string> memHierarchy = cgroups::hierarchy("memory");
 
   if (cpuHierarchy.isError()) {
     return Failure("Failed to determine the cgroup hierarchy "
@@ -1857,111 +1876,164 @@ Future<Nothing> DockerContainerizerProcess::__update(
                    cpuHierarchy.error());
   }
 
-  if (memoryHierarchy.isError()) {
+  if (memHierarchy.isError()) {
     return Failure("Failed to determine the cgroup hierarchy "
                    "where the 'memory' subsystem is mounted: " +
-                   memoryHierarchy.error());
+                   memHierarchy.error());
   }
 
   Option<string> cpuCgroup = container->cpuCgroup;
-  Option<string> memoryCgroup = container->memoryCgroup;
+  Option<string> memCgroup = container->memoryCgroup;
 
-  // Update the CPU shares (if applicable).
-  if (cpuHierarchy.isSome() &&
-      cpuCgroup.isSome() &&
-      _resources.cpus().isSome()) {
-    double cpuShares = _resources.cpus().get();
+  Option<double> cpuRequest = resourceRequests.cpus();
+  Option<Bytes> memRequest = resourceRequests.mem();
 
-    uint64_t shares =
-      std::max((uint64_t) (CPU_SHARES_PER_CPU * cpuShares), MIN_CPU_SHARES);
+  Option<double> cpuLimit, memLimit;
+  foreach (auto&& limit, resourceLimits) {
+    if (limit.first == "cpus") {
+      cpuLimit = limit.second.value();
+    } else if (limit.first == "mem") {
+      memLimit = limit.second.value();
+    }
+  }
 
-    Try<Nothing> write =
-      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get(), shares);
+  // Update the CPU shares and CFS quota (if applicable).
+  if (cpuHierarchy.isSome() && cpuCgroup.isSome()) {
+    if (cpuRequest.isSome()) {
+      uint64_t shares = std::max(
+          (uint64_t) (CPU_SHARES_PER_CPU * cpuRequest.get()), MIN_CPU_SHARES);
 
-    if (write.isError()) {
-      return Failure("Failed to update 'cpu.shares': " + write.error());
+      Try<Nothing> write =
+        cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get(), shares);
+
+      if (write.isError()) {
+        return Failure("Failed to update 'cpu.shares': " + write.error());
+      }
+
+      LOG(INFO) << "Updated 'cpu.shares' to " << shares
+                << " at " << path::join(cpuHierarchy.get(), cpuCgroup.get())
+                << " for container " << containerId;
     }
 
-    LOG(INFO) << "Updated 'cpu.shares' to " << shares
-              << " at " << path::join(cpuHierarchy.get(), cpuCgroup.get())
-              << " for container " << containerId;
-
-    // Set cfs quota if enabled.
-    if (flags.cgroups_enable_cfs) {
-      write = cgroups::cpu::cfs_period_us(
+    // Set CFS quota to CPU limit (if any) or to CPU request (if the
+    // flag `--cgroups_enable_cfs` is true).
+    if (cpuLimit.isSome() || (flags.cgroups_enable_cfs && cpuRequest.isSome())) {
+      Try<Nothing> write = cgroups::cpu::cfs_period_us(
           cpuHierarchy.get(),
           cpuCgroup.get(),
           CPU_CFS_PERIOD);
 
       if (write.isError()) {
-        return Failure("Failed to update 'cpu.cfs_period_us': " +
-                       write.error());
+        return Failure(
+            "Failed to update 'cpu.cfs_period_us': " + write.error());
       }
 
-      Duration quota = std::max(CPU_CFS_PERIOD * cpuShares, MIN_CPU_CFS_QUOTA);
+      if (cpuLimit.isSome() && std::isinf(cpuLimit.get())) {
+        write = cgroups::write(
+            cpuHierarchy.get(), cpuCgroup.get(), "cpu.cfs_quota_us", "-1");
 
-      write = cgroups::cpu::cfs_quota_us(
-          cpuHierarchy.get(),
-          cpuCgroup.get(),
-          quota);
+        if (write.isError()) {
+          return Failure(
+              "Failed to update 'cpu.cfs_quota_us': " + write.error());
+        }
 
-      if (write.isError()) {
-        return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
+        LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
+                  << " and 'cpu.cfs_quota_us' to -1 at "
+                  << path::join(cpuHierarchy.get(), cpuCgroup.get())
+                  << " for container " << containerId;
+      } else {
+        const double& quota =
+          cpuLimit.isSome() ? cpuLimit.get() : cpuRequest.get();
+
+        Duration duration = std::max(CPU_CFS_PERIOD * quota, MIN_CPU_CFS_QUOTA);
+
+        write = cgroups::cpu::cfs_quota_us(
+            cpuHierarchy.get(), cpuCgroup.get(), duration);
+
+        if (write.isError()) {
+          return Failure(
+              "Failed to update 'cpu.cfs_quota_us': " + write.error());
+        }
+
+        LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
+                  << " and 'cpu.cfs_quota_us' to " << duration << " (cpus "
+                  << quota << ") at "
+                  << path::join(cpuHierarchy.get(), cpuCgroup.get())
+                  << " for container " << containerId;
       }
-
-      LOG(INFO) << "Updated 'cpu.cfs_period_us' to " << CPU_CFS_PERIOD
-                << " and 'cpu.cfs_quota_us' to " << quota
-                << " (cpus " << cpuShares << ")"
-                << " for container " << containerId;
     }
   }
 
   // Update the memory limits (if applicable).
-  if (memoryHierarchy.isSome() &&
-      memoryCgroup.isSome() &&
-      _resources.mem().isSome()) {
+  if (memHierarchy.isSome() && memCgroup.isSome()) {
     // TODO(tnachen): investigate and handle OOM with docker.
-    Bytes mem = _resources.mem().get();
-    Bytes limit = std::max(mem, MIN_MEMORY);
+    if (memRequest.isSome()) {
+      Bytes softLimit = std::max(memRequest.get(), MIN_MEMORY);
 
-    // Always set the soft limit.
-    Try<Nothing> write =
-      cgroups::memory::soft_limit_in_bytes(
-          memoryHierarchy.get(), memoryCgroup.get(), limit);
-
-    if (write.isError()) {
-      return Failure("Failed to set 'memory.soft_limit_in_bytes': " +
-                     write.error());
-    }
-
-    LOG(INFO) << "Updated 'memory.soft_limit_in_bytes' to " << limit
-              << " for container " << containerId;
-
-    // Read the existing limit.
-    Try<Bytes> currentLimit =
-      cgroups::memory::limit_in_bytes(
-          memoryHierarchy.get(), memoryCgroup.get());
-
-    if (currentLimit.isError()) {
-      return Failure("Failed to read 'memory.limit_in_bytes': " +
-                     currentLimit.error());
-    }
-
-    // Only update if new limit is higher.
-    // TODO(benh): Introduce a MemoryWatcherProcess which monitors the
-    // discrepancy between usage and soft limit and introduces a
-    // "manual oom" if necessary.
-    if (limit > currentLimit.get()) {
-      write = cgroups::memory::limit_in_bytes(
-          memoryHierarchy.get(), memoryCgroup.get(), limit);
+      // Always set the soft limit.
+      Try<Nothing> write = cgroups::memory::soft_limit_in_bytes(
+          memHierarchy.get(), memCgroup.get(), softLimit);
 
       if (write.isError()) {
-        return Failure("Failed to set 'memory.limit_in_bytes': " +
+        return Failure("Failed to set 'memory.soft_limit_in_bytes': " +
                        write.error());
       }
 
-      LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit << " at "
-                << path::join(memoryHierarchy.get(), memoryCgroup.get())
+      LOG(INFO) << "Updated 'memory.soft_limit_in_bytes' to " << softLimit
+                << " at " << path::join(memHierarchy.get(), memCgroup.get())
+                << " for container " << containerId;
+    }
+
+    // Read the existing hard limit.
+    Try<Bytes> currentHardLimit = cgroups::memory::limit_in_bytes(
+        memHierarchy.get(), memCgroup.get());
+
+    if (currentHardLimit.isError()) {
+      return Failure(
+          "Failed to read 'memory.limit_in_bytes': " +
+          currentHardLimit.error());
+    }
+
+    bool isInfiniteLimit = false;
+    Option<Bytes> hardLimit = None();
+    if (memLimit.isSome()) {
+      if (std::isinf(memLimit.get())) {
+        isInfiniteLimit = true;
+      } else {
+        hardLimit = std::max(
+            Megabytes(static_cast<uint64_t>(memLimit.get())), MIN_MEMORY);
+      }
+    } else if (memRequest.isSome()) {
+      hardLimit = std::max(memRequest.get(), MIN_MEMORY);
+    }
+
+    // Only update if new limit is infinite or higher than current limit.
+    // TODO(benh): Introduce a MemoryWatcherProcess which monitors the
+    // discrepancy between usage and soft limit and introduces a
+    // "manual oom" if necessary.
+    if (isInfiniteLimit) {
+      Try<Nothing> write = cgroups::write(
+          memHierarchy.get(), memCgroup.get(), "memory.limit_in_bytes", "-1");
+
+      if (write.isError()) {
+        return Failure(
+            "Failed to update 'memory.limit_in_bytes': " + write.error());
+      }
+
+      LOG(INFO) << "Updated 'memory.limit_in_bytes' to -1 at "
+                << path::join(memHierarchy.get(), memCgroup.get())
+                << " for container " << containerId;
+    } else if (hardLimit.isSome() && hardLimit.get() > currentHardLimit.get()) {
+      Try<Nothing> write = cgroups::memory::limit_in_bytes(
+          memHierarchy.get(), memCgroup.get(), hardLimit.get());
+
+      if (write.isError()) {
+        return Failure(
+            "Failed to set 'memory.limit_in_bytes': " + write.error());
+      }
+
+      LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << hardLimit.get()
+                << " at " << path::join(memHierarchy.get(), memCgroup.get())
                 << " for container " << containerId;
     }
   }
@@ -2011,7 +2083,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
 #endif // __linux__
 
     // Set the resource allocations.
-    const Resources& resource = container->resources;
+    const Resources& resource = container->resourceRequests;
     const Option<Bytes> mem = resource.mem();
     if (mem.isSome()) {
       result.set_mem_limit_bytes(mem->bytes());

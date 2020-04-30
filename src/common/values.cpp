@@ -99,6 +99,12 @@ bool operator==(const Value::Scalar& left, const Value::Scalar& right)
 }
 
 
+bool operator!=(const Value::Scalar& left, const Value::Scalar& right)
+{
+  return !(left == right);
+}
+
+
 bool operator<(const Value::Scalar& left, const Value::Scalar& right)
 {
   return convertToFixed(left.value()) < convertToFixed(right.value());
