@@ -29,12 +29,6 @@
 
 namespace os {
 
-// Executes a command by calling "<command> <arguments...>", and returns after
-// the command has been completed. Returns the exit code on success and `None`
-// on error (e.g., fork/exec/waitpid failed). This function is async signal
-// safe. We return an `Option<int>` instead of a `Try<int>`, because although
-// `Try` does not dynamically allocate, `Error` uses `std::string`, which is
-// not async signal safe.
 inline Option<int> spawn(
     const std::string& file,
     const std::vector<std::string>& arguments)
@@ -67,13 +61,6 @@ inline int execvp(const char* file, char* const argv[])
 }
 
 
-// This function is a portable version of execvpe ('p' means searching
-// executable from PATH and 'e' means setting environments). We add
-// this function because it is not available on all systems.
-//
-// NOTE: This function is not thread safe. It is supposed to be used
-// only after fork (when there is only one thread). This function is
-// async signal safe.
 inline int execvpe(const char* file, char** argv, char** envp)
 {
   char** saved = os::raw::environment();

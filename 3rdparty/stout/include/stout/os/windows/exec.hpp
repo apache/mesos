@@ -409,9 +409,6 @@ inline Try<ProcessData> create_process(
 } // namespace windows {
 
 
-// Executes a command by calling "<command> <arguments...>", and
-// returns after the command has been completed. Returns the process exit
-// code on success and `None` on error.
 inline Option<int> spawn(
     const std::string& command,
     const std::vector<std::string>& arguments,
@@ -442,9 +439,6 @@ inline Option<int> spawn(
 }
 
 
-// In order to emulate the semantics of `execvp`, `os::spawn` waits for the new
-// process to exit, and returns its error code, which is propagated back to the
-// parent via `exit` here.
 inline int execvp(
     const std::string& file,
     const std::vector<std::string>& argv)
@@ -454,9 +448,6 @@ inline int execvp(
 }
 
 
-// NOTE: This function can accept `Argv` and `Envp` constructs through their
-// explicit type conversions, but unlike the POSIX implementations, it cannot
-// accept the raw forms.
 inline int execvpe(
     const std::string& file,
     const std::vector<std::string>& argv,
