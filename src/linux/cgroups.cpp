@@ -280,7 +280,6 @@ Future<Nothing> remove(const string& hierarchy, const string& cgroup)
   // with EBUSY even though the cgroup appears empty.
 
   Duration delay = Duration::zero();
-  int retry = 10;
 
   return loop(
       [=]() mutable {
@@ -291,8 +290,10 @@ Future<Nothing> remove(const string& hierarchy, const string& cgroup)
       [=](const Nothing&) mutable -> Future<ControlFlow<Nothing>> {
         if (::rmdir(path.c_str()) == 0) {
           return process::Break();
-        } else if ((errno == EBUSY) && (retry > 0)) {
-          --retry;
+        } else if (errno == EBUSY) {
+          LOG(WARNING) << "Removal of cgroup " << path
+                       << " failed with EBUSY, will try again";
+
           return process::Continue();
         } else {
           // If the `cgroup` still exists in the hierarchy, treat this as
@@ -1572,6 +1573,7 @@ protected:
 
   void finalize() override
   {
+    remover.discard();
     discard(killers);
     promise.discard();
   }
@@ -1580,8 +1582,8 @@ private:
   void killed(const Future<vector<Nothing>>& kill)
   {
     if (kill.isReady()) {
-      internal::remove(hierarchy, cgroups)
-        .onAny(defer(self(), &Destroyer::removed, lambda::_1));
+      remover = internal::remove(hierarchy, cgroups);
+      remover.onAny(defer(self(), &Destroyer::removed, lambda::_1));
     } else if (kill.isDiscarded()) {
       promise.discard();
       terminate(self());
@@ -1611,6 +1613,9 @@ private:
 
   // The killer processes used to atomically kill tasks in each cgroup.
   vector<Future<Nothing>> killers;
+
+  // Future used to destroy the cgroups once the tasks have been killed.
+  Future<Nothing> remover;
 };
 
 } // namespace internal {
