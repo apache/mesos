@@ -150,6 +150,21 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   EXPECT_LT(0u, usage->mem_rss_bytes());
 #endif // __WINDOWS__
 
+  // Metrics for kmem are only enabled with memory isolation.
+  if (GetParam() == "cgroups/mem") {
+    Result<std::string> hierarchy = cgroups::hierarchy("memory");
+    ASSERT_SOME(hierarchy);
+
+    Try<bool> kmemExists = cgroups::exists(hierarchy.get(), "memory.kmem.usage_in_bytes");
+    ASSERT_SOME(kmemExists);
+
+    if (kmemExists.get()) {
+      // We can assume more than 4096 bytes here, since a kernel page size is 4kB and we are
+      // allocating at least one.
+      ASSERT_LT(4096u, usage.get().mem_kmem_usage_bytes());
+    }
+  }
+
   driver.stop();
   driver.join();
 }
