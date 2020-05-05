@@ -1976,6 +1976,9 @@ nobase_dist_pkgdata_DATA +=						\
   webui/app/agents/agents.html						\
   webui/app/frameworks/framework.html					\
   webui/app/frameworks/frameworks.html					\
+  webui/app/frameworks/roles.html					\
+  webui/app/frameworks/roles-tree.html					\
+  webui/app/frameworks/roles-tree-root.html				\
   webui/app/maintenance/maintenance.html				\
   webui/app/offers/offers.html						\
   webui/app/roles/roles.html						\
