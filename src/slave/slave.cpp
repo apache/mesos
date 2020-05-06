@@ -998,6 +998,18 @@ void Slave::drain(
     const UPID& from,
     DrainSlaveMessage&& drainSlaveMessage)
 {
+  if (operations.empty() && frameworks.empty()) {
+    LOG(INFO)
+      << "Received DrainConfig " << drainSlaveMessage.config()
+      << (drainConfig.isSome()
+          ? "; previously stored DrainConfig " + stringify(*drainConfig)
+          : "")
+      << "; agent has no stored frameworks, tasks, or operations,"
+         " so draining is already complete";
+
+    return;
+  }
+
   hashmap<FrameworkID, hashset<TaskID>> pendingTaskIds;
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (const auto& taskMap, framework->pendingTasks) {
