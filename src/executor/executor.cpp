@@ -561,11 +561,13 @@ protected:
       recoveryTimer = delay(
           recoveryTimeout.get(),
           self(),
-          &Self::_recoveryTimeout);
+          &Self::_recoveryTimeout,
+          failure);
 
       // Backoff and reconnect only if framework checkpointing is enabled.
       backoff();
     } else {
+      LOG(INFO) << "Disconnected from agent: " << failure << "; Shutting down";
       shutdown();
     }
   }
@@ -599,7 +601,7 @@ protected:
     return future;
   }
 
-  void _recoveryTimeout()
+  void _recoveryTimeout(const string& failure)
   {
     // It's possible that a new connection was established since the timeout
     // fired and we were unable to cancel this timeout. If this occurs, don't
@@ -612,7 +614,8 @@ protected:
 
     CHECK_SOME(recoveryTimeout);
     LOG(INFO) << "Recovery timeout of " << recoveryTimeout.get()
-              << " exceeded; Shutting down";
+              << " exceeded following the first connection failure: " << failure
+              << "; Shutting down";
 
     shutdown();
   }
