@@ -73,17 +73,20 @@ layout: documentation
 * [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
 * [Container Storage Interface (CSI) Support](csi.md)
 
+## Scheduler and Executor Development
+* [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
+* [Guide for Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
+* [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
+* [Task State Reasons](task-state-reasons.md) describes how task state reasons are used in Mesos.
+* [Task Health Checking](health-checks.md)
+* [v1 Scheduler HTTP API](scheduler-http-api.md) for communication between schedulers and the Mesos master.
+* [v1 Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
+
 ## APIs
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [API Client Libraries](api-client-libraries.md) lists client libraries for the HTTP APIs.
 * [API Versioning](versioning.md#api-versioning) describes HTTP API and release versioning.
 * [RecordIO](recordio.md) describes the RecordIO format used by the streaming endpoints of the HTTP API.
-* Writing Frameworks
-  * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
-  * [Guide for Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
-  * [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
-  * [Task State Reasons](task-state-reasons.md) describes how task state reasons are used in Mesos.
-  * [Task Health Checking](health-checks.md)
 * API References:
   * [v0 Java API](/api/latest/java/)
   * [v0 C++ API](/api/latest/c++/namespacemesos.html)
