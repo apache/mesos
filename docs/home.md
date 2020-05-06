@@ -74,6 +74,7 @@ layout: documentation
 * [Container Storage Interface (CSI) Support](csi.md)
 
 ## Scheduler and Executor Development
+* [Running Workloads in Mesos](running-workloads.md) explains how a scheduler can specify and run tasks.
 * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
 * [Guide for Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
 * [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
