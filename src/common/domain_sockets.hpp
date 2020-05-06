@@ -33,7 +33,7 @@ namespace internal {
 namespace common {
 
 constexpr size_t DOMAIN_SOCKET_MAX_PATH_LENGTH = 108;
-constexpr int DOMAIN_SOCKET_DEFAULT_MODE = 0600;
+constexpr int DOMAIN_SOCKET_DEFAULT_MODE = 0666;
 
 
 inline Try<process::network::unix::Socket> createDomainSocket(
