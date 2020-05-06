@@ -143,6 +143,8 @@ NOTE: Mesos will cap `Filters.refuse_seconds` at 31536000 seconds (365 days).
 
 The master will send task status updates in response to `LAUNCH` and `LAUNCH_GROUP` operations. For other types of operations, if an operation ID is specified, the master will send operation status updates in response.
 
+For more information on running workloads using this call, see the [introduction to the `LAUNCH_GROUP` and `LAUNCH` operations](running-workloads.md).
+
 ```
 ACCEPT Request (JSON):
 POST /api/v1/scheduler  HTTP/1.1
@@ -152,50 +154,53 @@ Content-Type: application/json
 Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
-  "framework_id"   : {"value" : "12220-3440-12532-2345"},
-  "type"           : "ACCEPT",
-  "accept"         : {
-    "offer_ids"    : [
-                      {"value" : "12220-3440-12532-O12"}
-                     ],
-     "operations"  : [
-                      {
-                       "type"         : "LAUNCH",
-                       "launch"       : {
-                         "task_infos" : [
-                                         {
-                                          "name"        : "My Task",
-                                          "task_id"     : {"value" : "12220-3440-12532-my-task"},
-                                          "agent_id"    : {"value" : "12220-3440-12532-S1233"},
-                                          "executor"    : {
-                                            "command"     : {
-                                              "shell"     : true,
-                                              "value"     : "sleep 1000"
-                                            },
-                                            "executor_id" : {"value" : "12214-23523-my-executor"}
-                                          },
-                                          "resources"   : [
-                                                           {
-                                "allocation_info": {"role": "engineering"},
-                                "name"  : "cpus",
-						            "role"  : "*",
-						            "type"  : "SCALAR",
-						            "scalar": {"value": 1.0}
-					                   },
-                                                           {
-						            "allocation_info": {"role": "engineering"},
-						            "name"  : "mem",
-						            "role"  : "*",
-						            "type"  : "SCALAR",
-						            "scalar": {"value": 128.0}
-					                   }
-                                                          ]
-                                         }
-                                        ]
-                       }
-                      }
-                     ],
-     "filters"     : {"refuse_seconds" : 5.0}
+  "framework_id": {"value": "12220-3440-12532-2345"},
+  "type": "ACCEPT",
+  "accept": {
+    "offer_ids": [
+      {"value": "12220-3440-12532-O12"}
+    ],
+    "operations": [
+      {
+        "type": "LAUNCH",
+        "launch": {
+          "task_infos": [
+            {
+              "name": "My Task",
+              "task_id": {"value": "12220-3440-12532-my-task"},
+              "agent_id": {"value": "12220-3440-12532-S1233"},
+              "executor": {
+                "command": {
+                  "shell": true,
+                  "value": "sleep 1000"
+                },
+                "executor_id": {"value": "12214-23523-my-executor"}
+              },
+              "resources": [
+                {
+                  "allocation_info": {"role": "engineering"},
+                  "name": "cpus",
+                  "role": "*",
+                  "type": "SCALAR",
+                  "scalar": {"value": 1.0}
+				        }, {
+                  "allocation_info": {"role": "engineering"},
+                  "name": "mem",
+                  "role": "*",
+                  "type": "SCALAR",
+                  "scalar": {"value": 128.0}
+				        }
+              ],
+              "limits": {
+                "cpus": "Infinity",
+                "mem": 512.0
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "filters": {"refuse_seconds": 5.0}
   }
 }
 

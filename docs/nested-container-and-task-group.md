@@ -44,31 +44,72 @@ run in separate nested containers inside this top level container,
 while the container image can be specified for each container.
 
 
-## New Primitives: Task Group and Nested Container
+## Task Groups
 
-### Task Group
-
-The concept of Task Group addresses the limitation of the existing
-Scheduler and Executor APIs, which cannot send a group of tasks to
-an executor `atomically`. Even though a scheduler can launch multiple
-tasks for the same executor in a LAUNCH offer operation, these tasks
-are delivered to the executor one at a time via separate LAUNCH events.
-It cannot guarantee atomicity since any individual task might be dropped
-due to different reasons (e.g., network partition). Therefore, the Task
-Group provides `all-or-nothing` semantics to ensure a group of tasks
-are delivered `atomically` to an executor.
+The concept of a "task group" addresses a previous limitation of the scheduler
+and executor APIs, which could not send a group of tasks to an executor
+atomically. Even though a scheduler can launch multiple tasks for the same
+executor in a LAUNCH operation, these tasks are delivered to the executor one at
+a time via separate LAUNCH events. It cannot guarantee atomicity since any
+individual task might be dropped due to different reasons (e.g., network
+partition). Therefore, the task group provides all-or-nothing semantics to
+ensure a group of tasks are delivered atomically to an executor.
 
 
-### Nested Container
+## Nested Containers
 
-The concept of Nested Container describes containers nested under an
-executor container. They share the network namespace and volumes while
-they may have their own container images and resource limits. By
-introducing the new agent API for nested container in the following
-section, executors no longer need to implement their own containerization.
-Instead, executors can reuse the containerizer (in the agent) to launch
-nested container. Both authorized operators or executors will be allowed
-to create nested containers.
+The concept of a "nested container" describes containers nested under an
+executor container. In the typical case of a Linux agent, they share a network
+namespace and volumes so that they can communicate using the network and access
+the same data, though they may have their own container images and resource
+limits. On Linux, they may share cgroups or have their own - see the section
+below on resource limits for more information.
+
+With the agent nested container API, executors can utilize the
+containerizer in the agent to launch nested containers. Both authorized
+operators or executors will be allowed to create nested containers. The Mesos
+default executor makes use of this API when launching tasks, and custom
+executors may consume it as well.
+
+
+## Resource Requests and Limits
+
+In each task, the resources required by that task can be specified. Common
+resource types are `cpus`, `mem`, and `disk`. The resources listed in the
+`resources` field are known as resource "requests" and represent the minimum
+resource guarantee required by the task; these resources are used to set the
+cgroups of the nested container associated with the task and will always be
+available to the task process if they are needed. The quantities specified in
+the `limits` field are the resource "limits", which represent the maximum amount
+of `cpus` and/or `mem` that the task may use. Setting a CPU or memory limit
+higher than the corresponding request allows the task to consume more than its
+allocated amount of CPU or memory when there are unused resources available on
+the agent.
+
+When multiple nested containers run under a single executor, the enforcement
+of resource constraints depends on the value of the
+`container.linux_info.share_cgroups` field. When this boolean field is `true`
+(this is the default), each container is constrained by the cgroups of its
+parent container. This means that if multiple tasks run underneath one executor,
+their resource constraints will be enforced as a sum of all the task resource
+constraints, applied collectively to those task processes. In this case, nested
+container resource consumption is collectively managed via one set of cgroup
+subsystem control files associated with the parent executor container.
+
+When the `share_cgroups` field is set to `false`, the resource consumption of
+each task is managed via a unique set of cgroups associated with that task's
+nested container, which means that each task process is subject to its own
+resource requests and limits. Note that if you want to specify `limits` on a
+task, the task's container MUST set `share_cgroups` to `false`. Also note that
+all nested containers under a single executor container must share the same
+value of `share_cgroups`.
+
+Note that when a task sets a memory limit higher than its memory request, the
+Mesos agent will change the OOM score adjustment of the task process using a
+heuristic based on the task's memory request and the agent's memory capacity.
+This means that if the agent's memory becomes exhausted and processes must be
+OOM-killed to reclaim memory at a time when the task is consuming more than its
+memory request, the task process will be killed preferentially.
 
 
 # Task Group API

@@ -49,6 +49,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
       <li>D <a href="#1-10-x-ssl-env-var-rename">Renamed LIBPROCESS_SSL_VERIFY_CERT and LIBPROCESS_SSL_REQUIRE_CERT environment variables.</a></li>
+      <li>D <a href="#1-10-x-limits-cfs-quota">CPU limits affect the function of the agent's `cgroups_enable_cfs` flag.</a></li>
     </ul>
  </td>
 
@@ -558,6 +559,10 @@ We categorize the changes as follows:
 * The canonical name for the environment variable `LIBPROCESS_SSL_VERIFY_CERT` was changed to `LIBPROCESS_SSL_VERIFY_SERVER_CERT`.
   The canonical name for the environment variable `LIBPROCESS_SSL_REQUIRE_CERT` was changed to `LIBPROCESS_SSL_REQUIRE_CLIENT_CERT`.
   The old names will continue to work as before, but operators are encouraged to update their configuration to reduce confusion.
+
+<a name="1-10-x-limits-cfs-quota"></a>
+
+* The Mesos agent's `cgroups_enable_cfs` flag previously controlled whether or not CFS quota would be used for all tasks on the agent. Resource limits have been added to tasks, and when a CPU limit is specified on a task, the agent will now apply a CFS quota regardless of the value of `cgroups_enable_cfs`.
 
 <a name="1-10-x-agent-features"></a>
 
