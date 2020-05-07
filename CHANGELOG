@@ -22,6 +22,7 @@ Release Notes - Mesos - Version 1.9.1 (WIP)
   * [MESOS-10041] - Libprocess SSL verification can leak memory.
   * [MESOS-10094] - Master's agent draining VLOG prints incorrect task counts.
   * [MESOS-10096] - Reactivating a draining agent leaves the agent in draining state.
+  * [MESOS-10118] - Agent incorrectly handles draining when empty.
 
 ** Improvement
   * [MESOS-9889] - Master CPU high due to unexpected foreachkey behaviour in Master::__reregisterSlave.
