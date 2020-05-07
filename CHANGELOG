@@ -1,10 +1,202 @@
-Release Notes - Mesos - Version 1.10.0 (WIP)
+Release Notes - Mesos - Version 1.10.0
 --------------------------------------------
+This release contains the following highlights:
+
+  * Container resource bursting has been supported on Linux. Frameworks are
+    now able to specify CPU and memory limits for tasks (separately from
+    resource requests) and also the level of isolation they desire when
+    launching task groups - CPU and memory may be isolated at the executor
+    container level, or the task container level (MESOS-10001).
+
+  * Executors can now use a Unix domain socket to connect to an agent, instead
+    of connecting via TCP (MESOS-10034).
+
+  * Existing reservations can now be modified via the RESERVE_RESOURCES
+    master API call (MESOS-9981).
+
+  * Performance of read-only V1 operator API calls has been improved by
+    introducing direct serialization into JSON/protobuf and extending the
+    batching mechanism to parallel processing of these calls by the master
+    (similarly to `/state` endpoint). This brings V1 operator API performance
+    on par with older HTTP endpoints (MESOS-10026, MESOS-9497).
+
+  * **Breaking change** for authorizer modules: authorizers are now required
+    to implement a method for returning `ObjectApprover`s that are valid
+    throughout all of their lifetime. For framework and operator API subscriber
+    principals the set of `ObjectAprover`s is now requested from the authorizer
+    only once per subscription (MESOS-10056, MESOS-10057).
 
 Additional API Changes:
 
   * Quota can now be set on the default `*` role.
+  * Quota consumption metrics are now exposed by the allocator.
 
+Unresolved Critical Issues:
+
+  * [MESOS-10066] - mesos-docker-executor process dies when agent stops. Recovery fails when agent returns
+  * [MESOS-10011] - Operation feedback with stale agent ID crashes the master
+  * [MESOS-9967] - Authorization header is missing when using a default registry
+  * [MESOS-9609] - Master check failure when marking agent unreachable
+  * [MESOS-9579] - ExecutorHttpApiTest.HeartbeatCalls is flaky.
+  * [MESOS-9536] - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable `MESOS_SANDBOX`
+  * [MESOS-9500] - spark submit with docker image on mesos cluster fails.
+  * [MESOS-9426] - ZK master detection can become forever pending.
+  * [MESOS-9393] - Fetcher crashes extracting archives with non-ASCII filenames.
+  * [MESOS-9365] - Windows - GET_CONTAINERS API call causes the Mesos agent to fail
+  * [MESOS-9355] - Persistence volume does not unmount correctly with wrong artifact URI
+  * [MESOS-9352] - Data in persistent volume deleted accidentally when using Docker container and Persistent volume
+  * [MESOS-9053] - Network ports isolator can falsely trigger while destroying containers.
+  * [MESOS-9006] - The agent's GET_AGENT leaks resource information when using authorization
+  * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8803] - Libprocess deadlocks in a test.
+  * [MESOS-8679] - "If the first KILL stuck in the default executor, all other KILLs will be ignored."
+  * [MESOS-8608] - RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
+  * [MESOS-8257] - "Unified Containerizer ""leaks"" a target container mount path to the host FS when the target resolves to an absolute path"
+  * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8096] - Enqueueing events in MockHTTPScheduler can lead to segfaults.
+  * [MESOS-8038] - Launching GPU task sporadically fails.
+  * [MESOS-7971] - PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
+  * [MESOS-7911] - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7748] - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7721] - Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7566] - Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-6285] - Agents may OOM during recovery if there are too many tasks or executors
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+
+All Resolved Issues:
+
+** Bug
+    * [MESOS-621] - `HierarchicalAllocatorProcess::removeSlave` doesn't properly handle framework allocations/resources
+    * [MESOS-4996] - 'containerizer->update' will always fail after killing a docker container.
+    * [MESOS-7217] - CgroupsIsolatorTest.ROOT_CGROUPS_CFS_EnableCfs is flaky.
+    * [MESOS-7639] - Oversubscription could crash the master due to CHECK failure in the allocator
+    * [MESOS-8537] - Default executor doesn't wait for status updates to be ack'd before shutting down
+    * [MESOS-8877] - Docker container's resources will be wrongly enlarged in cgroups after agent recovery
+    * [MESOS-9337] - Hook manager implementation is missing mutex acquisition in several places.
+    * [MESOS-9847] - Docker executor doesn't wait for status updates to be ack'd before shutting down.
+    * [MESOS-9889] - Master CPU high due to unexpected foreachkey behaviour in Master::__reregisterSlave.
+    * [MESOS-9958] - New CLI is not included in distribution tarball
+    * [MESOS-9965] - agent should not send `TASK_GONE_BY_OPERATOR` if the framework is not partition aware.
+    * [MESOS-9968] - WWWAuthenticate header parsing fails when commas are in (quoted) realm
+    * [MESOS-9971] - 'dist' and 'distcheck' cmake targets are implemented as shell scripts, so fail on Windows/MSVC.
+    * [MESOS-9975] - Sorter may leak clients allocations.
+    * [MESOS-9978] - Nvml isolator cannot be disabled which makes it impossible to exclude non-free code
+    * [MESOS-9980] - HierarchicalAllocatorTest.MaintenanceInverseOffers is flaky
+    * [MESOS-10007] - Command executor can miss exit status for short-lived commands due to double-reaping.
+    * [MESOS-10008] - Very large quota values can crash master.
+    * [MESOS-10015] - updateAllocation() can stall the allocator with a huge number of reservations on an agent.
+    * [MESOS-10018] - Duplicate tasks if agent partitioned during maintenance down
+    * [MESOS-10023] - Allocator method dispatches can be reordered (relative to scheduler API calls which triggered them).
+    * [MESOS-10041] - Libprocess SSL verification can leak memory
+    * [MESOS-10083] - Authorizing invalid operation can result in declined authorization.
+    * [MESOS-10084] - Detecting whether executor is generated for command task should work when the launcher_dir changes
+    * [MESOS-10090] - Mesos build on Windows appears to be broken.
+    * [MESOS-10092] - Cannot pull image from docker registry which does not reply with 'scope'/'service' in WWW-Authenticate header
+    * [MESOS-10094] - Master's agent draining VLOG prints incorrect task counts.
+    * [MESOS-10096] - Reactivating a draining agent leaves the agent in draining state.
+    * [MESOS-10097] - After HTTP framework disconnects, heartbeater idle-loops instead of being deleted.
+    * [MESOS-10098] - Mesos agent fails to start on outdated systemd.
+    * [MESOS-10100] - Recently introduced PathTest.Relative and PathTest.PathIteration fail on windows.
+    * [MESOS-10102] - MasterAPITest.ReservationUpdate is flaky
+    * [MESOS-10103] - MSVC build can segfault when composing authorization Action for updating reservation.
+    * [MESOS-10107] - containeriser: failed to remove cgroup - EBUSY
+    * [MESOS-10109] - After failover, master crashes on re-adding an agent with maintenance schedule set.
+    * [MESOS-10110] - Libprocess ignores most protobuf (de)serialisation failure cases.
+    * [MESOS-10111] - Failed check in libevent_ssl_socket.cpp: 'self->bev' Must be non NULL
+    * [MESOS-10113] - OpenSSLSocketImpl with 'support_downgrade' waits for incoming bytes before accepting new connection.
+    * [MESOS-10114] - OpenSSLSocketImpl with 'support_downgrade' can silently stop accepting sockets.
+    * [MESOS-10116] - Attempt to reactivate disconnected agent crashes the master
+    * [MESOS-10118] - Agent incorrectly handles draining when empty
+    * [MESOS-10120] - Authorization for /logging/toggle and  /metrics/snapshot is skipped on Windows.
+    * [MESOS-10123] - Windows overlapped IO discard handling can drop data.
+    * [MESOS-10124] - OpenSSLSocketImpl on Windows with 'support_downgrade' is incorrectly polling for read readiness.
+    * [MESOS-10125] - Web UI roles tree files are missing from automake install.
+
+** Epic
+    * [MESOS-9981] - Introduce a Mesos API to update reservations
+    * [MESOS-10001] - Resource Limits and Requests
+    * [MESOS-10034] - Agent/executor domain socket communication
+
+** Improvement
+    * [MESOS-7245] - Add a Windows segfault handler for stacktraces
+    * [MESOS-9123] - Expose quota consumption metrics.
+    * [MESOS-9497] - Parallel reads for expensive master v1 read-only calls.
+    * [MESOS-9914] - Refactor `MesosTest::StartSlave` in favour of builder style interface
+    * [MESOS-9948] - master::Slave::hasExecutor occupies 37% of a 150 second perf sample.
+    * [MESOS-9964] - Support destroying UCR containers in provisioning state
+    * [MESOS-9972] - Update Names for TLS-related environment variables in libprocess.
+    * [MESOS-10016] - Add a benchmark for HierarchicalAllocatorProcess::updateAllocation()
+    * [MESOS-10017] - Log all reverse DNS lookup failures in 'legacy' TLS (SSL) hostname validation scheme.
+    * [MESOS-10026] - Improve v1 operator API read performance.
+    * [MESOS-10056] - Perform synchronous authorization for scheduler calls.
+    * [MESOS-10057] - Perform synchronous authorization for outgoing events on event stream.
+    * [MESOS-10095] - Agent draining logging makes it hard to tell which tasks did not terminate.
+    * [MESOS-10112] - Log peer address during TLS handshake failures.
+
+** Wish
+    * [MESOS-9630] - Consider moving linter setup to pre-commit
+
+** Task
+    * [MESOS-3938] - Consider allowing setting quotas for the default '*' role.
+    * [MESOS-6084] - Deprecate and remove the included MPI framework
+    * [MESOS-8503] - Improve UI when displaying frameworks with many roles.
+    * [MESOS-9843] - Implement tests for the `containerizer/debug` endpoint.
+    * [MESOS-9949] - Track allocated/offered in the allocator's role tree.
+    * [MESOS-9974] - Remove support/mesos-style.py transition script
+    * [MESOS-9982] - Add a 'source' field to operator API ReserveResources protobuf
+    * [MESOS-9983] - Intermediate rejection of Reserve operations with source set
+    * [MESOS-9984] - Provide a function to compute a common "reservation ancestor" between two 'Resources'
+    * [MESOS-9985] - Update validation of 'ReserveResources' for 'source'
+    * [MESOS-9986] - Update 'getConsumedResources' and 'getResourceConversions' for 'source' in reservations
+    * [MESOS-9987] - Update 'Master::Http::_reserve' to also require 'source' resources
+    * [MESOS-9988] - Add 'source' field to scheduler reservation API
+    * [MESOS-9989] - Update 'Master::Http::_reserve' to pass 'source' into generated operation
+    * [MESOS-9990] - Consolidate 'Master::authorizeReserveResources' overloads
+    * [MESOS-9991] - Update 'Master::authorizeReserveResources' for re-reservations
+    * [MESOS-9992] - Add end-to-end test excercising re-reservation operator API
+    * [MESOS-9993] - Update operator API documentation for re-reservations
+    * [MESOS-10002] - Design doc for container bursting
+    * [MESOS-10009] - Implement glue code for the Windows event loop and OpenSSL's basic I/O abstraction
+    * [MESOS-10010] - Implement an SSL socket for Windows, using OpenSSL directly
+    * [MESOS-10033] - Design per-task cgroup isolation
+    * [MESOS-10035] - Implement `enable_http_executor_domain_sockets` agent flag
+    * [MESOS-10036] - Implement agent code to create a domain socket on startup
+    * [MESOS-10037] - Create code to bind-mount domain sockets into mesos-type executor containers
+    * [MESOS-10038] - Implement agent code to listen on a domain socket
+    * [MESOS-10039] - Let the default executor connect through a domain socket when available
+    * [MESOS-10043] - Add resource limits into the protobuf message `TaskInfo`
+    * [MESOS-10044] - Add a new capability `TASK_RESOURCE_LIMITS` into Mesos agent
+    * [MESOS-10045] - Validate task's resources limits and the `share_cgroups` field
+    * [MESOS-10046] - Launch executor container with resource limits
+    * [MESOS-10047] - Update the CPU subsystem in the cgroup isolator to set container's CPU resource limits
+    * [MESOS-10048] - Update the memory subsystem in the cgroup isolator to set container's memory resource limits and `oom_score_adj`
+    * [MESOS-10049] - Add a new reason in `TaskStatus::Reason` for the case that a task is OOM-killed due to exceeding its memory request
+    * [MESOS-10050] - Update the `update()` method of containerizer to handle container resource limits
+    * [MESOS-10051] - Update the `LaunchContainer` agent API to support container resource limits
+    * [MESOS-10053] - Update Docker executor to set Docker container's resource limits and `oom_score_adj`
+    * [MESOS-10054] - Update Docker containerizer to set Docker container's resource limits and `oom_score_adj`
+    * [MESOS-10055] - Update Mesos UI to display the resource limits of tasks
+    * [MESOS-10061] - Implement chmod() support for stout
+    * [MESOS-10062] - Implement relative path computation for stout
+    * [MESOS-10063] - Update default executor to call `LAUNCH_CONTAINER` to launch nested containers
+    * [MESOS-10064] - Accommodate the "Infinity" value in JSON
+    * [MESOS-10065] - Update the `update()` method of isolator interface to handle container resource limits
+    * [MESOS-10067] - Update the `update()` method of cgroups subsystem interface to handle container resource limits
+    * [MESOS-10073] - Implement SSL downgrade on the native SSL socket
+    * [MESOS-10074] - Adapt design for executor domain sockets for agent restarts
+    * [MESOS-10075] - Add the `shared_cgroups` field into  the protobuf message `LinuxInfo`
+    * [MESOS-10076] - Cgroups isolator: create nested cgroups
+    * [MESOS-10077] - Cgroups isolator: allow updating and isolating resources for nested cgroups
+    * [MESOS-10079] - Cgroups isolator: recover nested cgroups
+    * [MESOS-10086] - Add support for systemd socket activation for mesos domain sockets
+    * [MESOS-10087] - Update master & agent's HTTP endpoints for showing resource limits
+    * [MESOS-10115] - Add documentation for task resource limits
+    * [MESOS-10117] - Update the `usage()` method of containerizer to set resource limits in the `ResourceStatistics` protobuf message
+
+** Documentation
+    * [MESOS-9938] - Standalone container documentation
+    * [MESOS-9979] - Add docs for FrameworkInfo updates and the UPDATE_FRAMEWORK call.
 
 Release Notes - Mesos - Version 1.9.1 (WIP)
 -------------------------------------------
