@@ -194,29 +194,34 @@ endfunction()
 # Boost: C++ Libraries.
 # http://www.boost.org
 #######################
-EXTERNAL(boost ${BOOST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-add_library(boost INTERFACE)
-add_dependencies(boost ${BOOST_TARGET})
-if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
-  # Headers including Boost 1.65.0 fail to compile with GCC 7.2 and
-  # CLang 3.6 without `-Wno-unused-local-typedefs`.
-  # TODO(andschwa): Remove this when Boost has a resolution.
-  target_compile_options(boost INTERFACE -Wno-unused-local-typedefs)
+if ("${BOOST_ROOT_DIR}" STREQUAL "")
+  EXTERNAL(boost ${BOOST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(boost INTERFACE)
+  add_dependencies(boost ${BOOST_TARGET})
+  if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    # Headers including Boost 1.65.0 fail to compile with GCC 7.2 and
+    # CLang 3.6 without `-Wno-unused-local-typedefs`.
+    # TODO(andschwa): Remove this when Boost has a resolution.
+    target_compile_options(boost INTERFACE -Wno-unused-local-typedefs)
+  endif ()
+  target_include_directories(boost INTERFACE ${BOOST_ROOT})
+
+  # Patch Boost to avoid repeated "Unknown compiler warnings" on Windows.
+  PATCH_CMD(BOOST_PATCH_CMD boost-${BOOST_VERSION}.patch)
+
+  ExternalProject_Add(
+    ${BOOST_TARGET}
+    PREFIX            ${BOOST_CMAKE_ROOT}
+    PATCH_COMMAND     ${BOOST_PATCH_CMD}
+    CONFIGURE_COMMAND ${CMAKE_NOOP}
+    BUILD_COMMAND     ${CMAKE_NOOP}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${BOOST_URL}
+    URL_HASH          ${BOOST_HASH})
+else ()
+  add_library(boost INTERFACE)
+  target_include_directories(boost INTERFACE ${BOOST_ROOT_DIR}/include)
 endif ()
-target_include_directories(boost INTERFACE ${BOOST_ROOT})
-
-# Patch Boost to avoid repeated "Unknown compiler warnings" on Windows.
-PATCH_CMD(BOOST_PATCH_CMD boost-${BOOST_VERSION}.patch)
-
-ExternalProject_Add(
-  ${BOOST_TARGET}
-  PREFIX            ${BOOST_CMAKE_ROOT}
-  PATCH_COMMAND     ${BOOST_PATCH_CMD}
-  CONFIGURE_COMMAND ${CMAKE_NOOP}
-  BUILD_COMMAND     ${CMAKE_NOOP}
-  INSTALL_COMMAND   ${CMAKE_NOOP}
-  URL               ${BOOST_URL}
-  URL_HASH          ${BOOST_HASH})
 
 
 # moodycamel::ConcurrentQueue: An industrial-strength lock-free queue.
@@ -861,7 +866,19 @@ if (WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src/curl.exe
     DEPENDEES build)
 else ()
-  find_package(CURL REQUIRED)
+  if ("${CURL_ROOT_DIR}" STREQUAL "")
+    find_package(CURL REQUIRED)
+  else ()
+    set(POSSIBLE_CURL_INCLUDE_DIRS ${CURL_ROOT_DIR}/include)
+    set(POSSIBLE_CURL_LIB_DIRS ${CURL_ROOT_DIR}/lib)
+
+    set(CURL_LIBRARY_NAMES curl)
+
+    FIND_PACKAGE_HELPER(CURL curl/curl.h)
+    SET(CURL_INCLUDE_DIRS ${CURL_INCLUDE_DIR})
+    SET(CURL_LIBRARIES ${CURL_LIBS})
+  endif ()
+
   add_library(libcurl SHARED IMPORTED)
 
   set_target_properties(
