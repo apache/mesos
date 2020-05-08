@@ -116,7 +116,8 @@ add_custom_command(
 add_library(mesos-java ${JAVA_SRC} ${JAVA_H})
 
 target_link_libraries(
-  mesos-java
+  mesos-java PUBLIC
+  mesos
   mesos-protobufs
   process
   zookeeper
