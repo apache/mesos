@@ -677,6 +677,10 @@ install(
   LIBRARY DESTINATION ${MESOS_INSTALL_LIBRARIES})
 
 
+install(
+  DIRECTORY webui
+  DESTINATION ${MESOS_INSTALL_DATA})
+
 # BUILD THE MESOS TESTS.
 ########################
 add_subdirectory(tests)
