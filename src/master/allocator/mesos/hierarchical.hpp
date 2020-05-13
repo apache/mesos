@@ -112,6 +112,28 @@ struct Framework
 };
 
 
+// Helper for tracking cross-agent scalar resource totals.
+// Needed because directly summing Resources across agents has
+// prohibitively expensive time complexity: O(N^2) vs the number of agents,
+// and also violates the convention that Resources belonging to different agents
+// should not be added.
+class ScalarResourceTotals
+{
+public:
+  // These methods implicitly filter out non-scalars from the inputs, thus
+  // the caller is not obliged to ensure that `resources` contains only scalars.
+  void add(const SlaveID& slaveID, const Resources& resources);
+  void subtract(const SlaveID& slaveID, const Resources& resources);
+
+  bool empty() const { return scalars.empty(); }
+  ResourceQuantities quantities() const { return scalarsTotal; }
+
+private:
+  hashmap<SlaveID, Resources> scalars;
+  ResourceQuantities scalarsTotal;
+};
+
+
 class Role
 {
 public:
@@ -122,19 +144,24 @@ public:
     return reservationScalarQuantities_;
   }
 
-  const Resources& offeredOrAllocatedScalars() const
+  ResourceQuantities offeredOrAllocatedReservedScalarQuantities() const
   {
-    return offeredOrAllocatedScalars_;
+    return offeredOrAllocatedReserved.quantities();
   }
 
   const hashset<FrameworkID>& frameworks() const { return frameworks_; }
 
   const Quota& quota() const { return quota_; }
 
+  ResourceQuantities quotaOfferedOrConsumed() const
+  {
+    return offeredOrAllocatedUnreservedNonRevocable.quantities() +
+           reservationScalarQuantities_;
+  }
+
   ResourceQuantities quotaConsumed() const
   {
-    return ResourceQuantities::fromScalarResources(
-               allocatedScalars_.unreserved().nonRevocable()) +
+    return allocatedUnreservedNonRevocable.quantities() +
            reservationScalarQuantities_;
   }
 
@@ -187,12 +214,13 @@ private:
   // resources offered or allocated to this role.
   hashset<FrameworkID> frameworks_;
 
-  // Total allocated or offered scalar resources to this role, including
-  // meta data. This field dose not affect role's lifecycle. However, since
-  // any offered or allocated resources should be tied to a framework,
-  // an empty role (that has no registered framework) must have
-  // empty offeredOrAllocated resources.
-  Resources offeredOrAllocatedScalars_;
+  // Totals tracker for unreserved non-revocable offered/allocated resources.
+  // Note that since any offered or allocated resources should be tied to
+  // a framework, an empty role (that has no registered framework) must have
+  // this total empty.
+  ScalarResourceTotals offeredOrAllocatedUnreservedNonRevocable;
+
+  ScalarResourceTotals offeredOrAllocatedReserved;
 
   // Aggregated reserved scalar resource quantities on all agents tied to this
   // role, if any. This includes both its own reservations as well as
@@ -200,9 +228,9 @@ private:
   // Note that non-scalar resources, such as ports, are excluded.
   ResourceQuantities reservationScalarQuantities_;
 
-  // Scalar resources actually allocated (i.e. used for launching tasks) to this
-  // role and any of its subroles, both reserved and unreserved, on all agents.
-  Resources allocatedScalars_;
+  // Totals tracker for unreserved non-revocable resources actually allocated
+  // (i.e. used for launching tasks) to this role and any of its subroles.
+  ScalarResourceTotals allocatedUnreservedNonRevocable;
 
   hashmap<std::string, Role*> children_;
 };
@@ -240,9 +268,9 @@ public:
   void trackReservations(const Resources& resources);
   void untrackReservations(const Resources& resources);
 
-  // We keep track of allocated resources which are actially used by frameworks.
-  void trackAllocated(const Resources& resources);
-  void untrackAllocated(const Resources& resources);
+  // We keep track of allocated resources which are actually used by frameworks.
+  void trackAllocated(const SlaveID& slaveId, const Resources& resources);
+  void untrackAllocated(const SlaveID& slaveId, const Resources& resources);
 
   void trackFramework(
     const FrameworkID& frameworkId, const std::string& role);
@@ -253,8 +281,13 @@ public:
 
   void updateWeight(const std::string& role, double weight);
 
-  void trackOfferedOrAllocated(const Resources& resources);
-  void untrackOfferedOrAllocated(const Resources& resources);
+  void trackOfferedOrAllocated(
+      const SlaveID& slaveId,
+      const Resources& resources);
+
+  void untrackOfferedOrAllocated(
+      const SlaveID& slaveId,
+      const Resources& resources);
 
   // Dump the role tree state in JSON format for debugging.
   std::string toJSON() const;
