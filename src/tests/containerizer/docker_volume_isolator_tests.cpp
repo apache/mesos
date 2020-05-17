@@ -43,6 +43,8 @@
 
 namespace slave = mesos::internal::slave;
 
+using process::Clock;
+using process::Failure;
 using process::Future;
 using process::Owned;
 
@@ -1670,6 +1672,192 @@ TEST_F(DockerVolumeIsolatorTest,
   // Make sure the docker volume unmount parameters are same with
   // the parameters in `containerInfo`.
   AWAIT_EXPECT_EQ(name, unmountName);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that unmount operation can be still invoked for
+// a docker volume even the previous unmount operation for the same
+// docker volume failed. This is a regression test for MESOS-10126.
+TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithUnmountVolumeFailure)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.docker_volume_checkpoint_dir = path::join(os::getcwd(), "checkpoint");
+
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer->get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  const Offer& offer1 = offers1.get()[0];
+
+  // Create a docker volume with relative path.
+  const string volumeDriver = "driver";
+  const string volumeName = "name";
+  const string containerPath = "tmp/foo";
+
+  Volume volume = createDockerVolume(volumeDriver, volumeName, containerPath);
+
+  // Launch the first task with the docker volume.
+  TaskInfo task1 = createTask(
+      offer1.slave_id(),
+      offer1.resources(),
+      "test -f " + containerPath + "/file");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume);
+
+  task1.mutable_container()->CopyFrom(containerInfo);
+
+  // Create mount point for the volume.
+  const string mountPoint = path::join(os::getcwd(), "volume");
+  ASSERT_SOME(os::mkdir(mountPoint));
+  ASSERT_SOME(os::touch(path::join(mountPoint, "file")));
+
+  Future<string> mountName1;
+  EXPECT_CALL(*mockClient, mount(volumeDriver, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mountName1),
+                    Return(mountPoint)));
+
+  // Simulate an unmount failure.
+  Future<string> unmountName1;
+  EXPECT_CALL(*mockClient, unmount(volumeDriver, _))
+    .WillOnce(DoAll(FutureArg<1>(&unmountName1),
+                    Return(Failure("Mock failure"))));
+
+  Future<TaskStatus> statusStarting1;
+  Future<TaskStatus> statusRunning1;
+  Future<TaskStatus> statusFinished1;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
+    .WillOnce(FutureArg<1>(&statusRunning1))
+    .WillOnce(FutureArg<1>(&statusFinished1));
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offer1.id(), {task1});
+
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
+
+  AWAIT_READY(statusRunning1);
+  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+
+  // Make sure the docker volume mount parameters are same with the
+  // parameters in `containerInfo`.
+  AWAIT_EXPECT_EQ(volumeName, mountName1);
+
+  AWAIT_READY(statusFinished1);
+  EXPECT_EQ(TASK_FINISHED, statusFinished1->state());
+
+  Clock::resume();
+
+  // Make sure the docker volume unmount parameters are same with
+  // the parameters in `containerInfo`.
+  AWAIT_EXPECT_EQ(volumeName, unmountName1);
+
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+
+  const Offer& offer2 = offers2.get()[0];
+
+  // Launch the second task with the same docker volume.
+  TaskInfo task2 = createTask(
+      offer2.slave_id(),
+      offer2.resources(),
+      "test -f " + containerPath + "/file");
+
+  task2.mutable_container()->CopyFrom(containerInfo);
+
+  Future<string> mountName2;
+  EXPECT_CALL(*mockClient, mount(volumeDriver, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mountName2),
+                    Return(mountPoint)));
+
+  Future<string> unmountName2;
+  EXPECT_CALL(*mockClient, unmount(volumeDriver, _))
+    .WillOnce(DoAll(FutureArg<1>(&unmountName2),
+                    Return(Nothing())));
+
+  Future<TaskStatus> statusStarting2;
+  Future<TaskStatus> statusRunning2;
+  Future<TaskStatus> statusFinished2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
+    .WillOnce(FutureArg<1>(&statusRunning2))
+    .WillOnce(FutureArg<1>(&statusFinished2));
+
+  driver.launchTasks(offer2.id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  EXPECT_EQ(TASK_STARTING, statusStarting2->state());
+
+  AWAIT_READY(statusRunning2);
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
+
+  // Make sure the docker volume mount parameters are same with the
+  // parameters in `containerInfo`.
+  AWAIT_EXPECT_EQ(volumeName, mountName2);
+
+  AWAIT_READY(statusFinished2);
+  EXPECT_EQ(TASK_FINISHED, statusFinished2->state());
+
+  Clock::resume();
+
+  // Check the unmount operation can still be invoked even the
+  // previous one failed.
+  AWAIT_EXPECT_EQ(volumeName, unmountName2);
 
   driver.stop();
   driver.join();
