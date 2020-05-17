@@ -86,6 +86,7 @@
         <configuration>
           <sourcepath>@abs_top_srcdir@/src/java/src:@abs_top_builddir@/src/java/generated</sourcepath>
           <subpackages>org.apache.mesos</subpackages>
+          <detectJavaApiLink>false</detectJavaApiLink>
         </configuration>
         <executions>
           <execution>
