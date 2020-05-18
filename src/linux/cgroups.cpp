@@ -1515,17 +1515,23 @@ private:
       return;
     }
 
-    // Verify the cgroup is now empty.
+    // With the Linux patch 9c974c77246460fa6a92c18554c3311c8c83c160 it is
+    // possible that the cgroup might not be empty even though processes inside
+    // it are actually dead. This should be OK because Destroyer keeps
+    // attempting to remove the cgroup until all terminated processes are
+    // detached from it. But we would like some visibility into what's going on.
     Try<set<pid_t>> processes = cgroups::processes(hierarchy, cgroup);
-
-    // If the `cgroup` is already removed, treat this as a success.
-    if ((processes.isError() || !processes->empty()) &&
-        os::exists(path::join(hierarchy, cgroup))) {
-      promise.fail("Failed to kill all processes in cgroup: " +
-                   (processes.isError() ? processes.error()
-                                        : "processes remain"));
-      terminate(self());
-      return;
+    if (processes.isError()) {
+      if (os::exists(path::join(hierarchy, cgroup))) {
+        promise.fail("Failed to kill all processes in cgroup: " +
+                     processes.error());
+        terminate(self());
+        return;
+      }
+    } else if (!processes->empty()) {
+      LOG(WARNING) << "PIDs " << strings::join(",", processes.get())
+                   << " are still attached to cgroup "
+                   << path::join(hierarchy, cgroup);
     }
 
     promise.set(Nothing());
