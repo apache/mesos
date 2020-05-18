@@ -66,11 +66,14 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-10-x-synchronous-authorization">Authorizers must support synchronous authorization.</a></li>
+      <li>AC <a href="#1-10-x-allocator-module-changes">Resource consumption is exposed to allocators.</a></li>
     </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <ul style="padding-left:10px;">
+      <li>D <a href="#1-10-x-tasks-pending-authoirization-deprecated">v1 GetTasks pending_tasks</a></li>
     </ul>
   </td>
 </tr>
@@ -567,6 +570,32 @@ We categorize the changes as follows:
 <a name="1-10-x-agent-features"></a>
 
 * The Mesos agent now requires the new `TASK_RESOURCE_LIMITS` feature. This capability is set by default, but if the `--agent_features` flag is specified explicitly, `TASK_RESOURCE_LIMITS` must be included.
+
+<a name="1-10-x-synchronous-authorization"></a>
+
+* Authorizers now must implement a method `getApprover(...)` (see the
+  [authorization documentation](authorization.md#implementing-an-authorizer)
+  and [MESOS-10056](https://issues.apache.org/jira/browse/MESOS-10056))
+  that returns `ObjectApprover`s that are valid throughout their whole lifetime.
+  Keeping the state of an `ObjectApprover` up-to-date becomes a responsibility
+  of the authorizer. This is a **breaking change** for authorizer modules.
+
+<a name="1-10-x-tasks-pending-authoirization-deprecated"></a>
+
+* The field `pending_tasks` in `GetTasks` master API call has been deprecated.
+  From now on, this field will be empty. Moreover, the notion of
+  *tasks pending authorization* no longer exists
+  (see [MESOS-10056](https://issues.apache.org/jira/browse/MESOS-10056)).
+
+
+<a name="1-10-x-allocator-module-changes"></a>
+
+* Allocator interface has been changed to supply allocator with information on
+  resources actually consumed by frameworks. A method
+  `transitionOfferedToAllocated(...)` has been added and the signature of
+  `recoverResources(...)` has been extended. Note that allocators must implement
+  these new/extended method signatures, but are free to ignore resource
+  consumption data provided by master.
 
 ## Upgrading from 1.8.x to 1.9.x ##
 
