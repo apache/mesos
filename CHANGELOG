@@ -112,6 +112,7 @@ All Resolved Issues:
     * [MESOS-10123] - Windows overlapped IO discard handling can drop data.
     * [MESOS-10124] - OpenSSLSocketImpl on Windows with 'support_downgrade' is incorrectly polling for read readiness.
     * [MESOS-10125] - Web UI roles tree files are missing from automake install.
+    * [MESOS-10128] - Performance regression in HierarchicalAllocations_BENCHMARK_Test.PersistentVolumes
 
 ** Epic
     * [MESOS-9981] - Introduce a Mesos API to update reservations
