@@ -210,4 +210,19 @@ See more information in the [CMake documentation](../cmake.md).
       Enable use of the NVML headers. [default=TRUE]
     </td>
   </tr>
+  <tr>
+    <td>
+      -DMESOS_FINAL_PREFIX=[path]
+    </td>
+    <td>
+      Adjust built-in paths (rpath in shared objects, default paths in Mesos
+      flags and so on) so that cmake install output works after being copied
+      into this prefix. This path does not have to exist on the build system
+      (the system where cmake install is invoked).
+      This option is typically used by package managers that use different
+      prefixes on a build system and on a target system.
+      [default=`${CMAKE_INSTALL_PREFIX}`]
+    </td>
+  </tr>
+
 </table>

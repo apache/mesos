@@ -56,6 +56,30 @@ like usual. Similarly, if you configure with `-G Ninja` to use the Ninja
 generator, you can then run `ninja tests` to build the `tests` target with
 Ninja.
 
+# Installable build
+
+This example will build Mesos and install it into a custom prefix:
+```
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/home/current_user/mesos
+cmake --build . --target install
+```
+
+To produce a set of binaries and libraries that will work after being
+copied/moved to a different location, use `MESOS_FINAL_PREFIX`.
+On a build system:
+```
+mkdir build && cd build
+cmake -DMESOS_FINAL_PREFIX=/opt/mesos -DCMAKE_INSTALL_PREFIX=/home/current_user/mesos
+cmake --build . --target install
+tar -czf mesos.tar.gz mesos -C /home/current_user
+```
+On a target system:
+```
+sudo tar -xf mesos.tar.gz -C /opt
+sudo /opt/mesos/bin/mesos-agent --work-dir=/var/lib/mesos ...
+```
+
 # Supported options
 
 See [configuration options](configuration/cmake.md).
