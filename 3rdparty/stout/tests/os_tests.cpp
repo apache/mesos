@@ -1289,3 +1289,19 @@ TEST_F(OsTest, Which)
   which = os::which("bar");
   EXPECT_NONE(which);
 }
+
+TEST_F(OsTest, Memory)
+{
+  Try<os::Memory> memory = os::memory();
+  ASSERT_SOME(memory);
+  
+  // Verify total memory is greater than zero.
+  EXPECT_GT(memory->total, 0);
+
+  // Verify free memory is greater than zero and less than total.
+  EXPECT_GT(memory->free, 0);
+  EXPECT_LT(memory->free, memory->total);
+
+  // Verify freeSwap is less than or equal to totalSwap (both can be zero)
+  EXPECT_LE(memory->freeSwap, memory->totalSwap);
+}
