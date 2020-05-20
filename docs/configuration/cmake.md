@@ -224,5 +224,12 @@ See more information in the [CMake documentation](../cmake.md).
       [default=`${CMAKE_INSTALL_PREFIX}`]
     </td>
   </tr>
-
+  <tr>
+    <td>
+      -DMESOS_INSTALL_TESTS=(TRUE|FALSE)
+    </td>
+    <td>
+      Add test executables and their dependencies to the install output.
+    </td>
+  </tr>
 </table>

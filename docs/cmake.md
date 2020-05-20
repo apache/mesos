@@ -65,18 +65,27 @@ cmake -DCMAKE_INSTALL_PREFIX=/home/current_user/mesos
 cmake --build . --target install
 ```
 
+To additionally install `mesos-tests` executable and related test helpers
+(this can be used to run Mesos tests against the installed binaries),
+one can enable the `MESOS_INSTALL_TESTS` option.
+
 To produce a set of binaries and libraries that will work after being
 copied/moved to a different location, use `MESOS_FINAL_PREFIX`.
+
+The example below employs both `MESOS_FINAL_PREFIX` and `MESOS_INSTALL_TESTS`.
 On a build system:
 ```
 mkdir build && cd build
-cmake -DMESOS_FINAL_PREFIX=/opt/mesos -DCMAKE_INSTALL_PREFIX=/home/current_user/mesos
+cmake -DMESOS_FINAL_PREFIX=/opt/mesos -DCMAKE_INSTALL_PREFIX=/home/current_user/mesos -DMESOS_INSTALL_TESTS=ON
 cmake --build . --target install
 tar -czf mesos.tar.gz mesos -C /home/current_user
 ```
 On a target system:
 ```
 sudo tar -xf mesos.tar.gz -C /opt
+# Run tests against Mesos installation
+sudo /opt/mesos/bin/mesos-tests
+# Start Mesos agent
 sudo /opt/mesos/bin/mesos-agent --work-dir=/var/lib/mesos ...
 ```
 
