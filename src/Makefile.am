@@ -2091,6 +2091,14 @@ BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 #   of the java file. Unlike 'javah', 'javac -h' requires java sources to
 #   generate headers.
 java/jni/%.h: $(MESOS_JAR)
+	# NOTE: javah has a race between concurrent runs trying to create
+	# the same output directory:
+	# http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javah/JavahTask.java#l475
+	# Thus, we have to create the output directory here.
+	#
+	# TODO(asekretenko): Replace `javah` (deprecated as of JDK 9+)
+	# with `javac` when switching to a newer JDK.
+	mkdir -p java/jni
 if HAS_JAVAH
 	$(JAVA_HOME)/bin/javah -d java/jni                              \
 	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
