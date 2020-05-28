@@ -11,8 +11,8 @@ There are different ways you can get Mesos:
 
 1\. Download the latest stable release from [Apache](http://mesos.apache.org/downloads/) (***Recommended***)
 
-    $ wget http://www.apache.org/dist/mesos/1.9.0/mesos-1.9.0.tar.gz
-    $ tar -zxf mesos-1.9.0.tar.gz
+    $ wget http://www.apache.org/dist/mesos/1.10.0/mesos-1.10.0.tar.gz
+    $ tar -zxf mesos-1.10.0.tar.gz
 
 2\. Clone the Mesos git [repository](https://gitbox.apache.org/repos/asf/mesos.git) (***Advanced Users Only***)
 
