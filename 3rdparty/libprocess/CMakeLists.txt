@@ -17,3 +17,9 @@
 add_subdirectory(src)
 add_subdirectory(src/tests)
 add_subdirectory(examples)
+
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+    DESTINATION .)
+endif ()
