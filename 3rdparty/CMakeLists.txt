@@ -465,6 +465,11 @@ install(
   DIRECTORY ${GLOG_INSTALL_DIR}/lib/
   DESTINATION ${MESOS_INSTALL_LIBRARIES})
 
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    DIRECTORY ${GLOG_INSTALL_DIR}/include/glog
+    DESTINATION ${MESOS_INSTALL_HEADERS})
+endif ()
 
 # PicoJSON: JSON parser / serializer.
 # https://github.com/kazuho/picojson
@@ -494,6 +499,11 @@ ExternalProject_Add(
   URL               ${PICOJSON_URL}
   URL_HASH          ${PICOJSON_HASH})
 
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    FILES ${PICOJSON_CMAKE_ROOT}/src/picojson-${PICOJSON_VERSION}/picojson.h
+    DESTINATION ${MESOS_INSTALL_HEADERS})
+endif ()
 
 # RapidJSON: JSON parser / serializer.
 # https://github.com/Tencent/rapidjson
@@ -518,6 +528,11 @@ ExternalProject_Add(
   URL               ${RAPIDJSON_URL}
   URL_HASH          ${RAPIDJSON_HASH})
 
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    DIRECTORY ${RAPIDJSON_CMAKE_ROOT}/src/rapidjson-${RAPIDJSON_VERSION}/include/rapidjson
+    DESTINATION ${MESOS_INSTALL_HEADERS})
+endif ()
 
 if (ENABLE_NVML)
   # NVML: NVIDIA Management Library.
@@ -1316,6 +1331,7 @@ EXTERNAL(protobuf ${PROTOBUF_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 
 # TODO(andschwa): Move protobufs so these don't have to be GLOBAL.
 add_library(protobuf ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+add_library(libprotoc ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
 
 add_dependencies(protobuf ${PROTOBUF_TARGET})
 add_executable(protoc IMPORTED GLOBAL)
@@ -1370,6 +1386,10 @@ else ()
     IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotobuf${PROTOBUF_SUFFIX}${LIBRARY_SUFFIX})
 
   set_target_properties(
+    libprotoc PROPERTIES
+    IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotoc${PROTOBUF_SUFFIX}${LIBRARY_SUFFIX})
+
+  set_target_properties(
     protoc PROPERTIES
     IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/protoc)
 endif ()
@@ -1389,6 +1409,15 @@ ExternalProject_Add(
   URL_HASH          ${PROTOBUF_HASH})
 
 install(FILES $<TARGET_FILE:protobuf> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+install(FILES $<TARGET_FILE:libprotoc> DESTINATION ${3RDPARTY_LIBS_INSTALL_DIR})
+install(PROGRAMS $<TARGET_FILE:protoc> DESTINATION ${MESOS_INSTALL_RUNTIME})
+
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    DIRECTORY ${PROTOBUF_ROOT}/src/google
+    DESTINATION ${MESOS_INSTALL_HEADERS}
+    FILES_MATCHING PATTERN "*.h")
+endif ()
 
 # gRPC: Google's high performance, open-source universal RPC framework.
 # https://grpc.io/
@@ -1622,6 +1651,19 @@ ExternalProject_Add(
   URL               ${ZOOKEEPER_URL}
   URL_HASH          ${ZOOKEEPER_HASH})
 
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    FILES
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/generated/zookeeper.jute.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/config.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/proto.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/recordio.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/winconfig.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/zookeeper_log.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/zookeeper_version.h
+      ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/zookeeper.h
+    DESTINATION ${MESOS_INSTALL_HEADERS}/zookeeper)
+endif ()
 
 # LevelDB: A fast key-value storage library.
 # https://github.com/google/leveldb
