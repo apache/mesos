@@ -929,6 +929,14 @@ All Resolved Issues:
   * [MESOS-9036] - Document `linux/seccomp` isolator
 
 
+Release Notes - Mesos - Version 1.7.4 (WIP)
+-------------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-10126] - Docker volume isolator needs to clean up the `info` struct regardless the result of unmount operation
+
+
 Release Notes - Mesos - Version 1.7.3
 -------------------------------------------
 * This is a bug fix release.
