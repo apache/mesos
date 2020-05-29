@@ -33,6 +33,10 @@ option(BUILD_SHARED_LIBS
   "Build shared libraries."
   ${DEFAULT_BUILD_SHARED_LIBS})
 
+option(ENABLE_INSTALL_MODULE_DEPENDENCIES
+  "Install third-party bundled dependencies required for module development"
+  FALSE)
+
 option(ENABLE_PRECOMPILED_HEADERS
   "Enable auto-generated precompiled headers using cotire"
   ${WIN32})

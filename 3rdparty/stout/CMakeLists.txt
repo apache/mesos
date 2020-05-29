@@ -37,4 +37,10 @@ target_link_libraries(
   $<$<PLATFORM_ID:Windows>:Ws2_32 IPHlpAPI Mswsock Secur32 Userenv>
   $<$<PLATFORM_ID:FreeBSD>:svn>)
 
+if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+    DESTINATION .)
+endif ()
+
 add_subdirectory(tests)
