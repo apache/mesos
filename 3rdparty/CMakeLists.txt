@@ -227,6 +227,12 @@ if ("${BOOST_ROOT_DIR}" STREQUAL "")
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${BOOST_URL}
     URL_HASH          ${BOOST_HASH})
+
+  if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
+    install(
+      DIRECTORY ${BOOST_ROOT}/
+      DESTINATION ${MESOS_INSTALL_HEADERS})
+  endif ()
 else ()
   add_library(boost INTERFACE)
   target_include_directories(boost INTERFACE ${BOOST_ROOT_DIR}/include)
@@ -1663,6 +1669,11 @@ if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
       ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/zookeeper_version.h
       ${ZOOKEEPER_CMAKE_ROOT}/src/zookeeper-${ZOOKEEPER_VERSION}/src/c/include/zookeeper.h
     DESTINATION ${MESOS_INSTALL_HEADERS}/zookeeper)
+
+  # NOTE: `zookeeper` is always built statically, hence it is always installed
+  # into ${MESOS_INSTALL_LIBRARIES}, even on Windows.
+  install(FILES $<TARGET_FILE:zookeeper> DESTINATION ${MESOS_INSTALL_LIBRARIES})
+  install(FILES $<TARGET_FILE:zk-hashtable> DESTINATION ${MESOS_INSTALL_LIBRARIES})
 endif ()
 
 # LevelDB: A fast key-value storage library.
