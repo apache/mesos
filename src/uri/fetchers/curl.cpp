@@ -153,49 +153,53 @@ Future<Nothing> CurlFetcherPlugin::fetch(
       s->status(),
       io::read(s->out().get()),
       io::read(s->err().get()))
-    .then([](const tuple<
+    .then([uri](const tuple<
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<Nothing> {
       const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
-            "Failed to get the exit status of the curl subprocess: " +
+            "Failed to get the exit status of the curl subprocess for '" +
+            stringify(uri) + "': " +
             (status.isFailed() ? status.failure() : "discarded"));
       }
 
       if (status->isNone()) {
-        return Failure("Failed to reap the curl subprocess");
+        return Failure("Failed to reap the curl subprocess for '" +
+                       stringify(uri) + "'");
       }
 
       if (status->get() != 0) {
         const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
           return Failure(
-              "Failed to perform 'curl'. Reading stderr failed: " +
+              "Failed to perform 'curl' for '" + stringify(uri) +
+              "'. Reading stderr failed: " +
               (error.isFailed() ? error.failure() : "discarded"));
         }
 
-        return Failure("Failed to perform 'curl': " + error.get());
+        return Failure("Failed to perform 'curl' for '" + stringify(uri) +
+                       "': " + error.get());
       }
 
       const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
-            "Failed to read stdout from 'curl': " +
-            (output.isFailed() ? output.failure() : "discarded"));
+            "Failed to read stdout from 'curl' for '" + stringify(uri) +
+            "': " + (output.isFailed() ? output.failure() : "discarded"));
       }
 
       // Parse the output and get the HTTP response code.
       Try<int> code = numify<int>(output.get());
       if (code.isError()) {
-        return Failure("Unexpected output from 'curl': " + output.get());
+        return Failure("Unexpected output from 'curl' for '" + stringify(uri) +
+                       "': " + output.get());
       }
 
       if (code.get() != http::Status::OK) {
-        return Failure(
-            "Unexpected HTTP response code: " +
-            http::Status::string(code.get()));
+        return Failure("Unexpected HTTP response code for '" + stringify(uri) +
+                       "': " + http::Status::string(code.get()));
       }
 
       return Nothing();

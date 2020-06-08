@@ -170,36 +170,38 @@ static Future<http::Response> curl(
       s->status(),
       io::read(s->out().get()),
       io::read(s->err().get()))
-    .then([](const tuple<
+    .then([uri](const tuple<
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<http::Response> {
       const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
-            "Failed to get the exit status of the curl subprocess: " +
-            (status.isFailed() ? status.failure() : "discarded"));
+            "Failed to get the exit status of the curl subprocess for '" +
+            uri + "': " + (status.isFailed() ? status.failure() : "discarded"));
       }
 
       if (status->isNone()) {
-        return Failure("Failed to reap the curl subprocess");
+        return Failure("Failed to reap the curl subprocess for '" + uri + "'");
       }
 
       if (status->get() != 0) {
         const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
           return Failure(
-              "Failed to perform 'curl'. Reading stderr failed: " +
+              "Failed to perform 'curl' for '" + uri +
+              "'. Reading stderr failed: " +
               (error.isFailed() ? error.failure() : "discarded"));
         }
 
-        return Failure("Failed to perform 'curl': " + error.get());
+        return Failure("Failed to perform 'curl' for '" + uri +
+                       "': " + error.get());
       }
 
       const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
-            "Failed to read stdout from 'curl': " +
+            "Failed to read stdout from 'curl' for '" + uri + "': " +
             (output.isFailed() ? output.failure() : "discarded"));
       }
 
@@ -303,29 +305,31 @@ static Future<int> download(
       const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
-            "Failed to get the exit status of the curl subprocess: " +
-            (status.isFailed() ? status.failure() : "discarded"));
+            "Failed to get the exit status of the curl subprocess for '" + uri +
+            "': " + (status.isFailed() ? status.failure() : "discarded"));
       }
 
       if (status->isNone()) {
-        return Failure("Failed to reap the curl subprocess");
+        return Failure("Failed to reap the curl subprocess for '" + uri + "'");
       }
 
       if (status->get() != 0) {
         const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
           return Failure(
-              "Failed to perform 'curl'. Reading stderr failed: " +
+              "Failed to perform 'curl' for '" + uri +
+              "'. Reading stderr failed: " +
               (error.isFailed() ? error.failure() : "discarded"));
         }
 
-        return Failure("Failed to perform 'curl': " + error.get());
+        return Failure("Failed to perform 'curl' for '" + uri +
+                       "': " + error.get());
       }
 
       const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
-            "Failed to read stdout from 'curl': " +
+            "Failed to read stdout from 'curl' for '" + uri + "': " +
             (output.isFailed() ? output.failure() : "discarded"));
       }
 
@@ -335,14 +339,15 @@ static Future<int> download(
       vector<string> tokens = strings::tokenize(output.get(), "\n", 2);
 #endif // __WINDOWS__
       if (tokens.empty()) {
-        return Failure("Unexpected 'curl' output: " + output.get());
+        return Failure("Unexpected 'curl' output for '" + uri +
+                       "': " + output.get());
       }
 
       // Parse the output and get the HTTP response code.
       Try<int> code = numify<int>(tokens[0]);
       if (code.isError()) {
-        return Failure(
-            "Unexpected HTTP response code from 'curl': " + tokens[0]);
+        return Failure("Unexpected HTTP response code from 'curl' for '" + uri +
+                       "': " + tokens[0]);
       }
 
       // If there are two tokens, it means that the redirect url
