@@ -435,23 +435,26 @@ Try<Nothing> parseSyscalls(
 
     // Parse `args` section which contains seccomp filtering rules for syscall
     // arguments.
-    const auto args = item.as<JSON::Object>().at<JSON::Array>("args");
+    const auto args = item.as<JSON::Object>().find<JSON::Value>("args");
     if (!args.isSome()) {
       return Error(
           "Cannot determine 'args' field for 'syscalls' item: " +
           (args.isError() ? args.error() : "Not found"));
     }
 
-    foreach (const JSON::Value& argsItem, args->values) {
-      if (!argsItem.is<JSON::Object>()) {
-        return Error("'names' contains a non-object item");
-      }
+    // `args` can be either `null` or an array.
+    if (args->is<JSON::Array>()) {
+      foreach (const JSON::Value& argsItem, args->as<JSON::Array>().values) {
+        if (!argsItem.is<JSON::Object>()) {
+          return Error("'args' contains a non-object item");
+        }
 
-      Try<Nothing> arg =
-        parseSyscallArgument(argsItem.as<JSON::Object>(), syscall.add_args());
+        Try<Nothing> arg =
+          parseSyscallArgument(argsItem.as<JSON::Object>(), syscall.add_args());
 
-      if (arg.isError()) {
-        return Error(arg.error());
+        if (arg.isError()) {
+          return Error(arg.error());
+        }
       }
     }
 
