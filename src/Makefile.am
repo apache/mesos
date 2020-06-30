@@ -2090,14 +2090,15 @@ BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 # * For 'javac -h' recipe, we substitute '_' with '/' to compute the source path
 #   of the java file. Unlike 'javah', 'javac -h' requires java sources to
 #   generate headers.
+#
+# NOTE: javah has a race between concurrent runs trying to create
+# the same output directory:
+# http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javah/JavahTask.java#l475
+# Thus, we have to create the output directory here.
+#
+# TODO(asekretenko): Replace `javah` (deprecated as of JDK 9+)
+# with `javac` when switching to a newer JDK.
 java/jni/%.h: $(MESOS_JAR)
-	# NOTE: javah has a race between concurrent runs trying to create
-	# the same output directory:
-	# http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javah/JavahTask.java#l475
-	# Thus, we have to create the output directory here.
-	#
-	# TODO(asekretenko): Replace `javah` (deprecated as of JDK 9+)
-	# with `javac` when switching to a newer JDK.
 	mkdir -p java/jni
 if HAS_JAVAH
 	$(JAVA_HOME)/bin/javah -d java/jni                              \
