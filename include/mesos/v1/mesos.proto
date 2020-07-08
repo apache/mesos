@@ -1051,7 +1051,7 @@ message AgentInfo {
 
 
 /**
- * Describes the container configuration to run a CSI plugin component.
+ * Describes the container configuration to run a managed CSI plugin.
  */
 message CSIPluginContainerInfo {
   enum Service {
@@ -1064,6 +1064,15 @@ message CSIPluginContainerInfo {
   optional CommandInfo command = 2;
   repeated Resource resources = 3;
   optional ContainerInfo container = 4;
+}
+
+
+/**
+ * Describes the endpoint of an unmanaged CSI plugin service.
+ */
+message CSIPluginEndpoint {
+  required CSIPluginContainerInfo.Service csi_service = 1;
+  required string endpoint = 2;
 }
 
 
@@ -1091,13 +1100,34 @@ message CSIPluginInfo {
   // that the concatenation of type and name is unique in the cluster, and it
   // remains the same if the instance is migrated to another agent (e.g., there
   // is a change in the agent ID).
-  required string name = 2;
+  optional string name = 2 [default = "default"];
 
-  // A list of container configurations to run CSI plugin components.
+  // We support two kinds of CSI plugins:
+  //   1. Managed CSI plugins: This is the plugin which will be launched by
+  //      Mesos as standalone container, and Mesos will internally determine
+  //      its endpoint when launching it and manage its whole lifecyle. For this
+  //      kind of plugins, the `containers` field below must be specified.
+  //   2. Unmanaged CSI plugins: This is the plugin which is launched out of
+  //      Mesos (e.g., manually launched by the operator). For this kind of
+  //      plugins, the `endpoints` field below must be specified because Mesos
+  //      needs it to call CSI gRPC methods.
+  // Please note that only one of the `containers` and `endpoints` fields should
+  // be specified.
+
+  // A list of container configurations to run managed CSI plugin.
   // The controller service will be served by the first configuration
   // that contains `CONTROLLER_SERVICE`, and the node service will be
   // served by the first configuration that contains `NODE_SERVICE`.
   repeated CSIPluginContainerInfo containers = 3;
+
+  // The service endpoints of the unmanaged CSI plugin. An endpoint is usually
+  // a path to a Unix domain socket.
+  repeated CSIPluginEndpoint endpoints = 4;
+
+  // The root directory of all the target paths managed by the CSI plugin.
+  // Each volume will be published by the CSI plugin at a sub-directory
+  // under this path.
+  optional string target_path_root = 5;
 }
 
 
