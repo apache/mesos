@@ -19,7 +19,6 @@
 #include <tuple>
 #include <vector>
 
-#include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
 
 #include <mesos/module/disk_profile_adaptor.hpp>
@@ -70,6 +69,9 @@ using testing::Return;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+using VolumeCapability = mesos::Volume::Source::CSIVolume::VolumeCapability;
+
 
 constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
   "org_apache_mesos_UriDiskProfileAdaptor";
@@ -486,7 +488,7 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromFile)
   AWAIT_ASSERT_READY(mapping);
   ASSERT_TRUE(mapping->capability.has_block());
   ASSERT_EQ(
-      csi::types::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER,
+      VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER,
       mapping->capability.access_mode().mode());
 
   Clock::resume();

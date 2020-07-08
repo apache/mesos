@@ -39,7 +39,6 @@ PROTOC_GENERATE(TARGET mesos/allocator/allocator)
 PROTOC_GENERATE(TARGET mesos/authentication/authentication)
 PROTOC_GENERATE(TARGET mesos/authorizer/acls)
 PROTOC_GENERATE(TARGET mesos/authorizer/authorizer)
-PROTOC_GENERATE(TARGET mesos/csi/types)
 PROTOC_GENERATE(TARGET mesos/maintenance/maintenance)
 PROTOC_GENERATE(TARGET mesos/master/master)
 PROTOC_GENERATE(TARGET mesos/module/hook)
@@ -252,7 +251,6 @@ if (NOT WIN32)
 endif ()
 
 set(CSI_SRC
-  csi/types.cpp
   csi/metrics.cpp
   csi/paths.cpp
   csi/service_manager.cpp

@@ -19,7 +19,8 @@
 
 #include <google/protobuf/message.h>
 
-#include <mesos/csi/types.hpp>
+#include <mesos/mesos.hpp>
+
 #include <mesos/csi/v0.hpp>
 
 #include <stout/foreach.hpp>
@@ -28,6 +29,9 @@
 namespace mesos {
 namespace csi {
 namespace v0 {
+
+using CSIVolume = Volume::Source::CSIVolume;
+
 
 struct PluginCapabilities
 {
@@ -140,17 +144,17 @@ struct NodeCapabilities
 
 
 // Helpers to devolve CSI v0 protobufs to their unversioned counterparts.
-types::VolumeCapability devolve(const VolumeCapability& capability);
+CSIVolume::VolumeCapability devolve(const VolumeCapability& capability);
 
-google::protobuf::RepeatedPtrField<types::VolumeCapability> devolve(
+google::protobuf::RepeatedPtrField<CSIVolume::VolumeCapability> devolve(
     const google::protobuf::RepeatedPtrField<VolumeCapability>& capabilities);
 
 
 // Helpers to evolve unversioned CSI protobufs to their v0 counterparts.
-VolumeCapability evolve(const types::VolumeCapability& capability);
+VolumeCapability evolve(const CSIVolume::VolumeCapability& capability);
 
 google::protobuf::RepeatedPtrField<VolumeCapability> evolve(
-    const google::protobuf::RepeatedPtrField<types::VolumeCapability>&
+    const google::protobuf::RepeatedPtrField<CSIVolume::VolumeCapability>&
       capabilities);
 
 } // namespace v0 {

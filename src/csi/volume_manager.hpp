@@ -24,8 +24,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/csi/types.hpp>
-
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
@@ -77,7 +75,7 @@ public:
   // given capability and parameters. Returns zero bytes if `GET_CAPACITY`
   // controller capability is not supported.
   virtual process::Future<Bytes> getCapacity(
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters) = 0;
 
   // The following methods are used to manage volume lifecycles. The lifecycle
@@ -104,7 +102,7 @@ public:
   virtual process::Future<VolumeInfo> createVolume(
       const std::string& name,
       const Bytes& capacity,
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters) = 0;
 
   // Validates a volume against the given capability and parameters. Once
@@ -112,7 +110,7 @@ public:
   // untracked then returns None. Otherwise returns the validation error.
   virtual process::Future<Option<Error>> validateVolume(
       const VolumeInfo& volumeInfo,
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters) = 0;
 
   // Deprovisions a volume and returns true if `CREATE_DELETE_VOLUME` controller

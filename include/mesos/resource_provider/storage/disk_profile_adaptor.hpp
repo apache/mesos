@@ -23,8 +23,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/csi/types.hpp>
-
 #include <process/future.hpp>
 
 #include <stout/hashset.hpp>
@@ -63,7 +61,7 @@ public:
      * of `VolumeCapability` objects, the module will only allow a single
      * `VolumeCapability`.
      */
-    csi::types::VolumeCapability capability;
+    Volume::Source::CSIVolume::VolumeCapability capability;
 
     /**
      * Free-form key-value pairs which should be passed into the body

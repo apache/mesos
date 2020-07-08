@@ -3045,6 +3045,7 @@ message Volume {
       HOST_PATH = 4;
       SANDBOX_PATH = 2;
       SECRET = 3;
+      CSI_VOLUME = 5;
     }
 
     message DockerVolume {
@@ -3083,6 +3084,94 @@ message Volume {
       required string path = 2;
     }
 
+    // A volume which will be handled by the `volume/csi` isolator.
+    message CSIVolume {
+      // The name of the CSI plugin.
+      required string plugin_name = 1;
+
+      // Specifies a capability of a volume.
+      // https://github.com/container-storage-interface/spec/blob/v1.3.0/csi.proto#L379:L438
+      message VolumeCapability {
+        // Indicates that the volume will be accessed via the block device API.
+        message BlockVolume {
+          // Intentionally empty, for now.
+        }
+
+        // Indicates that the volume will be accessed via the filesystem API.
+        message MountVolume {
+          // The filesystem type. An empty string is equal to an unspecified
+          // field value.
+          optional string fs_type = 1;
+
+          // The mount options that can be used for the volume. This field is
+          // OPTIONAL. `mount_flags` MAY contain sensitive information.
+          // Therefore, Mesos and the Plugin MUST NOT leak this information
+          // to untrusted entities. The total size of this repeated field
+          // SHALL NOT exceed 4 KiB.
+          repeated string mount_flags = 2;
+        }
+
+        // Specifies how a volume can be accessed.
+        message AccessMode {
+          enum Mode {
+            UNKNOWN = 0;
+
+            // Can only be published once as read/write on a single node, at
+            // any given time.
+            SINGLE_NODE_WRITER = 1;
+
+            // Can only be published once as readonly on a single node, at
+            // any given time.
+            SINGLE_NODE_READER_ONLY = 2;
+
+            // Can be published as readonly at multiple nodes simultaneously.
+            MULTI_NODE_READER_ONLY = 3;
+
+            // Can be published at multiple nodes simultaneously. Only one of
+            // the node can be used as read/write. The rest will be readonly.
+            MULTI_NODE_SINGLE_WRITER = 4;
+
+            // Can be published as read/write at multiple nodes
+            // simultaneously.
+            MULTI_NODE_MULTI_WRITER = 5;
+          }
+
+          required Mode mode = 1;
+        }
+
+        // Specifies what API the volume will be accessed using. One of the
+        // following fields MUST be specified.
+        oneof access_type {
+          BlockVolume block = 1;
+          MountVolume mount = 2;
+        }
+
+        required AccessMode access_mode = 3;
+      }
+
+      // Specifies the parameters used to stage/publish a pre-provisioned volume
+      // on an agent host. The fields are merged from `NodeStageVolumeRequest`
+      // and `NodePublishVolumeRequest` protobuf messages defined in CSI spec
+      // except two fields `staging_target_path` and `target_path` which will be
+      // internally determined by Mesos when staging/publishing the volume.
+      message StaticProvisioning {
+        required string volume_id = 1;
+        required VolumeCapability volume_capability = 2;
+        optional bool readonly = 3;
+
+        // The secrets needed for staging/publishing the volume, e.g.:
+        // {
+        //   "username": {"type": REFERENCE, "reference": {"name": "U_SECRET"}},
+        //   "password": {"type": REFERENCE, "reference": {"name": "P_SECRET"}}
+        // }
+        map<string, Secret> node_stage_secrets = 4;
+        map<string, Secret> node_publish_secrets = 5;
+        map<string, string> volume_context = 6;
+      }
+
+      optional StaticProvisioning static_provisioning = 2;
+    }
+
     // Enum fields should be optional, see: MESOS-4997.
     optional Type type = 1;
 
@@ -3098,6 +3187,8 @@ message Volume {
     // The volume/secret isolator uses the secret-fetcher module (third-party or
     // internal) downloads the secret and makes it available at container_path.
     optional Secret secret = 4;
+
+    optional CSIVolume csi_volume = 6;
   }
 
   optional Source source = 5;

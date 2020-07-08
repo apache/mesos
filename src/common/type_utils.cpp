@@ -195,6 +195,16 @@ bool operator==(const Volume& left, const Volume& right)
 }
 
 
+bool operator==(
+    const Volume::Source::CSIVolume::VolumeCapability& left,
+    const Volume::Source::CSIVolume::VolumeCapability& right)
+{
+  // NOTE: `MessageDifferencer::Equivalent` would ignore unknown fields and load
+  // default values for unset fields (which are indistinguishable in proto3).
+  return google::protobuf::util::MessageDifferencer::Equivalent(left, right);
+}
+
+
 // TODO(bmahler): Leverage process::http::URL for equality.
 bool operator==(const URL& left, const URL& right)
 {
@@ -643,6 +653,14 @@ bool operator==(const TaskStatus& left, const TaskStatus& right)
 
 
 bool operator!=(const TaskStatus& left, const TaskStatus& right)
+{
+  return !(left == right);
+}
+
+
+bool operator!=(
+    const Volume::Source::CSIVolume::VolumeCapability& left,
+    const Volume::Source::CSIVolume::VolumeCapability& right)
 {
   return !(left == right);
 }

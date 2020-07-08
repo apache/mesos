@@ -24,8 +24,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/csi/types.hpp>
-
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
@@ -74,20 +72,20 @@ public:
   process::Future<std::vector<VolumeInfo>> listVolumes() override;
 
   process::Future<Bytes> getCapacity(
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters)
     override;
 
   process::Future<VolumeInfo> createVolume(
       const std::string& name,
       const Bytes& capacity,
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters)
     override;
 
   process::Future<Option<Error>> validateVolume(
       const VolumeInfo& volumeInfo,
-      const types::VolumeCapability& capability,
+      const Volume::Source::CSIVolume::VolumeCapability& capability,
       const google::protobuf::Map<std::string, std::string>& parameters)
     override;
 

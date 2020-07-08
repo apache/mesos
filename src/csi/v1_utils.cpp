@@ -35,55 +35,56 @@ RepeatedPtrField<T1> devolve(RepeatedPtrField<T2> from)
 }
 
 
-types::VolumeCapability::BlockVolume devolve(
+CSIVolume::VolumeCapability::BlockVolume devolve(
     const VolumeCapability::BlockVolume& block)
 {
-  return types::VolumeCapability::BlockVolume();
+  return CSIVolume::VolumeCapability::BlockVolume();
 }
 
 
-types::VolumeCapability::MountVolume devolve(
+CSIVolume::VolumeCapability::MountVolume devolve(
     const VolumeCapability::MountVolume& mount)
 {
-  types::VolumeCapability::MountVolume result;
+  CSIVolume::VolumeCapability::MountVolume result;
   result.set_fs_type(mount.fs_type());
   *result.mutable_mount_flags() = mount.mount_flags();
   return result;
 }
 
 
-types::VolumeCapability::AccessMode devolve(
+CSIVolume::VolumeCapability::AccessMode devolve(
     const VolumeCapability::AccessMode& accessMode)
 {
-  types::VolumeCapability::AccessMode result;
+  CSIVolume::VolumeCapability::AccessMode result;
 
   switch (accessMode.mode()) {
     case VolumeCapability::AccessMode::UNKNOWN: {
-      result.set_mode(types::VolumeCapability::AccessMode::UNKNOWN);
+      result.set_mode(CSIVolume::VolumeCapability::AccessMode::UNKNOWN);
       break;
     }
     case VolumeCapability::AccessMode::SINGLE_NODE_WRITER: {
-      result.set_mode(types::VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
+      result.set_mode(
+          CSIVolume::VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
       break;
     }
     case VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY: {
       result.set_mode(
-          types::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY);
+          CSIVolume::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY);
       break;
     }
     case VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY: {
       result.set_mode(
-          types::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY);
+          CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY);
       break;
     }
     case VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER: {
       result.set_mode(
-          types::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER);
+          CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER);
       break;
     }
     case VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER: {
       result.set_mode(
-          types::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER);
+          CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER);
       break;
     }
     // NOTE: We avoid using a default clause for the following values in
@@ -99,9 +100,9 @@ types::VolumeCapability::AccessMode devolve(
 }
 
 
-types::VolumeCapability devolve(const VolumeCapability& capability)
+CSIVolume::VolumeCapability devolve(const VolumeCapability& capability)
 {
-  types::VolumeCapability result;
+  CSIVolume::VolumeCapability result;
 
   switch (capability.access_type_case()) {
     case VolumeCapability::kBlock: {
@@ -125,10 +126,10 @@ types::VolumeCapability devolve(const VolumeCapability& capability)
 }
 
 
-RepeatedPtrField<types::VolumeCapability> devolve(
+RepeatedPtrField<CSIVolume::VolumeCapability> devolve(
     const RepeatedPtrField<VolumeCapability>& capabilities)
 {
-  return devolve<types::VolumeCapability>(capabilities);
+  return devolve<CSIVolume::VolumeCapability>(capabilities);
 }
 
 
@@ -146,14 +147,14 @@ RepeatedPtrField<T1> evolve(RepeatedPtrField<T2> from)
 
 
 VolumeCapability::BlockVolume evolve(
-    const types::VolumeCapability::BlockVolume& block)
+    const CSIVolume::VolumeCapability::BlockVolume& block)
 {
   return VolumeCapability::BlockVolume();
 }
 
 
 VolumeCapability::MountVolume evolve(
-    const types::VolumeCapability::MountVolume& mount)
+    const CSIVolume::VolumeCapability::MountVolume& mount)
 {
   VolumeCapability::MountVolume result;
   result.set_fs_type(mount.fs_type());
@@ -163,41 +164,34 @@ VolumeCapability::MountVolume evolve(
 
 
 VolumeCapability::AccessMode evolve(
-    const types::VolumeCapability::AccessMode& accessMode)
+    const CSIVolume::VolumeCapability::AccessMode& accessMode)
 {
   VolumeCapability::AccessMode result;
 
   switch (accessMode.mode()) {
-    case types::VolumeCapability::AccessMode::UNKNOWN: {
+    case CSIVolume::VolumeCapability::AccessMode::UNKNOWN: {
       result.set_mode(VolumeCapability::AccessMode::UNKNOWN);
       break;
     }
-    case types::VolumeCapability::AccessMode::SINGLE_NODE_WRITER: {
+    case CSIVolume::VolumeCapability::AccessMode::SINGLE_NODE_WRITER: {
       result.set_mode(VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
       break;
     }
-    case types::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY: {
+    case CSIVolume::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY: {
       result.set_mode(VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY);
       break;
     }
-    case types::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY: {
+    case CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY: {
       result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY);
       break;
     }
-    case types::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER: {
+    case CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER: {
       result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER);
       break;
     }
-    case types::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER: {
+    case CSIVolume::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER: {
       result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER);
       break;
-    }
-    // NOTE: We avoid using a default clause for the following values in
-    // proto3's open enum to enable the compiler to detect missing enum cases
-    // for us. See: https://github.com/google/protobuf/issues/3917
-    case google::protobuf::kint32min:
-    case google::protobuf::kint32max: {
-      UNREACHABLE();
     }
   }
 
@@ -205,20 +199,20 @@ VolumeCapability::AccessMode evolve(
 }
 
 
-VolumeCapability evolve(const types::VolumeCapability& capability)
+VolumeCapability evolve(const CSIVolume::VolumeCapability& capability)
 {
   VolumeCapability result;
 
   switch (capability.access_type_case()) {
-    case types::VolumeCapability::kBlock: {
+    case CSIVolume::VolumeCapability::kBlock: {
       *result.mutable_block() = evolve(capability.block());
       break;
     }
-    case types::VolumeCapability::kMount: {
+    case CSIVolume::VolumeCapability::kMount: {
       *result.mutable_mount() = evolve(capability.mount());
       break;
     }
-    case types::VolumeCapability::ACCESS_TYPE_NOT_SET: {
+    case CSIVolume::VolumeCapability::ACCESS_TYPE_NOT_SET: {
       break;
     }
   }
@@ -232,7 +226,7 @@ VolumeCapability evolve(const types::VolumeCapability& capability)
 
 
 RepeatedPtrField<VolumeCapability> devolve(
-    const RepeatedPtrField<types::VolumeCapability>& capabilities)
+    const RepeatedPtrField<CSIVolume::VolumeCapability>& capabilities)
 {
   return evolve<VolumeCapability>(capabilities);
 }

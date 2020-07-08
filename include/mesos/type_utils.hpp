@@ -87,6 +87,9 @@ bool operator==(const TaskStatus& left, const TaskStatus& right);
 bool operator==(const URL& left, const URL& right);
 bool operator==(const UUID& left, const UUID& right);
 bool operator==(const Volume& left, const Volume& right);
+bool operator==(
+    const Volume::Source::CSIVolume::VolumeCapability& left,
+    const Volume::Source::CSIVolume::VolumeCapability& right);
 
 bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right);
 bool operator!=(const ExecutorInfo& left, const ExecutorInfo& right);
@@ -96,6 +99,9 @@ bool operator!=(const Operation& left, const Operation& right);
 bool operator!=(const OperationStatus& left, const OperationStatus& right);
 
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
+bool operator!=(
+    const Volume::Source::CSIVolume::VolumeCapability& left,
+    const Volume::Source::CSIVolume::VolumeCapability& right);
 
 inline bool operator==(const ExecutorID& left, const ExecutorID& right)
 {

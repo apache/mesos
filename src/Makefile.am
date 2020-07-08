@@ -293,7 +293,6 @@ APPC_SPEC_PROTO = $(top_srcdir)/include/mesos/appc/spec.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
 AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
 CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/slave/containerizer.proto
-CSI_TYPES_PROTO = $(top_srcdir)/include/mesos/csi/types.proto
 DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
@@ -431,8 +430,6 @@ CXX_CSI_PROTOS =							\
   ../include/csi/v1/csi.grpc.pb.h					\
   ../include/csi/v1/csi.pb.cc						\
   ../include/csi/v1/csi.pb.h						\
-  ../include/mesos/csi/types.pb.cc					\
-  ../include/mesos/csi/types.pb.h					\
   csi/state.pb.cc							\
   csi/state.pb.h
 
@@ -711,13 +708,8 @@ nodist_authorizer_HEADERS =						\
 csidir = $(pkgincludedir)/csi
 
 csi_HEADERS =								\
-  $(top_srcdir)/include/mesos/csi/types.hpp				\
-  $(top_srcdir)/include/mesos/csi/types.proto				\
   $(top_srcdir)/include/mesos/csi/v0.hpp				\
   $(top_srcdir)/include/mesos/csi/v1.hpp
-
-nodist_csi_HEADERS =							\
-  ../include/mesos/csi/types.pb.h
 
 # Install the generated CSI headers into $PREFIX/include.
 csi_v0dir = $(includedir)/csi/v0
@@ -1603,7 +1595,6 @@ libcsi_la_SOURCES =							\
   csi/service_manager.hpp						\
   csi/state.hpp								\
   csi/state.proto							\
-  csi/types.cpp								\
   csi/v0.cpp								\
   csi/v0_client.cpp							\
   csi/v0_client.hpp							\
@@ -1698,7 +1689,6 @@ libmesos_la_SOURCES =							\
   $(AUTHENTICATION_PROTO)						\
   $(AUTHORIZATION_PROTO)						\
   $(CONTAINERIZER_PROTO)						\
-  $(CSI_TYPES_PROTO)							\
   $(EXECUTOR_PROTO)							\
   $(DOCKER_SPEC_PROTO)							\
   $(DOCKER_V1_PROTO)							\

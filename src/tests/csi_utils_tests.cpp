@@ -21,7 +21,6 @@
 
 #include <gtest/gtest.h>
 
-#include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
 #include <mesos/csi/v1.hpp>
 

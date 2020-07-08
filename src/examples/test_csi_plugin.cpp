@@ -31,7 +31,6 @@
 
 #include <mesos/type_utils.hpp>
 
-#include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
 #include <mesos/csi/v1.hpp>
 
@@ -99,9 +98,10 @@ using grpc::WriteOptions;
 
 using mesos::csi::VolumeInfo;
 
-using mesos::csi::types::VolumeCapability;
-
 using process::grpc::StatusError;
+
+using VolumeCapability = mesos::Volume::Source::CSIVolume::VolumeCapability;
+
 
 constexpr char PLUGIN_NAME[] = "org.apache.mesos.csi.test";
 constexpr char NODE_ID[] = "localhost";

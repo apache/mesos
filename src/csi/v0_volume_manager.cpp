@@ -259,7 +259,7 @@ Future<vector<VolumeInfo>> VolumeManagerProcess::listVolumes()
 
 
 Future<Bytes> VolumeManagerProcess::getCapacity(
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   if (!controllerCapabilities->getCapacity) {
@@ -280,7 +280,7 @@ Future<Bytes> VolumeManagerProcess::getCapacity(
 Future<VolumeInfo> VolumeManagerProcess::createVolume(
     const string& name,
     const Bytes& capacity,
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   if (!controllerCapabilities->createDeleteVolume) {
@@ -329,7 +329,7 @@ Future<VolumeInfo> VolumeManagerProcess::createVolume(
 
 Future<Option<Error>> VolumeManagerProcess::validateVolume(
     const VolumeInfo& volumeInfo,
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   // If the volume has been checkpointed, the validation succeeds only if the
@@ -1229,7 +1229,7 @@ Future<vector<VolumeInfo>> VolumeManager::listVolumes()
 
 
 Future<Bytes> VolumeManager::getCapacity(
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   return recovered
@@ -1244,7 +1244,7 @@ Future<Bytes> VolumeManager::getCapacity(
 Future<VolumeInfo> VolumeManager::createVolume(
     const string& name,
     const Bytes& capacity,
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   return recovered
@@ -1260,7 +1260,7 @@ Future<VolumeInfo> VolumeManager::createVolume(
 
 Future<Option<Error>> VolumeManager::validateVolume(
     const VolumeInfo& volumeInfo,
-    const types::VolumeCapability& capability,
+    const CSIVolume::VolumeCapability& capability,
     const Map<string, string>& parameters)
 {
   return recovered
