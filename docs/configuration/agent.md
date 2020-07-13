@@ -1511,6 +1511,49 @@ Example config file in this directory:
   </td>
 </tr>
 
+<tr id="csi_plugin_config_dir">
+  <td>
+    --csi_plugin_config_dir=VALUE
+  </td>
+  <td>
+Path to a directory that contains CSI plugin configs.
+Each file in the config dir should contain a JSON object representing
+a <code>CSIPluginInfo</code> object which can be either a managed CSI
+plugin (i.e. the plugin launched by Mesos as a standalone container)
+or an unmanaged CSI plugin (i.e. the plugin launched out of Mesos).
+<p/>
+Example config files in this directory:
+<pre><code>{
+  "type": "org.apache.mesos.csi.managed-plugin",
+  "containers": [
+    {
+      "services": [
+        "CONTROLLER_SERVICE",
+        "NODE_SERVICE"
+      ],
+      "command": {
+        "shell": false,
+        "value": "managed-plugin",
+        "arguments": [
+          "managed-plugin",
+          "--endpoint=$(CSI_ENDPOINT)"
+        ]
+      },
+      "resources": [
+        {"name": "cpus", "type": "SCALAR", "scalar": {"value": 0.1}},
+        {"name": "mem", "type": "SCALAR", "scalar": {"value": 1024}}
+      ]
+    }
+  ]
+}</code></pre>
+<pre><code>{
+  "type": "org.apache.mesos.csi.unmanaged-plugin",
+  "node_service_endpoint": "/var/lib/unmanaged-plugin/csi.sock",
+  "target_path_root": "/mnt/unmanaged-plugin"
+}</code></pre>
+  </td>
+</tr>
+
 <tr id="revocable_cpu_low_priority">
   <td>
     --[no-]revocable_cpu_low_priority

@@ -115,6 +115,45 @@ mesos::internal::slave::Flags::Flags()
       "  \"name\": \"lvm\"\n"
       "}");
 
+  add(&Flags::csi_plugin_config_dir,
+      "csi_plugin_config_dir",
+      "Path to a directory that contains CSI plugin configs.\n"
+      "Each file in the config dir should contain a JSON object representing\n"
+      "a `CSIPluginInfo` object which can be either a managed CSI plugin\n"
+      "(i.e. the plugin launched by Mesos as a standalone container) or an\n"
+      "unmanaged CSI plugin (i.e. the plugin launched out of Mesos).\n"
+      "\n"
+      "Example config files in this directory:\n"
+      "{\n"
+      "  \"type\": \"org.apache.mesos.csi.managed-plugin\",\n"
+      "  \"containers\": [\n"
+      "    {\n"
+      "      \"services\": [\n"
+      "        \"CONTROLLER_SERVICE\",\n"
+      "        \"NODE_SERVICE\"\n"
+      "      ],\n"
+      "      \"command\": {\n"
+      "        \"shell\": false,\n"
+      "        \"value\": \"managed-plugin\",\n"
+      "        \"arguments\": [\n"
+      "          \"managed-plugin\",\n"
+      "          \"--endpoint=$(CSI_ENDPOINT)\"\n"
+      "        ]\n"
+      "      },\n"
+      "      \"resources\": [\n"
+      "        {\"name\": \"cpus\", \"type\": \"SCALAR\", \"scalar\": {\"value\": 0.1}},\n" // NOLINT(whitespace/line_length)
+      "        {\"name\": \"mem\", \"type\": \"SCALAR\", \"scalar\": {\"value\": 1024}}\n" // NOLINT(whitespace/line_length)
+      "      ]\n"
+      "    }\n"
+      "  ]\n"
+      "}\n"
+      "\n"
+      "{\n"
+      "  \"type\": \"org.apache.mesos.csi.unmanaged-plugin\",\n"
+      "  \"node_service_endpoint\": \"/var/lib/unmanaged-plugin/csi.sock\",\n"
+      "  \"target_path_root\": \"/mnt/unmanaged-plugin\"\n"
+      "}");
+
   add(&Flags::disk_profile_adaptor,
       "disk_profile_adaptor",
       "The name of the disk profile adaptor module that storage resource\n"
