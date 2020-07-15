@@ -47,10 +47,12 @@ constexpr Service NODE_SERVICE = CSIPluginContainerInfo::NODE_SERVICE;
 class ServiceManagerProcess;
 
 
-// Manages the service containers of a CSI plugin instance.
+// Manages the services of a CSI plugin instance.
 class ServiceManager
 {
 public:
+  // This is for the managed CSI plugins which will be
+  // launched as standalone containers.
   ServiceManager(
       const process::http::URL& agentUrl,
       const std::string& rootDir,
@@ -58,6 +60,14 @@ public:
       const hashset<Service>& services,
       const std::string& containerPrefix,
       const Option<std::string>& authToken,
+      const process::grpc::client::Runtime& runtime,
+      Metrics* metrics);
+
+  // This is for the unmanaged CSI plugins which we assume
+  // are already launched out of Mesos.
+  ServiceManager(
+      const CSIPluginInfo& info,
+      const hashset<Service>& services,
       const process::grpc::client::Runtime& runtime,
       Metrics* metrics);
 
