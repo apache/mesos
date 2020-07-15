@@ -634,6 +634,7 @@ target_link_libraries(
 
 if (NOT WIN32)
   target_link_libraries(mesos PUBLIC leveldb)
+  target_link_libraries(mesos PUBLIC re2)
 endif ()
 
 if (ENABLE_SECCOMP_ISOLATOR)

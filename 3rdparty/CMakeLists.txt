@@ -42,6 +42,7 @@ set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
 set(PICOJSON_URL        ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
 set(PROTOBUF_URL        ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 set(RAPIDJSON_URL       ${FETCH_URL}/rapidjson-${RAPIDJSON_VERSION}.tar.gz)
+set(RE2_URL             ${FETCH_URL}/re2-${RE2_VERSION}.tar.gz)
 set(XZ_URL              ${FETCH_URL}/xz-${XZ_VERSION}-modified.tar.gz)
 set(ZOOKEEPER_URL       ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 
@@ -476,6 +477,87 @@ if (ENABLE_INSTALL_MODULE_DEPENDENCIES)
     DIRECTORY ${GLOG_INSTALL_DIR}/include/glog
     DESTINATION ${MESOS_INSTALL_HEADERS})
 endif ()
+
+# re2: non-backtracking regular expression library by Google
+# https://github.com/google/re2
+################################
+EXTERNAL(re2 ${RE2_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+add_library(re2 ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+add_dependencies(re2 ${RE2_TARGET})
+
+# NOTE: Mesos build uses re2 installed into a prefix (similarly to glog).
+set(RE2_INSTALL_DIR ${RE2_ROOT}-install)
+
+set(
+  RE2_CMAKE_ARGS
+  ${CMAKE_CXX_FORWARD_ARGS}
+  -DBUILD_TESTING=OFF
+  -DCMAKE_INSTALL_BINDIR=${RE2_INSTALL_DIR}/bin
+  -DCMAKE_INSTALL_INCLUDEDIR=${RE2_INSTALL_DIR}/include
+  -DCMAKE_INSTALL_LIBDIR=${RE2_INSTALL_DIR}/lib
+)
+
+if (WIN32)
+  if (BUILD_SHARED_LIBS)
+    set(RE2_IMPORTED_LOCATION_DIR ${RE2_INSTALL_DIR}/bin)
+  else()
+    set(RE2_IMPORTED_LOCATION_DIR ${RE2_INSTALL_DIR}/lib)
+  endif()
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    # TODO(asekretenko): Make sure that these locations are correct on
+    # MSVC Windows both in debug and release modes; adjust if necessary.
+    set_target_properties(
+      re2 PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${RE2_IMPORTED_LOCATION_DIR}/re2${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${RE2_IMPORTED_LOCATION_DIR}/re2${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_DEBUG ${RE2_INSTALL_DIR}/lib/re2${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_RELEASE ${RE2_INSTALL_DIR}/lib/re2${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    )
+  else ()
+    # TODO(asekretenko): Make sure that these locations are correct on
+    # non-MSVC Windows; adjust if necessary.
+    set_target_properties(
+      re2 PROPERTIES
+      IMPORTED_LOCATION ${RE2_IMPORTED_LOCATION_DIR}/libre2${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB ${RE2_INSTALL_DIR}/lib/libre2${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    )
+  endif()
+else()
+  set_target_properties(
+    re2 PROPERTIES
+    IMPORTED_LOCATION ${RE2_INSTALL_DIR}/lib/libre2${LIBRARY_SUFFIX}
+  )
+endif ()
+
+set_target_properties(
+  re2 PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${RE2_INSTALL_DIR}/include
+)
+
+MAKE_INCLUDE_DIR(re2)
+GET_BYPRODUCTS(re2)
+
+ExternalProject_Add(
+  ${RE2_TARGET}
+  PREFIX            ${RE2_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${RE2_BYPRODUCTS}
+  CMAKE_ARGS        ${RE2_CMAKE_ARGS}
+  INSTALL_DIR       ${RE2_INSTALL_DIR}
+  URL               ${RE2_URL}
+  URL_HASH          ${RE2_HASH})
+
+if (WIN32 AND BUILD_SHARED_LIBS)
+  # TODO(asekretenko): Make sure that this location is correct on
+  # Windows; adjust if necessary.
+  install(
+    DIRECTORY ${RE2_INSTALL_DIR}/bin/
+    DESTINATION ${MESOS_INSTALL_RUNTIME})
+endif()
+
+install(
+  DIRECTORY ${RE2_INSTALL_DIR}/lib/
+  DESTINATION ${MESOS_INSTALL_LIBRARIES})
 
 # PicoJSON: JSON parser / serializer.
 # https://github.com/kazuho/picojson
