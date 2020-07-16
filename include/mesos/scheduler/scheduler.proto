@@ -238,6 +238,127 @@ message Response {
 }
 
 
+// An attribute constraint consists of a Predicate: a boolean function of
+// an attribute or an attribute-like property of an agent (a pseudoattribute),
+// and a Selector: a rule for obtaining this (pseudo)attribute value from
+// AgentInfo.
+//
+// The attribute constraint evaluates to `true` for a given agent if and only
+// if the predicate yields `true` for the specified (pseudo)attribute.
+message AttributeConstraint {
+  message Selector {
+    enum PseudoattributeType {
+      UNKNOWN = 0;
+      HOSTNAME = 1;
+      REGION = 2;
+      ZONE = 3;
+    }
+
+    oneof selector {
+      // The predicate will be applied to the specified pseudoattribute.
+      PseudoattributeType pseudoattribute_type = 1;
+
+      // The predicate will be applied to the first attribute with the specified
+      // name. Note that an agent can have multiple attributes with the same
+      // name, and that the order of attributes is preserved by Mesos.
+      //
+      // TODO(asekretenko): If a need to handle the multiple-attribute
+      // case differently arises, in simple cases it can be addressed by adding
+      // a Selector-wide flag or one more oneof member here.
+      string attribute_name = 2;
+    }
+  }
+
+  message Predicate {
+    // Yields `true` if the (pseudo)attribute exists.
+    message Exists {}
+
+    // Yields `true` if the (pseudo)attribute does not exist.
+    message NotExists {}
+
+    // TODO(asekretenko): add predicates for testing equality (MESOS-10172)
+    // and regular expression matching (MESOS-10173).
+
+    oneof predicate {
+      Exists exists = 1;
+      NotExists not_exists = 2;
+    }
+  }
+
+  required Selector selector = 1;
+  required Predicate predicate = 2;
+}
+
+// Frameworks can express offer constraints for their roles.
+//
+// Constraints restrict which offers will be sent to the framework:
+// if an offer does not match the provided constraints, it will not
+// be sent to the framework.
+//
+// Constraints are expressed on a per role basis. If you consider a
+// scheduler that has multiple apps to launch within a single role,
+// the structure of the constraints for that role looks as follows:
+//
+//    app 1              app 2                         app N
+// constraints   OR   constraints   OR   ...   OR   constraints
+//                        /\
+//                       /  \
+//    constraint 1 AND constraint 2 AND ... AND constraint M
+//
+// That is, at least one of the constraint groups must match for an offer to
+// be generated, and within a group all the constraints must match.
+//
+// As a concrete example, consider a scheduler with two applications
+// with multiple tasks it wants to launch within a role:
+//
+// application 1: all tasks on an agent with a hostname == "foo"
+// application 2: each task on an agent with an unique "rack" attribute
+//
+// Assuming there are already some instances of application 2 launched,
+// the constraints might look like the following:
+//
+//      app 1              app 2
+//  constraints    OR    constraints
+//       /\                 /\
+//      /  \               /  \
+// hostname == "foo"    rack != "X" AND
+//                      rack != "Y" AND
+//                      rack != "Z"
+//
+//                   ==
+//
+//         (hostname == "foo")
+//                   OR
+// (rack != "X" AND rack != "Y" AND rack != "Z")
+//
+// The benefits of expressing constraints are:
+//
+// (1) reduced fraction of unusable offers received, and hence:
+// (2) reduced traffic and processing overhead due to unusable
+// offer / DECLINE back and forth churn
+// (3) most importantly, reduced latency to receive the desired
+// offer for a particular task
+//
+// NOTE: Even if a particular resource matches offer constraints of a
+// framework's role, there is still no guarantee that it will ever be offered
+// to this role of the framework.
+message OfferConstraints {
+  message RoleConstraints {
+    message Group {
+      repeated AttributeConstraint attribute_constraints = 1;
+
+      // TODO(asekretenko): Implement resource-based constraints to extend
+      // functionality of OfferFilters and to allow for precise filtering
+      // of reservations.
+    }
+
+    repeated Group groups = 1;
+  }
+
+  map<string, RoleConstraints> role_constraints = 1;
+}
+
+
 /**
  * Scheduler call API.
  *
@@ -302,6 +423,8 @@ message Call {
     // Note: This field is not set by scheduler driver, so will always be
     // empty. It is added here for transformation from `v1::Call::Subscribe`.
     repeated string suppressed_roles = 3;
+
+    optional OfferConstraints offer_constraints = 4;
   }
 
   // Accepts an offer, performing the specified operations
@@ -515,6 +638,8 @@ message Call {
     // offered resources. The framework can decide to suppress all or a subset
     // of roles provided in the new `framework_info`.
     repeated string suppressed_roles = 2;
+
+    optional OfferConstraints offer_constraints = 3;
   }
 
   // Identifies who generated this call. Master assigns a framework id

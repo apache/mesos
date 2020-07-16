@@ -247,6 +247,10 @@ scheduler::Call devolve(const v1::scheduler::Call& call)
     // because its tag is used by another field in the internal Subscribe.
     *(_call.mutable_subscribe()->mutable_suppressed_roles()) =
       call.subscribe().suppressed_roles();
+
+    *(_call.mutable_subscribe()->mutable_offer_constraints()) =
+      devolve<scheduler::OfferConstraints>(
+          call.subscribe().offer_constraints());
   }
 
   if (call.type() == v1::scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS &&

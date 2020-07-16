@@ -35,6 +35,10 @@ Attributes are key-value pairs (where value is optional) that Mesos passes along
 
     attribute : text ":" ( scalar | range | text )
 
+Note that setting multiple attributes corresponding to the same key is highly
+discouraged (and might be disallowed in future), as this complicates attribute-
+based filtering of offers, both on schedulers side and on the Mesos side.
+
 ## Resources
 
 Mesos can manage three different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos agent has to offer.  For example, a scalar resource type could be used to represent the amount of memory on an agent. Scalar resources are represented using floating point numbers to allow fractional values to be specified (e.g., "1.5 CPUs"). Mesos only supports three decimal digits of precision for scalar resources (e.g., reserving "1.5123 CPUs" is considered equivalent to reserving "1.512 CPUs"). For GPUs, Mesos only supports whole number values.
