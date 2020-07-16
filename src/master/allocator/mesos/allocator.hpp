@@ -66,7 +66,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
       bool active,
-      const std::set<std::string>& suppressedRoles) override;
+      ::mesos::allocator::FrameworkOptions&& options) override;
 
   void removeFramework(
       const FrameworkID& frameworkId) override;
@@ -80,7 +80,7 @@ public:
   void updateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles) override;
+      ::mesos::allocator::FrameworkOptions&& options) override;
 
   void addSlave(
       const SlaveID& slaveId,
@@ -214,7 +214,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
       bool active,
-      const std::set<std::string>& suppressedRoles) = 0;
+      ::mesos::allocator::FrameworkOptions&& options) = 0;
 
   virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;
@@ -228,7 +228,7 @@ public:
   virtual void updateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles) = 0;
+      ::mesos::allocator::FrameworkOptions&& options) = 0;
 
   virtual void addSlave(
       const SlaveID& slaveId,
@@ -390,7 +390,7 @@ inline void MesosAllocator<AllocatorProcess>::addFramework(
     const FrameworkInfo& frameworkInfo,
     const hashmap<SlaveID, Resources>& used,
     bool active,
-    const std::set<std::string>& suppressedRoles)
+    ::mesos::allocator::FrameworkOptions&& options)
 {
   process::dispatch(
       process,
@@ -399,7 +399,7 @@ inline void MesosAllocator<AllocatorProcess>::addFramework(
       frameworkInfo,
       used,
       active,
-      suppressedRoles);
+      std::move(options));
 }
 
 
@@ -440,14 +440,14 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const std::set<std::string>& suppressedRoles)
+    ::mesos::allocator::FrameworkOptions&& options)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::updateFramework,
       frameworkId,
       frameworkInfo,
-      suppressedRoles);
+      std::move(options));
 }
 
 

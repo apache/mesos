@@ -613,16 +613,15 @@ protected:
   // Add a framework.
   void addFramework(
       Framework* framework,
-      const std::set<std::string>& suppressedRoles);
+      ::mesos::allocator::FrameworkOptions&& allocatorOptions);
 
   // Recover a framework from its `FrameworkInfo`. This happens after
   // master failover, when an agent running one of the framework's
   // tasks reregisters or when the framework itself reregisters,
   // whichever happens first. The result of this function is a
-  // registered, inactive framework with state `RECOVERED`.
-  void recoverFramework(
-      const FrameworkInfo& info,
-      const std::set<std::string>& suppressedRoles);
+  // registered, inactive framework with state `RECOVERED` and empty
+  // FrameworkOptions in the allocator.
+  void recoverFramework(const FrameworkInfo& info);
 
   // Transition a framework from `RECOVERED` to `CONNECTED` state and
   // activate it. This happens at most once after master failover, the
@@ -634,7 +633,7 @@ protected:
       const Option<process::UPID>& pid,
       const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
       const process::Owned<ObjectApprovers>& objectApprovers,
-      const std::set<std::string>& suppressedRoles);
+      ::mesos::allocator::FrameworkOptions&& allocatorOptions);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
@@ -673,7 +672,7 @@ protected:
   void updateFramework(
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles);
+      ::mesos::allocator::FrameworkOptions&& allocatorOptions);
 
   void sendFrameworkUpdates(const Framework& framework);
 
@@ -907,7 +906,7 @@ private:
       StreamingHttpConnection<v1::scheduler::Event> http,
       FrameworkInfo&& frameworkInfo,
       bool force,
-      google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
+      ::mesos::allocator::FrameworkOptions&& allocatorOptions,
       const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
 
   void subscribe(
@@ -918,7 +917,7 @@ private:
       const process::UPID& from,
       FrameworkInfo&& frameworkInfo,
       bool force,
-      google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
+      ::mesos::allocator::FrameworkOptions&& allocatorOptions,
       const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
 
   // Update framework via SchedulerDriver (i.e. no response

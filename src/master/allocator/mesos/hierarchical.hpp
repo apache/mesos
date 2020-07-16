@@ -81,7 +81,7 @@ struct Framework
 {
   Framework(
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles,
+      ::mesos::allocator::FrameworkOptions&& options,
       bool active,
       bool publishPerFrameworkMetrics);
 
@@ -575,7 +575,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
       bool active,
-      const std::set<std::string>& suppressedRoles) override;
+      ::mesos::allocator::FrameworkOptions&& frameworkOptions) override;
 
   void removeFramework(
       const FrameworkID& frameworkId) override;
@@ -589,7 +589,7 @@ public:
   void updateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles) override;
+      ::mesos::allocator::FrameworkOptions&& frameworkOptions) override;
 
   void addSlave(
       const SlaveID& slaveId,

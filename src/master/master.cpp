@@ -140,6 +140,7 @@ namespace internal {
 namespace master {
 
 using mesos::allocator::Allocator;
+using mesos::allocator::FrameworkOptions;
 
 using mesos::authorization::createSubject;
 using mesos::authorization::VIEW_ROLE;
@@ -2677,25 +2678,29 @@ void Master::subscribe(
     return;
   }
 
+  set<string> suppressedRoles = set<string>(
+      make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
+      make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
+
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       StreamingHttpConnection<v1::scheduler::Event>,
       FrameworkInfo&&,
       bool,
-      google::protobuf::RepeatedPtrField<string>&&,
+      FrameworkOptions&&,
       const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
 
   Future<Owned<ObjectApprovers>> objectApprovers =
     Framework::createObjectApprovers(authorizer, frameworkInfo);
 
-  objectApprovers.onAny(
-      defer(self(),
-            _subscribe,
-            http,
-            std::move(frameworkInfo),
-            subscribe.force(),
-            std::move(*subscribe.mutable_suppressed_roles()),
-            lambda::_1));
+  objectApprovers.onAny(defer(
+      self(),
+      _subscribe,
+      http,
+      std::move(frameworkInfo),
+      subscribe.force(),
+      FrameworkOptions{std::move(suppressedRoles)},
+      lambda::_1));
 }
 
 
@@ -2703,7 +2708,7 @@ void Master::_subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
     FrameworkInfo&& frameworkInfo,
     bool force,
-    google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
+    ::mesos::allocator::FrameworkOptions&& options,
     const Future<Owned<ObjectApprovers>>& objectApprovers)
 {
   CHECK(!objectApprovers.isDiscarded());
@@ -2729,9 +2734,6 @@ void Master::_subscribe(
             << (frameworkInfo.checkpoint() ? "enabled" : "disabled")
             << " and capabilities " << frameworkInfo.capabilities();
 
-  set<string> suppressedRoles = set<string>(
-      make_move_iterator(suppressedRolesField.begin()),
-      make_move_iterator(suppressedRolesField.end()));
 
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     // If we are here the framework is subscribing for the first time.
@@ -2742,7 +2744,7 @@ void Master::_subscribe(
     Framework* framework =
       new Framework(this, flags, frameworkInfo_, http, objectApprovers.get());
 
-    addFramework(framework, suppressedRoles);
+    addFramework(framework, std::move(options));
 
     framework->metrics.incrementCall(scheduler::Call::SUBSCRIBE);
 
@@ -2772,7 +2774,10 @@ void Master::_subscribe(
     // Furthermore, no agents have reregistered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
-    recoverFramework(frameworkInfo, suppressedRoles);
+    //
+    // NOTE: allocatorOptions will be fed into the allocator later in this
+    // method.
+    recoverFramework(frameworkInfo);
 
     framework = getFramework(frameworkInfo.id());
   }
@@ -2803,7 +2808,8 @@ void Master::_subscribe(
     // The framework has previously been registered with this master;
     // it may or may not currently be connected.
 
-    updateFramework(framework, frameworkInfo, suppressedRoles);
+    updateFramework(framework, frameworkInfo, std::move(options));
+
     framework->reregisteredTime = Clock::now();
 
     // Always failover the old framework connection. See MESOS-4712 for details.
@@ -2816,7 +2822,7 @@ void Master::_subscribe(
         None(),
         http,
         objectApprovers.get(),
-        suppressedRoles);
+        std::move(options));
   }
 
   sendFrameworkUpdates(*framework);
@@ -2914,12 +2920,16 @@ void Master::subscribe(
     frameworkInfo.set_principal(authenticated[from]);
   }
 
+  set<string> suppressedRoles = set<string>(
+      make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
+      make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
+
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       const UPID&,
       FrameworkInfo&&,
       bool,
-      google::protobuf::RepeatedPtrField<string>&&,
+      ::mesos::allocator::FrameworkOptions&&,
       const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
 
   Future<Owned<ObjectApprovers>> objectApprovers =
@@ -2931,7 +2941,7 @@ void Master::subscribe(
       from,
       std::move(frameworkInfo),
       subscribe.force(),
-      std::move(*subscribe.mutable_suppressed_roles()),
+      FrameworkOptions{std::move(suppressedRoles)},
       lambda::_1));
 }
 
@@ -2940,7 +2950,7 @@ void Master::_subscribe(
     const UPID& from,
     FrameworkInfo&& frameworkInfo,
     bool force,
-    google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
+    ::mesos::allocator::FrameworkOptions&& options,
     const Future<Owned<ObjectApprovers>>& objectApprovers)
 {
   CHECK(!objectApprovers.isDiscarded());
@@ -2976,9 +2986,6 @@ void Master::_subscribe(
     return;
   }
 
-  set<string> suppressedRoles = set<string>(
-      make_move_iterator(suppressedRolesField.begin()),
-      make_move_iterator(suppressedRolesField.end()));
 
   LOG(INFO) << "Subscribing framework " << frameworkInfo.name()
             << " with checkpointing "
@@ -3009,7 +3016,7 @@ void Master::_subscribe(
     Framework* framework =
       new Framework(this, flags, frameworkInfo, from, objectApprovers.get());
 
-    addFramework(framework, suppressedRoles);
+    addFramework(framework, std::move(options));
 
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
@@ -3049,7 +3056,7 @@ void Master::_subscribe(
     // Furthermore, no agents have reregistered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
-    recoverFramework(frameworkInfo, suppressedRoles);
+    recoverFramework(frameworkInfo);
 
     framework = getFramework(frameworkInfo.id());
   }
@@ -3098,7 +3105,7 @@ void Master::_subscribe(
     // It is now safe to update the framework fields since the request is now
     // guaranteed to be successful. We use the fields passed in during
     // re-registration.
-    updateFramework(framework, frameworkInfo, suppressedRoles);
+    updateFramework(framework, frameworkInfo, std::move(options));
 
     framework->reregisteredTime = Clock::now();
 
@@ -3162,7 +3169,7 @@ void Master::_subscribe(
         from,
         None(),
         objectApprovers.get(),
-        suppressedRoles);
+        std::move(options));
   }
 
   sendFrameworkUpdates(*framework);
@@ -3234,7 +3241,9 @@ Future<process::http::Response> Master::updateFramework(
     make_move_iterator(call.mutable_suppressed_roles()->begin()),
     make_move_iterator(call.mutable_suppressed_roles()->end()));
 
-  updateFramework(framework, call.framework_info(), suppressedRoles);
+  updateFramework(
+      framework, call.framework_info(), {std::move(suppressedRoles)});
+
   sendFrameworkUpdates(*framework);
 
   return process::http::OK();
@@ -7356,7 +7365,7 @@ void Master::updateSlaveFrameworks(
       LOG(INFO) << "Recovering framework " << frameworkInfo.id()
                 << " from reregistering agent " << *slave;
 
-      recoverFramework(frameworkInfo, {});
+      recoverFramework(frameworkInfo);
     }
   }
 }
@@ -7391,14 +7400,15 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 void Master::updateFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
-    const set<string>& suppressedRoles)
+    ::mesos::allocator::FrameworkOptions&& allocatorOptions)
 {
   LOG(INFO) << "Updating framework " << *framework << " with roles "
-            << stringify(suppressedRoles) << " suppressed";
+            << stringify(allocatorOptions.suppressedRoles) << " suppressed";
 
   // NOTE: The allocator takes care of activating/deactivating
   // the frameworks from the added/removed roles, respectively.
-  allocator->updateFramework(framework->id(), frameworkInfo, suppressedRoles);
+  allocator->updateFramework(
+      framework->id(), frameworkInfo, std::move(allocatorOptions));
 
   // Rescind offers allocated to the roles that were removed.
   const set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
@@ -9887,7 +9897,7 @@ void Master::reconcileKnownSlave(
 
 void Master::addFramework(
     Framework* framework,
-    const set<string>& suppressedRoles)
+    ::mesos::allocator::FrameworkOptions&& allocatorOptions)
 {
   CHECK_NOTNULL(framework);
 
@@ -9895,7 +9905,7 @@ void Master::addFramework(
     << "Framework " << *framework << " already exists!";
 
   LOG(INFO) << "Adding framework " << *framework << " with roles "
-            << stringify(suppressedRoles) << " suppressed";
+            << stringify(allocatorOptions.suppressedRoles) << " suppressed";
 
   frameworks.registered[framework->id()] = framework;
 
@@ -9921,7 +9931,7 @@ void Master::addFramework(
       framework->info,
       framework->usedResources,
       framework->active(),
-      suppressedRoles);
+      std::move(allocatorOptions));
 
   // Export framework metrics if a principal is specified in `FrameworkInfo`.
 
@@ -9947,9 +9957,7 @@ void Master::addFramework(
 }
 
 
-void Master::recoverFramework(
-    const FrameworkInfo& info,
-    const set<string>& suppressedRoles)
+void Master::recoverFramework(const FrameworkInfo& info)
 {
   CHECK(!frameworks.registered.contains(info.id()));
 
@@ -10049,7 +10057,7 @@ void Master::recoverFramework(
   // `addResourceProvider()` above because if the order were reversed, the
   // resources of orphan operations would be incorrectly tracked twice in the
   // allocator.
-  addFramework(framework, suppressedRoles);
+  addFramework(framework, {});
 }
 
 
@@ -10059,7 +10067,7 @@ void Master::connectAndActivateRecoveredFramework(
     const Option<UPID>& pid,
     const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
     const Owned<ObjectApprovers>& objectApprovers,
-    const set<string>& suppressedRoles)
+    ::mesos::allocator::FrameworkOptions&& allocatorOptions)
 {
   // Exactly one of `pid` or `http` must be provided.
   CHECK(pid.isSome() != http.isSome());
@@ -10071,7 +10079,7 @@ void Master::connectAndActivateRecoveredFramework(
   CHECK(framework->pid().isNone());
   CHECK(framework->http().isNone());
 
-  updateFramework(framework, frameworkInfo, suppressedRoles);
+  updateFramework(framework, frameworkInfo, std::move(allocatorOptions));
 
   // Updating `registeredTime` here is debatable: ideally,
   // `registeredTime` would be the time at which the framework first

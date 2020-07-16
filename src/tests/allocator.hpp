@@ -72,7 +72,7 @@ ACTION_P(InvokeRecover, allocator)
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real->addFramework(arg0, arg1, arg2, arg3, arg4);
+  allocator->real->addFramework(arg0, arg1, arg2, arg3, std::move(arg4));
 }
 
 
@@ -96,7 +96,7 @@ ACTION_P(InvokeDeactivateFramework, allocator)
 
 ACTION_P(InvokeUpdateFramework, allocator)
 {
-  allocator->real->updateFramework(arg0, arg1, arg2);
+  allocator->real->updateFramework(arg0, arg1, std::move(arg2));
 }
 
 
@@ -272,9 +272,9 @@ public:
     EXPECT_CALL(*this, recover(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, addFramework(_, _, _, _, _))
+    ON_CALL(*this, addFramework_(_, _, _, _, _))
       .WillByDefault(InvokeAddFramework(this));
-    EXPECT_CALL(*this, addFramework(_, _, _, _, _))
+    EXPECT_CALL(*this, addFramework_(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeFramework(_))
@@ -292,9 +292,9 @@ public:
     EXPECT_CALL(*this, deactivateFramework(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, updateFramework(_, _, _))
+    ON_CALL(*this, updateFramework_(_, _, _))
       .WillByDefault(InvokeUpdateFramework(this));
-    EXPECT_CALL(*this, updateFramework(_, _, _))
+    EXPECT_CALL(*this, updateFramework_( _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, addSlave(_, _, _, _, _, _))
@@ -418,12 +418,25 @@ public:
       const int expectedAgentCount,
       const hashmap<std::string, Quota>&));
 
-  MOCK_METHOD5(addFramework, void(
+  // NOTE: Due to gmock's limitations, instead of an rvlalue reference,
+  // a non-const lvalue reference to FrameworkOptions is passed into
+  // the mock method.
+  MOCK_METHOD5(addFramework_, void(
       const FrameworkID&,
       const FrameworkInfo&,
       const hashmap<SlaveID, Resources>&,
       bool active,
-      const std::set<std::string>&));
+      ::mesos::allocator::FrameworkOptions&));
+
+  void addFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const hashmap<SlaveID, Resources>& used,
+      bool active,
+      ::mesos::allocator::FrameworkOptions&& options) override
+  {
+    addFramework_(frameworkId, frameworkInfo, used, active, options);
+  };
 
   MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));
@@ -434,10 +447,21 @@ public:
   MOCK_METHOD1(deactivateFramework, void(
       const FrameworkID&));
 
-  MOCK_METHOD3(updateFramework, void(
+  // NOTE: Due to gmock's limitations, instead of an rvlalue reference,
+  // a non-const lvalue reference to FrameworkOptions is passed into
+  // the mock method.
+  MOCK_METHOD3(updateFramework_, void(
       const FrameworkID&,
       const FrameworkInfo&,
-      const std::set<std::string>&));
+      ::mesos::allocator::FrameworkOptions&));
+
+  void updateFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      ::mesos::allocator::FrameworkOptions&& options) override
+  {
+    updateFramework_(frameworkId, frameworkInfo, options);
+  };
 
   MOCK_METHOD6(addSlave, void(
       const SlaveID&,

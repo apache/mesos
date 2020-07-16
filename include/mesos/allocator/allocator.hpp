@@ -69,6 +69,19 @@ struct Options
 
 
 /**
+ * Per-framework allocator-specific options that are not part of
+ * `FrameworkInfo`.
+ */
+struct FrameworkOptions
+{
+  /**
+   * The set of roles for which the allocator should not generate offers.
+   */
+  std::set<std::string> suppressedRoles;
+};
+
+
+/**
  * Basic model of an allocator: resources are allocated to a framework
  * in the form of offers. A framework can refuse some resources in
  * offers and run tasks in others. Allocated resources can have offer
@@ -155,14 +168,14 @@ public:
    *
    * @param active Whether the framework is initially activated.
    *
-   * @param suppressedRoles List of suppressed roles for this framework.
+   * @param options Initial FrameworkOptions of this framework.
    */
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
       bool active,
-      const std::set<std::string>& suppressedRoles) = 0;
+      FrameworkOptions&& options) = 0;
 
   /**
    * Removes a framework from the Mesos cluster. It is up to an allocator to
@@ -187,19 +200,16 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   /**
-   * Updates capabilities of a framework in the Mesos cluster.
+   * Updates FrameworkInfo and FrameworkOptions.
    *
-   * This will be invoked when a framework is re-added. As some of the
-   * framework's capabilities may be updated when re-added, this API should
-   * update the capabilities of the newly added framework to Mesos cluster to
-   * reflect the latest framework info. Please refer to the design document here
-   * https://cwiki.apache.org/confluence/display/MESOS/Design+doc:+Updating+Framework+Info // NOLINT
-   * for more details related to framework update.
+   * NOTE: Effective framework options can also be changed via other methods.
+   * For example, `suppress()` and `revive()` change the suppression state
+   * of framework's roles.
    */
   virtual void updateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const std::set<std::string>& suppressedRoles) = 0;
+      FrameworkOptions&& options) = 0;
 
   /**
    * Adds or re-adds an agent to the Mesos cluster. It is invoked when a

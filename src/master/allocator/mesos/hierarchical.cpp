@@ -53,6 +53,7 @@ using std::string;
 using std::vector;
 using std::weak_ptr;
 
+using mesos::allocator::FrameworkOptions;
 using mesos::allocator::InverseOfferStatus;
 using mesos::allocator::Options;
 
@@ -595,12 +596,12 @@ std::string RoleTree::toJSON() const
 
 Framework::Framework(
     const FrameworkInfo& frameworkInfo,
-    const set<string>& _suppressedRoles,
+    FrameworkOptions&& options,
     bool _active,
     bool publishPerFrameworkMetrics)
   : frameworkId(frameworkInfo.id()),
     roles(protobuf::framework::getRoles(frameworkInfo)),
-    suppressedRoles(_suppressedRoles),
+    suppressedRoles(std::move(options.suppressedRoles)),
     capabilities(frameworkInfo.capabilities()),
     active(_active),
     metrics(new FrameworkMetrics(frameworkInfo, publishPerFrameworkMetrics)),
@@ -717,7 +718,7 @@ void HierarchicalAllocatorProcess::addFramework(
     const FrameworkInfo& frameworkInfo,
     const hashmap<SlaveID, Resources>& used,
     bool active,
-    const set<string>& suppressedRoles)
+    FrameworkOptions&& frameworkOptions)
 {
   CHECK(initialized);
   CHECK_NOT_CONTAINS(frameworks, frameworkId);
@@ -728,7 +729,7 @@ void HierarchicalAllocatorProcess::addFramework(
   frameworks.insert({frameworkId,
                      Framework(
                          frameworkInfo,
-                         suppressedRoles,
+                         std::move(frameworkOptions),
                          active,
                          options.publishPerFrameworkMetrics)});
 
@@ -739,7 +740,7 @@ void HierarchicalAllocatorProcess::addFramework(
 
     Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
-    if (suppressedRoles.count(role)) {
+    if (framework.suppressedRoles.count(role)) {
       frameworkSorter->deactivate(frameworkId.value());
       framework.metrics->suppressRole(role);
     } else {
@@ -884,7 +885,7 @@ void HierarchicalAllocatorProcess::deactivateFramework(
 void HierarchicalAllocatorProcess::updateFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const set<string>& suppressedRoles)
+    FrameworkOptions&& frameworkOptions)
 {
   CHECK(initialized);
 
@@ -928,13 +929,18 @@ void HierarchicalAllocatorProcess::updateFramework(
   framework.minAllocatableResources =
     unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
 
-  suppressRoles(framework, suppressedRoles - oldSuppressedRoles);
-  reviveRoles(framework, (oldSuppressedRoles - suppressedRoles) & newRoles);
+  suppressRoles(
+      framework,
+      frameworkOptions.suppressedRoles - oldSuppressedRoles);
 
-  CHECK(framework.suppressedRoles == suppressedRoles)
+  reviveRoles(
+      framework,
+      (oldSuppressedRoles - frameworkOptions.suppressedRoles) & newRoles);
+
+  CHECK(framework.suppressedRoles == frameworkOptions.suppressedRoles)
     << "After updating framework " << frameworkId
     << " its set of suppressed roles " << stringify(framework.suppressedRoles)
-    << " differs from required " << stringify(suppressedRoles);
+    << " differs from required " << stringify(frameworkOptions.suppressedRoles);
 }
 
 

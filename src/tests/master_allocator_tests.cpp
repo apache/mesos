@@ -184,7 +184,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -246,7 +246,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -285,7 +285,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -350,7 +350,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo1), _, _, _))
+  EXPECT_CALL(allocator, addFramework_(_, Eq(frameworkInfo1), _, _, _))
     .WillOnce(InvokeAddFramework(&allocator));
 
   Future<FrameworkID> frameworkId1;
@@ -419,7 +419,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo2), _, _, _))
+  EXPECT_CALL(allocator, addFramework_(_, Eq(frameworkInfo2), _, _, _))
     .WillOnce(InvokeAddFramework(&allocator));
 
   FrameworkID frameworkId2;
@@ -487,7 +487,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -635,7 +635,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -673,7 +673,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -777,7 +777,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -899,7 +899,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -998,7 +998,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1105,7 +1105,7 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1188,7 +1188,7 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1443,7 +1443,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
     .WillOnce(FutureSatisfy(&registered2));
 
   Future<Nothing> addFramework;
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _))
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _))
     .WillOnce(FutureSatisfy(&addFramework));
 
   driver2.start();
@@ -1512,7 +1512,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
-    EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+    EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1556,7 +1556,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     EXPECT_CALL(allocator2, initialize(_, _, _));
 
     Future<Nothing> addFramework;
-    EXPECT_CALL(allocator2, addFramework(_, _, _, _, _))
+    EXPECT_CALL(allocator2, addFramework_(_, _, _, _, _))
       .WillOnce(DoAll(InvokeAddFramework(&allocator2),
                       FutureSatisfy(&addFramework)));
 
@@ -1640,7 +1640,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
-    EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+    EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
     EXPECT_CALL(allocator, recoverResources(_, _, _, _, _));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
@@ -1690,7 +1690,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     // Expect the framework to be added but to be inactive when the
     // agent reregisters, until the framework reregisters below.
     Future<Nothing> addFramework;
-    EXPECT_CALL(allocator2, addFramework(_, _, _, false, _))
+    EXPECT_CALL(allocator2, addFramework_(_, _, _, false, _))
       .WillOnce(DoAll(InvokeAddFramework(&allocator2),
                       FutureSatisfy(&addFramework)));
 
@@ -1709,7 +1709,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     // Because the framework was re-added above, we expect to only
     // activate the framework when it reregisters.
-    EXPECT_CALL(allocator2, addFramework(_, _, _, _, _))
+    EXPECT_CALL(allocator2, addFramework_(_, _, _, _, _))
       .Times(0);
 
     EXPECT_CALL(allocator2, activateFramework(_));
@@ -1974,7 +1974,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -2004,7 +2004,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   Future<Nothing> framework2Registered;
   EXPECT_CALL(sched2, registered(_, _, _))
@@ -2023,7 +2023,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   MesosSchedulerDriver driver3(
       &sched3, frameworkInfo3, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _));
 
   Future<Nothing> framework3Registered;
   EXPECT_CALL(sched3, registered(_, _, _))
