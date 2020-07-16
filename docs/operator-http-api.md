@@ -2675,7 +2675,7 @@ Accept: application/json
     "agent_id": {
       "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
     },
-    "max_grace_period": "10mins",
+    "max_grace_period": {"seconds": 600},
     "mark_gone": false
   }
 }
