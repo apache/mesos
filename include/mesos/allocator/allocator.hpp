@@ -22,6 +22,7 @@
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/allocator/allocator.pb.h>
+#include <mesos/scheduler/scheduler.pb.h>
 
 #include <mesos/maintenance/maintenance.hpp>
 
@@ -68,6 +69,43 @@ struct Options
 };
 
 
+namespace internal {
+class OfferConstraintsFilterImpl;
+
+} // namespace internal {
+
+
+class OfferConstraintsFilter
+{
+public:
+  static Try<OfferConstraintsFilter> create(
+      scheduler::OfferConstraints&& constraints);
+
+  OfferConstraintsFilter() = delete;
+
+  // Definitions of these need `OfferConstraintsFilterImpl` to be a complete
+  // type.
+  OfferConstraintsFilter(OfferConstraintsFilter&&);
+  OfferConstraintsFilter& operator=(OfferConstraintsFilter&&);
+  ~OfferConstraintsFilter();
+
+  /**
+   * Returns `true` if the allocator is allowed to offer resoureces
+   * on the agent to the framework's role, and `false` otherwise.
+   */
+  bool isAgentExcluded(
+      const std::string& role,
+      const SlaveInfo& agentInfo) const;
+
+  // TODO(asekretenko): Add a method for filtering `Resources` on an agent.
+
+private:
+  std::unique_ptr<internal::OfferConstraintsFilterImpl> impl;
+
+  OfferConstraintsFilter(internal::OfferConstraintsFilterImpl&& impl_);
+};
+
+
 /**
  * Per-framework allocator-specific options that are not part of
  * `FrameworkInfo`.
@@ -78,6 +116,11 @@ struct FrameworkOptions
    * The set of roles for which the allocator should not generate offers.
    */
   std::set<std::string> suppressedRoles;
+
+  /**
+   * The internal representation of framework's offer constraints.
+   */
+  Option<OfferConstraintsFilter> offerConstraintsFilter;
 };
 
 

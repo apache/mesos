@@ -2699,7 +2699,7 @@ void Master::subscribe(
       http,
       std::move(frameworkInfo),
       subscribe.force(),
-      FrameworkOptions{std::move(suppressedRoles)},
+      FrameworkOptions{std::move(suppressedRoles), None()},
       lambda::_1));
 }
 
@@ -2941,7 +2941,7 @@ void Master::subscribe(
       from,
       std::move(frameworkInfo),
       subscribe.force(),
-      FrameworkOptions{std::move(suppressedRoles)},
+      FrameworkOptions{std::move(suppressedRoles), None()},
       lambda::_1));
 }
 
@@ -3242,7 +3242,7 @@ Future<process::http::Response> Master::updateFramework(
     make_move_iterator(call.mutable_suppressed_roles()->end()));
 
   updateFramework(
-      framework, call.framework_info(), {std::move(suppressedRoles)});
+      framework, call.framework_info(), {std::move(suppressedRoles), None()});
 
   sendFrameworkUpdates(*framework);
 
@@ -9904,6 +9904,7 @@ void Master::addFramework(
   CHECK(!frameworks.registered.contains(framework->id()))
     << "Framework " << *framework << " already exists!";
 
+  // TODO(asekretenko): Print some information about the OfferConstraintsFilter.
   LOG(INFO) << "Adding framework " << *framework << " with roles "
             << stringify(allocatorOptions.suppressedRoles) << " suppressed";
 

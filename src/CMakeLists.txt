@@ -429,6 +429,7 @@ set(MASTER_SRC
   master/allocator/allocator.cpp
   master/allocator/mesos/hierarchical.cpp
   master/allocator/mesos/metrics.cpp
+  master/allocator/mesos/offer_constraints_filter.cpp
   master/allocator/mesos/sorter/drf/metrics.cpp
   master/allocator/mesos/sorter/drf/sorter.cpp
   master/allocator/mesos/sorter/random/sorter.cpp
