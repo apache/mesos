@@ -606,7 +606,9 @@ Framework::Framework(
     active(_active),
     metrics(new FrameworkMetrics(frameworkInfo, publishPerFrameworkMetrics)),
     minAllocatableResources(
-        unpackFrameworkOfferFilters(frameworkInfo.offer_filters())) {}
+        unpackFrameworkOfferFilters(frameworkInfo.offer_filters())),
+    offerConstraintsFilter(std::move(options.offerConstraintsFilter))
+{}
 
 
 void HierarchicalAllocatorProcess::initialize(
@@ -726,12 +728,16 @@ void HierarchicalAllocatorProcess::addFramework(
   // TODO(mzhu): remove the `frameworkId` parameter.
   CHECK_EQ(frameworkId, frameworkInfo.id());
 
-  frameworks.insert({frameworkId,
+  // NOTE: We don't use insert({frameworkId, Framework()}) here because with
+  // older versions of libstdc++ the argument type of
+  // std::unordered_map::insert(P&&)is deduced to be a non-copyable non-movable
+  // std::pair<const FrameworkId, Framework>.
+  frameworks.emplace(frameworkId,
                      Framework(
                          frameworkInfo,
                          std::move(frameworkOptions),
                          active,
-                         options.publishPerFrameworkMetrics)});
+                         options.publishPerFrameworkMetrics));
 
   const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
@@ -928,6 +934,9 @@ void HierarchicalAllocatorProcess::updateFramework(
   framework.capabilities = frameworkInfo.capabilities();
   framework.minAllocatableResources =
     unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
+
+  framework.offerConstraintsFilter =
+    std::move(frameworkOptions.offerConstraintsFilter);
 
   suppressRoles(
       framework,
@@ -2145,6 +2154,18 @@ void HierarchicalAllocatorProcess::__generateOffers()
         if (unsatisfiedQuotaGuarantees.empty()) {
           break;
         }
+        FrameworkID frameworkId;
+        frameworkId.set_value(frameworkId_);
+
+        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
+        CHECK(framework.active) << frameworkId;
+
+        if (framework.offerConstraintsFilter.isSome() &&
+            framework.offerConstraintsFilter->isAgentExcluded(
+                role, slave.info)) {
+          // Framework filters the agent regardless of remaining resources.
+          continue;
+        }
 
         // Offer a shared resource only if it has not been offered in this
         // offer cycle to a framework.
@@ -2156,11 +2177,6 @@ void HierarchicalAllocatorProcess::__generateOffers()
           break; // Nothing left for the role.
         }
 
-        FrameworkID frameworkId;
-        frameworkId.set_value(frameworkId_);
-
-        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
-        CHECK(framework.active) << frameworkId;
 
         // An early `continue` optimization.
         if (!allocatable(available, role, framework)) {
@@ -2375,6 +2391,18 @@ void HierarchicalAllocatorProcess::__generateOffers()
       Sorter* frameworkSorter = CHECK_NOTNONE(getFrameworkSorter(role));
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
+        FrameworkID frameworkId;
+        frameworkId.set_value(frameworkId_);
+
+        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
+
+        if (framework.offerConstraintsFilter.isSome() &&
+            framework.offerConstraintsFilter->isAgentExcluded(
+                role, slave.info)) {
+          // Framework filters the agent regardless of remaining resources.
+          continue;
+        }
+
         // Offer a shared resource only if it has not been offered in this
         // offer cycle to a framework.
         Resources available =
@@ -2385,10 +2413,6 @@ void HierarchicalAllocatorProcess::__generateOffers()
           break; // Nothing left for the role.
         }
 
-        FrameworkID frameworkId;
-        frameworkId.set_value(frameworkId_);
-
-        const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
         // An early `continue` optimization.
         if (!allocatable(available, role, framework)) {

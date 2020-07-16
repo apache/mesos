@@ -108,7 +108,11 @@ struct Framework
   process::Owned<FrameworkMetrics> metrics;
 
   // TODO(bbannier): Consider documenting examples on how to use this setting.
+  // TODO(asekretenko): reimplement minAllocatableResources in terms of
+  // offer constraints.
   hashmap<std::string, std::vector<ResourceQuantities>> minAllocatableResources;
+
+  Option<::mesos::allocator::OfferConstraintsFilter> offerConstraintsFilter;
 };
 
 
