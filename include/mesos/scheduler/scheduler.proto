@@ -276,12 +276,64 @@ message AttributeConstraint {
     // Yields `true` if the (pseudo)attribute does not exist.
     message NotExists {}
 
-    // TODO(asekretenko): add predicates for testing equality (MESOS-10172)
-    // and regular expression matching (MESOS-10173).
+    // Predicates for (pseudo)attribute value equality.
+    //
+    // Given that existing schedulers tend to test SCALAR and RANGES attributes
+    // of offered agents for equality in ways that are not entirely trivial,
+    // we currently only support TEXT (string for pseudoattributes)
+    // equality.
+    //
+    // Both equality predicates will match (yield `true`) for attributes of
+    // SCALAR and RANGES types. This way, schedulers will still receive offers
+    // for SCALAR and RANGES attributes if a string equality constraint was
+    // specified to Mesos, and the scheduler's own logic will determine how to
+    // filter attributes of these types.
+    //
+    // For example: if a scheduler sets a constraint
+    //
+    //   { "selector": {"attribute_name": "foo"},
+    //     "predicate": {"text_equals": {"value":"2.0"}} }
+    //
+    // then agents with a SCALAR attribute
+    // {"name": "foo", "scalar": {"value": 1.0}}
+    // will match (since it's SCALAR, not TEXT!) and the scheduler side
+    // filtering will need to filter it according to its desired semantics.
+    //
+    // That said, it is strongly recommended to only use TEXT attributes
+    // on agents. For users with existing attributes, this can be done
+    // by adding a variant of the existing attribute that uses TEXT instead:
+    //
+    //   --attributes=foo2:v1.0
+    //   which gets parsed into
+    //   {"name": "foo2", "text": {"value": "v1.0"}}, etc.
+
+    // Yields `true` if the (pseudo)attribute exists and is a string/TEXT
+    // equal to the specified `value`.
+    //
+    // Always yields `true` for existing non-TEXT attributes (and non-string
+    // pseudoattributes) for the reason explained above.
+    message TextEquals {
+      required string value = 1;
+    }
+
+    // Yields `true` if the (pseudo)attribute does not exist or is a string/TEXT
+    // NOT equal to the specified `value`.
+    //
+    // Always yields `true` for existing non-TEXT attributes (and non-string
+    // pseudoattributes) for the reason explained above.
+    message TextNotEquals {
+      required string value = 1;
+    }
+
+    // TODO(asekretenko): add predicates for regular expression matching
+    // (MESOS-10173).
 
     oneof predicate {
       Exists exists = 1;
       NotExists not_exists = 2;
+
+      TextEquals text_equals = 3;
+      TextNotEquals text_not_equals = 4;
     }
   }
 
