@@ -196,6 +196,7 @@ if (NOT WIN32)
     slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/isolators/posix/rlimits.cpp
     slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
+    slave/containerizer/mesos/isolators/volume/csi/paths.cpp
     slave/containerizer/mesos/provisioner/appc/cache.cpp
     slave/containerizer/mesos/provisioner/appc/fetcher.cpp
     slave/containerizer/mesos/provisioner/appc/paths.cpp
@@ -336,6 +337,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/volume/image.cpp
   slave/containerizer/mesos/isolators/volume/secret.cpp
   slave/containerizer/mesos/isolators/volume/utils.cpp
+  slave/containerizer/mesos/isolators/volume/csi/isolator.cpp
   slave/containerizer/mesos/provisioner/backends/aufs.cpp
   slave/containerizer/mesos/provisioner/backends/bind.cpp
   slave/containerizer/mesos/provisioner/backends/overlay.cpp)

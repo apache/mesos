@@ -1251,6 +1251,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/posix/rlimits.hpp			\
   slave/containerizer/mesos/isolators/volume/sandbox_path.cpp		\
   slave/containerizer/mesos/isolators/volume/sandbox_path.hpp		\
+  slave/containerizer/mesos/isolators/volume/csi/paths.cpp		\
+  slave/containerizer/mesos/isolators/volume/csi/paths.hpp		\
   slave/containerizer/mesos/isolators/windows/cpu.hpp			\
   slave/containerizer/mesos/isolators/windows/mem.hpp			\
   slave/containerizer/mesos/launch.cpp					\
@@ -1454,6 +1456,8 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/volume/secret.hpp					\
   slave/containerizer/mesos/isolators/volume/utils.cpp					\
   slave/containerizer/mesos/isolators/volume/utils.hpp					\
+  slave/containerizer/mesos/isolators/volume/csi/isolator.cpp				\
+  slave/containerizer/mesos/isolators/volume/csi/isolator.hpp				\
   slave/containerizer/mesos/provisioner/backends/aufs.cpp				\
   slave/containerizer/mesos/provisioner/backends/aufs.hpp				\
   slave/containerizer/mesos/provisioner/backends/bind.cpp				\
