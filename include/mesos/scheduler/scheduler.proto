@@ -325,8 +325,54 @@ message AttributeConstraint {
       required string value = 1;
     }
 
-    // TODO(asekretenko): add predicates for regular expression matching
-    // (MESOS-10173).
+    // Predicates for regular expression constraints.
+    //
+    // The regular expressions are interpreted according to
+    // RE2 regular expression syntax and semantics:
+    // https://github.com/google/re2/blob/master/doc/syntax.txt
+    //
+    // The call using the constraints is invalid if the specified string is not
+    // a valid RE2 regex, or the regex is deemed too expensive to
+    // construct/store/execute, namely:
+    //
+    //  - the RE2 object cannot be constructed from the regex without breaching
+    //    the limit on the estimated memory footprint of an individual RE2
+    //    (controlled by the --offer_constraints_re2_max_mem master flag), or
+    //
+    //  - the regex program size reported by `RE2::ProgramSize()`
+    //    exceeds the value of --offer_constraints_re2_max_program_size flag.
+    //
+    // Frameworks using the C++ implementation of RE2 (directly or via the JNI
+    // wrapper) for regexp validation on their side, are advised to set
+    // the `max_mem` RE2 option and limit `ProgramSize()` to values no larger
+    // than the defaults for the corresonding Mesos master flags.
+    //
+    // TODO(asekretenko): Provide an API for the frameworks and/or operators
+    // to validate regexp constraints against the Mesos master setup.
+    //
+    // Similarly to the string equality predicates, both regexp predicates match
+    // (evaluate to `true`) when the (pseudo)attribute is not a TEXT/string.
+    // This way, schedulers will have to apply purely on their own
+    // whatever filtration they do for non-TEXT attributes which happen
+    // to be selected by the constraint's `Selector`
+
+    // Yields `true` if the (pseudo)attribute exists and is a TEXT/string
+    // matching the specified regex.
+    //
+    // Always yields `true` for existing non-TEXT attributes (and non-string
+    // pseudoattributes) for the reasons explained above.
+    message TextMatches {
+      required string regex = 1;
+    }
+
+    // Yields `true` if the (pseudo)attribute either does not exists or is
+    // not a TEXT/string matching the specified regex.
+    //
+    // Always yields `true` for existing non-TEXT attributes (and non-string
+    // pseudoattributes) for the reasons explained above.
+    message TextNotMatches {
+      required string regex = 1;
+    }
 
     oneof predicate {
       Exists exists = 1;
@@ -334,6 +380,9 @@ message AttributeConstraint {
 
       TextEquals text_equals = 3;
       TextNotEquals text_not_equals = 4;
+
+      TextMatches text_matches = 5;
+      TextNotMatches text_not_matches = 6;
     }
   }
 
