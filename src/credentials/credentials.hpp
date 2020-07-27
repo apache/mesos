@@ -54,30 +54,17 @@ inline Result<Credentials> read(const Path& path)
                  << " credentials file is NOT accessible by others";
   }
 
-  // TODO(nfnt): Remove text format support at the end of the deprecation cycle
-  // which started with version 1.0.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
-  if (!json.isError()) {
-    Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
-    if (!credentials.isError()) {
-      return credentials.get();
-    }
+  if (json.isError()) {
+    return Error("Invalid json format: " + json.error());
   }
 
-  Credentials credentials;
-  foreach (const std::string& line, strings::tokenize(read.get(), "\n")) {
-    const std::vector<std::string>& pairs = strings::tokenize(line, " ");
-    if (pairs.size() != 2) {
-        return Error("Invalid credential format at line " +
-                     stringify(credentials.credentials().size() + 1));
-    }
-
-    // Add the credential.
-    Credential* credential = credentials.add_credentials();
-    credential->set_principal(pairs[0]);
-    credential->set_secret(pairs[1]);
+  Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
+  if (credentials.isError()) {
+    return Error("Failed to parse credentials: "
+                 + credentials.error());
   }
-  return credentials;
+  return credentials.get();
 }
 
 
@@ -104,28 +91,16 @@ inline Result<Credential> readCredential(const Path& path)
   }
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
-  if (!json.isError()) {
-    Try<Credential> credential = ::protobuf::parse<Credential>(json.get());
-    if (!credential.isError()) {
-      return credential.get();
-    }
+  if (json.isError()) {
+    return Error("Invalid json format: " + json.error());
   }
 
-  // TODO(nfnt): Remove text format support at the end of the deprecation cycle
-  // which started with version 1.0.
-  Credential credential;
-  const std::vector<std::string>& line = strings::tokenize(read.get(), "\n");
-  if (line.size() != 1) {
-    return Error("Expecting only one credential");
+  Try<Credential> credential = ::protobuf::parse<Credential>(json.get());
+  if (credential.isError()) {
+    return Error("Failed to parse credential: "
+                 + credential.error());
   }
-  const std::vector<std::string>& pairs = strings::tokenize(line[0], " ");
-  if (pairs.size() != 2) {
-    return Error("Invalid credential format");
-  }
-  // Add the credential.
-  credential.set_principal(pairs[0]);
-  credential.set_secret(pairs[1]);
-  return credential;
+  return credential.get();
 }
 
 } // namespace credentials {

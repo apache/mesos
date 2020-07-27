@@ -1,3 +1,10 @@
+Release Notes - Mesos - Version 1.11.0 (WIP)
+-------------------------------------------
+
+Additional API Changes:
+
+  * **Breaking change** Deprecated authentication credential text format support.
+
 Release Notes - Mesos - Version 1.10.1 (WIP)
 -------------------------------------------
 * This is a bug fix release.
