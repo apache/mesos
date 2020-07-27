@@ -70,53 +70,6 @@ TEST_F(CredentialsTest, AuthenticatedSlave)
   ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
-
-// Test verifing well executed credential authentication
-// using text formatted credentials so as to test
-// backwards compatibility.
-TEST_F(CredentialsTest, AuthenticatedSlaveText)
-{
-  string path = path::join(os::getcwd(), "credentials");
-
-  Try<int_fd> fd = os::open(
-      path,
-      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP);
-
-  ASSERT_SOME(fd);
-
-  string credentials =
-    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
-
-  ASSERT_SOME(os::write(fd.get(), credentials))
-      << "Failed to write credentials to '" << path << "'";
-
-  ASSERT_SOME(os::close(fd.get()));
-
-  map<string, Option<string>> values{
-    {"credentials", Some(uri::from_path(path))}};
-
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.load(values, true);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
-  ASSERT_SOME(master);
-
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.load(values, true);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
-  ASSERT_SOME(slave);
-
-  AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
-}
-
-
 // Using JSON base file for authentication without
 // protobuf tools assistance.
 TEST_F(CredentialsTest, AuthenticatedSlaveJSON)

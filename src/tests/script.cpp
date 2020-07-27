@@ -123,13 +123,20 @@ void execute(const string& script)
     os::setenv("MESOS_REGISTRY", "replicated_log");
 
     // Create test credentials.
-    const string& credentials =
-      DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+    JSON::Object credential;
+    credential.values["principal"] = DEFAULT_CREDENTIAL.principal();
+    credential.values["secret"] = DEFAULT_CREDENTIAL.secret();
+
+    JSON::Array array;
+    array.values.push_back(credential);
+
+    JSON::Object credentials;
+    credentials.values["credentials"] = array;
 
     const string& credentialsPath =
       path::join(directory.get(), "credentials");
 
-    CHECK_SOME(os::write(credentialsPath, credentials))
+    CHECK_SOME(os::write(credentialsPath, stringify(credentials)))
       << "Failed to write credentials to '" << credentialsPath << "'";
 
     os::setenv("MESOS_CREDENTIALS", uri::from_path(credentialsPath));
