@@ -165,7 +165,7 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 
 inline Option<int> system(const std::string& command)
 {
-  return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
+  return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command}, None());
 }
 
 } // namespace os {
