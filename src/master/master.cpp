@@ -141,6 +141,7 @@ namespace master {
 
 using mesos::allocator::Allocator;
 using mesos::allocator::FrameworkOptions;
+using mesos::allocator::OfferConstraintsFilter;
 
 using mesos::authorization::createSubject;
 using mesos::authorization::VIEW_ROLE;
@@ -2665,6 +2666,20 @@ void Master::subscribe(
   Option<Error> validationError =
     validateFramework(frameworkInfo, subscribe.suppressed_roles());
 
+  allocator::FrameworkOptions allocatorOptions;
+
+  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
+  if (validationError.isNone() && subscribe.has_offer_constraints()) {
+    Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        std::move(*subscribe.mutable_offer_constraints()));
+
+    if (filter.isError()) {
+      validationError = Error(std::move(filter.error()));
+    } else {
+      allocatorOptions.offerConstraintsFilter = std::move(*filter);
+    }
+  }
+
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "': "
@@ -2678,7 +2693,7 @@ void Master::subscribe(
     return;
   }
 
-  set<string> suppressedRoles = set<string>(
+  allocatorOptions.suppressedRoles = set<string>(
       make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
       make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
 
@@ -2699,7 +2714,7 @@ void Master::subscribe(
       http,
       std::move(frameworkInfo),
       subscribe.force(),
-      FrameworkOptions{std::move(suppressedRoles), None()},
+      std::move(allocatorOptions),
       lambda::_1));
 }
 
@@ -2893,6 +2908,20 @@ void Master::subscribe(
     validationError = validateFrameworkAuthentication(frameworkInfo, from);
   }
 
+  allocator::FrameworkOptions allocatorOptions;
+
+  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
+  if (validationError.isNone() && subscribe.has_offer_constraints()) {
+    Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        std::move(*subscribe.mutable_offer_constraints()));
+
+    if (filter.isError()) {
+      validationError = Error(std::move(filter.error()));
+    } else {
+      allocatorOptions.offerConstraintsFilter = std::move(*filter);
+    }
+  }
+
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "' at " << from << ": "
@@ -2920,7 +2949,7 @@ void Master::subscribe(
     frameworkInfo.set_principal(authenticated[from]);
   }
 
-  set<string> suppressedRoles = set<string>(
+  allocatorOptions.suppressedRoles = set<string>(
       make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
       make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
 
@@ -2941,7 +2970,7 @@ void Master::subscribe(
       from,
       std::move(frameworkInfo),
       subscribe.force(),
-      FrameworkOptions{std::move(suppressedRoles), None()},
+      std::move(allocatorOptions),
       lambda::_1));
 }
 
@@ -3220,6 +3249,21 @@ Future<process::http::Response> Master::updateFramework(
         "FrameworkInfo update is not valid: " + error->message);
   }
 
+  allocator::FrameworkOptions allocatorOptions;
+  if (call.has_offer_constraints()) {
+    // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
+    Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        std::move(*call.mutable_offer_constraints()));
+
+    if (filter.isError()) {
+      return process::http::BadRequest(
+          "'UpdateFramework.offer_constraints' are not valid: " +
+          filter.error());
+    } else {
+      allocatorOptions.offerConstraintsFilter = std::move(*filter);
+    }
+  }
+
   ActionObject actionObject =
     ActionObject::frameworkRegistration(call.framework_info());
 
@@ -3237,12 +3281,12 @@ Future<process::http::Response> Master::updateFramework(
         "Not authorized to " + stringify(actionObject));
   }
 
-  set<string> suppressedRoles(
+  allocatorOptions.suppressedRoles = set<string>(
     make_move_iterator(call.mutable_suppressed_roles()->begin()),
     make_move_iterator(call.mutable_suppressed_roles()->end()));
 
   updateFramework(
-      framework, call.framework_info(), {std::move(suppressedRoles), None()});
+      framework, call.framework_info(), std::move(allocatorOptions));
 
   sendFrameworkUpdates(*framework);
 
