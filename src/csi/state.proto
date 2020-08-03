@@ -75,4 +75,7 @@ message VolumeState {
   // pre-provisioned by some other means and then attached to the node using a
   // CSI plugin.
   bool pre_provisioned = 8;
+
+  // Indicates that the volume must be mounted read-only.
+  bool readonly = 9;
 }

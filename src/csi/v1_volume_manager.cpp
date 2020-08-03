@@ -844,7 +844,7 @@ Future<Nothing> VolumeManagerProcess::_attachVolume(const string& volumeId)
   request.set_node_id(CHECK_NOTNONE(nodeId));
   *request.mutable_volume_capability() =
     evolve(volumeState.volume_capability());
-  request.set_readonly(false);
+  request.set_readonly(volumeState.readonly());
   *request.mutable_volume_context() = volumeState.volume_context();
 
   return call(
@@ -976,7 +976,7 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
   request.set_target_path(targetPath);
   *request.mutable_volume_capability() =
     evolve(volumeState.volume_capability());
-  request.set_readonly(false);
+  request.set_readonly(volumeState.readonly());
   *request.mutable_volume_context() = volumeState.volume_context();
 
   if (nodeCapabilities->stageUnstageVolume) {
