@@ -2379,6 +2379,9 @@ private:
   process::Time startTime; // Start time used to calculate uptime.
 
   Option<process::Time> electedTime; // Time when this master is elected.
+
+  ::mesos::allocator::OfferConstraintsFilter::Options
+    offerConstraintsFilterOptions;
 };
 
 

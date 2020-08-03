@@ -78,7 +78,23 @@ class OfferConstraintsFilterImpl;
 class OfferConstraintsFilter
 {
 public:
+  // TODO(asekretenko): Given that most dependants of the public allocator
+  // interface do not care about filter creation, we should consider decoupling
+  // the filter construction interface (which at this point consists of the
+  // `struct Options` and the `create()` method) from the allocator interface.
+  struct Options
+  {
+    struct RE2Limits
+    {
+      Bytes maxMem;
+      int maxProgramSize;
+    };
+
+    RE2Limits re2Limits;
+  };
+
   static Try<OfferConstraintsFilter> create(
+      const Options& options,
       scheduler::OfferConstraints&& constraints);
 
   OfferConstraintsFilter() = delete;

@@ -23,6 +23,8 @@
 #include <stout/try.hpp>
 #include <stout/variant.hpp>
 
+#include <re2/re2.h>
+
 #include <mesos/allocator/allocator.hpp>
 #include <mesos/attributes.hpp>
 
@@ -34,10 +36,41 @@ using std::unordered_map;
 using ::mesos::scheduler::AttributeConstraint;
 using ::mesos::scheduler::OfferConstraints;
 
+using RE2Limits =
+  ::mesos::allocator::OfferConstraintsFilter::Options::RE2Limits;
+
 namespace mesos {
 namespace allocator {
 
 namespace internal {
+
+// TODO(asekretenko): Cache returned RE2s to make sure that:
+//  - a RE2 corresponding to a pattern is not re-created needlessly
+//  - multiple RE2s corresponding to the same pattern don't coexist
+static Try<unique_ptr<const RE2>> createRE2(
+    const RE2Limits& limits,
+    const string& regex)
+{
+  RE2::Options options{RE2::CannedOptions::Quiet};
+  options.set_max_mem(limits.maxMem.bytes());
+  unique_ptr<const RE2> re2{new RE2(regex, options)};
+
+  if (!re2->ok()) {
+    return Error(
+        "Failed to construct regex from pattern"
+        " '" + regex + "': " + re2->error());
+  }
+
+  if (re2->ProgramSize() > limits.maxProgramSize) {
+    return Error(
+        "Regex '" + regex + "' is too complex: program size of " +
+        stringify(re2->ProgramSize()) + " is larger than maximum of " +
+        stringify(limits.maxProgramSize) + " allowed");
+  }
+
+  return re2;
+}
+
 
 using Selector = AttributeConstraint::Selector;
 
@@ -78,6 +111,7 @@ public:
   bool apply(const Attribute& attr) const { return apply_(attr); }
 
   static Try<AttributeConstraintPredicate> create(
+      const RE2Limits& re2Limits,
       AttributeConstraint::Predicate&& predicate)
   {
     using Self = AttributeConstraintPredicate;
@@ -95,6 +129,28 @@ public:
       case AttributeConstraint::Predicate::kTextNotEquals:
         return Self(TextNotEquals{
           std::move(*predicate.mutable_text_not_equals()->mutable_value())});
+
+      case AttributeConstraint::Predicate::kTextMatches: {
+        Try<unique_ptr<const RE2>> re2 =
+          createRE2(re2Limits, predicate.text_matches().regex());
+
+        if (re2.isError()) {
+          return Error(re2.error());
+        }
+
+        return Self(TextMatches{std::move(*re2)});
+      }
+
+      case AttributeConstraint::Predicate::kTextNotMatches: {
+        Try<unique_ptr<const RE2>> re2 =
+          createRE2(re2Limits, predicate.text_not_matches().regex());
+
+        if (re2.isError()) {
+          return Error(re2.error());
+        }
+
+        return Self(TextNotMatches{std::move(*re2)});
+      }
 
       case AttributeConstraint::Predicate::PREDICATE_NOT_SET:
         return Error("Unknown predicate type");
@@ -146,15 +202,43 @@ private:
     }
   };
 
-  // TODO(asekretenko): Introduce offer constraints for regex match
-  // (MESOS-10173).
+  struct TextMatches
+  {
+    unique_ptr<const RE2> re2;
+
+    bool apply(const Nothing&) const { return false; }
+    bool apply(const string& str) const { return RE2::FullMatch(str, *re2); }
+
+    bool apply(const Attribute& attr) const
+    {
+      return attr.type() != Value::TEXT ||
+             RE2::FullMatch(attr.text().value(), *re2);
+    }
+  };
+
+  struct TextNotMatches
+  {
+    unique_ptr<const RE2> re2;
+
+    bool apply(const Nothing&) const { return true; }
+    bool apply(const string& str) const { return !RE2::FullMatch(str, *re2); }
+
+    bool apply(const Attribute& attr) const
+    {
+      return attr.type() != Value::TEXT ||
+             !RE2::FullMatch(attr.text().value(), *re2);
+    }
+  };
+
 
   using Predicate = Variant<
       Nothing,
       Exists,
       NotExists,
       TextEquals,
-      TextNotEquals>;
+      TextNotEquals,
+      TextMatches,
+      TextNotMatches>;
 
   Predicate predicate;
 
@@ -171,7 +255,9 @@ private:
         [&](const Exists& p) { return p.apply(attribute); },
         [&](const NotExists& p) { return p.apply(attribute); },
         [&](const TextEquals& p) { return p.apply(attribute); },
-        [&](const TextNotEquals& p) { return p.apply(attribute); });
+        [&](const TextNotEquals& p) { return p.apply(attribute); },
+        [&](const TextMatches& p) { return p.apply(attribute); },
+        [&](const TextNotMatches& p) { return p.apply(attribute); });
   }
 };
 
@@ -223,6 +309,7 @@ public:
   }
 
   static Try<AttributeConstraintEvaluator> create(
+      const RE2Limits& re2Limits,
       AttributeConstraint&& constraint)
   {
     Option<Error> error = validate(constraint.selector());
@@ -232,7 +319,7 @@ public:
 
     Try<AttributeConstraintPredicate> predicate =
       AttributeConstraintPredicate::create(
-          std::move(*constraint.mutable_predicate()));
+          re2Limits, std::move(*constraint.mutable_predicate()));
 
     if (predicate.isError()) {
       return Error(predicate.error());
@@ -293,7 +380,9 @@ public:
         });
   }
 
-  static Try<OfferConstraintsFilterImpl> create(OfferConstraints&& constraints)
+  static Try<OfferConstraintsFilterImpl> create(
+      const OfferConstraintsFilter::Options& options,
+      OfferConstraints&& constraints)
   {
     // TODO(asekretenko): This method performs a dumb 1:1 translation of
     // `AttributeConstraint`s without any reordering; this leaves room for
@@ -333,7 +422,8 @@ public:
         for (AttributeConstraint& constraint :
              *group_.mutable_attribute_constraints()) {
           Try<AttributeConstraintEvaluator> evaluator =
-            AttributeConstraintEvaluator::create(std::move(constraint));
+            AttributeConstraintEvaluator::create(
+                options.re2Limits, std::move(constraint));
 
           if (evaluator.isError()) {
             return Error(
@@ -360,10 +450,11 @@ using internal::OfferConstraintsFilterImpl;
 
 
 Try<OfferConstraintsFilter> OfferConstraintsFilter::create(
+    const Options& options,
     OfferConstraints&& constraints)
 {
   Try<OfferConstraintsFilterImpl> impl =
-    OfferConstraintsFilterImpl::create(std::move(constraints));
+    OfferConstraintsFilterImpl::create(options, std::move(constraints));
 
   if (impl.isError()) {
     return Error(impl.error());

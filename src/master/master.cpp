@@ -333,7 +333,10 @@ Master::Master(
     subscribers(this, flags.max_operator_event_stream_subscribers),
     authenticator(None()),
     metrics(new Metrics(*this)),
-    electedTime(None())
+    electedTime(None()),
+    offerConstraintsFilterOptions(
+        {flags.offer_constraints_re2_max_mem,
+         flags.offer_constraints_re2_max_program_size})
 {
   slaves.limiter = _slaveRemovalLimiter;
 
@@ -2671,6 +2674,7 @@ void Master::subscribe(
   // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
   if (validationError.isNone() && subscribe.has_offer_constraints()) {
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        offerConstraintsFilterOptions,
         std::move(*subscribe.mutable_offer_constraints()));
 
     if (filter.isError()) {
@@ -2913,6 +2917,7 @@ void Master::subscribe(
   // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
   if (validationError.isNone() && subscribe.has_offer_constraints()) {
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        offerConstraintsFilterOptions,
         std::move(*subscribe.mutable_offer_constraints()));
 
     if (filter.isError()) {
@@ -3253,6 +3258,7 @@ Future<process::http::Response> Master::updateFramework(
   if (call.has_offer_constraints()) {
     // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+        offerConstraintsFilterOptions,
         std::move(*call.mutable_offer_constraints()));
 
     if (filter.isError()) {

@@ -179,6 +179,16 @@ const Quota DEFAULT_QUOTA;
 // Default weight for a role.
 constexpr double DEFAULT_WEIGHT = 1.0;
 
+// Default values for the `max_mem` option and the limit on `RE2::ProgramSize()`
+// of RE2 regualr expressions used in offer constraints.
+//
+// As an example, for a regexp
+// "192.168.(1[0-9]|3[4-7]|[1-9]|4[2-9]|[1-4][0-9]|5[3-8]|20[4-7]|53[0-5]).1"
+// re2-2020-07-06 produces a RE2 object with a ProgramSize() of 54,
+// and that can be successfully constructed only with `max_mem` >= 1499.
+constexpr Bytes DEFAULT_OFFER_CONSTRAINTS_RE2_MAX_MEM = Bytes(4096);
+constexpr int DEFAULT_OFFER_CONSTRAINTS_RE2_MAX_PROGRAM_SIZE = 100;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

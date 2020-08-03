@@ -743,4 +743,22 @@ mesos::internal::master::Flags::Flags()
         }
         return None();
       });
+
+  add(&Flags::offer_constraints_re2_max_mem,
+      "offer_constraints_re2_max_mem",
+      "Limit on the memory usage of each RE2 regular expression in\n"
+      "framework's offer constraints. If `OfferConstraints` contain a regex\n"
+      "from which a RE2 object cannot be constructed without exceeding this\n"
+      "limit, then framework's attempt to subscribe or update subscription\n"
+      "with these `OfferConstraints` will fail.",
+      DEFAULT_OFFER_CONSTRAINTS_RE2_MAX_MEM);
+
+  add(&Flags::offer_constraints_re2_max_program_size,
+      "offer_constraints_re2_max_program_size",
+      "Limit on the RE2 program size of each regular expression in\n"
+      "framework's offer constraints. If `OfferConstraints` contain a regex\n"
+      "which results in a RE2 object exceeding this limit,\n"
+      "then framework's attempt to subscribe or update subscription\n"
+      "with these `OfferConstraints` will fail.",
+      DEFAULT_OFFER_CONSTRAINTS_RE2_MAX_PROGRAM_SIZE);
 }

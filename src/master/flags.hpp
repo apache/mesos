@@ -121,6 +121,9 @@ public:
 #ifdef ENABLE_PORT_MAPPING_ISOLATOR
   Option<size_t> max_executors_per_agent;
 #endif  // ENABLE_PORT_MAPPING_ISOLATOR
+
+  Bytes offer_constraints_re2_max_mem;
+  int offer_constraints_re2_max_program_size;
 };
 
 } // namespace master {
