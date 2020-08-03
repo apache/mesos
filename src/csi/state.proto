@@ -70,4 +70,9 @@ message VolumeState {
   // hence needs cleanup. If set, the resource provider MUST transition the
   // volume to `PUBLISHED` state during recovery.
   bool node_publish_required = 7;
+
+  // Indicates that the volume was not created by a CSI plugin, but rather was
+  // pre-provisioned by some other means and then attached to the node using a
+  // CSI plugin.
+  bool pre_provisioned = 8;
 }

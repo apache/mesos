@@ -452,8 +452,29 @@ Future<Nothing> VolumeManagerProcess::detachVolume(const string& volumeId)
 }
 
 
-Future<Nothing> VolumeManagerProcess::publishVolume(const string& volumeId)
+Future<Nothing> VolumeManagerProcess::publishVolume(
+    const string& volumeId,
+    const Option<VolumeState>& volumeState)
 {
+  if (volumeState.isSome()) {
+    if (!volumeState->pre_provisioned()) {
+      return Failure(
+          "Cannot specify volume state when publishing a volume unless that"
+          " volume is pre-provisioned");
+    }
+
+    if (volumeState->state() != VolumeState::VOL_READY &&
+        volumeState->state() != VolumeState::NODE_READY) {
+      return Failure(
+          "Cannot specify volume state when publishing a volume unless that"
+          " volume is in either the VOL_READY or NODE_READY state");
+    }
+
+    // This must be an untracked volume. Track it now before we continue.
+    volumes.put(volumeId, VolumeState(volumeState.get()));
+    checkpointVolumeState(volumeId);
+  }
+
   if (!volumes.contains(volumeId)) {
     return Failure("Cannot publish unknown volume '" + volumeId + "'");
   }
@@ -728,16 +749,7 @@ Future<bool> VolumeManagerProcess::_deleteVolume(const std::string& volumeId)
   // the future returned by the sequence ready as well.
   return __deleteVolume(volumeId)
     .then(process::defer(self(), [this, volumeId](bool deleted) {
-      volumes.erase(volumeId);
-
-      const string volumePath =
-        paths::getVolumePath(rootDir, info.type(), info.name(), volumeId);
-
-      Try<Nothing> rmdir = os::rmdir(volumePath);
-      CHECK_SOME(rmdir) << "Failed to remove checkpointed volume state at '"
-                        << volumePath << "': " << rmdir.error();
-
-      garbageCollectMountPath(volumeId);
+      removeVolume(volumeId);
 
       return deleted;
     }));
@@ -1051,6 +1063,13 @@ Future<Nothing> VolumeManagerProcess::_unpublishVolume(const string& volumeId)
 
   if (volumeState.state() == VolumeState::NODE_READY) {
     CHECK(volumeState.boot_id().empty());
+
+    if (volumeState.pre_provisioned()) {
+      // Since this volume was pre-provisioned, it has reached the end of its
+      // lifecycle. Remove it now.
+      removeVolume(volumeId);
+    }
+
     return Nothing();
   }
 
@@ -1063,9 +1082,16 @@ Future<Nothing> VolumeManagerProcess::_unpublishVolume(const string& volumeId)
   }
 
   if (!nodeCapabilities->stageUnstageVolume) {
-    // Since this is a no-op, no need to checkpoint here.
-    volumeState.set_state(VolumeState::NODE_READY);
-    volumeState.clear_boot_id();
+    if (volumeState.pre_provisioned()) {
+      // Since this volume was pre-provisioned, it has reached the end of its
+      // lifecycle. Remove it now.
+      removeVolume(volumeId);
+    } else {
+      // Since this is a no-op, no need to checkpoint here.
+      volumeState.set_state(VolumeState::NODE_READY);
+      volumeState.clear_boot_id();
+    }
+
     return Nothing();
   }
 
@@ -1091,13 +1117,20 @@ Future<Nothing> VolumeManagerProcess::_unpublishVolume(const string& volumeId)
   request.set_staging_target_path(stagingPath);
 
   return call(NODE_SERVICE, &Client::nodeUnstageVolume, std::move(request))
-    .then(process::defer(self(), [this, volumeId] {
+    .then(process::defer(self(), [this, volumeId, volumeState] {
       CHECK(volumes.contains(volumeId));
-      VolumeState& volumeState = volumes.at(volumeId).state;
-      volumeState.set_state(VolumeState::NODE_READY);
-      volumeState.clear_boot_id();
 
-      checkpointVolumeState(volumeId);
+      if (volumeState.pre_provisioned()) {
+        // Since this volume was pre-provisioned, it has reached the end of its
+        // lifecycle. Remove it now.
+        removeVolume(volumeId);
+      } else {
+        VolumeState& volumeState = volumes.at(volumeId).state;
+        volumeState.set_state(VolumeState::NODE_READY);
+        volumeState.clear_boot_id();
+
+        checkpointVolumeState(volumeId);
+      }
 
       return Nothing();
     }));
@@ -1185,6 +1218,21 @@ void VolumeManagerProcess::garbageCollectMountPath(const string& volumeId)
                  << "': " << rmdir.error();
     }
   }
+}
+
+
+void VolumeManagerProcess::removeVolume(const string& volumeId)
+{
+  volumes.erase(volumeId);
+
+  const string volumePath =
+    paths::getVolumePath(rootDir, info.type(), info.name(), volumeId);
+
+  Try<Nothing> rmdir = os::rmdir(volumePath);
+  CHECK_SOME(rmdir) << "Failed to remove checkpointed volume state at '"
+                    << volumePath << "': " << rmdir.error();
+
+  garbageCollectMountPath(volumeId);
 }
 
 
@@ -1297,11 +1345,16 @@ Future<Nothing> VolumeManager::detachVolume(const string& volumeId)
 }
 
 
-Future<Nothing> VolumeManager::publishVolume(const string& volumeId)
+Future<Nothing> VolumeManager::publishVolume(
+    const string& volumeId,
+    const Option<VolumeState>& volumeState)
 {
   return recovered
     .then(process::defer(
-        process.get(), &VolumeManagerProcess::publishVolume, volumeId));
+        process.get(),
+        &VolumeManagerProcess::publishVolume,
+        volumeId,
+        volumeState));
 }
 
 

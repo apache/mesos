@@ -38,6 +38,7 @@
 
 #include "csi/metrics.hpp"
 #include "csi/service_manager.hpp"
+#include "csi/state.hpp"
 
 namespace mesos {
 namespace csi {
@@ -126,11 +127,22 @@ public:
   virtual process::Future<Nothing> detachVolume(
       const std::string& volumeId) = 0;
 
-  // Transitions a tracked volume to `PUBLISHED` state from any state above.
+  // Transitions a volume to `PUBLISHED` state. This method may be called on
+  // tracked or untracked volumes:
+  // * If `volumeState` is NONE, then `volumeId` must correspond to a tracked
+  //   volume, and this method will transition the volume to `PUBLISHED` from
+  //   any state above.
+  // * If `volumeState` is SOME, then `volumeId` must correspond to an untracked
+  //   volume, and thus the ID should be unknown to the volume manager. The
+  //   volume will be tracked by the manager and will become useable on the
+  //   agent if the publish attempt succeeds.
   virtual process::Future<Nothing> publishVolume(
-      const std::string& volumeId) = 0;
+      const std::string& volumeId,
+      const Option<state::VolumeState>& volumeState = None()) = 0;
 
-  // Transitions a tracked volume to `NODE_READY` state from any state below.
+  // Transitions a tracked volume to `NODE_READY` state from any other state.
+  // If the volume was untracked when it was published (a pre-provisioned
+  // volume), then the volume's metadata is removed from the volume manager.
   virtual process::Future<Nothing> unpublishVolume(
       const std::string& volumeId) = 0;
 };

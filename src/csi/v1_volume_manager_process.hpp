@@ -89,7 +89,9 @@ public:
 
   process::Future<Nothing> detachVolume(const std::string& volumeId);
 
-  process::Future<Nothing> publishVolume(const std::string& volumeId);
+  process::Future<Nothing> publishVolume(
+      const std::string& volumeId,
+      const Option<state::VolumeState>& volumeState = None());
 
   process::Future<Nothing> unpublishVolume(const std::string& volumeId);
 
@@ -166,6 +168,10 @@ private:
   void checkpointVolumeState(const std::string& volumeId);
 
   void garbageCollectMountPath(const std::string& volumeId);
+
+  // Removes the metadata associated with a particular volume both
+  // from memory and from disk.
+  void removeVolume(const std::string& volumeId);
 
   const std::string rootDir;
   const CSIPluginInfo info;

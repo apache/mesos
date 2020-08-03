@@ -37,6 +37,7 @@
 
 #include "csi/metrics.hpp"
 #include "csi/service_manager.hpp"
+#include "csi/state.hpp"
 #include "csi/volume_manager.hpp"
 
 namespace mesos {
@@ -95,7 +96,9 @@ public:
 
   process::Future<Nothing> detachVolume(const std::string& volumeId) override;
 
-  process::Future<Nothing> publishVolume(const std::string& volumeId) override;
+  process::Future<Nothing> publishVolume(
+      const std::string& volumeId,
+      const Option<state::VolumeState>& volumeState = None()) override;
 
   process::Future<Nothing> unpublishVolume(
       const std::string& volumeId) override;
