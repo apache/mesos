@@ -87,6 +87,15 @@ public:
         return Self(Exists{});
       case AttributeConstraint::Predicate::kNotExists:
         return Self(NotExists{});
+
+      case AttributeConstraint::Predicate::kTextEquals:
+        return Self(TextEquals{
+          std::move(*predicate.mutable_text_equals()->mutable_value())});
+
+      case AttributeConstraint::Predicate::kTextNotEquals:
+        return Self(TextNotEquals{
+          std::move(*predicate.mutable_text_not_equals()->mutable_value())});
+
       case AttributeConstraint::Predicate::PREDICATE_NOT_SET:
         return Error("Unknown predicate type");
     }
@@ -113,9 +122,39 @@ private:
     bool apply(const Attribute&) const { return false; }
   };
 
-  // TODO(asekretenko): Introduce offer constraints for attribute equality
-  // (MESOS-10172) and regex match (MESOS-10173).
-  using Predicate = Variant<Nothing, Exists, NotExists>;
+  struct TextEquals
+  {
+    string value;
+
+    bool apply(const Nothing&) const { return false; }
+    bool apply(const string& str) const { return str == value; }
+    bool apply(const Attribute& attr) const
+    {
+      return attr.type() != Value::TEXT || attr.text().value() == value;
+    }
+  };
+
+  struct TextNotEquals
+  {
+    string value;
+
+    bool apply(const Nothing&) const { return true; }
+    bool apply(const string& str) const { return str != value; }
+    bool apply(const Attribute& attr) const
+    {
+      return attr.type() != Value::TEXT || attr.text().value() != value;
+    }
+  };
+
+  // TODO(asekretenko): Introduce offer constraints for regex match
+  // (MESOS-10173).
+
+  using Predicate = Variant<
+      Nothing,
+      Exists,
+      NotExists,
+      TextEquals,
+      TextNotEquals>;
 
   Predicate predicate;
 
@@ -130,7 +169,9 @@ private:
           UNREACHABLE();
         },
         [&](const Exists& p) { return p.apply(attribute); },
-        [&](const NotExists& p) { return p.apply(attribute); });
+        [&](const NotExists& p) { return p.apply(attribute); },
+        [&](const TextEquals& p) { return p.apply(attribute); },
+        [&](const TextNotEquals& p) { return p.apply(attribute); });
   }
 };
 
