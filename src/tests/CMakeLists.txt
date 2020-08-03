@@ -111,6 +111,7 @@ set(MESOS_TESTS_SRC
   master_load_tests.cpp
   master_maintenance_tests.cpp
   master_slave_reconciliation_tests.cpp
+  master/offer_constraints_filter_tests.cpp
   master/update_framework_tests.cpp
   metrics_tests.cpp
   operation_reconciliation_tests.cpp
