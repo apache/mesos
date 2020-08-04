@@ -36,6 +36,8 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
+#include "slave/containerizer/mesos/isolators/volume/csi/state.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -63,6 +65,21 @@ public:
       const ContainerID& containerId) override;
 
 private:
+  struct Mount
+  {
+    Volume::Source::CSIVolume csiVolume;
+    std::string target;
+    Volume::Mode volumeMode;
+  };
+
+  struct Info
+  {
+    Info (const hashset<CSIVolume>& _volumes)
+      : volumes(_volumes) {}
+
+    hashset<CSIVolume> volumes;
+  };
+
   VolumeCSIIsolatorProcess(
       const Flags& _flags,
       CSIServer* _csiServer,
@@ -72,11 +89,18 @@ private:
     csiServer(_csiServer),
     rootDir(_rootDir) {}
 
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const ContainerID& containerId,
+      const std::vector<Mount>& mounts,
+      const std::vector<process::Future<std::string>>& futures);
+
   const Flags flags;
   CSIServer* csiServer;
 
   // CSI volume information root directory.
   const std::string rootDir;
+
+  hashmap<ContainerID, process::Owned<Info>> infos;
 };
 
 } // namespace slave {

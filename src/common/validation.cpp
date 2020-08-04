@@ -255,6 +255,18 @@ Option<Error> validateVolume(const Volume& volume)
               "'source.secret' is not set for SECRET volume");
         }
         break;
+      case Volume::Source::CSI_VOLUME:
+        if (!volume.source().has_csi_volume()) {
+          return Error(
+              "'source.csi_volume' is not set for CSI volume");
+        }
+
+        if (!volume.source().csi_volume().has_static_provisioning()) {
+          return Error(
+              "'source.csi_volume.static_provisioning' "
+              "is not set for CSI volume");
+        }
+        break;
       default:
         return Error("'source.type' is unknown");
     }

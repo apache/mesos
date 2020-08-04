@@ -414,6 +414,8 @@ CXX_PROTOS +=								\
   slave/containerizer/mesos/isolators/docker/volume/state.pb.h		\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.cc		\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.h		\
+  slave/containerizer/mesos/isolators/volume/csi/state.pb.cc		\
+  slave/containerizer/mesos/isolators/volume/csi/state.pb.h		\
   slave/volume_gid_manager/state.pb.cc					\
   slave/volume_gid_manager/state.pb.h
 
@@ -1027,6 +1029,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
   slave/containerizer/mesos/provisioner/docker/message.proto		\
   slave/containerizer/mesos/isolators/docker/volume/state.proto		\
   slave/containerizer/mesos/isolators/network/cni/spec.proto		\
+  slave/containerizer/mesos/isolators/volume/csi/state.proto		\
   slave/volume_gid_manager/state.proto
 
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
@@ -1253,6 +1256,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/volume/sandbox_path.hpp		\
   slave/containerizer/mesos/isolators/volume/csi/paths.cpp		\
   slave/containerizer/mesos/isolators/volume/csi/paths.hpp		\
+  slave/containerizer/mesos/isolators/volume/csi/state.hpp		\
   slave/containerizer/mesos/isolators/windows/cpu.hpp			\
   slave/containerizer/mesos/isolators/windows/mem.hpp			\
   slave/containerizer/mesos/launch.cpp					\

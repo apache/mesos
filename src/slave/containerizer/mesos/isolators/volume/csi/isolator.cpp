@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
@@ -24,14 +25,23 @@
 
 #include <stout/os/realpath.hpp>
 
+#include "common/protobuf_utils.hpp"
+
+#include "linux/fs.hpp"
+#include "linux/ns.hpp"
+
+#include "slave/state.hpp"
+
 #include "slave/containerizer/mesos/isolators/volume/csi/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/volume/csi/paths.hpp"
 
 using std::string;
 using std::vector;
 
+using process::Failure;
 using process::Future;
 using process::Owned;
+using process::PID;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -41,6 +51,9 @@ using mesos::slave::Isolator;
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using AccessMode = Volume::Source::CSIVolume::VolumeCapability::AccessMode;
+
 
 Try<Isolator*> VolumeCSIIsolatorProcess::create(
     const Flags& flags,
@@ -99,7 +112,206 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  return None();
+  if (!containerConfig.has_container_info()) {
+    return None();
+  }
+
+  if (containerConfig.container_info().type() != ContainerInfo::MESOS) {
+    return Failure("Can only prepare CSI volumes for a MESOS container");
+  }
+
+  // The hashset is used to check if there are duplicated CSI volumes for the
+  // same container.
+  hashset<CSIVolume> volumeSet;
+
+  // Represents the CSI volume mounts that we want to do for the container.
+  vector<Mount> mounts;
+
+  foreach (const Volume& _volume, containerConfig.container_info().volumes()) {
+    if (!_volume.has_source() ||
+        !_volume.source().has_type() ||
+        _volume.source().type() != Volume::Source::CSI_VOLUME) {
+      continue;
+    }
+
+    CHECK(_volume.source().has_csi_volume());
+    CHECK(_volume.source().csi_volume().has_static_provisioning());
+
+    const Volume::Source::CSIVolume& csiVolume = _volume.source().csi_volume();
+    const string& pluginName = csiVolume.plugin_name();
+    const string& volumeId = csiVolume.static_provisioning().volume_id();
+    const AccessMode& accessMode =
+      csiVolume.static_provisioning().volume_capability().access_mode();
+
+    if (csiVolume.static_provisioning().readonly() &&
+        _volume.mode() == Volume::RW) {
+      return Failure(
+          "Cannot publish the volume '" + volumeId +
+          "' in read-only mode but use it in read-write mode");
+    }
+
+    if ((accessMode.mode() == AccessMode::SINGLE_NODE_READER_ONLY ||
+         accessMode.mode() == AccessMode::MULTI_NODE_READER_ONLY) &&
+        _volume.mode() == Volume::RW) {
+      return Failure(
+          "Cannot use the read-only volume '" +
+          volumeId + "' in read-write mode");
+    }
+
+    CSIVolume volume;
+    volume.set_plugin_name(pluginName);
+    volume.set_id(volumeId);
+
+    if (volumeSet.contains(volume)) {
+      return Failure(
+          "Found duplicate CSI volume with plugin '" +
+          pluginName + "' and volume ID '" + volumeId + "'");
+    }
+
+    // Determine the target of the mount.
+    string target;
+
+    // The logic to determine a volume mount target is identical to Linux
+    // filesystem isolator, because this isolator has a dependency on that
+    // isolator, and it assumes that if the container specifies a rootfs
+    // the sandbox is already bind mounted into the container.
+    if (path::is_absolute(_volume.container_path())) {
+      // To specify a CSI volume for a container, frameworks should be allowed
+      // to define the `container_path` either as an absolute path or a relative
+      // path. Please see Linux filesystem isolator for details.
+      if (containerConfig.has_rootfs()) {
+        target = path::join(
+            containerConfig.rootfs(),
+            _volume.container_path());
+
+        Try<Nothing> mkdir = os::mkdir(target);
+        if (mkdir.isError()) {
+          return Failure(
+              "Failed to create the target of the mount at '" +
+              target + "': " + mkdir.error());
+        }
+      } else {
+        target = _volume.container_path();
+
+        if (!os::exists(target)) {
+          return Failure("Absolute container path '" + target + "' "
+                         "does not exist");
+        }
+      }
+    } else {
+      if (containerConfig.has_rootfs()) {
+        target = path::join(containerConfig.rootfs(),
+                            flags.sandbox_directory,
+                            _volume.container_path());
+      } else {
+        target = path::join(containerConfig.directory(),
+                            _volume.container_path());
+      }
+
+      // NOTE: We cannot create the mount point at `target` if
+      // container has rootfs defined. The bind mount of the sandbox
+      // will hide what's inside `target`. So we should always create
+      // the mount point in `directory`.
+      string mountPoint = path::join(
+          containerConfig.directory(),
+          _volume.container_path());
+
+      Try<Nothing> mkdir = os::mkdir(mountPoint);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create the target of the mount at '" +
+            mountPoint + "': " + mkdir.error());
+      }
+    }
+
+    Mount mount;
+    mount.csiVolume = csiVolume;
+    mount.target = target;
+    mount.volumeMode = _volume.mode();
+
+    mounts.push_back(mount);
+    volumeSet.insert(volume);
+  }
+
+  if (volumeSet.empty()) {
+    return None();
+  }
+
+  // Create the `CSIVolumes` protobuf message to checkpoint.
+  CSIVolumes state;
+  foreach (const CSIVolume& volume, volumeSet) {
+    state.add_volumes()->CopyFrom(volume);
+  }
+
+  const string volumesPath = csi::paths::getVolumesPath(rootDir, containerId);
+  Try<Nothing> checkpoint = state::checkpoint(volumesPath, state);
+  if (checkpoint.isError()) {
+    return Failure(
+        "Failed to checkpoint CSI volumes at '" +
+        volumesPath + "': " + checkpoint.error());
+  }
+
+  VLOG(1) << "Successfully created checkpoint at '" << volumesPath << "'";
+
+  infos.put(containerId, Owned<Info>(new Info(volumeSet)));
+
+  // Invoke CSI server to publish the volumes.
+  vector<Future<string>> futures;
+  futures.reserve(mounts.size());
+  foreach (const Mount& mount, mounts) {
+    futures.push_back(csiServer->publishVolume(mount.csiVolume));
+  }
+
+  return await(futures)
+    .then(defer(
+        PID<VolumeCSIIsolatorProcess>(this),
+        &VolumeCSIIsolatorProcess::_prepare,
+        containerId,
+        mounts,
+        lambda::_1));
+}
+
+
+Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
+    const ContainerID& containerId,
+    const vector<Mount>& mounts,
+    const vector<Future<string>>& futures)
+{
+
+  ContainerLaunchInfo launchInfo;
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
+
+  vector<string> messages;
+  vector<string> sources;
+  foreach (const Future<string>& future, futures) {
+    if (!future.isReady()) {
+      messages.push_back(future.isFailed() ? future.failure() : "discarded");
+      continue;
+    }
+
+    sources.push_back(strings::trim(future.get()));
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  CHECK_EQ(sources.size(), mounts.size());
+
+  for (size_t i = 0; i < sources.size(); i++) {
+    const string& source = sources[i];
+    const Mount& mount = mounts[i];
+
+    LOG(INFO) << "Mounting CSI volume mount point '" << source
+              << "' to '" << mount.target << "' for container " << containerId;
+
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        source,
+        mount.target,
+        MS_BIND | MS_REC | (mount.volumeMode == Volume::RO ? MS_RDONLY : 0));
+  }
+
+  return launchInfo;
 }
 
 

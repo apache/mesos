@@ -3044,10 +3044,10 @@ message Volume {
   // TODO(gyliu513): Make this as `optional` after deprecation cycle of 1.0.
   required Mode mode = 3;
 
-  // Path pointing to a directory or file in the container. If the
-  // path is a relative path, it is relative to the container work
-  // directory. If the path is an absolute path, that path must
-  // already exist.
+  // Path pointing to a directory or file in the container. If the path
+  // is a relative path, it is relative to the container work directory.
+  // If the path is an absolute path and the container does not have its
+  // own rootfs, that path must already exist in the agent host rootfs.
   required string container_path = 1;
 
   // The following specifies the source of this volume. At most one of
