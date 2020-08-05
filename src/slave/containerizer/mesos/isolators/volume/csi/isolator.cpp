@@ -318,6 +318,84 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
 Future<Nothing> VolumeCSIIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  if (!infos.contains(containerId)) {
+    VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
+    return Nothing();
+  }
+
+  hashmap<CSIVolume, int> references;
+  foreachvalue (const Owned<Info>& info, infos) {
+    foreach (const CSIVolume& volume, info->volumes) {
+      if (!references.contains(volume)) {
+        references[volume] = 1;
+      } else {
+        references[volume]++;
+      }
+    }
+  }
+
+  vector<Future<Nothing>> futures;
+
+  foreach (const CSIVolume& volume, infos[containerId]->volumes) {
+    if (references.contains(volume) && references[volume] > 1) {
+      VLOG(1) << "Cannot unpublish the volume with plugin '"
+              << volume.plugin_name() << "' and ID '" << volume.id()
+              << "' for container " << containerId
+              << " since its reference count is " << references[volume];
+      continue;
+    }
+
+    LOG(INFO) << "Unpublishing the volume with plugin '"
+              << volume.plugin_name() << "' and ID '" << volume.id()
+              << "' for container " << containerId;
+
+    // Invoke CSI server to unpublish the volumes.
+    futures.push_back(
+        csiServer->unpublishVolume(volume.plugin_name(), volume.id()));
+  }
+
+  // Erase the `Info` struct of this container before unpublishing the volumes.
+  // This is to ensure the reference count of the volume will not be wrongly
+  // increased if unpublishing volumes fail, otherwise next time when another
+  // container using the same volume is destroyed, we would NOT unpublish the
+  // volume since its reference count would be larger than 1.
+  infos.erase(containerId);
+
+  return await(futures)
+    .then(defer(
+        PID<VolumeCSIIsolatorProcess>(this),
+        &VolumeCSIIsolatorProcess::_cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> VolumeCSIIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const vector<Future<Nothing>>& futures)
+{
+  vector<string> messages;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      messages.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  const string containerDir = csi::paths::getContainerDir(rootDir, containerId);
+  Try<Nothing> rmdir = os::rmdir(containerDir);
+  if (rmdir.isError()) {
+    return Failure(
+        "Failed to remove the container directory at '" +
+        containerDir + "': " + rmdir.error());
+  }
+
+  LOG(INFO) << "Removed the container directory at '" << containerDir
+            << "' for container " << containerId;
+
   return Nothing();
 }
 

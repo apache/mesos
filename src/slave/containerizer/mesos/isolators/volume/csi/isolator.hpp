@@ -94,6 +94,10 @@ private:
       const std::vector<Mount>& mounts,
       const std::vector<process::Future<std::string>>& futures);
 
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const std::vector<process::Future<Nothing>>& futures);
+
   const Flags flags;
   CSIServer* csiServer;
 
