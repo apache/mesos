@@ -98,6 +98,8 @@ private:
       const ContainerID& containerId,
       const std::vector<process::Future<Nothing>>& futures);
 
+  Try<Nothing> recoverContainer(const ContainerID& containerId);
+
   const Flags flags;
   CSIServer* csiServer;
 
