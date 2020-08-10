@@ -33,6 +33,7 @@
 
 #include "hook/manager.hpp"
 
+#include "slave/csi_server.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
@@ -220,7 +221,8 @@ Try<Containerizer*> Containerizer::create(
     GarbageCollector* gc,
     SecretResolver* secretResolver,
     VolumeGidManager* volumeGidManager,
-    PendingFutureTracker* futureTracker)
+    PendingFutureTracker* futureTracker,
+    CSIServer* csiServer)
 {
   // Get the set of containerizer types.
   const vector<string> _types = strings::split(flags.containerizers, ",");
@@ -297,7 +299,8 @@ Try<Containerizer*> Containerizer::create(
           secretResolver,
           nvidia,
           volumeGidManager,
-          futureTracker);
+          futureTracker,
+          csiServer);
 
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +

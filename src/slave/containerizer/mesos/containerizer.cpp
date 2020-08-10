@@ -61,6 +61,7 @@
 
 #include "module/manager.hpp"
 
+#include "slave/csi_server.hpp"
 #include "slave/gc.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
@@ -114,6 +115,7 @@
 #include "slave/containerizer/mesos/isolators/volume/host_path.hpp"
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
+#include "slave/containerizer/mesos/isolators/volume/csi/isolator.hpp"
 #endif // __linux__
 
 #if ENABLE_SECCOMP_ISOLATOR
@@ -180,7 +182,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     SecretResolver* secretResolver,
     const Option<NvidiaComponents>& nvidia,
     VolumeGidManager* volumeGidManager,
-    PendingFutureTracker* futureTracker)
+    PendingFutureTracker* futureTracker,
+    CSIServer* csiServer)
 {
   Try<hashset<string>> isolations = [&flags]() -> Try<hashset<string>> {
     const vector<string> tokens(strings::tokenize(flags.isolation, ","));
@@ -466,6 +469,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"volume/secret",
       [secretResolver] (const Flags& flags) -> Try<Isolator*> {
         return VolumeSecretIsolatorProcess::create(flags, secretResolver);
+      }},
+
+    {"volume/csi",
+      [csiServer] (const Flags& flags) -> Try<Isolator*> {
+        return VolumeCSIIsolatorProcess::create(flags, csiServer);
       }},
 #endif // __linux__
 

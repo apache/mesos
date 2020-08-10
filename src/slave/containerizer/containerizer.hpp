@@ -38,6 +38,7 @@
 
 #include "common/future_tracker.hpp"
 
+#include "slave/csi_server.hpp"
 #include "slave/gc.hpp"
 
 #include "slave/volume_gid_manager/volume_gid_manager.hpp"
@@ -78,7 +79,8 @@ public:
       GarbageCollector* gc,
       SecretResolver* secretResolver = nullptr,
       VolumeGidManager* volumeGidManager = nullptr,
-      PendingFutureTracker* futureTracker = nullptr);
+      PendingFutureTracker* futureTracker = nullptr,
+      CSIServer* csiServer = nullptr);
 
   // Determine slave resources from flags, probing the system or
   // querying a delegate.

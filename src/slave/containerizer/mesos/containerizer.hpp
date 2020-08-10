@@ -36,6 +36,7 @@
 #include <stout/multihashmap.hpp>
 #include <stout/os/int_fd.hpp>
 
+#include "slave/csi_server.hpp"
 #include "slave/gc.hpp"
 #include "slave/state.hpp"
 
@@ -75,7 +76,8 @@ public:
       SecretResolver* secretResolver = nullptr,
       const Option<NvidiaComponents>& nvidia = None(),
       VolumeGidManager* volumeGidManager = nullptr,
-      PendingFutureTracker* futureTracker = nullptr);
+      PendingFutureTracker* futureTracker = nullptr,
+      CSIServer* csiServer = nullptr);
 
   static Try<MesosContainerizer*> create(
       const Flags& flags,
