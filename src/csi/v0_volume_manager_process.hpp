@@ -24,6 +24,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
@@ -62,7 +64,8 @@ public:
       const hashset<Service> _services,
       const process::grpc::client::Runtime& _runtime,
       ServiceManager* _serviceManager,
-      Metrics* _metrics);
+      Metrics* _metrics,
+      SecretResolver* _secretResolver);
 
   process::Future<Nothing> recover();
 
@@ -173,6 +176,13 @@ private:
   // from memory and from disk.
   void removeVolume(const std::string& volumeId);
 
+  // If the volume manager was initialized with a non-null secret resolver, this
+  // helper function will resolve any secrets in the provided map.
+  // Returns a map containing the resolved secrets.
+  process::Future<google::protobuf::Map<std::string, std::string>>
+    resolveSecrets(
+        const google::protobuf::Map<std::string, Secret>& secrets);
+
   const std::string rootDir;
   const CSIPluginInfo info;
   const hashset<Service> services;
@@ -180,6 +190,7 @@ private:
   process::grpc::client::Runtime runtime;
   ServiceManager* serviceManager;
   Metrics* metrics;
+  SecretResolver* secretResolver;
 
   Option<std::string> bootId;
   Option<PluginCapabilities> pluginCapabilities;

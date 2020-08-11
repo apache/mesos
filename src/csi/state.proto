@@ -78,4 +78,10 @@ message VolumeState {
 
   // Indicates that the volume must be mounted read-only.
   bool readonly = 9;
+
+  // Secrets to be included in `NodeStageVolumeRequest`.
+  map<string, Secret> node_stage_secrets = 10;
+
+  // Secrets to be included in `NodePublishVolumeRequest`.
+  map<string, Secret> node_publish_secrets = 11;
 }

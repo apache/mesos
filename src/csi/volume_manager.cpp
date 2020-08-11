@@ -21,6 +21,8 @@
 #include <mesos/csi/v0.hpp>
 #include <mesos/csi/v1.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include "csi/service_manager.hpp"
 #include "csi/v0_volume_manager.hpp"
 #include "csi/v1_volume_manager.hpp"
@@ -43,7 +45,8 @@ Try<Owned<VolumeManager>> VolumeManager::create(
     const string& apiVersion,
     const Runtime& runtime,
     ServiceManager* serviceManager,
-    Metrics* metrics)
+    Metrics* metrics,
+    SecretResolver* secretResolver)
 {
   if (services.empty()) {
     return Error(
@@ -53,10 +56,22 @@ Try<Owned<VolumeManager>> VolumeManager::create(
 
   if (apiVersion == v0::API_VERSION) {
     return Try<Owned<VolumeManager>>(new v0::VolumeManager(
-        rootDir, info, services, runtime, serviceManager, metrics));
+        rootDir,
+        info,
+        services,
+        runtime,
+        serviceManager,
+        metrics,
+        secretResolver));
   } else if (apiVersion == v1::API_VERSION) {
     return Try<Owned<VolumeManager>>(new v1::VolumeManager(
-        rootDir, info, services, runtime, serviceManager, metrics));
+        rootDir,
+        info,
+        services,
+        runtime,
+        serviceManager,
+        metrics,
+        secretResolver));
   }
 
   return Error("Unsupported CSI API version: " + apiVersion);

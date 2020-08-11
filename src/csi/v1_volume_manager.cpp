@@ -21,6 +21,8 @@
 #include <functional>
 #include <list>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/after.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -82,14 +84,16 @@ VolumeManagerProcess::VolumeManagerProcess(
     const hashset<Service> _services,
     const Runtime& _runtime,
     ServiceManager* _serviceManager,
-    Metrics* _metrics)
+    Metrics* _metrics,
+    SecretResolver* _secretResolver)
   : ProcessBase(process::ID::generate("csi-v1-volume-manager")),
     rootDir(_rootDir),
     info(_info),
     services(_services),
     runtime(_runtime),
     serviceManager(_serviceManager),
-    metrics(_metrics)
+    metrics(_metrics),
+    secretResolver(_secretResolver)
 {
   // This should have been validated in `VolumeManager::create`.
   CHECK(!services.empty())
@@ -987,7 +991,27 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
     request.set_staging_target_path(stagingPath);
   }
 
-  return call(NODE_SERVICE, &Client::nodePublishVolume, std::move(request))
+  Future<NodePublishVolumeResponse> rpcResult;
+
+  if (!volumeState.node_publish_secrets().empty()) {
+    rpcResult = resolveSecrets(volumeState.node_publish_secrets())
+      .then(process::defer(
+          self(),
+          [this, request](const Map<string, string>& secrets) {
+            NodePublishVolumeRequest request_(request);
+            *request_.mutable_secrets() = secrets;
+
+            return call(
+                NODE_SERVICE,
+                &Client::nodePublishVolume,
+                std::move(request_));
+          }));
+  } else {
+    rpcResult =
+      call(NODE_SERVICE, &Client::nodePublishVolume, std::move(request));
+  }
+
+  return rpcResult
     .then(process::defer(self(), [this, volumeId, targetPath]()
         -> Future<Nothing> {
       if (!os::exists(targetPath)) {
@@ -1073,7 +1097,25 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
     evolve(volumeState.volume_capability());
   *request.mutable_volume_context() = volumeState.volume_context();
 
-  return call(NODE_SERVICE, &Client::nodeStageVolume, std::move(request))
+  Future<NodeStageVolumeResponse> rpcResult;
+
+  if (!volumeState.node_stage_secrets().empty()) {
+    rpcResult = resolveSecrets(volumeState.node_stage_secrets())
+      .then([=](const Map<string, string>& secrets) {
+        NodeStageVolumeRequest request_(request);
+        *request_.mutable_secrets() = secrets;
+
+        return call(
+            NODE_SERVICE,
+            &Client::nodeStageVolume,
+            std::move(request_));
+      });
+  } else {
+    rpcResult =
+      call(NODE_SERVICE, &Client::nodeStageVolume, std::move(request));
+  }
+
+  return rpcResult
     .then(process::defer(self(), [this, volumeId] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
@@ -1270,20 +1312,62 @@ void VolumeManagerProcess::removeVolume(const string& volumeId)
 }
 
 
+Future<Map<string, string>> VolumeManagerProcess::resolveSecrets(
+    const Map<string, Secret>& secrets)
+{
+  if (!secretResolver) {
+    return Failure(
+        "CSI volume included secrets but the agent was not initialized with "
+        "a secret resolver");
+  }
+
+  // This `futures` is used below with `process::collect()` to synchronize the
+  // continuation. Within the continuation itself, we need to have the
+  // key:value mapping of the secrets, so we use `resolvedSecrets` instead.
+  vector<Future<Secret::Value>> futures;
+  hashmap<string, Future<Secret::Value>> resolvedSecrets;
+
+  for (auto it = secrets.begin(); it != secrets.end(); ++it) {
+    Future<Secret::Value> pendingSecret = secretResolver->resolve(it->second);
+
+    futures.push_back(pendingSecret);
+    resolvedSecrets.insert({it->first, pendingSecret});
+  }
+
+  return process::collect(futures)
+    .then([=]() {
+      Map<string, string> result;
+
+      foreachpair (
+          const string& key,
+          const Future<Secret::Value>& secret,
+          resolvedSecrets) {
+        CHECK(secret.isReady());
+
+        result.insert({key, secret->data()});
+      }
+
+      return result;
+    });
+}
+
+
 VolumeManager::VolumeManager(
     const string& rootDir,
     const CSIPluginInfo& info,
     const hashset<Service>& services,
     const Runtime& runtime,
     ServiceManager* serviceManager,
-    Metrics* metrics)
+    Metrics* metrics,
+    SecretResolver* secretResolver)
   : process(new VolumeManagerProcess(
         rootDir,
         info,
         services,
         runtime,
         serviceManager,
-        metrics))
+        metrics,
+        secretResolver))
 {
   process::spawn(CHECK_NOTNULL(process.get()));
   recovered = process::dispatch(process.get(), &VolumeManagerProcess::recover);

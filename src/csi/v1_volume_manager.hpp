@@ -24,6 +24,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
@@ -57,7 +59,8 @@ public:
       const hashset<Service>& services,
       const process::grpc::client::Runtime& runtime,
       ServiceManager* serviceManager,
-      Metrics* metrics);
+      Metrics* metrics,
+      SecretResolver* secretResolver);
 
   // Since this class contains `Owned` members which should not but can be
   // copied, explicitly make this class non-copyable.

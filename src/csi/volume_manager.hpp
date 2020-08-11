@@ -24,6 +24,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
@@ -62,7 +64,8 @@ public:
       const std::string& apiVersion,
       const process::grpc::client::Runtime& runtime,
       ServiceManager* serviceManager,
-      Metrics* metrics);
+      Metrics* metrics,
+      SecretResolver* secretResolver = nullptr);
 
   virtual ~VolumeManager() = default;
 
