@@ -23,6 +23,8 @@
 
 #include <mesos/authentication/secret_generator.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -52,7 +54,8 @@ public:
   static Try<process::Owned<CSIServer>> create(
       const Flags& flags,
       const process::http::URL& agentUrl,
-      SecretGenerator* secretGenerator);
+      SecretGenerator* secretGenerator,
+      SecretResolver* secretResolver);
 
   // Starts the CSI server. Any `publishVolume()` or `unpublishVolume()` calls
   // which were made previously will be executed after this method is called.
@@ -78,9 +81,12 @@ private:
       const process::http::URL& agentUrl,
       const std::string& csiRootDir,
       SecretGenerator* secretGenerator,
+      SecretResolver* secretResolver,
       const hashmap<std::string, CSIPluginInfo>& csiPluginConfigs);
 
   process::Owned<CSIServerProcess> process;
+
+  process::Promise<Nothing> started;
 };
 
 } // namespace slave {

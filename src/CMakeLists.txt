@@ -150,6 +150,7 @@ set(AGENT_SRC
   slave/constants.cpp
   slave/container_daemon.cpp
   slave/container_logger.cpp
+  slave/csi_server.cpp
   slave/flags.cpp
   slave/gc.cpp
   slave/http.cpp

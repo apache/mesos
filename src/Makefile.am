@@ -1208,6 +1208,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/container_daemon.hpp						\
   slave/container_daemon_process.hpp					\
   slave/container_logger.cpp						\
+  slave/csi_server.cpp							\
+  slave/csi_server.hpp							\
   slave/container_loggers/sandbox.cpp					\
   slave/container_loggers/sandbox.hpp					\
   slave/containerizer/composing.cpp					\
