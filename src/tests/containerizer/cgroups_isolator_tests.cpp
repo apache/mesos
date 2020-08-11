@@ -2947,7 +2947,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_AgentRecoveryWithNewCgroupSubsystems)
 
 // This test verifies the container-specific cgroups are correctly mounted
 // inside the nested container.
-TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
+TEST_F(CgroupsIsolatorTest,
+       ROOT_CGROUPS_INTERNET_NestedContainerSpecificCgroupsMount)
 {
   // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
@@ -3057,7 +3058,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
 
 // This test verifies the container-specific cgroups are correctly mounted for
 // the command task.
-TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
+TEST_F(CgroupsIsolatorTest,
+       ROOT_CGROUPS_INTERNET_CommandTaskSpecificCgroupsMount)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
