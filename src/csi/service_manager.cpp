@@ -128,6 +128,7 @@ class ServiceManagerProcess : public Process<ServiceManagerProcess>
 {
 public:
   ServiceManagerProcess(
+      const SlaveID& _agentId,
       const http::URL& _agentUrl,
       const string& _rootDir,
       const CSIPluginInfo& _info,
@@ -174,6 +175,7 @@ private:
   // a new container.
   Future<string> getEndpoint(const ContainerID& containerId);
 
+  const SlaveID agentId;
   const http::URL agentUrl;
   const string rootDir;
   const CSIPluginInfo info;
@@ -201,6 +203,7 @@ private:
 
 
 ServiceManagerProcess::ServiceManagerProcess(
+    const SlaveID& _agentId,
     const http::URL& _agentUrl,
     const string& _rootDir,
     const CSIPluginInfo& _info,
@@ -210,6 +213,7 @@ ServiceManagerProcess::ServiceManagerProcess(
     const Runtime& _runtime,
     Metrics* _metrics)
   : ProcessBase(process::ID::generate("csi-service-manager")),
+    agentId(_agentId),
     agentUrl(_agentUrl),
     rootDir(_rootDir),
     info(_info),
@@ -252,6 +256,7 @@ ServiceManagerProcess::ServiceManagerProcess(
     const Runtime& _runtime,
     Metrics* _metrics)
   : ProcessBase(process::ID::generate("csi-service-manager")),
+    agentId(),
     agentUrl(),
     rootDir(),
     info(_info),
@@ -723,8 +728,23 @@ Future<string> ServiceManagerProcess::getEndpoint(
   const string endpoint = "unix://" + endpointPath.get();
   Environment::Variable* endpoint_ =
     commandInfo.mutable_environment()->add_variables();
+
   endpoint_->set_name("CSI_ENDPOINT");
   endpoint_->set_value(endpoint);
+
+  // For some CSI Plugins (like NFS CSI plugin), their node service need
+  // a node ID specified by container orchestrator, so here we expose agent
+  // ID to the plugins, they can use that as the node ID.
+  if (config->services().end() != std::find(
+          config->services().begin(),
+          config->services().end(),
+          NODE_SERVICE)) {
+    Environment::Variable* nodeId =
+      commandInfo.mutable_environment()->add_variables();
+
+    nodeId->set_name("MESOS_AGENT_ID");
+    nodeId->set_value(stringify(agentId));
+  }
 
   ContainerInfo containerInfo;
 
@@ -839,6 +859,7 @@ Future<string> ServiceManagerProcess::getEndpoint(
 
 
 ServiceManager::ServiceManager(
+    const SlaveID& agentId,
     const http::URL& agentUrl,
     const string& rootDir,
     const CSIPluginInfo& info,
@@ -848,6 +869,7 @@ ServiceManager::ServiceManager(
     const Runtime& runtime,
     Metrics* metrics)
   : process(new ServiceManagerProcess(
+        agentId,
         agentUrl,
         rootDir,
         info,

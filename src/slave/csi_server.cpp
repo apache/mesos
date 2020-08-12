@@ -125,6 +125,7 @@ private:
   SecretResolver* secretResolver;
   Option<string> authToken;
   hashmap<string, CSIPluginInfo> pluginConfigs;
+  Option<SlaveID> agentId;
 };
 
 
@@ -172,6 +173,7 @@ Future<Nothing> CSIServerProcess::start()
 
     if (info.containers_size() > 0) {
       plugins.at(name).serviceManager.reset(new ServiceManager(
+          agentId.get(),
           agentUrl,
           rootDir,
           info,

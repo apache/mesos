@@ -567,6 +567,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
   CHECK_EQ(RECOVERING, state);
 
   serviceManager.reset(new ServiceManager(
+      slaveId,
       extractParentEndpoint(url),
       slave::paths::getCsiRootDir(workDir),
       info.storage().plugin(),

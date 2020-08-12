@@ -54,6 +54,7 @@ public:
   // This is for the managed CSI plugins which will be
   // launched as standalone containers.
   ServiceManager(
+      const SlaveID& agentId,
       const process::http::URL& agentUrl,
       const std::string& rootDir,
       const CSIPluginInfo& info,
