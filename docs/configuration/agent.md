@@ -1548,7 +1548,12 @@ Example config files in this directory:
 }</code></pre>
 <pre><code>{
   "type": "org.apache.mesos.csi.unmanaged-plugin",
-  "node_service_endpoint": "/var/lib/unmanaged-plugin/csi.sock",
+  "endpoints": [
+    {
+      "csi_service": "NODE_SERVICE",
+      "endpoint": "/var/lib/unmanaged-plugin/csi.sock"
+    }
+  ],
   "target_path_root": "/mnt/unmanaged-plugin"
 }</code></pre>
   </td>

@@ -150,7 +150,12 @@ mesos::internal::slave::Flags::Flags()
       "\n"
       "{\n"
       "  \"type\": \"org.apache.mesos.csi.unmanaged-plugin\",\n"
-      "  \"node_service_endpoint\": \"/var/lib/unmanaged-plugin/csi.sock\",\n"
+      "  \"endpoints\": [\n"
+      "    {\n"
+      "      \"csi_service\": \"NODE_SERVICE\",\n"
+      "      \"endpoint\": \"/var/lib/unmanaged-plugin/csi.sock\"\n"
+      "    }\n"
+      "  ],\n"
       "  \"target_path_root\": \"/mnt/unmanaged-plugin\"\n"
       "}");
 
