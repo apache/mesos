@@ -128,6 +128,137 @@ TEST(OfferConstraintsFilter, NamedAttributeNotExists)
 }
 
 
+// Tests a single TextEquals constraint on a named attribute.
+TEST(OfferConstraintsFilter, NamedAttributeTextEquals)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_equals": {"value": "baz"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  const Try<OfferConstraintsFilter> filter =
+    OfferConstraintsFilter::create(std::move(*constraints));
+
+  ASSERT_SOME(filter);
+
+  // Attribute exists, is a string and equals to the value in the constraint.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:baz")));
+
+  // Attribute is not a string.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:123")));
+
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:[1-17]")));
+
+  // Attribute has a wrong string value.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:zab")));
+
+  // Attribute does not exist.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("foo:baz")));
+}
+
+
+// Tests a single TextNotEquals constraint on a named attribute.
+TEST(OfferConstraintsFilter, NamedAttributeTextNotEquals)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_not_equals": {"value": "baz"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  const Try<OfferConstraintsFilter> filter =
+    OfferConstraintsFilter::create(std::move(*constraints));
+
+  ASSERT_SOME(filter);
+
+  // Attribute exists, is a string and equals to the value in the constraint.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:baz")));
+
+  // Attribute is not a string.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:123")));
+
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:[1-17]")));
+
+  // Attribute has a different string value.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:zab")));
+
+  // Attribute does not exist.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("foo:baz")));
+}
+
+
+// Tests that when an attribute has several values, the constraint's predicate
+// is evaluated against the first one.
+TEST(OfferConstraintsFilter, TwoAttributesWithTheSameName)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_equals": {"value": "baz"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  const Try<OfferConstraintsFilter> filter =
+    OfferConstraintsFilter::create(std::move(*constraints));
+
+  ASSERT_SOME(filter);
+
+  // The selected attribute has a suitable value.
+  EXPECT_FALSE(filter->isAgentExcluded(
+      "roleA", slaveInfoWithAttributes("bar:baz;bar:foo")));
+
+  EXPECT_FALSE(filter->isAgentExcluded(
+      "roleA", slaveInfoWithAttributes("bar:123;bar:foo")));
+
+  // The selected attribute has an unsuitable value.
+  EXPECT_TRUE(filter->isAgentExcluded(
+      "roleA", slaveInfoWithAttributes("bar:foo;bar:baz")));
+
+  EXPECT_TRUE(filter->isAgentExcluded(
+      "roleA", slaveInfoWithAttributes("bar:foo;bar:123")));
+}
+
+
 // Tests a single group of two constraints.
 TEST(OfferConstraintsFilter, TwoConstraintsInGroup)
 {
