@@ -263,6 +263,192 @@ TEST(OfferConstraintsFilter, TwoAttributesWithTheSameName)
 }
 
 
+// Tests a single TextMatches constraint on a named attribute.
+TEST(OfferConstraintsFilter, NamedAttributeTextMatches)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_matches": {"regex": "[a-d]+"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  const Try<OfferConstraintsFilter> filter = createFilter(*constraints);
+
+  ASSERT_SOME(filter);
+
+  // Attribute exists, is a text and matches the regex.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:abcd")));
+
+  // If an attribute is not a text, the constraint is a pass-through.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:123")));
+
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:[1-17]")));
+
+  // Attribute is a text which does not match.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:bcde")));
+
+  // Attribute does not exist.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("foo:abcd")));
+}
+
+
+// Tests a single TextNotMatches constraint on a named attribute.
+TEST(OfferConstraintsFilter, NamedAttributeTextNotMatches)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_not_matches": {"regex": "[a-d]+"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  const Try<OfferConstraintsFilter> filter = createFilter(*constraints);
+
+  ASSERT_SOME(filter);
+
+  // Attribute exists, is a text and matches the regex.
+  EXPECT_TRUE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:abcd")));
+
+  // If an attribute is not a text, the constraint is a pass-through.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:123")));
+
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:[1-17]")));
+
+  // Attribute is a text which does not match.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("bar:bcde")));
+
+  // Attribute does not exist.
+  EXPECT_FALSE(
+      filter->isAgentExcluded("roleA", slaveInfoWithAttributes("foo:abcd")));
+}
+
+
+// Tests an invalid TextMatches constraint.
+TEST(OfferConstraintsFilter, InvalidTextMatches)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_matches": {"regex": "[a-d"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  ASSERT_ERROR(createFilter(*constraints));
+}
+
+
+// Tests an invalid TextNotMatches constraint.
+TEST(OfferConstraintsFilter, InvalidTextNotMatches)
+{
+  Try<OfferConstraints> constraints = OfferConstraintsFromJSON(R"~(
+    {
+      "role_constraints": {
+        "roleA": {
+          "groups": [{
+            "attribute_constraints": [{
+              "selector": {"attribute_name": "bar"},
+              "predicate": {"text_not_matches": {"regex": "[a-d"}}
+            }]
+          }]
+        }
+      }
+    })~");
+
+  ASSERT_SOME(constraints);
+
+  ASSERT_ERROR(createFilter(*constraints));
+}
+
+
+// Tests that the constraints cannot specify a regex which will result in a too
+// complex RE2 regex program.
+TEST(OfferConstraintsFilter, RegexTooComplex)
+{
+  auto regexConstraints = [](const string& regex) {
+    return OfferConstraintsFromJSON(
+        R"~(
+      {
+        "role_constraints": {
+          "roleA": {
+            "groups": [{
+              "attribute_constraints": [{
+                "selector": {"attribute_name": "bar"},
+                "predicate": {"text_not_matches": {"regex": ")~" +
+        regex + R"~("}}
+              }]
+            }]
+          }
+        }
+      })~");
+  };
+
+  {
+    Try<OfferConstraints> good = regexConstraints("(a+){10}");
+    ASSERT_SOME(good);
+    ASSERT_SOME(createFilter(*good));
+  }
+
+  {
+    // This regexp can be compiled (fits into a memory limit) but results in
+    // a too large program.
+    Try<OfferConstraints> tooComplex = regexConstraints("(a+){50}");
+    ASSERT_SOME(tooComplex);
+
+    Try<OfferConstraintsFilter> filter = createFilter(*tooComplex);
+    ASSERT_ERROR(filter);
+    ASSERT_TRUE(strings::contains(filter.error(), "too complex"));
+  }
+
+  {
+    // This regexp does not even fit into a memory limit.
+    Try<OfferConstraints> tooLarge = regexConstraints("(a+){500}");
+    ASSERT_SOME(tooLarge);
+
+    Try<OfferConstraintsFilter> filter = createFilter(*tooLarge);
+    ASSERT_ERROR(filter);
+    ASSERT_TRUE(strings::contains(
+        filter.error(), "pattern too large - compile failed"));
+  }
+}
+
+
 // Tests a single group of two constraints.
 TEST(OfferConstraintsFilter, TwoConstraintsInGroup)
 {
