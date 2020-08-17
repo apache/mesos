@@ -71,6 +71,7 @@ PIP = pip-$(PIP_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 RAPIDJSON = rapidjson-$(RAPIDJSON_VERSION)
+RE2 = re2-$(RE2_VERSION)
 SETUPTOOLS = setuptools-$(SETUPTOOLS_VERSION)
 WHEEL = wheel-$(WHEEL_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
@@ -97,6 +98,7 @@ EXTRA_DIST =			\
   $(PROTOBUF).tar.gz		\
   $(PICOJSON).tar.gz		\
   $(RAPIDJSON).tar.gz		\
+  $(RE2).tar.gz			\
   $(SETUPTOOLS).tar.gz		\
   $(WHEEL).tar.gz		\
   $(ZOOKEEPER).tar.gz
@@ -167,6 +169,7 @@ CLEAN_EXTRACTED =		\
   $(PICOJSON)			\
   $(PROTOBUF)			\
   $(RAPIDJSON)			\
+  $(RE2)			\
   $(SETUPTOOLS)			\
   $(WHEEL)			\
   $(ZOOKEEPER)
@@ -619,6 +622,19 @@ $(LEVELDB)/out-static/libleveldb.a: $(LEVELDB)-stamp
 ALL_LOCAL += $(LEVELDB)/out-static/libleveldb.a
 endif
 
+if WITH_BUNDLED_RE2
+LIB_RE2 = $(RE2)/obj/libre2.a
+
+$(LIB_RE2): $(RE2)-build-stamp
+
+$(RE2)-build-stamp: $(RE2)-stamp
+	cd $(RE2) && $(MAKE) $(AM_MAKEFLAGS) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS) -fPIC"
+	touch $@
+
+ALL_LOCAL += $(LIB_RE2)
+endif
+
+
 if WITH_BUNDLED_ZOOKEEPER
 $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
@@ -696,6 +712,10 @@ if WITH_BUNDLED_RAPIDJSON
 	@test -d $(INSTALLDIR)/include/rapidjson || \
 	  rm -rf $(INSTALLDIR)/include/rapidjson
 	cp -fpR $(RAPIDJSON)/include/rapidjson $(INSTALLDIR)/include/
+endif
+if WITH_BUNDLED_RE2
+	cd $(RE2) && \
+	  $(MAKE) $(AM_MAKEFLAGS) DESTDIR=$(INSTALLDIR) install
 endif
 if WITH_BUNDLED_ZOOKEEPER
 	cd $(ZOOKEEPER)/src/c && \

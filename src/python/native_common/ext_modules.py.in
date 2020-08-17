@@ -115,6 +115,8 @@ def _create_module(module_name):
     gperftools = os.path.join('3rdparty', 'gperftools-2.5')
     protobuf = os.path.join('3rdparty', 'protobuf-3.5.0')
 
+    re2 = os.path.join('3rdparty', 're2-2020-07-06')
+
     # Build the list of source files. Note that each source must be
     # relative to our current directory (where this script lives).
     SOURCES = [
@@ -167,6 +169,13 @@ def _create_module(module_name):
         "@WITH_BUNDLED_PROTOBUF_FALSE@",
         os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
         '-lprotobuf'
+    )
+
+    EXTRA_OBJECTS += _cond_extra_object(
+        "@WITH_BUNDLED_RE2_TRUE@",
+        "@WITH_BUNDLED_RE2_FALSE@",
+        os.path.join(abs_top_builddir, re2, 'obj', 'libre2.a'),
+        '-lre2'
     )
 
     if '@ENABLE_SECCOMP_ISOLATOR_TRUE@' == '':

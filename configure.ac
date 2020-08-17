@@ -528,6 +528,13 @@ AC_ARG_WITH([rapidjson],
                            location prefixed by the given path]),
             [without_bundled_rapidjson=yes], [])
 
+AC_ARG_WITH([re2],
+            AS_HELP_STRING([--with-re2@<:@=DIR@:>@],
+                           [excludes building and using the bundled re2
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_re2=yes], [])
+
 AC_ARG_WITH([protobuf],
             AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
                            [excludes building and using the bundled protobuf
@@ -2018,6 +2025,49 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_RAPIDJSON], [test "x$with_bundled_rapidjson" = "xyes"])
+
+# Check if re2 prefix path was supplied and if so, add it to CPPFLAGS
+# while extending it by /include and to LDFLAGS while extending it by
+# /lib.
+if test -n "`echo $with_re2`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_re2}/include"
+  LDFLAGS="$LDFLAGS -L${with_re2}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled re2, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_re2" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([re2/re2.h],
+                   [AC_LINK_IFELSE(
+                        [AC_LANG_PROGRAM([#include <re2/re2.h>], [])],
+                        [TEST_LIBS="$TEST_LIBS -lre2"] [found_re2=yes],
+                        [AC_MSG_WARN([re2 is not installed.])])])
+
+  if test "x$found_re2" = "xyes"; then
+    with_bundled_re2=no
+  else
+    AC_MSG_ERROR([cannot find re2
+-------------------------------------------------------------------
+You have requested the use of a non-bundled re2 but no suitable
+re2 could be found.
+
+You may want specify the location of re2 by providing a prefix
+path via --with-re2=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_re2=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_RE2],
+               [test "x$with_bundled_re2" = "xyes"])
+
+
 
 
 # Check if Sasl2 prefix path was provided, and if so, add it to

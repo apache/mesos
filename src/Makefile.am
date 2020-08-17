@@ -44,6 +44,7 @@ PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
 PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
 RAPIDJSON = 3rdparty/rapidjson-$(RAPIDJSON_VERSION)
+RE2 = 3rdparty/re2-$(RE2_VERSION)
 SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
 STOUT = 3rdparty/stout
 WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
@@ -264,6 +265,15 @@ endif
 if WITH_BUNDLED_RAPIDJSON
 MESOS_CPPFLAGS += -I../$(RAPIDJSON)/include
 endif
+
+if WITH_BUNDLED_RE2
+MESOS_CPPFLAGS += -I../$(RE2)
+LIB_RE2 = ../$(RE2)/obj/libre2.a
+else
+LIB_RE2 = -lre2
+LDADD += -lre2
+endif
+
 
 if WITH_BUNDLED_STOUT
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
@@ -1745,6 +1755,7 @@ libmesos_la_LIBADD =							\
   $(LIB_PROCESS)							\
   $(LIB_PROTOBUF)							\
   $(LIB_LIBSECCOMP)							\
+  $(LIB_RE2)								\
   $(LIB_ZOOKEEPER)							\
   -lsvn_subr-1								\
   -lsvn_delta-1								\
