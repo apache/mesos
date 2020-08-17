@@ -93,7 +93,10 @@ VolumeManagerProcess::VolumeManagerProcess(
     runtime(_runtime),
     serviceManager(_serviceManager),
     metrics(_metrics),
-    secretResolver(_secretResolver)
+    secretResolver(_secretResolver),
+    mountRootDir(info.has_target_path_root()
+      ? info.target_path_root()
+      : paths::getMountRootDir(rootDir, info.type(), info.name()))
 {
   // This should have been validated in `VolumeManager::create`.
   CHECK(!services.empty())
@@ -211,9 +214,6 @@ Future<Nothing> VolumeManagerProcess::recover()
       }
 
       // Garbage collect leftover mount paths that were failed to remove before.
-      const string mountRootDir =
-        paths::getMountRootDir(rootDir, info.type(), info.name());
-
       Try<list<string>> mountPaths = paths::getMountPaths(mountRootDir);
       if (mountPaths.isError()) {
         // TODO(chhsiao): This could indicate that something is seriously wrong.
@@ -745,8 +745,7 @@ Future<bool> VolumeManagerProcess::_deleteVolume(const std::string& volumeId)
   if (volumeState.node_publish_required()) {
     CHECK_EQ(VolumeState::PUBLISHED, volumeState.state());
 
-    const string targetPath = paths::getMountTargetPath(
-        paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+    const string targetPath = paths::getMountTargetPath(mountRootDir, volumeId);
 
     // NOTE: Normally the volume should have been cleaned up. However this may
     // not be true for preprovisioned volumes (e.g., leftover from a previous
@@ -951,8 +950,7 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
       .then(process::defer(self(), &Self::_publishVolume, volumeId));
   }
 
-  const string targetPath = paths::getMountTargetPath(
-      paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+  const string targetPath = paths::getMountTargetPath(mountRootDir, volumeId);
 
   // Ensure the parent directory of the target path exists. The target path
   // itself will be created by the plugin.
@@ -984,8 +982,8 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
   *request.mutable_volume_context() = volumeState.volume_context();
 
   if (nodeCapabilities->stageUnstageVolume) {
-    const string stagingPath = paths::getMountStagingPath(
-        paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+    const string stagingPath =
+      paths::getMountStagingPath(mountRootDir, volumeId);
 
     CHECK(os::exists(stagingPath));
     request.set_staging_target_path(stagingPath);
@@ -1070,8 +1068,7 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
       .then(process::defer(self(), &Self::__publishVolume, volumeId));
   }
 
-  const string stagingPath = paths::getMountStagingPath(
-      paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+  const string stagingPath = paths::getMountStagingPath(mountRootDir, volumeId);
 
   // NOTE: The staging path will be cleaned up in during volume removal.
   Try<Nothing> mkdir = os::mkdir(stagingPath);
@@ -1177,8 +1174,7 @@ Future<Nothing> VolumeManagerProcess::_unpublishVolume(const string& volumeId)
     checkpointVolumeState(volumeId);
   }
 
-  const string stagingPath = paths::getMountStagingPath(
-      paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+  const string stagingPath = paths::getMountStagingPath(mountRootDir, volumeId);
 
   CHECK(os::exists(stagingPath));
 
@@ -1236,8 +1232,7 @@ Future<Nothing> VolumeManagerProcess::__unpublishVolume(const string& volumeId)
     checkpointVolumeState(volumeId);
   }
 
-  const string targetPath = paths::getMountTargetPath(
-      paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
+  const string targetPath = paths::getMountTargetPath(mountRootDir, volumeId);
 
   LOG(INFO) << "Calling '/csi.v1.Node/NodeUnpublishVolume' for volume '"
             << volumeId << "'";
@@ -1284,9 +1279,7 @@ void VolumeManagerProcess::garbageCollectMountPath(const string& volumeId)
 {
   CHECK(!volumes.contains(volumeId));
 
-  const string path = paths::getMountPath(
-      paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
-
+  const string path = paths::getMountPath(mountRootDir, volumeId);
   if (os::exists(path)) {
     Try<Nothing> rmdir = os::rmdir(path);
     if (rmdir.isError()) {

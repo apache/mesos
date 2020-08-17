@@ -191,6 +191,7 @@ private:
   ServiceManager* serviceManager;
   Metrics* metrics;
   SecretResolver* secretResolver;
+  const std::string mountRootDir;
 
   Option<std::string> bootId;
   Option<PluginCapabilities> pluginCapabilities;

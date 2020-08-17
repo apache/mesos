@@ -246,16 +246,14 @@ Future<string> CSIServerProcess::publishVolume(
     .then([=]() {
       CHECK(plugins.contains(volume.plugin_name()));
 
-      const string targetRootDir =
-        plugins.at(volume.plugin_name()).info.has_target_path_root()
-          ? plugins.at(volume.plugin_name()).info.target_path_root()
-          : rootDir;
+      const CSIPluginInfo& info = plugins.at(volume.plugin_name()).info;
+
+      const string mountRootDir = info.has_target_path_root()
+          ? info.target_path_root()
+          : csi::paths::getMountRootDir(rootDir, info.type(), info.name());
 
       return csi::paths::getMountTargetPath(
-          csi::paths::getMountRootDir(
-              targetRootDir,
-              plugins.at(volume.plugin_name()).info.type(),
-              plugins.at(volume.plugin_name()).info.name()),
+          mountRootDir,
           volume.static_provisioning().volume_id());
     });
 }
