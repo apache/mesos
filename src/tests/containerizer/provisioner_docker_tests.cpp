@@ -23,6 +23,7 @@
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
@@ -59,6 +60,7 @@ namespace spec = ::docker::spec;
 using std::string;
 using std::vector;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -412,6 +414,49 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimultaneously)
   AWAIT_READY(imageInfo2);
 
   EXPECT_EQ(imageInfo1->layers, imageInfo2->layers);
+}
+
+
+// This tests that pulling the image will be cancelled if all the pending
+// futures returned by `Store::get()` for this pull are discarded.
+TEST_F(ProvisionerDockerLocalStoreTest, PullDiscarded)
+{
+  slave::Flags flags;
+  flags.docker_registry = path::join(os::getcwd(), "images");
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+
+  MockPuller* puller = new MockPuller();
+  Future<Nothing> pullCalled;
+  Promise<slave::docker::Image> promise;
+
+  EXPECT_CALL(*puller, pull(_, _, _, _))
+    .WillOnce(testing::DoAll(FutureSatisfy(&pullCalled),
+                             Return(promise.future())));
+
+  Try<Owned<slave::Store>> store =
+      slave::docker::Store::create(flags, Owned<Puller>(puller));
+
+  ASSERT_SOME(store);
+
+  Image mesosImage;
+  mesosImage.set_type(Image::DOCKER);
+  mesosImage.mutable_docker()->set_name("abc");
+
+  Future<slave::ImageInfo> imageInfo1 =
+    store.get()->get(mesosImage, COPY_BACKEND);
+
+  Future<slave::ImageInfo> imageInfo2 =
+    store.get()->get(mesosImage, COPY_BACKEND);
+
+  AWAIT_READY(pullCalled);
+
+  imageInfo1.discard();
+  imageInfo2.discard();
+
+  Clock::pause();
+  Clock::settle();
+
+  ASSERT_TRUE(promise.future().hasDiscard());
 }
 
 
