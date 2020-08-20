@@ -198,14 +198,12 @@ Try<Nothing> VolumeCSIIsolatorProcess::recoverContainer(
     return Nothing();
   }
 
-  Result<string> read = state::read<string>(volumesPath);
+  Result<CSIVolumes> read = state::read<CSIVolumes>(volumesPath);
   if (read.isError()) {
     return Error(
         "Failed to read the CSI volumes checkpoint file '" +
         volumesPath + "': " + read.error());
-  }
-
-  if (read->empty()) {
+  } else if (read.isNone()) {
     // This could happen if agent is hard rebooted after the checkpoint file is
     // created but before the data is synced on disk.
     LOG(WARNING) << "The CSI volumes checkpointed at '" << volumesPath
@@ -220,18 +218,8 @@ Try<Nothing> VolumeCSIIsolatorProcess::recoverContainer(
     return Nothing();
   }
 
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
-  if (json.isError()) {
-    return Error("JSON parse failed: " + json.error());
-  }
-
-  Try<CSIVolumes> parse = ::protobuf::parse<CSIVolumes>(json.get());
-  if (parse.isError()) {
-    return Error("Protobuf parse failed: " + parse.error());
-  }
-
   hashset<CSIVolume> volumes;
-  foreach (const CSIVolume& volume, parse->volumes()) {
+  foreach (const CSIVolume& volume, read->volumes()) {
     VLOG(1) << "Recovering CSI volume with plugin '" << volume.plugin_name()
             << "' and ID '" << volume.id() << "' for container " << containerId;
 
