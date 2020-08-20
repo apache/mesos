@@ -335,6 +335,9 @@ public:
 // This tests the store to pull the same image simultaneously.
 // This test verifies that the store only calls the puller once
 // when multiple requests for the same image is in flight.
+// In addition, this test verifies that if some of the futures
+// returned by `Store::get()` that are pending image pull are discarded,
+// the pull still completes.
 TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimultaneously)
 {
   slave::Flags flags;
@@ -385,6 +388,9 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimultaneously)
   Future<slave::ImageInfo> imageInfo2 =
     store.get()->get(mesosImage, COPY_BACKEND);
 
+  Future<slave::ImageInfo> imageInfo3 =
+    store.get()->get(mesosImage, COPY_BACKEND);
+
   Try<spec::ImageReference> reference =
     spec::parseImageReference(mesosImage.docker().name());
 
@@ -395,6 +401,11 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimultaneously)
   result.add_layer_ids("456");
 
   ASSERT_TRUE(imageInfo2.isPending());
+  ASSERT_TRUE(imageInfo3.isPending());
+
+  // Pull should still complete, despite of the discard of a single future.
+  imageInfo3.discard();
+
   promise.set(result);
 
   AWAIT_READY(imageInfo1);
