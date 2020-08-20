@@ -952,16 +952,29 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
 
   const string targetPath = paths::getMountTargetPath(mountRootDir, volumeId);
 
-  // Ensure the parent directory of the target path exists. The target path
-  // itself will be created by the plugin.
-  //
-  // NOTE: The target path will be removed by the plugin as well, and The parent
-  // directory of the target path will be cleaned up during volume removal.
-  Try<Nothing> mkdir = os::mkdir(Path(targetPath).dirname());
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create parent directory of target path '" + targetPath +
-        "': " + mkdir.error());
+  if (info.target_path_exists()) {
+    // For some CSI plugins, they expect the target path is an existing path
+    // rather than creating the target path. So here we create the target path
+    // for such CSI plugins.
+    Try<Nothing> mkdir = os::mkdir(targetPath);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create the target path '" + targetPath +
+          "': " + mkdir.error());
+    }
+  } else {
+    // Ensure the parent directory of the target path exists. The
+    // target path itself will be created by the plugin.
+    //
+    // NOTE: The target path will be removed by the plugin as well,
+    // and the parent directory of the target path will be cleaned
+    // up during volume removal.
+    Try<Nothing> mkdir = os::mkdir(Path(targetPath).dirname());
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create parent directory of target path '" + targetPath +
+          "': " + mkdir.error());
+    }
   }
 
   if (volumeState.state() == VolumeState::VOL_READY) {
@@ -1244,7 +1257,11 @@ Future<Nothing> VolumeManagerProcess::__unpublishVolume(const string& volumeId)
   return call(NODE_SERVICE, &Client::nodeUnpublishVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId, targetPath]()
         -> Future<Nothing> {
-      if (os::exists(targetPath)) {
+      // For the CSI plugins which expect the target path is an existing path,
+      // they do not remove the target path as part of the `NodeUnpublishVolume`
+      // operation. So here we should not verify the target path is already
+      // removed by such CSI plugins.
+      if (!info.target_path_exists() && os::exists(targetPath)) {
         return Failure("Target path '" + targetPath + "' not removed");
       }
 

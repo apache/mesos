@@ -1140,6 +1140,13 @@ message CSIPluginInfo {
   // Each volume will be published by the CSI plugin at a sub-directory
   // under this path.
   optional string target_path_root = 5;
+
+  // For some CSI plugins which implement CSI v1 spec, they expect the target
+  // path is an existing path which is actually not CSI v1 spec compliant. In
+  // such case this field should be set to `true` as a work around for those
+  // plugins. For the CSI plugins which implement CSI v0 spec, this field will
+  // be just ignored.
+  optional bool target_path_exists = 6;
 }
 
 
