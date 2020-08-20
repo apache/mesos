@@ -335,7 +335,7 @@ public:
 // This tests the store to pull the same image simultaneously.
 // This test verifies that the store only calls the puller once
 // when multiple requests for the same image is in flight.
-TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
+TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimultaneously)
 {
   slave::Flags flags;
   flags.docker_registry = path::join(os::getcwd(), "images");
