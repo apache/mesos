@@ -60,7 +60,7 @@ public:
   // Starts the CSI server. Any `publishVolume()` or `unpublishVolume()` calls
   // which were made previously will be executed after this method is called.
   // Returns a future which is satisfied once initialization is complete.
-  process::Future<Nothing> start();
+  process::Future<Nothing> start(const SlaveID& agentId);
 
   // Publish a CSI volume to this agent. If the `start()` method has not yet
   // been called, then the publishing of this volume will not be completed until
@@ -79,10 +79,10 @@ public:
 private:
   CSIServer(
       const process::http::URL& agentUrl,
-      const std::string& csiRootDir,
+      const std::string& rootDir,
+      const std::string& pluginConfigDir,
       SecretGenerator* secretGenerator,
-      SecretResolver* secretResolver,
-      const hashmap<std::string, CSIPluginInfo>& csiPluginConfigs);
+      SecretResolver* secretResolver);
 
   process::Owned<CSIServerProcess> process;
 
