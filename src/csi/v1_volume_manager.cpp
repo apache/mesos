@@ -669,7 +669,7 @@ Future<Nothing> VolumeManagerProcess::prepareServices()
       vector<Future<GetPluginInfoResponse>> futures;
       foreach (const Service& service, services) {
         futures.push_back(call(
-            CONTROLLER_SERVICE, &Client::getPluginInfo, GetPluginInfoRequest())
+            service, &Client::getPluginInfo, GetPluginInfoRequest())
           .onReady([service](const GetPluginInfoResponse& response) {
             LOG(INFO) << service << " loaded: " << stringify(response);
           }));
