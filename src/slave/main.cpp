@@ -37,6 +37,8 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/hashset.hpp>
@@ -84,6 +86,7 @@
 #include "module/manager.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/csi_server.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
 #include "slave/task_status_update_manager.hpp"
@@ -110,6 +113,8 @@ using mesos::slave::ResourceEstimator;
 using mesos::Authorizer;
 using mesos::SecretResolver;
 using mesos::SlaveInfo;
+
+using net::IP;
 
 using process::Owned;
 
@@ -528,6 +533,69 @@ int main(int argc, char** argv)
                        << futureTracker.error();
   }
 
+  SecretGenerator* secretGenerator = nullptr;
+
+#ifdef USE_SSL_SOCKET
+  if (flags.jwt_secret_key.isSome()) {
+    Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
+    if (jwtSecretKey.isError()) {
+      EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
+                         << "--jwt_secret_key";
+    }
+
+    // TODO(greggomann): Factor the following code out into a common helper,
+    // since we also do this when loading credentials.
+    Try<os::Permissions> permissions =
+      os::permissions(flags.jwt_secret_key.get());
+    if (permissions.isError()) {
+      LOG(WARNING) << "Failed to stat jwt secret key file '"
+                   << flags.jwt_secret_key.get()
+                   << "': " << permissions.error();
+    } else if (permissions->others.rwx) {
+      LOG(WARNING) << "Permissions on executor secret key file '"
+                   << flags.jwt_secret_key.get()
+                   << "' are too open; it is recommended that your"
+                   << " key file is NOT accessible by others";
+    }
+
+    secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
+  }
+#endif // USE_SSL_SOCKET
+
+  // The agent will hold ownership of the CSI server, but we also pass a pointer
+  // to it into the containerizer for use by the 'volume/csi' isolator.
+  Owned<CSIServer> csiServer;
+
+  if (flags.csi_plugin_config_dir.isSome()) {
+    // Initialize the CSI server, which manages any configured CSI plugins.
+    string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+    if (process::network::openssl::flags().enabled) {
+      scheme = "https";
+    }
+#endif
+
+    const process::http::URL agentUrl(
+        scheme,
+        process::address().ip,
+        process::address().port,
+        id + "/api/v1");
+
+    Try<Owned<CSIServer>> csiServer_ = CSIServer::create(
+        flags,
+        agentUrl,
+        secretGenerator,
+        secretResolver.get());
+
+    if (csiServer_.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to initialize the CSI server: " << csiServer_.error();
+    }
+
+    csiServer = std::move(csiServer_.get());
+  }
+
   Try<Containerizer*> containerizer = Containerizer::create(
       flags,
       false,
@@ -535,7 +603,8 @@ int main(int argc, char** argv)
       gc,
       secretResolver.get(),
       volumeGidManager,
-      futureTracker.get());
+      futureTracker.get(),
+      csiServer.get());
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)
@@ -607,35 +676,6 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE) << "Failed to create QoS Controller: "
                        << qosController.error();
   }
-
-  SecretGenerator* secretGenerator = nullptr;
-
-#ifdef USE_SSL_SOCKET
-  if (flags.jwt_secret_key.isSome()) {
-    Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
-    if (jwtSecretKey.isError()) {
-      EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
-                         << "--jwt_secret_key";
-    }
-
-    // TODO(greggomann): Factor the following code out into a common helper,
-    // since we also do this when loading credentials.
-    Try<os::Permissions> permissions =
-      os::permissions(flags.jwt_secret_key.get());
-    if (permissions.isError()) {
-      LOG(WARNING) << "Failed to stat jwt secret key file '"
-                   << flags.jwt_secret_key.get()
-                   << "': " << permissions.error();
-    } else if (permissions->others.rwx) {
-      LOG(WARNING) << "Permissions on executor secret key file '"
-                   << flags.jwt_secret_key.get()
-                   << "' are too open; it is recommended that your"
-                   << " key file is NOT accessible by others";
-    }
-
-    secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
-  }
-#endif // USE_SSL_SOCKET
 
 #ifndef __WINDOWS__
   // Create executor domain socket if the user so desires.
@@ -723,6 +763,7 @@ int main(int argc, char** argv)
       secretGenerator,
       volumeGidManager,
       futureTracker.get(),
+      std::move(csiServer),
 #ifndef __WINDOWS__
       executorSocket,
 #endif // __WINDOWS__

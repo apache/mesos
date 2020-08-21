@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/mesos.hpp>
@@ -48,12 +49,15 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -94,6 +98,7 @@
 #include "master/detector/standalone.hpp"
 #include "master/detector/zookeeper.hpp"
 
+#include "slave/csi_server.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
@@ -123,6 +128,10 @@ using mesos::master::detector::StandaloneMasterDetector;
 using mesos::master::detector::ZooKeeperMasterDetector;
 
 using mesos::slave::ContainerTermination;
+
+using net::IP;
+
+using process::Owned;
 
 #ifndef __WINDOWS__
 using process::network::unix::Socket;
@@ -426,6 +435,7 @@ Try<process::Owned<Slave>> Slave::create(
     const Option<mesos::SecretGenerator*>& secretGenerator,
     const Option<Authorizer*>& providedAuthorizer,
     const Option<PendingFutureTracker*>& futureTracker,
+    const Option<Owned<slave::CSIServer>>& csiServer,
     bool mock)
 {
   process::Owned<Slave> slave(new Slave());
@@ -468,6 +478,82 @@ Try<process::Owned<Slave>> Slave::create(
     slave->futureTracker.reset(_futureTracker.get());
   }
 
+  // If the secret generator is not provided, create a default one.
+  if (secretGenerator.isNone()) {
+    SecretGenerator* _secretGenerator = nullptr;
+
+#ifdef USE_SSL_SOCKET
+    if (flags.jwt_secret_key.isSome()) {
+      Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
+      if (jwtSecretKey.isError()) {
+        return Error("Failed to read the file specified by --jwt_secret_key");
+      }
+
+      // TODO(greggomann): Factor the following code out into a common helper,
+      // since we also do this when loading credentials.
+      Try<os::Permissions> permissions =
+        os::permissions(flags.jwt_secret_key.get());
+      if (permissions.isError()) {
+        LOG(WARNING) << "Failed to stat jwt secret key file '"
+                     << flags.jwt_secret_key.get()
+                     << "': " << permissions.error();
+      } else if (permissions->others.rwx) {
+        LOG(WARNING) << "Permissions on executor secret key file '"
+                     << flags.jwt_secret_key.get()
+                     << "' are too open; it is recommended that your"
+                     << " key file is NOT accessible by others";
+      }
+
+      _secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
+    }
+#endif // USE_SSL_SOCKET
+
+    slave->secretGenerator.reset(_secretGenerator);
+  }
+
+  // Create a SecretResolver for use with the CSI server below.
+  Try<SecretResolver*> secretResolver =
+    mesos::SecretResolver::create(flags.secret_resolver);
+
+  if (secretResolver.isError()) {
+    return Error(
+        "Failed to initialize secret resolver: " +
+        secretResolver.error());
+  }
+
+  const string processId =
+    id.isSome() ? id.get() : process::ID::generate("slave");
+
+  if (csiServer.isNone() && flags.csi_plugin_config_dir.isSome()) {
+    // Initialize the CSI server, which manages any configured CSI plugins.
+    string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+    if (process::network::openssl::flags().enabled) {
+      scheme = "https";
+    }
+#endif
+
+    const process::http::URL agentUrl(
+        scheme,
+        process::address().ip,
+        flags.port,
+        processId + "/api/v1");
+
+    Try<Owned<slave::CSIServer>> _csiServer = slave::CSIServer::create(
+        flags,
+        agentUrl,
+        secretGenerator.getOrElse(slave->secretGenerator.get()),
+        secretResolver.get());
+
+    if (_csiServer.isError()) {
+      return Error(
+          "Failed to initialize the CSI server: " + _csiServer.error());
+    }
+
+    slave->csiServer = std::move(_csiServer.get());
+  }
+
   // If the containerizer is not provided, create a default one.
   if (containerizer.isSome()) {
     slave->containerizer = containerizer.get();
@@ -483,7 +569,8 @@ Try<process::Owned<Slave>> Slave::create(
           gc.getOrElse(slave->gc.get()),
           nullptr,
           volumeGidManager,
-          futureTracker.getOrElse(slave->futureTracker.get()));
+          futureTracker.getOrElse(slave->futureTracker.get()),
+          (csiServer.getOrElse(slave->csiServer)).get());
 
     if (_containerizer.isError()) {
       return Error("Failed to create containerizer: " + _containerizer.error());
@@ -583,39 +670,6 @@ Try<process::Owned<Slave>> Slave::create(
     slave->qosController.reset(_qosController.get());
   }
 
-  // If the secret generator is not provided, create a default one.
-  if (secretGenerator.isNone()) {
-    SecretGenerator* _secretGenerator = nullptr;
-
-#ifdef USE_SSL_SOCKET
-    if (flags.jwt_secret_key.isSome()) {
-      Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
-      if (jwtSecretKey.isError()) {
-        return Error("Failed to read the file specified by --jwt_secret_key");
-      }
-
-      // TODO(greggomann): Factor the following code out into a common helper,
-      // since we also do this when loading credentials.
-      Try<os::Permissions> permissions =
-        os::permissions(flags.jwt_secret_key.get());
-      if (permissions.isError()) {
-        LOG(WARNING) << "Failed to stat jwt secret key file '"
-                     << flags.jwt_secret_key.get()
-                     << "': " << permissions.error();
-      } else if (permissions->others.rwx) {
-        LOG(WARNING) << "Permissions on executor secret key file '"
-                     << flags.jwt_secret_key.get()
-                     << "' are too open; it is recommended that your"
-                     << " key file is NOT accessible by others";
-      }
-
-      _secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
-    }
-#endif // USE_SSL_SOCKET
-
-    slave->secretGenerator.reset(_secretGenerator);
-  }
-
 #ifndef __WINDOWS__
   Option<Socket> executorSocket = None();
   if (flags.http_executor_domain_sockets) {
@@ -645,7 +699,7 @@ Try<process::Owned<Slave>> Slave::create(
   // Inject all the dependencies.
   if (mock) {
     slave->slave.reset(new MockSlave(
-        id.isSome() ? id.get() : process::ID::generate("slave"),
+        processId,
         flags,
         detector,
         slave->containerizer,
@@ -657,10 +711,11 @@ Try<process::Owned<Slave>> Slave::create(
         secretGenerator.getOrElse(slave->secretGenerator.get()),
         volumeGidManager,
         futureTracker.getOrElse(slave->futureTracker.get()),
+        csiServer.getOrElse(slave->csiServer),
         authorizer));
   } else {
     slave->slave.reset(new slave::Slave(
-        id.isSome() ? id.get() : process::ID::generate("slave"),
+        processId,
         flags,
         detector,
         slave->containerizer,
@@ -672,6 +727,7 @@ Try<process::Owned<Slave>> Slave::create(
         secretGenerator.getOrElse(slave->secretGenerator.get()),
         volumeGidManager,
         futureTracker.getOrElse(slave->futureTracker.get()),
+        csiServer.getOrElse(slave->csiServer),
 #ifndef __WINDOWS__
         executorSocket,
 #endif // __WINDOWS__

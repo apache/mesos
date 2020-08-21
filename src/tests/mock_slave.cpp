@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include <gmock/gmock.h>
 
 #include <mesos/authentication/secret_generator.hpp>
@@ -22,10 +24,12 @@
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/option.hpp>
 
+#include "slave/csi_server.hpp"
 #include "slave/slave.hpp"
 #include "slave/task_status_update_manager.hpp"
 
@@ -47,6 +51,7 @@ using std::string;
 using std::vector;
 
 using process::Future;
+using process::Owned;
 using process::UPID;
 
 using testing::_;
@@ -104,6 +109,7 @@ MockSlave::MockSlave(
     SecretGenerator* secretGenerator,
     VolumeGidManager* volumeGidManager,
     PendingFutureTracker* futureTracker,
+    Owned<slave::CSIServer>&& csiServer,
     const Option<Authorizer*>& authorizer)
   // It is necessary to explicitly call `ProcessBase` constructor here even
   // though the direct parent `Slave` already does this. This is because
@@ -124,6 +130,7 @@ MockSlave::MockSlave(
         secretGenerator,
         volumeGidManager,
         futureTracker,
+        std::move(csiServer),
 #ifndef __WINDOWS__
         None(),
 #endif // __WINDOWS__

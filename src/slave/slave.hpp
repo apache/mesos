@@ -130,6 +130,7 @@ public:
         mesos::SecretGenerator* secretGenerator,
         VolumeGidManager* volumeGidManager,
         PendingFutureTracker* futureTracker,
+        process::Owned<CSIServer>&& csiServer,
 #ifndef __WINDOWS__
         const Option<process::network::unix::Socket>& executorSocket,
 #endif // __WINDOWS__
@@ -887,6 +888,8 @@ private:
   VolumeGidManager* volumeGidManager;
 
   PendingFutureTracker* futureTracker;
+
+  process::Owned<CSIServer> csiServer;
 
 #ifndef __WINDOWS__
   Option<process::network::unix::Socket> executorSocket;

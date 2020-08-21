@@ -57,6 +57,7 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/csi_server.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
@@ -171,6 +172,7 @@ public:
       const Option<mesos::SecretGenerator*>& secretGenerator = None(),
       const Option<Authorizer*>& authorizer = None(),
       const Option<PendingFutureTracker*>& futureTracker = None(),
+      const Option<process::Owned<slave::CSIServer>>& csiServer = None(),
       bool mock = false);
 
   ~Slave();
@@ -241,6 +243,7 @@ private:
   process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
   process::Owned<mesos::SecretGenerator> secretGenerator;
   process::Owned<slave::TaskStatusUpdateManager> taskStatusUpdateManager;
+  process::Owned<slave::CSIServer> csiServer;
 
   // Indicates whether or not authorization callbacks were set when this agent
   // was constructed.

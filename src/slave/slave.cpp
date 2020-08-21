@@ -205,6 +205,7 @@ Slave::Slave(const string& id,
              SecretGenerator* _secretGenerator,
              VolumeGidManager* _volumeGidManager,
              PendingFutureTracker* _futureTracker,
+             Owned<CSIServer>&& _csiServer,
 #ifndef __WINDOWS__
              const Option<process::network::unix::Socket>& _executorSocket,
 #endif // __WINDOWS__
@@ -239,6 +240,7 @@ Slave::Slave(const string& id,
     secretGenerator(_secretGenerator),
     volumeGidManager(_volumeGidManager),
     futureTracker(_futureTracker),
+    csiServer(std::move(_csiServer)),
 #ifndef __WINDOWS__
     executorSocket(_executorSocket),
 #endif // __WINDOWS__
@@ -1741,6 +1743,14 @@ void Slave::registered(
       // running, so the resource providers can use the agent API.
       localResourceProviderDaemon->start(info.id());
 
+      if (csiServer.get()) {
+        csiServer->start(info.id())
+          .onFailed([=](const string& failure) {
+            EXIT(EXIT_FAILURE)
+              << "CSI server initialization failed: " << failure;
+          });
+      }
+
       // Setup a timer so that the agent attempts to reregister if it
       // doesn't receive a ping from the master for an extended period
       // of time. This needs to be done once registered, in case we
@@ -1825,6 +1835,14 @@ void Slave::reregistered(
       // We start the local resource providers daemon once the agent is
       // running, so the resource providers can use the agent API.
       localResourceProviderDaemon->start(info.id());
+
+      if (csiServer.get()) {
+        csiServer->start(info.id())
+          .onFailed([=](const string& failure) {
+            EXIT(EXIT_FAILURE)
+              << "CSI server initialization failed: " << failure;
+          });
+      }
 
       // Setup a timer so that the agent attempts to reregister if it
       // doesn't receive a ping from the master for an extended period

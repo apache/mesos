@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -82,6 +83,7 @@
 #include "resource_provider/detector.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/csi_server.hpp"
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
@@ -193,6 +195,12 @@ struct SlaveOptions
     return *this;
   }
 
+  SlaveOptions& withCsiServer(const process::Owned<slave::CSIServer>& csiServer)
+  {
+    this->csiServer = csiServer;
+    return *this;
+  }
+
   mesos::master::detector::MasterDetector* detector;
   bool mock;
   Option<slave::Flags> flags;
@@ -205,6 +213,7 @@ struct SlaveOptions
   Option<mesos::SecretGenerator*> secretGenerator;
   Option<Authorizer*> authorizer;
   Option<PendingFutureTracker*> futureTracker;
+  Option<process::Owned<slave::CSIServer>> csiServer;
 };
 
 

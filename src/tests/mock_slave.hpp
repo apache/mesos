@@ -31,6 +31,7 @@
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
@@ -40,6 +41,7 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/csi_server.hpp"
 #include "slave/slave.hpp"
 
 using ::testing::_;
@@ -101,6 +103,7 @@ public:
       SecretGenerator* secretGenerator,
       slave::VolumeGidManager* volumeGidManager,
       PendingFutureTracker* futureTracker,
+      process::Owned<slave::CSIServer>&& csiServer,
       const Option<Authorizer*>& authorizer);
 
   MOCK_METHOD6(___run, void(
