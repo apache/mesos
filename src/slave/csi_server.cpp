@@ -311,44 +311,51 @@ Future<Nothing> CSIServerProcess::start(const SlaveID& _agentId)
 
   agentId = _agentId;
 
-  // Load all CSI plugin configurations found.
-  Try<Nothing> init = initializePlugin();
-  if (init.isError()) {
-    return Failure(
-        "CSI server failed to initialize CSI plugins: " + init.error());
+  Future<Nothing> result = Nothing();
+
+  if (secretGenerator) {
+    // The contents of this principal are arbitrary. We choose to avoid a
+    // principal with a 'value' string so that we do not unintentionally collide
+    // with another real principal with restricted permissions.
+    Principal principal(Option<string>::none(), {{"key", "csi-server"}});
+
+    result = secretGenerator->generate(principal)
+      .then(defer(self(), [=](const Secret& secret) -> Future<Nothing> {
+        Option<Error> error = common::validation::validateSecret(secret);
+        if (error.isSome()) {
+          return Failure(
+              "CSI server failed to validate generated secret: " +
+              error->message);
+        }
+
+        if (secret.type() != Secret::VALUE) {
+          return Failure(
+              "CSI server expecting generated secret to be of VALUE type "
+              "instead of " + stringify(secret.type()) + " type; " +
+              "only VALUE type secrets are supported at this time");
+        }
+
+        CHECK(secret.has_value());
+
+        authToken = secret.value().data();
+
+        return Nothing();
+    }));
   }
 
-  if (!secretGenerator) {
-    return Nothing();
-  }
-
-  // The contents of this principal are arbitrary. We choose to avoid a
-  // principal with a 'value' string so that we do not unintentionally collide
-  // with another real principal with restricted permissions.
-  Principal principal(Option<string>::none(), {{"key", "csi-server"}});
-
-  return secretGenerator->generate(principal)
-    .then([=](const Secret& secret) -> Future<Nothing> {
-      Option<Error> error = common::validation::validateSecret(secret);
-      if (error.isSome()) {
+  return result
+    .then(defer(self(), [=]() -> Future<Nothing> {
+      // Load all CSI plugin configurations found.
+      // NOTE: `initializePlugin()` requires that the `authToken` has already
+      // been set, so the order of these continuations matters.
+      Try<Nothing> init = initializePlugin();
+      if (init.isError()) {
         return Failure(
-            "CSI server failed to validate generated secret: " +
-            error->message);
+            "CSI server failed to initialize CSI plugins: " + init.error());
       }
-
-      if (secret.type() != Secret::VALUE) {
-        return Failure(
-            "CSI server expecting generated secret to be of VALUE type "
-            "instead of " + stringify(secret.type()) + " type; " +
-            "only VALUE type secrets are supported at this time");
-      }
-
-      CHECK(secret.has_value());
-
-      authToken = secret.value().data();
 
       return Nothing();
-  });
+    }));
 }
 
 
