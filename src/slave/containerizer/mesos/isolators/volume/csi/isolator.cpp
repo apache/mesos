@@ -356,6 +356,7 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
 
     Mount mount;
     mount.csiVolume = csiVolume;
+    mount.volume = volume;
     mount.target = target;
     mount.volumeMode = _volume.mode();
 
@@ -398,6 +399,9 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
         &VolumeCSIIsolatorProcess::_prepare,
         containerId,
         mounts,
+        containerConfig.has_user()
+          ? containerConfig.user()
+          : Option<string>::none(),
         lambda::_1));
 }
 
@@ -405,6 +409,7 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<Mount>& mounts,
+    const Option<string>& user,
     const vector<Future<string>>& futures)
 {
 
@@ -431,6 +436,41 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
   for (size_t i = 0; i < sources.size(); i++) {
     const string& source = sources[i];
     const Mount& mount = mounts[i];
+
+    if (user.isSome() && user.get() != "root") {
+      bool isVolumeInUse = false;
+
+      // Check if the volume is currently used by another container.
+      foreachpair (const ContainerID& _containerId,
+                   const Owned<Info>& info,
+                   infos) {
+        // Skip self.
+        if (_containerId == containerId) {
+          continue;
+        }
+
+        if (info->volumes.contains(mount.volume)) {
+          isVolumeInUse = true;
+          break;
+        }
+      }
+
+      if (!isVolumeInUse) {
+        LOG(INFO) << "Changing the ownership of the CSI volume at '" << source
+                  << "' to user '" << user.get() << "' for container "
+                  << containerId;
+
+        Try<Nothing> chown = os::chown(user.get(), source, false);
+        if (chown.isError()) {
+          return Failure(
+              "Failed to set '" + user.get() + "' as the owner of the "
+              "CSI volume at '" + source + "': " + chown.error());
+        }
+      } else {
+        LOG(INFO) << "Leaving the ownership of the CSI volume at '"
+                  << source << "' unchanged because it is in use";
+      }
+    }
 
     LOG(INFO) << "Mounting CSI volume mount point '" << source
               << "' to '" << mount.target << "' for container " << containerId;

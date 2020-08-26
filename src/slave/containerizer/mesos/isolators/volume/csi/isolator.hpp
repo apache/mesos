@@ -68,6 +68,7 @@ private:
   struct Mount
   {
     Volume::Source::CSIVolume csiVolume;
+    CSIVolume volume;
     std::string target;
     Volume::Mode volumeMode;
   };
@@ -92,6 +93,7 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const std::vector<Mount>& mounts,
+      const Option<std::string>& user,
       const std::vector<process::Future<std::string>>& futures);
 
   process::Future<Nothing> _cleanup(
