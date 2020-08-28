@@ -68,7 +68,9 @@ static Try<unique_ptr<const RE2>> createRE2(
         stringify(limits.maxProgramSize) + " allowed");
   }
 
-  return re2;
+  // Without `std::move`, pre-8.0.0 gcc and pre-3.9.0 clang deduce the type of
+  // `T` in `template<T> Try<>::Try(T&&)` to be `unique_ptr&`, not `unique_ptr`.
+  return std::move(re2);
 }
 
 
