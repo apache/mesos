@@ -335,8 +335,8 @@ Master::Master(
     metrics(new Metrics(*this)),
     electedTime(None()),
     offerConstraintsFilterOptions(
-        {flags.offer_constraints_re2_max_mem,
-         flags.offer_constraints_re2_max_program_size})
+        {{flags.offer_constraints_re2_max_mem,
+          flags.offer_constraints_re2_max_program_size}})
 {
   slaves.limiter = _slaveRemovalLimiter;
 
