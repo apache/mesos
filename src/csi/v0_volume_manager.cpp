@@ -498,7 +498,10 @@ Future<Nothing> VolumeManagerProcess::publishVolume(
 Future<Nothing> VolumeManagerProcess::unpublishVolume(const string& volumeId)
 {
   if (!volumes.contains(volumeId)) {
-    return Failure("Cannot unpublish unknown volume '" + volumeId + "'");
+    LOG(WARNING) << "Ignoring unpublish request for unknown volume '"
+                 << volumeId << "'";
+
+    return Nothing();
   }
 
   VolumeData& volume = volumes.at(volumeId);
