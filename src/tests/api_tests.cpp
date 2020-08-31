@@ -3359,6 +3359,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
 
   AWAIT_READY(event);
 
+  ::mesos::v1::TimeInfo registeredTime;
   {
     EXPECT_EQ(v1::master::Event::FRAMEWORK_ADDED, event.get()->type());
 
@@ -3368,6 +3369,8 @@ TEST_P(MasterAPITest, FrameworksEvent)
     EXPECT_EQ(frameworkInfo, framework.framework_info());
     EXPECT_TRUE(framework.active());
     EXPECT_TRUE(framework.connected());
+
+    registeredTime = framework.registered_time();
   }
 
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -3402,6 +3405,12 @@ TEST_P(MasterAPITest, FrameworksEvent)
       event.get()->framework_updated().framework();
 
     EXPECT_EQ(frameworkInfo, framework.framework_info());
+
+    EXPECT_EQ(registeredTime, framework.registered_time());
+
+    EXPECT_LT(
+        registeredTime.nanoseconds(),
+        framework.reregistered_time().nanoseconds());
   }
 
   EXPECT_CALL(*scheduler, disconnected(_))
