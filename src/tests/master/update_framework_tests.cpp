@@ -19,8 +19,6 @@
 
 #include <gmock/gmock.h>
 
-#include <google/protobuf/util/message_differencer.h>
-
 #include <mesos/executor.hpp>
 
 #include <mesos/v1/mesos.hpp>
@@ -118,28 +116,6 @@ static TFrameworkInfo changeAllMutableFields(const TFrameworkInfo& oldInfo)
 
   return newInfo;
 }
-
-
-template <class TFrameworkInfo>
-static Option<std::string> diff(
-    const TFrameworkInfo& lhs, const TFrameworkInfo& rhs)
-{
-  const google::protobuf::Descriptor* descriptor = TFrameworkInfo::descriptor();
-  google::protobuf::util::MessageDifferencer differencer;
-
-  differencer.TreatAsSet(descriptor->FindFieldByName("capabilities"));
-  differencer.TreatAsSet(descriptor->FindFieldByName("roles"));
-
-  string result;
-  differencer.ReportDifferencesToString(&result);
-
-  if (differencer.Compare(lhs, rhs)) {
-    return None();
-  }
-
-  return result;
-}
-
 
 namespace v1 {
 
@@ -257,10 +233,11 @@ TEST_F(UpdateFrameworkTest, UserChangeFails)
 
   FrameworkInfo expected = DEFAULT_FRAMEWORK_INFO;
   *expected.mutable_id() = subscribed->framework_id();
-  EXPECT_NONE(diff(frameworks->frameworks(0).framework_info(), expected));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworks->frameworks(0).framework_info(), expected));
 
   // Sanity check for diff()
-  EXPECT_SOME(diff(update, expected));
+  EXPECT_SOME(::mesos::v1::typeutils::diff(update, expected));
 }
 
 
@@ -307,10 +284,11 @@ TEST_F(UpdateFrameworkTest, PrincipalChangeFails)
 
   FrameworkInfo expected = DEFAULT_FRAMEWORK_INFO;
   *expected.mutable_id() = subscribed->framework_id();
-  EXPECT_NONE(diff(frameworks->frameworks(0).framework_info(), expected));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworks->frameworks(0).framework_info(), expected));
 
   // Sanity check for diff()
-  EXPECT_SOME(diff(update, expected));
+  EXPECT_SOME(::mesos::v1::typeutils::diff(update, expected));
 }
 
 
@@ -358,10 +336,11 @@ TEST_F(UpdateFrameworkTest, CheckpointingChangeFails)
 
   FrameworkInfo expected = DEFAULT_FRAMEWORK_INFO;
   *expected.mutable_id() = subscribed->framework_id();
-  EXPECT_NONE(diff(frameworks->frameworks(0).framework_info(), expected));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworks->frameworks(0).framework_info(), expected));
 
   // Sanity check for diff()
-  EXPECT_SOME(diff(update, expected));
+  EXPECT_SOME(::mesos::v1::typeutils::diff(update, expected));
 }
 
 
@@ -446,13 +425,15 @@ TEST_F(UpdateFrameworkTest, MutableFieldsUpdateSuccessfully)
   const FrameworkInfo& frameworkInfo =
     frameworks->frameworks(0).framework_info();
 
-  EXPECT_NONE(diff(frameworkInfo, update));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(frameworkInfo, update));
 
   AWAIT_READY(updateFrameworkMessage);
-  EXPECT_NONE(diff(evolve(updateFrameworkMessage->framework_info()), update));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      evolve(updateFrameworkMessage->framework_info()), update));
 
   AWAIT_READY(frameworkUpdated);
-  EXPECT_NONE(diff(frameworkUpdated->framework().framework_info(), update));
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworkUpdated->framework().framework_info(), update));
 };
 
 
@@ -995,10 +976,11 @@ TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
 
   AWAIT_READY(updateFrameworkMessage);
 
-  EXPECT_NONE(diff(updateFrameworkMessage->framework_info(), update));
+  EXPECT_NONE(::mesos::typeutils::diff(
+      updateFrameworkMessage->framework_info(), update));
 
   AWAIT_READY(frameworkUpdated);
-  EXPECT_NONE(diff(
+  EXPECT_NONE(::mesos::typeutils::diff(
       devolve(frameworkUpdated->framework().framework_info()), update));
 
   Future<v1::master::Response::GetFrameworks> frameworks =
@@ -1008,7 +990,7 @@ TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
   const FrameworkInfo& reportedFrameworkInfo =
     devolve(frameworks->frameworks(0).framework_info());
 
-  EXPECT_NONE(diff(reportedFrameworkInfo, update));
+  EXPECT_NONE(::mesos::typeutils::diff(reportedFrameworkInfo, update));
 
   driver.stop();
   driver.join();

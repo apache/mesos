@@ -26,10 +26,14 @@
 #include <stout/protobuf.hpp>
 
 #include "messages/messages.hpp"
+#include "common/type_utils_differencers.hpp"
 
 using std::ostream;
 using std::string;
 using std::vector;
+using std::unique_ptr;
+
+using ::mesos::typeutils::internal::createFrameworkInfoDifferencer;
 
 namespace mesos {
 
@@ -676,6 +680,31 @@ bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right)
 {
   return !(left == right);
 }
+
+
+namespace typeutils {
+
+bool equivalent(const FrameworkInfo& left, const FrameworkInfo& right)
+{
+  return createFrameworkInfoDifferencer<FrameworkInfo>()->Compare(left, right);
+}
+
+
+Option<string> diff(const FrameworkInfo& left, const FrameworkInfo& right)
+{
+  unique_ptr<::google::protobuf::util::MessageDifferencer> differencer{
+    createFrameworkInfoDifferencer<FrameworkInfo>()};
+
+  string result;
+  differencer->ReportDifferencesToString(&result);
+  if (differencer->Compare(left, right)) {
+    return None();
+  }
+
+  return result;
+}
+
+} // namespace typeutils {
 
 
 ostream& operator<<(ostream& stream, const CapabilityInfo& capabilityInfo)

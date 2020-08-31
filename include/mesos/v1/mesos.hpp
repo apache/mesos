@@ -25,6 +25,7 @@
 
 #include <mesos/v1/mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
 
+#include <stout/option.hpp>
 #include <stout/strings.hpp>
 
 // This file includes definitions for operators on public protobuf
@@ -103,6 +104,20 @@ inline bool operator==(const FrameworkInfo& left, const FrameworkInfo& right)
 {
   return (left.name() == right.name()) && (left.user() == right.user());
 }
+
+
+namespace typeutils {
+
+// Returns whether two `FrameworkInfo`s are equivalent for framework
+// subscription purposes or not (i.e. whether subscribing a framework with the
+// `left` should have the same effects as with the `right`).
+bool equivalent(const FrameworkInfo& left, const FrameworkInfo& right);
+
+// Performs the same comparison as `equivalent()` and returns a human-readable
+// diff if the `FrameworkInfo`s are not equivalnt.
+Option<std::string> diff(const FrameworkInfo& left, const FrameworkInfo& right);
+
+} // namespace typeutils {
 
 
 inline bool operator==(const OfferID& left, const OfferID& right)
