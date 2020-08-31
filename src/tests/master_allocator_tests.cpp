@@ -350,8 +350,9 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework_(_, Eq(frameworkInfo1), _, _, _))
-    .WillOnce(InvokeAddFramework(&allocator));
+  EXPECT_CALL(allocator, addFramework_(_, _, _, _, _))
+    .Times(2)
+    .WillRepeatedly(InvokeAddFramework(&allocator));
 
   Future<FrameworkID> frameworkId1;
   EXPECT_CALL(sched1, registered(_, _, _))
@@ -419,8 +420,6 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework_(_, Eq(frameworkInfo2), _, _, _))
-    .WillOnce(InvokeAddFramework(&allocator));
 
   FrameworkID frameworkId2;
   EXPECT_CALL(sched2, registered(_, _, _))

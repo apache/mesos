@@ -100,10 +100,10 @@ inline bool operator==(const FrameworkID& left, const FrameworkID& right)
 }
 
 
-inline bool operator==(const FrameworkInfo& left, const FrameworkInfo& right)
-{
-  return (left.name() == right.name()) && (left.user() == right.user());
-}
+// This operator, which was comparing only `user` and `name` fields,
+// has been deleted in favor of `typeutils::equivalent()` function (see below)
+// with different semantics.
+bool operator==(const FrameworkInfo& left, const FrameworkInfo& right) = delete;
 
 
 namespace typeutils {

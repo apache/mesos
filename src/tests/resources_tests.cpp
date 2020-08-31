@@ -3395,7 +3395,9 @@ TEST(ResourceFormatTest, DowngradeWithoutResources)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   EXPECT_SOME(downgradeResources(&frameworkInfo));
-  EXPECT_EQ(DEFAULT_FRAMEWORK_INFO, frameworkInfo);
+  EXPECT_EQ(
+      DEFAULT_FRAMEWORK_INFO.SerializeAsString(),
+      frameworkInfo.SerializeAsString());
 }
 
 

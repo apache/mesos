@@ -84,6 +84,7 @@ using mesos::slave::ContainerTermination;
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
 using mesos::v1::scheduler::Mesos;
+using mesos::v1::typeutils::diff;
 
 using mesos::internal::devolve;
 using mesos::internal::evolve;
@@ -3350,6 +3351,12 @@ TEST_P(MasterAPITest, FrameworksEvent)
   // when it reconnects.
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
+  // We need to set `checkpoint` explicitly. Otherwise, `jsonify` in the
+  // scheduler driver sets it to the default value, which results in a spurious
+  // diff between the reported `FrameworkInfo` (`checkpoint == false`) and the
+  // one with which the scheduler has subscribed (`checkpoint` not set).
+  frameworkInfo.set_checkpoint(false);
+
   mesos.send(v1::createCallSubscribe(frameworkInfo));
 
   AWAIT_READY(subscribed);
@@ -3366,7 +3373,9 @@ TEST_P(MasterAPITest, FrameworksEvent)
     const v1::master::Response::GetFrameworks::Framework& framework =
       event.get()->framework_added().framework();
 
-    EXPECT_EQ(frameworkInfo, framework.framework_info());
+    EXPECT_NONE(
+        mesos::v1::typeutils::diff(frameworkInfo, framework.framework_info()));
+
     EXPECT_TRUE(framework.active());
     EXPECT_TRUE(framework.connected());
 
@@ -3404,7 +3413,8 @@ TEST_P(MasterAPITest, FrameworksEvent)
     const v1::master::Response::GetFrameworks::Framework& framework =
       event.get()->framework_updated().framework();
 
-    EXPECT_EQ(frameworkInfo, framework.framework_info());
+    EXPECT_NONE(
+        mesos::v1::typeutils::diff(frameworkInfo, framework.framework_info()));
 
     EXPECT_EQ(registeredTime, framework.registered_time());
 
