@@ -2844,12 +2844,21 @@ void Master::_subscribe(
         std::move(options));
   }
 
+  // TODO(asekretenko): Consider avoiding to broadcast `FrameworkInfo` to agents
+  // when it has not changed. Note that the API event FRAMEWORK_UPDATED needs
+  // to be sent to the subscribers regardless of that, and that agents must
+  // be notified about the scheduler PID removal when this call performs
+  // a V0->V1 upgrade.
   sendFrameworkUpdates(*framework);
 }
 
 
 void Master::sendFrameworkUpdates(const Framework& framework)
 {
+  LOG(INFO) << "Sending a FRAMEWORK_UPDATED event for framework " << framework
+            << " to all subscribers and broadcasting its up-to-date"
+            << " FrameworkInfo and PID to all registered agents";
+
   if (!subscribers.subscribed.empty()) {
     subscribers.send(
       protobuf::master::event::createFrameworkUpdated(framework));
@@ -3206,6 +3215,9 @@ void Master::_subscribe(
         std::move(options));
   }
 
+  // TODO(asekretenko): Consider avoiding to broadcast `FrameworkInfo` and
+  // the V0 framework PID to agents when they have not changed. Note that the
+  // API event FRAMEWORK_UPDATED needs to be sent regardless regardless of that.
   sendFrameworkUpdates(*framework);
 }
 
@@ -3254,6 +3266,9 @@ Future<process::http::Response> Master::updateFramework(
         "FrameworkInfo update is not valid: " + error->message);
   }
 
+  const bool frameworkInfoChanged =
+    !typeutils::equivalent(framework->info, call.framework_info());
+
   allocator::FrameworkOptions allocatorOptions;
   if (call.has_offer_constraints()) {
     // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
@@ -3294,7 +3309,14 @@ Future<process::http::Response> Master::updateFramework(
   updateFramework(
       framework, call.framework_info(), std::move(allocatorOptions));
 
-  sendFrameworkUpdates(*framework);
+  if (frameworkInfoChanged) {
+    // NOTE: Among the framework properties that can be changed by this call
+    // (`FrameworkInfo`, suppressed roles and offer constraints),
+    // only the `FrameworkInfo` change needs to be forwarded to the agents
+    // and the API subscribers. This call changes neither the V0 framework PID
+    // nor the framework activeness or state (RECOVERED/CONNECTED/DISCONNECTED).
+    sendFrameworkUpdates(*framework);
+  }
 
   return process::http::OK();
 }
