@@ -79,6 +79,8 @@
 #include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
+namespace http = process::http;
+
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
@@ -104,6 +106,7 @@ using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
 
 using process::Clock;
+using process::Failure;
 using process::Future;
 using process::Message;
 using process::Owned;
@@ -7640,6 +7643,180 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
   driver.stop();
   driver.join();
+}
+
+
+// TODO(bmahler): Pull up a more generic helper for making it easy
+// to send calls and get back responses. Ideally getting back the
+// appropriate Response::X message (e.g. Response::GetAgents).
+Future<v1::master::Response> post(
+    const process::PID<master::Master>& pid,
+    const v1::master::Call& call)
+{
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(ContentType::PROTOBUF);
+
+  return http::post(
+      pid,
+      "api/v1",
+      headers,
+      serialize(ContentType::PROTOBUF, call),
+      stringify(ContentType::PROTOBUF))
+    .then([](const http::Response& response)
+      -> Future<v1::master::Response> {
+        if (response.status != http::OK().status) {
+          return Failure("Unexpected response status " + response.status);
+        }
+
+        return deserialize<v1::master::Response>(
+            ContentType::PROTOBUF, response.body);
+    });
+}
+
+
+// This is a regression test for MESOS-9609.
+//
+//  1. Given a framework with checkpoint == false, with only
+//     executor(s) (no tasks) running on an agent:
+//  2. When this agent disconects from the master,
+//     Master::removeFramework(Slave*, Framework*) removes the
+//     tasks and executors. However, when there are no tasks, this
+//     function previously accidentally inserted an entry into
+//     Master::Slave::tasks! (Due to a [] operator usage)
+//  3. Now if the framework is removed, we have an entry in
+//     Slave::tasks, for which there is no corresponding framework.
+//  4. When the agent is removed, we have a CHECK failure given
+//     we can't find the framework.
+TEST_F(MasterTest, NonCheckpointingFrameworkAgentDisconnectionExecutorOnly)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  auto slaveOptions = SlaveOptions(detector.get())
+                        .withContainerizer(&containerizer);
+  Try<Owned<cluster::Slave>> slave = StartSlave(slaveOptions);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+
+  // Start a non-checkpointing framework, run a task that
+  // immediately completes but whose executor stays up.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(false);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers->at(0);
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  *task.mutable_slave_id() = offer.slave_id();
+  *task.mutable_resources() = offer.resources();
+  *task.mutable_executor() = DEFAULT_EXECUTOR_INFO;
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_FINISHED));
+
+  Future<TaskStatus> finishedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&finishedStatus));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(finishedStatus);
+  EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
+
+  // Make sure that the status update is acknowledged.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Spoof an agent disconnection and check that it took effect.
+  process::inject::exited(slave.get()->pid, master.get()->pid);
+
+  // Check that the agent disconnected.
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<v1::master::Response> response = post(master.get()->pid, call);
+    AWAIT_READY(response);
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, response->type());
+
+    ASSERT_EQ(1, response->get_agents().agents_size());
+
+    const v1::master::Response::GetAgents::Agent& agent =
+      response->get_agents().agents(0);
+
+    EXPECT_EQ(false, agent.active());
+  }
+
+  EXPECT_CALL(exec, shutdown(_));
+
+  // Now remove the framework, which should occur immediately upon
+  // disconnection since the framework's failover timeout is 0.
+  driver.stop(true);
+
+  // Check to make sure the framework is removed.
+  {
+    v1::master::Call call;
+    call.set_type(v1::master::Call::GET_FRAMEWORKS);
+
+    Future<v1::master::Response> response = post(master.get()->pid, call);
+    AWAIT_READY(response);
+    ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, response->type());
+
+    ASSERT_EQ(0, response->get_frameworks().frameworks_size());
+    ASSERT_EQ(1, response->get_frameworks().completed_frameworks_size());
+  }
+
+  // Now remove the agent, which would trigger the crash in MESOS-9609.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::MARK_AGENT_GONE);
+
+    v1::master::Call::MarkAgentGone* markAgentGone =
+      v1Call.mutable_mark_agent_gone();
+
+    *markAgentGone->mutable_agent_id() = evolve(slaveId);
+
+    Future<process::http::Response> response = process::http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(ContentType::PROTOBUF, v1Call),
+        stringify(ContentType::PROTOBUF));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  }
 }
 
 
