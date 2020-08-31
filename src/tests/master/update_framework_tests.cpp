@@ -1176,11 +1176,6 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
   v1::MockMasterAPISubscriber masterAPISubscriber;
   AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
 
-  // Expect FRAMEWORK_UPDATED event after update.
-  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated;
-  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
-    .WillOnce(FutureArg<0>(&frameworkUpdated));
-
   Future<Nothing> secondAgentAdded;
   EXPECT_CALL(masterAPISubscriber, agentAdded(_))
     .WillOnce(Return())
@@ -1221,7 +1216,12 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
 
   driver.updateFramework(update, suppressedRoles);
 
-  AWAIT_READY(frameworkUpdated);
+  // Ensure that the allocator processes the update, so that this test
+  // does not rely on Master maintaining an ordering between scheduler API calls
+  // processing and agent registration.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   Try<Owned<cluster::Slave>> newSlave = StartSlave(detector.get());
   ASSERT_SOME(newSlave);
@@ -1251,15 +1251,6 @@ TEST_F(UpdateFrameworkV0Test, UnsuppressClearsFilters)
   mesos::internal::master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
-
-  v1::MockMasterAPISubscriber masterAPISubscriber;
-  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
-
-  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated1;
-  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated2;
-  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
-    .WillOnce(FutureArg<0>(&frameworkUpdated1))
-    .WillOnce(FutureArg<0>(&frameworkUpdated2));
 
   Owned<MasterDetector> detector = master->get()->createDetector();
 
@@ -1300,10 +1291,7 @@ TEST_F(UpdateFrameworkV0Test, UnsuppressClearsFilters)
     update.roles().begin(), update.roles().end());
 
   driver.updateFramework(update, suppressedRoles);
-  AWAIT_READY(frameworkUpdated1);
-
   driver.updateFramework(update, {});
-  AWAIT_READY(frameworkUpdated2);
 
   // Now the previously declined agent should be re-offered.
   Clock::pause();
