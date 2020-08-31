@@ -73,6 +73,8 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+constexpr char DEFAULT_CSI_CONTAINER_PREFIX[] = "mesos-internal-csi-";
+
 static VolumeState createVolumeState(
     const Volume::Source::CSIVolume::StaticProvisioning& volume);
 
@@ -232,7 +234,7 @@ Try<Nothing> CSIServerProcess::initializePlugin(const Option<string>& name)
           rootDir,
           info,
           extractServices(info),
-          "org-apache-mesos-internal-",
+          DEFAULT_CSI_CONTAINER_PREFIX,
           authToken,
           plugin.runtime,
           &plugin.metrics));
@@ -317,7 +319,9 @@ Future<Nothing> CSIServerProcess::start(const SlaveID& _agentId)
     // The contents of this principal are arbitrary. We choose to avoid a
     // principal with a 'value' string so that we do not unintentionally collide
     // with another real principal with restricted permissions.
-    Principal principal(Option<string>::none(), {{"key", "csi-server"}});
+    Principal principal(
+        Option<string>::none(),
+        {{"cid_prefix", DEFAULT_CSI_CONTAINER_PREFIX}});
 
     result = secretGenerator->generate(principal)
       .then(defer(self(), [=](const Secret& secret) -> Future<Nothing> {
