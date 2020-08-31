@@ -437,6 +437,95 @@ TEST_F(UpdateFrameworkTest, MutableFieldsUpdateSuccessfully)
 };
 
 
+// This test issues two UpdateFrameworkCalls: the first one with the same
+// `FrameworkInfo`, the second with mutated `FrameworkInfo`,
+// and verifies that the first call does NOT result in updates
+// to agents/subscribers.
+TEST_F(UpdateFrameworkTest, NoRedundantUpdates)
+{
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  // Subscribe to master v1 API.
+  MockMasterAPISubscriber masterAPISubscriber;
+  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
+
+  Future<Nothing> agentAdded;
+  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
+    .WillOnce(FutureSatisfy(&agentAdded));
+
+  // We need an agent to test the UpdateFrameworkMessage.
+  mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // To test the UpdateFrameworkMessage, we should wait for the agent
+  // to be added before calling UPDATE_FRAMEWORK.
+  AWAIT_READY(agentAdded);
+
+  // Expect a single FRAMEWORK_UPDATED event.
+  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated;
+  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
+    .WillOnce(FutureArg<0>(&frameworkUpdated));
+
+  // Expect UpdateFrameworkMessage to be sent from the master to the agent.
+  Future<UpdateFrameworkMessage> updateFrameworkMessage = FUTURE_PROTOBUF(
+      UpdateFrameworkMessage(), master->get()->pid, slave->get()->pid);
+
+  // Start the scheduler, wait for connection and then subscribe.
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(SendSubscribe(DEFAULT_FRAMEWORK_INFO));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  TestMesos mesos(master->get()->pid, ContentType::PROTOBUF, scheduler);
+
+  // To send UPDATE_FRAMEWORK, we need to obtain a framework ID.
+  AWAIT_READY(subscribed);
+
+  // Issue an UPDATE_FRAMEWORK that does not touch `FrameworkInfo`.
+  FrameworkInfo update1 = DEFAULT_FRAMEWORK_INFO;
+  *update1.mutable_id() = subscribed->framework_id();
+  Future<APIResult> result1 = callUpdateFramework(&mesos, update1);
+
+  AWAIT_READY(result1);
+  ASSERT_EQ(result1->status_code(), 200u);
+
+  // Verify that the first update has not resulted in broadcasts to
+  // agents/subscribers.
+  Clock::pause();
+  Clock::settle();
+  ASSERT_TRUE(frameworkUpdated.isPending());
+  ASSERT_TRUE(updateFrameworkMessage.isPending());
+
+  // Change `FrameworkInfo` via UPDATE_FRAMEWORK.
+  const FrameworkInfo update2 = changeAllMutableFields(update1);
+  Future<APIResult> result2 = callUpdateFramework(&mesos, update2);
+
+  AWAIT_READY(result2);
+  EXPECT_EQ(result2->status_code(), 200u);
+
+  // Verify that the broadcasts report the second update.
+  AWAIT_READY(updateFrameworkMessage);
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      evolve(updateFrameworkMessage->framework_info()), update2));
+
+  AWAIT_READY(frameworkUpdated);
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworkUpdated->framework().framework_info(), update2));
+};
+
+
 // This tests that adding a role via UPDATE_FRAMEWORK to a framework which had
 // no roles triggers allocation of an offer for that role.
 TEST_F(UpdateFrameworkTest, OffersOnAddingRole)
