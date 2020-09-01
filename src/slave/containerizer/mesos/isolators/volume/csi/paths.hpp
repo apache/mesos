@@ -29,7 +29,7 @@ namespace paths {
 
 // The root directory where we keep the information of CSI volumes that each
 // container uses. The layout is as follows:
-//   /<runtime_dir>/isolators/volume/csi/
+//   /<work_dir>/isolators/volume/csi/
 //      |-- <ID of Container1>/
 //      |      |-- volumes
 //      |-- <ID of Container2>/

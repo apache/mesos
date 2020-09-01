@@ -69,7 +69,7 @@ Try<Isolator*> VolumeCSIIsolatorProcess::create(
     return Error("No CSI server is provided");
   }
 
-  const string csiRootDir = path::join(flags.runtime_dir, csi::paths::CSI_DIR);
+  const string csiRootDir = path::join(flags.work_dir, csi::paths::CSI_DIR);
 
   // Create the CSI volume information root directory if it does not exist.
   Try<Nothing> mkdir = os::mkdir(csiRootDir);
