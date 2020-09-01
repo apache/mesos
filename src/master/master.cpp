@@ -10445,7 +10445,7 @@ void Master::removeFramework(Framework* framework)
 
     if (slave != nullptr) {
       foreachkey (const ExecutorID& executorId,
-                  utils::copy(framework->executors[slaveId])) {
+                  utils::copy(framework->executors.at(slaveId))) {
         removeExecutor(slave, framework->id(), executorId);
       }
     }
@@ -10584,7 +10584,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
   // for proper resource accounting.
   if (slave->executors.contains(framework->id())) {
     foreachkey (const ExecutorID& executorId,
-                utils::copy(slave->executors[framework->id()])) {
+                utils::copy(slave->executors.at(framework->id()))) {
       removeExecutor(slave, framework->id(), executorId);
     }
   }
@@ -10805,8 +10805,11 @@ void Master::_removeSlave(
   // Transition the tasks to lost and remove them.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
+    CHECK(framework != nullptr)
+      << "Framework " << frameworkId << " not found while removing agent "
+      << *slave << "; agent tasks: " << slave->tasks;
 
-    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+    foreachvalue (Task* task, utils::copy(slave->tasks.at(frameworkId))) {
       // TODO(bmahler): Differentiate between agent removal reasons
       // (e.g. unhealthy vs. unregistered for maintenance).
       const StatusUpdate& update = protobuf::createStatusUpdate(
@@ -10824,7 +10827,7 @@ void Master::_removeSlave(
       updateTask(task, update);
       removeTask(task);
 
-      if (framework == nullptr || !framework->connected()) {
+      if (!framework->connected()) {
         LOG(WARNING) << "Dropping update " << update
                      << " for unknown framework " << frameworkId;
       } else {
@@ -10836,7 +10839,7 @@ void Master::_removeSlave(
   // Remove executors from the slave for proper resource accounting.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
     foreachkey (const ExecutorID& executorId,
-                utils::copy(slave->executors[frameworkId])) {
+                utils::copy(slave->executors.at(frameworkId))) {
       removeExecutor(slave, frameworkId, executorId);
     }
   }
@@ -10951,7 +10954,7 @@ void Master::__removeSlave(
       newTaskReason = TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
     }
 
-    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+    foreachvalue (Task* task, utils::copy(slave->tasks.at(frameworkId))) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
           task->slave_id(),
@@ -10985,7 +10988,7 @@ void Master::__removeSlave(
   // Remove executors from the slave for proper resource accounting.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
     foreachkey (const ExecutorID& executorId,
-                utils::copy(slave->executors[frameworkId])) {
+                utils::copy(slave->executors.at(frameworkId))) {
       removeExecutor(slave, frameworkId, executorId);
     }
   }
@@ -12618,8 +12621,8 @@ void Slave::removeTask(Task* task)
     }
   }
 
-  tasks[frameworkId].erase(taskId);
-  if (tasks[frameworkId].empty()) {
+  tasks.at(frameworkId).erase(taskId);
+  if (tasks.at(frameworkId).empty()) {
     tasks.erase(frameworkId);
   }
 
