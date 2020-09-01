@@ -10550,30 +10550,32 @@ void Master::removeFramework(Slave* slave, Framework* framework)
 
   // Remove pointers to framework's tasks in slaves, and send status
   // updates.
-  // NOTE: A copy is needed because removeTask modifies slave->tasks.
-  foreachvalue (Task* task, utils::copy(slave->tasks[framework->id()])) {
-    // Remove tasks that belong to this framework.
-    if (task->framework_id() == framework->id()) {
-      // A framework might not actually exist because the master failed
-      // over and the framework hasn't reconnected yet. For more info
-      // please see the comments in 'removeFramework(Framework*)'.
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-        task->framework_id(),
-        task->slave_id(),
-        task->task_id(),
-        TASK_LOST,
-        TaskStatus::SOURCE_MASTER,
-        None(),
-        "Agent " + slave->info.hostname() + " disconnected",
-        TaskStatus::REASON_SLAVE_DISCONNECTED,
-        (task->has_executor_id()
-            ? Option<ExecutorID>(task->executor_id()) : None()));
+  if (slave->tasks.contains(framework->id())) {
+    // NOTE: A copy is needed because removeTask modifies slave->tasks.
+    foreachvalue (Task* task, utils::copy(slave->tasks.at(framework->id()))) {
+      // Remove tasks that belong to this framework.
+      if (task->framework_id() == framework->id()) {
+        // A framework might not actually exist because the master failed
+        // over and the framework hasn't reconnected yet. For more info
+        // please see the comments in 'removeFramework(Framework*)'.
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+          task->framework_id(),
+          task->slave_id(),
+          task->task_id(),
+          TASK_LOST,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          "Agent " + slave->info.hostname() + " disconnected",
+          TaskStatus::REASON_SLAVE_DISCONNECTED,
+          (task->has_executor_id()
+              ? Option<ExecutorID>(task->executor_id()) : None()));
 
-      updateTask(task, update);
-      removeTask(task);
+        updateTask(task, update);
+        removeTask(task);
 
-      if (framework->connected()) {
-        forward(update, UPID(), framework);
+        if (framework->connected()) {
+          forward(update, UPID(), framework);
+        }
       }
     }
   }
