@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -96,8 +97,6 @@ using grpc::ServerContext;
 using grpc::Status;
 using grpc::WriteOptions;
 
-using mesos::csi::VolumeInfo;
-
 using process::grpc::StatusError;
 
 using VolumeCapability = mesos::Volume::Source::CSIVolume::VolumeCapability;
@@ -159,6 +158,12 @@ public:
         "If a volume with the same name already exists, the pair will be\n"
         "ignored. (Example: 'volume1:1GB;volume2:2GB')");
 
+    add(&Flags::volume_id_path,
+        "volume_id_path",
+        "When set to true, this flag causes the volume ID of all volumes to\n"
+        "be set to the volume's path.",
+        true);
+
     add(&Flags::forward,
         "forward",
         "If set, the plugin forwards all requests to the specified Unix\n"
@@ -172,7 +177,17 @@ public:
   Option<string> create_parameters;
   Option<string> volume_metadata;
   Option<string> volumes;
+  bool volume_id_path;
   Option<string> forward;
+};
+
+
+struct VolumeInfo
+{
+  Bytes capacity;
+  string id;
+  string path;
+  google::protobuf::Map<std::string, std::string> context;
 };
 
 
@@ -192,13 +207,15 @@ public:
       const Bytes& _availableCapacity,
       const hashmap<string, string>& _createParameters,
       const hashmap<string, string>& _volumeMetadata,
-      const hashmap<string, Bytes>& _volumes)
+      const hashmap<string, Bytes>& _volumes,
+      bool _volumeIdPath)
     : apiVersion(_apiVersion),
       endpoint(_endpoint),
       workDir(_workDir),
       availableCapacity(_availableCapacity),
       createParameters(_createParameters.begin(), _createParameters.end()),
-      volumeMetadata(_volumeMetadata.begin(), _volumeMetadata.end())
+      volumeMetadata(_volumeMetadata.begin(), _volumeMetadata.end()),
+      volumeIdPath(_volumeIdPath)
   {
     // Construct the default mount volume capability.
     defaultVolumeCapability.mutable_mount();
@@ -212,8 +229,9 @@ public:
     // TODO(jieyu): Consider not using CHECKs here.
     Try<list<string>> paths = fs::list(path::join(workDir, "*-*"));
     foreach (const string& path, CHECK_NOTERROR(paths)) {
-      volumes.put(path, CHECK_NOTERROR(parseVolumePath(path)));
-      usedCapacity += volumes.at(path).capacity;
+      Try<VolumeInfo> createdVolume = CHECK_NOTERROR(parseVolumePath(path));
+      volumes.put(createdVolume->id, createdVolume.get());
+      usedCapacity += createdVolume->capacity;
     }
 
     // Create preprovisioned volumes if they have not existed yet.
@@ -229,10 +247,11 @@ public:
         continue;
       }
 
-      VolumeInfo volumeInfo{
-        capacity, getVolumePath(capacity, name), volumeMetadata};
 
-      Try<Nothing> mkdir = os::mkdir(volumeInfo.id);
+      VolumeInfo volumeInfo =
+        createVolumeInfo(capacity, name, volumeMetadata);
+
+      Try<Nothing> mkdir = os::mkdir(volumeInfo.path);
       CHECK_SOME(mkdir)
         << "Failed to create directory for preprovisioned volume '" << name
         << "': " << mkdir.error();
@@ -428,6 +447,14 @@ private:
   Try<VolumeInfo> parseVolumePath(const string& dir);
   Option<VolumeInfo> findVolumeByName(const string& name);
 
+  // Creates a volume info with the specified name based on the
+  // value of the `volume_id_path` flag.
+  VolumeInfo createVolumeInfo(
+      const Bytes& _capacity,
+      const string& name,
+      const google::protobuf::Map<string, string> context);
+
+
   Try<VolumeInfo, StatusError> createVolume(
       const string& name,
       const Bytes& requiredBytes,
@@ -494,6 +521,7 @@ private:
   Map<string, string> createParameters;
   Map<string, string> volumeMetadata;
   hashmap<string, VolumeInfo> volumes;
+  bool volumeIdPath;
 };
 
 
@@ -1299,19 +1327,39 @@ Try<VolumeInfo> TestCSIPlugin::parseVolumePath(const string& dir)
     << "Cannot reconstruct volume path '" << dir << "' from volume name '"
     << name.get() << "' and capacity " << capacity.get();
 
-  return VolumeInfo{capacity.get(), dir, volumeMetadata};
+  const string volumeId = volumeIdPath ? dir : name.get();
+
+  return VolumeInfo{capacity.get(), volumeId, dir, volumeMetadata};
 }
 
 
 Option<VolumeInfo> TestCSIPlugin::findVolumeByName(const string& name)
 {
   foreachvalue (const VolumeInfo& volumeInfo, volumes) {
-    if (volumeInfo.id == getVolumePath(volumeInfo.capacity, name)) {
+    const string volumeId =
+      volumeIdPath ? getVolumePath(volumeInfo.capacity, name) : name;
+
+    if (volumeInfo.id == volumeId) {
       return volumeInfo;
     }
   }
 
   return None();
+}
+
+
+VolumeInfo TestCSIPlugin::createVolumeInfo(
+    const Bytes& capacity,
+    const string& name,
+    const google::protobuf::Map<string, string> context)
+{
+  const string volumeId = volumeIdPath ? getVolumePath(capacity, name) : name;
+
+  return VolumeInfo{
+      capacity,
+      volumeId,
+      getVolumePath(capacity, name),
+      context};
 }
 
 
@@ -1360,11 +1408,12 @@ Try<VolumeInfo, StatusError> TestCSIPlugin::createVolume(
     // We assume that `requiredBytes <= limitBytes` has been verified.
     const Bytes defaultSize = min(availableCapacity, DEFAULT_VOLUME_CAPACITY);
 
-    VolumeInfo volumeInfo{min(max(defaultSize, requiredBytes), limitBytes),
-                          getVolumePath(volumeInfo.capacity, name),
-                          volumeMetadata};
+    VolumeInfo volumeInfo = createVolumeInfo(
+        min(max(defaultSize, requiredBytes), limitBytes),
+        name,
+        volumeMetadata);
 
-    Try<Nothing> mkdir = os::mkdir(volumeInfo.id);
+    Try<Nothing> mkdir = os::mkdir(volumeInfo.path);
     if (mkdir.isError()) {
       return StatusError(Status(
           grpc::INTERNAL,
@@ -1391,7 +1440,7 @@ Try<Nothing, StatusError> TestCSIPlugin::deleteVolume(const string& volumeId)
 
   const VolumeInfo& volumeInfo = volumes.at(volumeId);
 
-  Try<Nothing> rmdir = os::rmdir(volumeInfo.id);
+  Try<Nothing> rmdir = os::rmdir(volumeInfo.path);
   if (rmdir.isError()) {
     return StatusError(Status(
         grpc::INTERNAL,
@@ -1586,13 +1635,17 @@ Try<Nothing, StatusError> TestCSIPlugin::nodeStageVolume(
     return Nothing();
   }
 
-  Try<Nothing> mount =
-    internal::fs::mount(volumeInfo.id, stagingPath, None(), MS_BIND, None());
+  Try<Nothing> mount = internal::fs::mount(
+      volumeInfo.path,
+      stagingPath,
+      None(),
+      MS_BIND,
+      None());
 
   if (mount.isError()) {
     return StatusError(Status(
         grpc::INTERNAL,
-        "Failed to mount from '" + volumeInfo.id + "' to '" + stagingPath +
+        "Failed to mount from '" + volumeInfo.path + "' to '" + stagingPath +
           "': " + mount.error()));
   }
 
@@ -2079,7 +2132,8 @@ int main(int argc, char** argv)
         flags.available_capacity,
         createParameters,
         volumeMetadata,
-        volumes);
+        volumes,
+        flags.volume_id_path);
 
     plugin.run();
   }
