@@ -537,7 +537,7 @@ Try<process::Owned<Slave>> Slave::create(
     const process::http::URL agentUrl(
         scheme,
         process::address().ip,
-        flags.port,
+        process::address().port,
         processId + "/api/v1");
 
     Try<Owned<slave::CSIServer>> _csiServer = slave::CSIServer::create(
