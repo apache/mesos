@@ -670,6 +670,7 @@ protected:
   void updateFramework(
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
+      Option<::mesos::scheduler::OfferConstraints>&& offerConstraints,
       ::mesos::allocator::FrameworkOptions&& allocatorOptions);
 
   void sendFrameworkUpdates(const Framework& framework);
@@ -903,6 +904,7 @@ private:
   void _subscribe(
       StreamingHttpConnection<v1::scheduler::Event> http,
       FrameworkInfo&& frameworkInfo,
+      Option<scheduler::OfferConstraints>&& offerConstraints,
       bool force,
       ::mesos::allocator::FrameworkOptions&& allocatorOptions,
       const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
@@ -914,6 +916,7 @@ private:
   void _subscribe(
       const process::UPID& from,
       FrameworkInfo&& frameworkInfo,
+      Option<scheduler::OfferConstraints>&& offerConstraints,
       bool force,
       ::mesos::allocator::FrameworkOptions&& allocatorOptions,
       const process::Future<process::Owned<ObjectApprovers>>& objectApprovers);
@@ -2413,6 +2416,7 @@ struct Framework
       Master* const master,
       const Flags& masterFlags,
       const FrameworkInfo& info,
+      Option<::mesos::scheduler::OfferConstraints>&& offerConstraints,
       const process::UPID& _pid,
       const process::Owned<ObjectApprovers>& objectApprovers,
       const process::Time& time = process::Clock::now());
@@ -2420,6 +2424,7 @@ struct Framework
   Framework(Master* const master,
             const Flags& masterFlags,
             const FrameworkInfo& info,
+            Option<::mesos::scheduler::OfferConstraints>&& offerConstraints,
             const StreamingHttpConnection<v1::scheduler::Event>& _http,
             const process::Owned<ObjectApprovers>& objectApprovers,
             const process::Time& time = process::Clock::now());
@@ -2486,7 +2491,9 @@ struct Framework
   // Update fields in 'info' using those in 'newInfo'. Currently this
   // only updates `role`/`roles`, 'name', 'failover_timeout', 'hostname',
   // 'webui_url', 'capabilities', and 'labels'.
-  void update(const FrameworkInfo& newInfo);
+  void update(
+      const FrameworkInfo& newInfo,
+      Option<::mesos::scheduler::OfferConstraints>&& offerConstraints);
 
   // Reactivate framework with new connection: update connection-related state
   // and mark the framework as CONNECTED, regardless of the previous state.
@@ -2536,6 +2543,11 @@ struct Framework
   // Returns whether the framework principal is authorized to perform
   // action on object.
   Try<bool> approved(const authorization::ActionObject& actionObject) const;
+
+  const Option<::mesos::scheduler::OfferConstraints>& offerConstraints() const
+  {
+    return offerConstraints_;
+  }
 
   Master* const master;
 
@@ -2623,6 +2635,7 @@ private:
   Framework(Master* const _master,
             const Flags& masterFlags,
             const FrameworkInfo& _info,
+            Option<::mesos::scheduler::OfferConstraints>&& offerConstraints,
             State state,
             bool active,
             const process::Owned<ObjectApprovers>& objectApprovers,
@@ -2656,6 +2669,9 @@ private:
 
   // ObjectApprovers for the framework's principal.
   process::Owned<ObjectApprovers> objectApprovers;
+
+  // The last offer constraints with which the framework has been subscribed.
+  Option<::mesos::scheduler::OfferConstraints> offerConstraints_;
 };
 
 

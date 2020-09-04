@@ -25,6 +25,7 @@ using process::Owned;
 using process::http::authentication::Principal;
 
 using mesos::authorization::ActionObject;
+using mesos::scheduler::OfferConstraints;
 
 namespace mesos {
 namespace internal {
@@ -34,10 +35,19 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
+    Option<OfferConstraints>&& offerConstraints,
     const process::UPID& pid,
     const Owned<ObjectApprovers>& approvers,
     const process::Time& time)
-  : Framework(master, masterFlags, info, CONNECTED, true, approvers, time)
+  : Framework(
+        master,
+        masterFlags,
+        info,
+        std::move(offerConstraints),
+        CONNECTED,
+        true,
+        approvers,
+        time)
 {
   pid_ = pid;
 }
@@ -47,10 +57,19 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
+    Option<OfferConstraints>&& offerConstraints,
     const StreamingHttpConnection<v1::scheduler::Event>& http,
     const Owned<ObjectApprovers>& approvers,
     const process::Time& time)
-  : Framework(master, masterFlags, info, CONNECTED, true, approvers, time)
+  : Framework(
+        master,
+        masterFlags,
+        info,
+        std::move(offerConstraints),
+        CONNECTED,
+        true,
+        approvers,
+        time)
 {
   http_ = http;
 }
@@ -61,7 +80,14 @@ Framework::Framework(
     const Flags& masterFlags,
     const FrameworkInfo& info)
   : Framework(
-      master, masterFlags, info, RECOVERED, false, nullptr, process::Time())
+        master,
+        masterFlags,
+        info,
+        None(),
+        RECOVERED,
+        false,
+        nullptr,
+        process::Time())
 {}
 
 
@@ -69,6 +95,7 @@ Framework::Framework(
     Master* const _master,
     const Flags& masterFlags,
     const FrameworkInfo& _info,
+    Option<OfferConstraints>&& offerConstraints,
     State state,
     bool active_,
     const Owned<ObjectApprovers>& approvers,
@@ -84,7 +111,8 @@ Framework::Framework(
     metrics(_info, masterFlags.publish_per_framework_metrics),
     active_(active_),
     state(state),
-    objectApprovers(approvers)
+    objectApprovers(approvers),
+    offerConstraints_(std::move(offerConstraints))
 {
   CHECK(_info.has_id());
 
@@ -508,7 +536,9 @@ void Framework::removeOperation(Operation* operation)
 }
 
 
-void Framework::update(const FrameworkInfo& newInfo)
+void Framework::update(
+    const FrameworkInfo& newInfo,
+    Option<OfferConstraints>&& offerConstraints)
 {
   // We only merge 'info' from the same framework 'id'.
   CHECK_EQ(info.id(), newInfo.id());
@@ -523,6 +553,7 @@ void Framework::update(const FrameworkInfo& newInfo)
   CHECK_EQ(info.checkpoint(), newInfo.checkpoint());
 
   info.CopyFrom(newInfo);
+  offerConstraints_ = std::move(offerConstraints);
 
   // Save the old list of roles for later.
   std::set<std::string> oldRoles = roles;

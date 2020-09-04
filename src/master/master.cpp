@@ -155,6 +155,8 @@ using mesos::master::contender::MasterContender;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::scheduler::OfferConstraints;
+
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
 
 
@@ -2669,13 +2671,17 @@ void Master::subscribe(
   Option<Error> validationError =
     validateFramework(frameworkInfo, subscribe.suppressed_roles());
 
+  Option<OfferConstraints> offerConstraints;
+  if (subscribe.has_offer_constraints()) {
+    offerConstraints = std::move(*subscribe.mutable_offer_constraints());
+  }
+
   allocator::FrameworkOptions allocatorOptions;
 
   // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
-  if (validationError.isNone() && subscribe.has_offer_constraints()) {
+  if (validationError.isNone() && offerConstraints.isSome()) {
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
-        offerConstraintsFilterOptions,
-        std::move(*subscribe.mutable_offer_constraints()));
+        offerConstraintsFilterOptions, OfferConstraints(*offerConstraints));
 
     if (filter.isError()) {
       validationError = Error(std::move(filter.error()));
@@ -2705,6 +2711,7 @@ void Master::subscribe(
   void (Master::*_subscribe)(
       StreamingHttpConnection<v1::scheduler::Event>,
       FrameworkInfo&&,
+      Option<OfferConstraints>&&,
       bool,
       FrameworkOptions&&,
       const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
@@ -2717,6 +2724,7 @@ void Master::subscribe(
       _subscribe,
       http,
       std::move(frameworkInfo),
+      std::move(offerConstraints),
       subscribe.force(),
       std::move(allocatorOptions),
       lambda::_1));
@@ -2726,6 +2734,7 @@ void Master::subscribe(
 void Master::_subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
     FrameworkInfo&& frameworkInfo,
+    Option<OfferConstraints>&& offerConstraints,
     bool force,
     ::mesos::allocator::FrameworkOptions&& options,
     const Future<Owned<ObjectApprovers>>& objectApprovers)
@@ -2760,8 +2769,13 @@ void Master::_subscribe(
     FrameworkInfo frameworkInfo_ = frameworkInfo;
     frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework =
-      new Framework(this, flags, frameworkInfo_, http, objectApprovers.get());
+    Framework* framework = new Framework(
+        this,
+        flags,
+        frameworkInfo_,
+        std::move(offerConstraints),
+        http,
+        objectApprovers.get());
 
     addFramework(framework, std::move(options));
 
@@ -2823,7 +2837,11 @@ void Master::_subscribe(
 
   framework->metrics.incrementCall(scheduler::Call::SUBSCRIBE);
 
-  updateFramework(framework, frameworkInfo, std::move(options));
+  updateFramework(
+      framework,
+      frameworkInfo,
+      std::move(offerConstraints),
+      std::move(options));
 
   if (!framework->recovered()) {
     // The framework has previously been registered with this master;
@@ -2915,13 +2933,17 @@ void Master::subscribe(
     validationError = validateFrameworkAuthentication(frameworkInfo, from);
   }
 
+  Option<OfferConstraints> offerConstraints;
+  if (subscribe.has_offer_constraints()) {
+    offerConstraints = std::move(*subscribe.mutable_offer_constraints());
+  }
+
   allocator::FrameworkOptions allocatorOptions;
 
   // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
-  if (validationError.isNone() && subscribe.has_offer_constraints()) {
+  if (validationError.isNone() && offerConstraints.isSome()) {
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
-        offerConstraintsFilterOptions,
-        std::move(*subscribe.mutable_offer_constraints()));
+        offerConstraintsFilterOptions, OfferConstraints(*offerConstraints));
 
     if (filter.isError()) {
       validationError = Error(std::move(filter.error()));
@@ -2965,6 +2987,7 @@ void Master::subscribe(
   void (Master::*_subscribe)(
       const UPID&,
       FrameworkInfo&&,
+      Option<OfferConstraints>&&,
       bool,
       ::mesos::allocator::FrameworkOptions&&,
       const Future<Owned<ObjectApprovers>>&) = &Self::_subscribe;
@@ -2977,6 +3000,7 @@ void Master::subscribe(
       _subscribe,
       from,
       std::move(frameworkInfo),
+      std::move(offerConstraints),
       subscribe.force(),
       std::move(allocatorOptions),
       lambda::_1));
@@ -2986,6 +3010,7 @@ void Master::subscribe(
 void Master::_subscribe(
     const UPID& from,
     FrameworkInfo&& frameworkInfo,
+    Option<OfferConstraints>&& offerConstraints,
     bool force,
     ::mesos::allocator::FrameworkOptions&& options,
     const Future<Owned<ObjectApprovers>>& objectApprovers)
@@ -3050,8 +3075,13 @@ void Master::_subscribe(
     // Assign a new FrameworkID.
     frameworkInfo.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework =
-      new Framework(this, flags, frameworkInfo, from, objectApprovers.get());
+    Framework* framework = new Framework(
+        this,
+        flags,
+        frameworkInfo,
+        std::move(offerConstraints),
+        from,
+        objectApprovers.get());
 
     addFramework(framework, std::move(options));
 
@@ -3138,7 +3168,11 @@ void Master::_subscribe(
   // It is now safe to update the framework fields since the request is now
   // guaranteed to be successful. We use the fields passed in during
   // re-registration.
-  updateFramework(framework, frameworkInfo, std::move(options));
+  updateFramework(
+      framework,
+      frameworkInfo,
+      std::move(offerConstraints),
+      std::move(options));
 
   if (!framework->recovered()) {
     // The framework has previously been registered with this master;
@@ -3258,20 +3292,22 @@ Future<process::http::Response> Master::updateFramework(
   const bool frameworkInfoChanged =
     !typeutils::equivalent(framework->info, call.framework_info());
 
+  Option<OfferConstraints> offerConstraints;
   allocator::FrameworkOptions allocatorOptions;
   if (call.has_offer_constraints()) {
     // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
     Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
         offerConstraintsFilterOptions,
-        std::move(*call.mutable_offer_constraints()));
+        OfferConstraints(call.offer_constraints()));
 
     if (filter.isError()) {
       return process::http::BadRequest(
           "'UpdateFramework.offer_constraints' are not valid: " +
           filter.error());
-    } else {
-      allocatorOptions.offerConstraintsFilter = std::move(*filter);
     }
+
+    allocatorOptions.offerConstraintsFilter = std::move(*filter);
+    offerConstraints = std::move(*call.mutable_offer_constraints());
   }
 
   ActionObject actionObject =
@@ -3296,7 +3332,10 @@ Future<process::http::Response> Master::updateFramework(
     make_move_iterator(call.mutable_suppressed_roles()->end()));
 
   updateFramework(
-      framework, call.framework_info(), std::move(allocatorOptions));
+      framework,
+      call.framework_info(),
+      std::move(offerConstraints),
+      std::move(allocatorOptions));
 
   if (frameworkInfoChanged) {
     // NOTE: Among the framework properties that can be changed by this call
@@ -7461,6 +7500,7 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 void Master::updateFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
+    Option<OfferConstraints>&& offerConstraints,
     ::mesos::allocator::FrameworkOptions&& allocatorOptions)
 {
   LOG(INFO) << "Updating framework " << *framework << " with roles "
@@ -7479,7 +7519,7 @@ void Master::updateFramework(
     }
   }
 
-  framework->update(frameworkInfo);
+  framework->update(frameworkInfo, std::move(offerConstraints));
 }
 
 
