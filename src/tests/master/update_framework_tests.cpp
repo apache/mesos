@@ -870,13 +870,14 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
 
   // Change constraint to `NotExists` so that the agent will now be offered to
   // the framework.
+  OfferConstraints updatedConstraints;
+
   {
     FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
     *framework.mutable_id() = subscribed->framework_id();
 
-    OfferConstraints constraints;
     AttributeConstraint* constraint =
-      (*constraints.mutable_role_constraints())[framework.roles(0)]
+      (*updatedConstraints.mutable_role_constraints())[framework.roles(0)]
         .add_groups()
         ->add_attribute_constraints();
 
@@ -884,7 +885,7 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
     *constraint->mutable_predicate()->mutable_not_exists() =
       AttributeConstraint::Predicate::NotExists();
 
-    AWAIT_READY(callUpdateFramework(&mesos, framework, {}, constraints));
+    AWAIT_READY(callUpdateFramework(&mesos, framework, {}, updatedConstraints));
   }
 
   Clock::pause();
@@ -895,8 +896,50 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
   AWAIT_READY(offers);
   EXPECT_EQ(offers->offers().size(), 1);
 
-  // TODO(asekretenko): After master starts exposing offer constraints via
-  // its endpoints (MESOS-10179), check the constraints in the endpoints.
+  // Ensure that the updated offer constraints are reflected in the master's
+  // '/state' response.
+  {
+    Future<process::http::Response> response = process::http::get(
+        master->get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Object> reportedConstraints = parse->find<JSON::Object>(
+        "frameworks[0].offer_constraints");
+
+    EXPECT_SOME_EQ(JSON::protobuf(updatedConstraints), reportedConstraints);
+  }
+
+  // Ensure that the updated offer constraints are reflected in the master's
+  // '/frameworks' response.
+  {
+    Future<process::http::Response> response = process::http::get(
+        master->get()->pid,
+        "frameworks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Object> reportedConstraints = parse->find<JSON::Object>(
+        "frameworks[0].offer_constraints");
+
+    ASSERT_SOME_EQ(JSON::protobuf(updatedConstraints), reportedConstraints);
+  }
+
+  // TODO(asekretenko): After master starts exposing offer constraints via the
+  // V1 API (MESOS-10179), check the constraints in the GET_FRAMEWORKS response.
 }
 
 

@@ -257,6 +257,11 @@ void FullFrameworkWriter::operator()(JSON::ObjectWriter* writer) const
   if (framework_->info.has_labels()) {
     writer->field("labels", framework_->info.labels());
   }
+
+  if (framework_->offerConstraints().isSome()) {
+    writer->field(
+        "offer_constraints", JSON::Protobuf(*framework_->offerConstraints()));
+  };
 }
 
 
