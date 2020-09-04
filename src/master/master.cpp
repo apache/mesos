@@ -2823,12 +2823,11 @@ void Master::_subscribe(
 
   framework->metrics.incrementCall(scheduler::Call::SUBSCRIBE);
 
+  updateFramework(framework, frameworkInfo, std::move(options));
+
   if (!framework->recovered()) {
     // The framework has previously been registered with this master;
     // it may or may not currently be connected.
-
-    updateFramework(framework, frameworkInfo, std::move(options));
-
     framework->reregisteredTime = Clock::now();
 
     // Always failover the old framework connection. See MESOS-4712 for details.
@@ -2836,12 +2835,7 @@ void Master::_subscribe(
   } else {
     // The framework has not yet reregistered after master failover.
     connectAndActivateRecoveredFramework(
-        framework,
-        frameworkInfo,
-        None(),
-        http,
-        objectApprovers.get(),
-        std::move(options));
+        framework, None(), http, objectApprovers.get());
   }
 
   // TODO(asekretenko): Consider avoiding to broadcast `FrameworkInfo` to agents
@@ -3123,32 +3117,32 @@ void Master::_subscribe(
     return;
   }
 
+  // Using the "force" field of the scheduler allows us to reject a
+  // scheduler that got partitioned but didn't die (in ZooKeeper
+  // speak this means didn't lose their session) and then
+  // eventually tried to connect to this master even though
+  // another instance of their scheduler has reconnected.
+
+  // Test that the scheduler trying to subscribe with a new PID sets `force`.
+  if (!framework->recovered() && framework->pid() != from && !force) {
+    LOG(ERROR) << "Disallowing subscription attempt of"
+               << " framework " << *framework
+               << " because it is not expected from " << from;
+
+    FrameworkErrorMessage message;
+    message.set_message("Framework failed over");
+    send(from, message);
+    return;
+  }
+
+  // It is now safe to update the framework fields since the request is now
+  // guaranteed to be successful. We use the fields passed in during
+  // re-registration.
+  updateFramework(framework, frameworkInfo, std::move(options));
+
   if (!framework->recovered()) {
     // The framework has previously been registered with this master;
     // it may or may not currently be connected.
-    //
-    // Using the "force" field of the scheduler allows us to keep a
-    // scheduler that got partitioned but didn't die (in ZooKeeper
-    // speak this means didn't lose their session) and then
-    // eventually tried to connect to this master even though
-    // another instance of their scheduler has reconnected.
-
-    // Test for the error case first.
-    if ((framework->pid() != from) && !force) {
-      LOG(ERROR) << "Disallowing subscription attempt of"
-                 << " framework " << *framework
-                 << " because it is not expected from " << from;
-
-      FrameworkErrorMessage message;
-      message.set_message("Framework failed over");
-      send(from, message);
-      return;
-    }
-
-    // It is now safe to update the framework fields since the request is now
-    // guaranteed to be successful. We use the fields passed in during
-    // re-registration.
-    updateFramework(framework, frameworkInfo, std::move(options));
 
     framework->reregisteredTime = Clock::now();
 
@@ -3207,12 +3201,7 @@ void Master::_subscribe(
   } else {
     // The framework has not yet reregistered after master failover.
     connectAndActivateRecoveredFramework(
-        framework,
-        frameworkInfo,
-        from,
-        None(),
-        objectApprovers.get(),
-        std::move(options));
+        framework, from, None(), objectApprovers.get());
   }
 
   // TODO(asekretenko): Consider avoiding to broadcast `FrameworkInfo` and
@@ -10136,11 +10125,9 @@ void Master::recoverFramework(const FrameworkInfo& info)
 
 void Master::connectAndActivateRecoveredFramework(
     Framework* framework,
-    const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
     const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
-    const Owned<ObjectApprovers>& objectApprovers,
-    ::mesos::allocator::FrameworkOptions&& allocatorOptions)
+    const Owned<ObjectApprovers>& objectApprovers)
 {
   // Exactly one of `pid` or `http` must be provided.
   CHECK(pid.isSome() != http.isSome());
@@ -10151,8 +10138,6 @@ void Master::connectAndActivateRecoveredFramework(
   CHECK(framework->inverseOffers.empty());
   CHECK(framework->pid().isNone());
   CHECK(framework->http().isNone());
-
-  updateFramework(framework, frameworkInfo, std::move(allocatorOptions));
 
   // Updating `registeredTime` here is debatable: ideally,
   // `registeredTime` would be the time at which the framework first

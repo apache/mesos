@@ -629,11 +629,9 @@ protected:
   // Exactly one of `newPid` or `http` must be provided.
   void connectAndActivateRecoveredFramework(
       Framework* framework,
-      const FrameworkInfo& frameworkInfo,
       const Option<process::UPID>& pid,
       const Option<StreamingHttpConnection<v1::scheduler::Event>>& http,
-      const process::Owned<ObjectApprovers>& objectApprovers,
-      ::mesos::allocator::FrameworkOptions&& allocatorOptions);
+      const process::Owned<ObjectApprovers>& objectApprovers);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
