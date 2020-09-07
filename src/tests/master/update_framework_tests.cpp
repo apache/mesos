@@ -938,8 +938,20 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
     ASSERT_SOME_EQ(JSON::protobuf(updatedConstraints), reportedConstraints);
   }
 
-  // TODO(asekretenko): After master starts exposing offer constraints via the
-  // V1 API (MESOS-10179), check the constraints in the GET_FRAMEWORKS response.
+  Future<v1::master::Response::GetFrameworks> frameworks =
+    getFrameworks(master->get()->pid);
+  AWAIT_READY(frameworks);
+
+  ASSERT_EQ(frameworks->frameworks_size(), 1);
+  ASSERT_TRUE(frameworks->frameworks(0).has_offer_constraints());
+
+  // TODO(asekretenko): As the semantics of the offer constraints does not
+  // depend on the order of constraints groups and the order of individual
+  // constraints inside groups, we should consider using a `MessageDifferencer`
+  // configured to take this into account.
+  ASSERT_EQ(
+      updatedConstraints.SerializeAsString(),
+      frameworks->frameworks(0).offer_constraints().SerializeAsString());
 }
 
 
