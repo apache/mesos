@@ -23,6 +23,8 @@ import "mesos/v1/mesos.proto";
 
 import "mesos/v1/maintenance/maintenance.proto";
 
+import "mesos/v1/scheduler/scheduler.proto";
+
 import "mesos/v1/quota/quota.proto";
 
 package mesos.v1.master;
@@ -489,11 +491,15 @@ message Response {
       optional TimeInfo reregistered_time = 5;
       optional TimeInfo unregistered_time = 6;
 
+      // NOTE: Offers, inverse offers, allocated/offered resources
+      // and offer constraints are never reported via master API events.
       repeated Offer offers = 7;
       repeated InverseOffer inverse_offers = 8;
 
       repeated Resource allocated_resources = 9;
       repeated Resource offered_resources = 10;
+
+      optional scheduler.OfferConstraints offer_constraints = 12;
     }
 
     // Frameworks that have subscribed with the master. Note that this includes
