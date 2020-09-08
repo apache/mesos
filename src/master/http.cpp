@@ -2335,6 +2335,16 @@ Future<Response> Master::Http::deferBatchedRequest(
         // specific to the batched requests which are always members of
         // `ReadOnlyHandler`, since we rely on the response only depending
         // on query parameters and the current master state.
+        //
+        // TODO(asekretenko): We should consider replacing `approvers` with
+        // taking the set of authorization actions and creating
+        // `ObjectApprovers` inside of this method, because the code below
+        // implicilty relies on the fact that `approvers` for a given handler
+        // always contain `ObjectApprover`s for the same set of actions. Note
+        // that together with the fact that permissions in all `ObjectApprover`s
+        // for a given principal are equally up-to-date (regardless of when they
+        // were created), this allows us to compare `handler` and `principal`
+        // instead of comparing `approvers`.
         return handler == batchedRequest.handler &&
                principal == batchedRequest.principal &&
                outputContentType == batchedRequest.outputContentType &&
@@ -2360,11 +2370,6 @@ Future<Response> Master::Http::deferBatchedRequest(
         std::move(promise)});
   } else {
     // Return the existing future if we have a matching request.
-    // NOTE: This is effectively adding a layer of authorization permissions
-    // caching since we only checked the equality of principals, not the
-    // equality of the approvers themselves.
-    // On heavily-loaded masters, this could lead to a delay of several seconds
-    // before permission changes for a principal take effect.
     future = it->promise.future();
     ++master->metrics->http_cache_hits;
 
