@@ -43,6 +43,10 @@
 namespace mesos {
 namespace allocator {
 
+constexpr Duration DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT = Minutes(10);
+constexpr double DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR = 0.80;
+
+
 /**
  *  Pass in configuration to the allocator.
  */
@@ -71,6 +75,10 @@ struct Options
 
   // Mesos master's authorizer.
   Option<::mesos::Authorizer*> authorizer;
+
+  // Recovery options
+  Duration recoveryTimeout = DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT;
+  double agentRecoveryFactor = DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR;
 };
 
 

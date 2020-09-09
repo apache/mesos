@@ -702,13 +702,9 @@ void HierarchicalAllocatorProcess::recover(
     updateQuota(role, quota);
   }
 
-  // TODO(alexr): Consider exposing these constants.
-  const Duration ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT = Minutes(10);
-  const double AGENT_RECOVERY_FACTOR = 0.8;
-
   // Record the number of expected agents.
   expectedAgentCount =
-    static_cast<int>(_expectedAgentCount * AGENT_RECOVERY_FACTOR);
+    static_cast<int>(_expectedAgentCount * options.agentRecoveryFactor);
 
   // Skip recovery if there are no expected agents. This is not strictly
   // necessary for the allocator to function correctly, but maps better
@@ -726,11 +722,11 @@ void HierarchicalAllocatorProcess::recover(
   pause();
 
   // Setup recovery timer.
-  delay(ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT, self(), &Self::resume);
+  delay(options.recoveryTimeout, self(), &Self::resume);
 
   LOG(INFO) << "Triggered allocator recovery: waiting for "
             << expectedAgentCount.get() << " agents to reconnect or "
-            << ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT << " to pass";
+            << options.recoveryTimeout << " to pass";
 }
 
 

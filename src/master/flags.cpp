@@ -24,6 +24,8 @@
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 
+#include <mesos/allocator/allocator.hpp>
+
 using std::string;
 
 mesos::internal::master::Flags::Flags()
@@ -459,6 +461,18 @@ mesos::internal::master::Flags::Flags()
       "Use the default `" + string(DEFAULT_ALLOCATOR) + "` allocator, or\n"
       "load an alternate allocator module using `--modules`.",
       DEFAULT_ALLOCATOR);
+
+  add(&Flags::allocator_agent_recovery_factor,
+      "allocator_agent_recovery_factor",
+      "Minimum fraction of known agents re-registered after leader election\n"
+      "for the allocator to start generating offers.",
+      mesos::allocator::DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR);
+
+  add(&Flags::allocator_recovery_timeout,
+      "allocator_recovery_timeout",
+      "Maximum time to wait before sending offers after a leader\n"
+      "re-election.",
+      mesos::allocator::DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT);
 
   add(&Flags::fair_sharing_excluded_resource_names,
       "fair_sharing_excluded_resource_names",

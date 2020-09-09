@@ -796,6 +796,8 @@ void Master::initialize()
   options.publishPerFrameworkMetrics = flags.publish_per_framework_metrics;
   options.readonlyHttpAuthenticationRealm = READONLY_HTTP_AUTHENTICATION_REALM;
   options.authorizer = authorizer;
+  options.recoveryTimeout = flags.allocator_recovery_timeout;
+  options.agentRecoveryFactor = flags.allocator_agent_recovery_factor;
 
   // Initialize the allocator.
   allocator->initialize(
