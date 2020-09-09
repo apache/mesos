@@ -21,10 +21,12 @@
 #include <set>
 #include <string>
 
+#include <mesos/authorizer/authorizer.hpp>
 #include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
 #include <process/id.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/boundedhashmap.hpp>
@@ -865,6 +867,13 @@ protected:
   const std::function<Sorter*()> frameworkSorterFactory;
 
 private:
+  process::Future<process::http::Response> offerConstraintsDebug(
+      const process::http::Request&,
+      const Option<process::http::authentication::Principal>& principal);
+
+  process::http::Response offerConstraintsDebug_(
+      std::shared_ptr<const ObjectApprover> frameworksApprover);
+
   bool isFrameworkTrackedUnderRole(
       const FrameworkID& frameworkId,
       const std::string& role) const;

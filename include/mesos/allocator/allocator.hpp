@@ -24,10 +24,9 @@
 #include <mesos/allocator/allocator.pb.h>
 #include <mesos/scheduler/scheduler.pb.h>
 
+#include <mesos/authorizer/authorizer.hpp>
 #include <mesos/maintenance/maintenance.hpp>
-
 #include <mesos/quota/quota.hpp>
-
 #include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
@@ -66,6 +65,12 @@ struct Options
   size_t maxCompletedFrameworks = 0;
 
   bool publishPerFrameworkMetrics = true;
+
+  // Authentication realm for HTTP debug endpoints exposed by the allocator.
+  Option<std::string> readonlyHttpAuthenticationRealm;
+
+  // Mesos master's authorizer.
+  Option<::mesos::Authorizer*> authorizer;
 };
 
 

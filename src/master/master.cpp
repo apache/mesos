@@ -794,6 +794,8 @@ void Master::initialize()
   options.minAllocatableResources = minAllocatableResources;
   options.maxCompletedFrameworks = flags.max_completed_frameworks;
   options.publishPerFrameworkMetrics = flags.publish_per_framework_metrics;
+  options.readonlyHttpAuthenticationRealm = READONLY_HTTP_AUTHENTICATION_REALM;
+  options.authorizer = authorizer;
 
   // Initialize the allocator.
   allocator->initialize(

@@ -32,6 +32,7 @@
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/event.hpp>
+#include <process/help.hpp>
 #include <process/id.hpp>
 #include <process/loop.hpp>
 #include <process/timeout.hpp>
@@ -42,6 +43,7 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
@@ -58,6 +60,7 @@ using mesos::allocator::InverseOfferStatus;
 using mesos::allocator::Options;
 
 using process::after;
+using process::http::authentication::Principal;
 using process::Continue;
 using process::ControlFlow;
 using process::Failure;
@@ -612,6 +615,9 @@ Framework::Framework(
 {}
 
 
+static string OFFER_CONSTRAINTS_DEBUG_HELP();
+
+
 void HierarchicalAllocatorProcess::initialize(
     const Options& _options,
     const lambda::function<
@@ -632,6 +638,18 @@ void HierarchicalAllocatorProcess::initialize(
   completedFrameworkMetrics =
     BoundedHashMap<FrameworkID, process::Owned<FrameworkMetrics>>(
         options.maxCompletedFrameworks);
+
+  route("/offer_constraints_debug",
+        options.readonlyHttpAuthenticationRealm.getOrElse(""),
+        OFFER_CONSTRAINTS_DEBUG_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return offerConstraintsDebug(request, principal)
+            .onReady([request](const process::http::Response& response) {
+              logResponse(request, response);
+            });
+        });
 
   roleSorter->initialize(options.fairnessExcludeResourceNames);
 
@@ -3209,6 +3227,113 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
       tryUntrackFrameworkUnderRole(*framework, role);
     }
   }
+}
+
+
+static string OFFER_CONSTRAINTS_DEBUG_HELP()
+{
+  return process::HELP(
+    process::TLDR(
+        "Evaluates current framework offer constraints and returns results."),
+    process::DESCRIPTION(
+        "This endpoint evaluates for each role of each framework a list",
+        "of agents excluded from allocation by offer constraints.",
+        "",
+        "Example:",
+        "```",
+        "{\"frameworks\": {",
+        "   \"0f4c63a9-be1e-4a90-9e11-d7bf0aa6c8ad-0017\": {",
+        "     \"excluded_by_attribute_constraints\": {",
+        "       \"role1\": [",
+        "         \"0b1e7d60-dfbc-44c9-8222-48b57eca8637-S123\",",
+        "         \"654af69c-80f7-45ad-bcb3-c7c917f1811b-S045\"],",
+        "       \"role2\": [] }},",
+        "   \"b0377da6-090d-4338-9e2e-bf6cf0f309b7-0011\": {}",
+        "}}",
+        "```",
+        "In this example, two agents are excluded from allocation",
+        "to the first framework (-0017) under the role \"role1\", no agents",
+        "are excluded from allocation to this framework under \"role2\",",
+        "and the second framework (-0011) has no offer constraints set."
+        ),
+    process::AUTHENTICATION(true),
+    process::AUTHORIZATION(
+        "This endpoint skips frameworks for which the user is not authorized"
+        "to perform a VIEW_FRAMEWORK action."));
+}
+
+
+Future<process::http::Response>
+HierarchicalAllocatorProcess::offerConstraintsDebug(
+    const process::http::Request&,
+    const Option<process::http::authentication::Principal>& principal)
+{
+  if (options.authorizer.isNone()) {
+    return offerConstraintsDebug_(nullptr);
+  }
+
+  return (*options.authorizer)
+    ->getApprover(
+        authorization::createSubject(principal),
+        authorization::Action::VIEW_FRAMEWORK)
+    .then(defer(self(), &Self::offerConstraintsDebug_, lambda::_1));
+}
+
+
+process::http::Response HierarchicalAllocatorProcess::offerConstraintsDebug_(
+    shared_ptr<const ObjectApprover> frameworksApprover)
+{
+  vector<const Framework*> approvedFrameworks;
+  foreachvalue (const Framework& framework, frameworks) {
+    Try<bool> approved = frameworksApprover
+                           ? frameworksApprover->approved(framework.info)
+                           : true;
+
+    if (approved.isError()) {
+      LOG(WARNING) << "Error authorizing VIEW_FRAMEWORK for framework "
+                   << framework.info.id() << ": " << approved.error();
+
+      return process::http::InternalServerError(
+          "Failed to authorize VIEW_FRAMEWORK: " + approved.error());
+    }
+
+    if (*approved) {
+      approvedFrameworks.push_back(&framework);
+    }
+  }
+
+  auto writeFrameworks = [&](JSON::ObjectWriter* writer) {
+    for (const Framework* framework : approvedFrameworks) {
+      auto writeFramework = [&](JSON::ObjectWriter* writer) {
+        if (framework->offerConstraintsFilter.isNone()) {
+          // For an authorized frameworks without offer constraints,
+          // an empty object is written.
+          return;
+        }
+
+        writer->field(
+            "excluded_by_attribute_constraints",
+            [&](JSON::ObjectWriter* writer) {
+              for (const string& role : framework->roles) {
+                writer->field(role, [&](JSON::ArrayWriter* writer) {
+                  foreachvalue (const Slave& slave, slaves) {
+                    if (framework->offerConstraintsFilter->isAgentExcluded(
+                            role, slave.info)) {
+                      writer->element(stringify(slave.id));
+                    }
+                  }
+                });
+              }
+            });
+      };
+
+      writer->field(stringify(framework->info.id()), writeFramework);
+    }
+  };
+
+  return process::http::OK(jsonify([&](JSON::ObjectWriter* writer) {
+    writer->field("frameworks", writeFrameworks);
+  }));
 }
 
 
