@@ -3,8 +3,10 @@ MAINTAINER "dev@mesos.apache.org"
 
 LABEL Description="This image is used for generating Mesos web site."
 
-# The mesos build image drops down to user `mesos`, but
-# we need priviledged access to install packages below.
+# Set the root user explicitly because the base image
+# `mesos/mesos-build` uses `mesos` user by default. Also, note that
+# `root` inside the container is mapped to `jenkins` user on the build
+# machine host in ASF CI.
 USER root
 
 # Install dependencies.

@@ -32,15 +32,11 @@ docker build --no-cache=true -t $TAG support/mesos-website
 
 trap 'docker rmi $TAG' EXIT
 
-# NOTE: We set `LOCAL_USER_ID` environment variable to enable running the
-# container process with the same UID as the user running this script. This
-# ensures that any writes to the mounted volumes will have the same permissions
-# as the user running the script, making it easy to do cleanups; otherwise
-# any writes will have permissions of UID 0 by default on Linux.
-
+# NOTE: ASF CI remaps the host `jenkins` user to UID 0 inside the container
+# so we don't need to do any user switching inside the container to be able
+# to write to the mounted host volumes with the correct permissions.
 docker run \
   --rm \
-  -e LOCAL_USER_ID="$(id -u "$USER")" \
   -v "$MESOS_DIR":/mesos:Z \
   -v "$MESOS_SITE_DIR/content":/mesos/site/publish:Z \
   $TAG

@@ -16,18 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper script for building Mesos website as a non-root user.
+# This is a wrapper script for building Mesos website.
+# TODO(vinod): Merge this with `build.sh` now that we dont need to switch
+# users in ASF CI as user namespacing has been implemented.
 set -e
 set -o pipefail
 
-# This needs to be run under `root` user for `bundle exec rake` to
-# work properly. See MESOS-7859.
 pushd site
 bundle install
 popd # site
 
-# Create a local user account.
-useradd -u $LOCAL_USER_ID -s /bin/bash -m tempuser
-
-# Build mesos and the website as the new user.
-su -c support/mesos-website/build.sh tempuser
+./support/mesos-website/build.sh

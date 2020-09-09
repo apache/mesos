@@ -27,6 +27,19 @@ function exit_hook {
 
 trap exit_hook EXIT
 
+file_owner_uid=`stat . --format=%u`
+current_user_uid=`id -u`
+if [ $file_owner_uid -ne $current_user_uid ];
+then
+  echo "
+    The mounted mesos sources are owned by UID $file_owner_uid
+    which is different from the current user UID $current_user_uid
+    inside the container. Please check that dockerd has
+    user namespace remapping configured properly.
+  "
+  exit 1
+fi
+
 # Build mesos to get the latest master and agent binaries.
 ./bootstrap
 mkdir -p build
