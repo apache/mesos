@@ -59,6 +59,7 @@ Mesos supports the following built-in isolators.
 - posix/cpu
 - posix/mem
 - [posix/rlimits](isolators/posix-rlimits.md)
+- [volume/csi](isolators/csi-volume.md)
 - [volume/host_path](container-volume.md#host_path-volume-source)
 - volume/image
 - [volume/sandbox_path](container-volume.md#sandbox_path-volume-source)
