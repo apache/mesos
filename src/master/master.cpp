@@ -792,6 +792,8 @@ void Master::initialize()
   options.minAllocatableResources = minAllocatableResources;
   options.maxCompletedFrameworks = flags.max_completed_frameworks;
   options.publishPerFrameworkMetrics = flags.publish_per_framework_metrics;
+  options.recoveryTimeout = flags.hierarchical_recovery_timeout;
+  options.agentRecoveryFactor = flags.hierarchical_recovery_factor;
 
   // Initialize the allocator.
   allocator->initialize(

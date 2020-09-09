@@ -460,6 +460,18 @@ mesos::internal::master::Flags::Flags()
       "load an alternate allocator module using `--modules`.",
       DEFAULT_ALLOCATOR);
 
+  add(&Flags::hierarchical_recovery_factor,
+      "hierarchical_recovery_factor",
+      "Ratio of minimal re-registred agent before sending\n"
+      "offers after a leader re-election",
+      DEFAULT_AGENT_RECOVERY_FACTOR);
+
+  add(&Flags::hierarchical_recovery_timeout,
+      "hierarchical_recovery_timeout",
+      "Maximum time to wait before sending offers after a leader\n"
+      "re-election.",
+      DEFAULT_RECOVERY_TIMEOUT);
+
   add(&Flags::fair_sharing_excluded_resource_names,
       "fair_sharing_excluded_resource_names",
       "A comma-separated list of the resource names (e.g. 'gpus')\n"

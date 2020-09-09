@@ -755,6 +755,8 @@ protected:
 
   // Recovery data.
   Option<int> expectedAgentCount;
+  float agentRecoveryFactor;
+  Duration recoveryTimeout;
 
   lambda::function<
       void(const FrameworkID&,

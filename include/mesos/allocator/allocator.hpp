@@ -28,6 +28,8 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <master/constants.hpp>
+
 #include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
@@ -66,6 +68,10 @@ struct Options
   size_t maxCompletedFrameworks = 0;
 
   bool publishPerFrameworkMetrics = true;
+
+  // Recovery options
+  Duration recoveryTimeout = mesos::internal::master::DEFAULT_RECOVERY_TIMEOUT;
+  float agentRecoveryFactor = mesos::internal::master::DEFAULT_AGENT_RECOVERY_FACTOR;
 };
 
 
@@ -120,7 +126,6 @@ private:
 
   OfferConstraintsFilter(internal::OfferConstraintsFilterImpl&& impl_);
 };
-
 
 /**
  * Per-framework allocator-specific options that are not part of
