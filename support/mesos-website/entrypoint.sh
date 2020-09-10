@@ -16,14 +16,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper script for building Mesos website.
-# TODO(vinod): Merge this with `build.sh` now that we dont need to switch
-# users in ASF CI as user namespacing has been implemented.
+# This is a script for building Mesos website.
 set -e
 set -o pipefail
 
+function exit_hook {
+  # Remove generated documents when exit.
+  cd /mesos/site && bundle exec rake clean_docs
+}
+
+trap exit_hook EXIT
+
+file_owner_uid=`stat . --format=%u`
+current_user_uid=`id -u`
+if [ $file_owner_uid -ne $current_user_uid ]; then
+  echo "
+    The mounted mesos sources are owned by UID $file_owner_uid
+    which is different from the current user UID $current_user_uid
+    inside the container. Please check that dockerd has
+    user namespace remapping configured properly.
+  "
+  exit 1
+fi
+
+# Build mesos to get the latest master and agent binaries.
+./bootstrap
+mkdir -p build
+pushd build
+../configure --disable-python
+make -j6
+popd # build
+
+# Generate the endpoint docs from the latest mesos and agent binaries.
+./support/generate-endpoint-help.py
+
+# Build the website.
 pushd site
 bundle install
+bundle exec rake
 popd # site
-
-./support/mesos-website/build.sh
