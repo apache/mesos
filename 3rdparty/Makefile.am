@@ -178,7 +178,7 @@ CLEAN_EXTRACTED =		\
 # which cause the packages to get extracted as necessary. We also
 # apply any patches as appropriate.
 %-stamp: %.tar.gz
-	gzip -d -c $^ | tar xf -
+	gzip -d -c $^ | tar xf - --no-same-owner
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
 
@@ -191,7 +191,7 @@ CLEAN_EXTRACTED =		\
 CSI_STAMPS = $(CSI_V0)-stamp $(CSI_V1)-stamp
 $(CSI_STAMPS): csi-%-stamp: csi-%.tar.gz
 	$(MKDIR_P) csi-$*
-	gzip -d -c $^ | (cd csi-$* && tar xf -)
+	gzip -d -c $^ | (cd csi-$* && tar xf - --no-same-owner)
 	test ! -e $(srcdir)/csi-$*.patch || \
 	  patch -d csi-$*/spec-$* -p1 <$(srcdir)/csi-$*.patch
 	touch $@
