@@ -44,7 +44,7 @@ fi
 mkdir -p build
 pushd build
 ../configure --disable-python
-make -j6
+make -j3 # Higher parallelism sometimes causes CI to get stuck.
 popd # build
 
 # Generate the endpoint docs from the latest mesos and agent binaries.
