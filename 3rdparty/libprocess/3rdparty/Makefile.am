@@ -97,7 +97,7 @@ CLEAN_EXTRACTED =		\
 # which cause the packages to get extracted as necessary. We also
 # apply any patches as appropriate.
 %-stamp: $(BUNDLED_DIR)/%.tar.gz
-	gzip -d -c $^ | tar xf -
+	gzip -d -c $^ | tar xf - --no-same-owner
 	test ! -e $(top_srcdir)/../$*.patch || patch -d $* -p1 <$(top_srcdir)/../$*.patch
 	touch $@
 
