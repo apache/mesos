@@ -21,7 +21,10 @@ set -e
 set -o pipefail
 
 function exit_hook {
-  # Remove generated documents when exit.
+  # Remove mesos build directory on exit.
+  rm -rf /mesos/build
+
+  # Remove generated documents on exit.
   cd /mesos/site && bundle exec rake clean_docs
 }
 
