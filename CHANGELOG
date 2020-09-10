@@ -517,6 +517,7 @@ Release Notes - Mesos - Version 1.8.2 (WIP)
   * [MESOS-10007] - Command executor can miss exit status for short-lived commands due to double-reaping.
   * [MESOS-10015] - updateAllocation() can stall the allocator with a huge number of reservations on an agent.
   * [MESOS-10126] - Docker volume isolator needs to clean up the `info` struct regardless the result of unmount operation
+  * [MESOS-10134] - Race between concurrent `javah` runs trying to create `java/jni` output directory.
   * [MESOS-10169] - Reintroduce image fetch deduplication while keeping it possible to destroy UCR containers in PROVISIONING state.
 
 ** Improvement
