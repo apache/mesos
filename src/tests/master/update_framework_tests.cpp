@@ -810,6 +810,28 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
   using ::mesos::v1::scheduler::AttributeConstraint;
   using ::mesos::v1::scheduler::OfferConstraints;
 
+  const Try<JSON::Object> initialConstraintsJson =
+    JSON::parse<JSON::Object>(R"~(
+        {
+          "role_constraints": {
+            ")~" + DEFAULT_FRAMEWORK_INFO.roles(0) + R"~(": {
+              "groups": [{
+                "attribute_constraints": [{
+                  "selector": {"attribute_name": "foo"},
+                  "predicate": {"exists": {}}
+                }]
+              }]
+            }
+          }
+        })~");
+
+  ASSERT_SOME(initialConstraintsJson);
+
+  const Try<OfferConstraints> initialConstraints =
+    ::protobuf::parse<OfferConstraints>(*initialConstraintsJson);
+
+  ASSERT_SOME(initialConstraints);
+
   mesos::internal::master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -823,22 +845,14 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
   auto scheduler = std::make_shared<MockHTTPScheduler>();
 
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(Invoke([](Mesos* mesos) {
+    .WillOnce(Invoke([initialConstraints](Mesos* mesos) {
       Call call;
       call.set_type(Call::SUBSCRIBE);
       *call.mutable_subscribe()->mutable_framework_info() =
         DEFAULT_FRAMEWORK_INFO;
 
-      AttributeConstraint* constraint =
-        (*call.mutable_subscribe()
-            ->mutable_offer_constraints()
-            ->mutable_role_constraints())[DEFAULT_FRAMEWORK_INFO.roles(0)]
-          .add_groups()
-          ->add_attribute_constraints();
-
-      *constraint->mutable_selector()->mutable_attribute_name() = "foo";
-      *constraint->mutable_predicate()->mutable_exists() =
-        AttributeConstraint::Predicate::Exists();
+      *call.mutable_subscribe()->mutable_offer_constraints() =
+        *initialConstraints;
 
       mesos->send(call);
     }));
@@ -870,22 +884,34 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
 
   // Change constraint to `NotExists` so that the agent will now be offered to
   // the framework.
-  OfferConstraints updatedConstraints;
+  const Try<JSON::Object> updatedConstraintsJson =
+    JSON::parse<JSON::Object>(R"~(
+        {
+          "role_constraints": {
+            ")~" + DEFAULT_FRAMEWORK_INFO.roles(0) + R"~(": {
+              "groups": [{
+                "attribute_constraints": [{
+                  "selector": {"attribute_name": "foo"},
+                  "predicate": {"not_exists": {}}
+                }]
+              }]
+            }
+          }
+        })~");
+
+  ASSERT_SOME(updatedConstraintsJson);
+
+  const Try<OfferConstraints> updatedConstraints =
+    ::protobuf::parse<OfferConstraints>(*updatedConstraintsJson);
+
+  ASSERT_SOME(updatedConstraints);
 
   {
     FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
     *framework.mutable_id() = subscribed->framework_id();
 
-    AttributeConstraint* constraint =
-      (*updatedConstraints.mutable_role_constraints())[framework.roles(0)]
-        .add_groups()
-        ->add_attribute_constraints();
-
-    *constraint->mutable_selector()->mutable_attribute_name() = "foo";
-    *constraint->mutable_predicate()->mutable_not_exists() =
-      AttributeConstraint::Predicate::NotExists();
-
-    AWAIT_READY(callUpdateFramework(&mesos, framework, {}, updatedConstraints));
+    AWAIT_READY(
+        callUpdateFramework(&mesos, framework, {}, *updatedConstraints));
   }
 
   Clock::pause();
@@ -911,10 +937,10 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Object> reportedConstraints = parse->find<JSON::Object>(
+    Result<JSON::Object> reportedConstraintsJson = parse->find<JSON::Object>(
         "frameworks[0].offer_constraints");
 
-    EXPECT_SOME_EQ(JSON::protobuf(updatedConstraints), reportedConstraints);
+    EXPECT_SOME_EQ(*updatedConstraintsJson, reportedConstraintsJson);
   }
 
   // Ensure that the updated offer constraints are reflected in the master's
@@ -932,10 +958,10 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Object> reportedConstraints = parse->find<JSON::Object>(
+    Result<JSON::Object> reportedConstraintsJson = parse->find<JSON::Object>(
         "frameworks[0].offer_constraints");
 
-    ASSERT_SOME_EQ(JSON::protobuf(updatedConstraints), reportedConstraints);
+    ASSERT_SOME_EQ(*updatedConstraintsJson, reportedConstraintsJson);
   }
 
   Future<v1::master::Response::GetFrameworks> frameworks =
@@ -950,7 +976,7 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
   // constraints inside groups, we should consider using a `MessageDifferencer`
   // configured to take this into account.
   ASSERT_EQ(
-      updatedConstraints.SerializeAsString(),
+      updatedConstraints->SerializeAsString(),
       frameworks->frameworks(0).offer_constraints().SerializeAsString());
 }
 
