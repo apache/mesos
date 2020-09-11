@@ -627,8 +627,6 @@ void HierarchicalAllocatorProcess::initialize(
   inverseOfferCallback = _inverseOfferCallback;
   initialized = true;
   paused = false;
-  recoveryTimeout = options.recoveryTimeout;
-  agentRecoveryFactor = options.agentRecoveryFactor;
 
   completedFrameworkMetrics =
     BoundedHashMap<FrameworkID, process::Owned<FrameworkMetrics>>(
@@ -687,7 +685,7 @@ void HierarchicalAllocatorProcess::recover(
 
   // Record the number of expected agents.
   expectedAgentCount =
-    static_cast<int>(_expectedAgentCount * agentRecoveryFactor);
+    static_cast<int>(_expectedAgentCount * options.agentRecoveryFactor);
 
   // Skip recovery if there are no expected agents. This is not strictly
   // necessary for the allocator to function correctly, but maps better
@@ -705,11 +703,11 @@ void HierarchicalAllocatorProcess::recover(
   pause();
 
   // Setup recovery timer.
-  delay(recoveryTimeout, self(), &Self::resume);
+  delay(options.recoveryTimeout, self(), &Self::resume);
 
   LOG(INFO) << "Triggered allocator recovery: waiting for "
             << expectedAgentCount.get() << " agents to reconnect or "
-            << recoveryTimeout << " to pass";
+            << options.recoveryTimeout << " to pass";
 }
 
 

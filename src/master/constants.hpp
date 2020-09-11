@@ -49,8 +49,8 @@ constexpr double MIN_CPUS = 0.01;
 constexpr Bytes MIN_MEM = Megabytes(32);
 
 // Hierarchical allocator configuration
-constexpr Duration DEFAULT_RECOVERY_TIMEOUT = Minutes(10);
-constexpr float DEFAULT_AGENT_RECOVERY_FACTOR = 0.80;
+constexpr Duration DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT = Minutes(10);
+constexpr double DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR = 0.80;
 
 // Default timeout for v0 framework and agent authentication
 // before the master cancels an in-progress authentication.

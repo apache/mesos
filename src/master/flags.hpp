@@ -81,8 +81,8 @@ public:
   Option<std::string> modulesDir;
   std::string authenticators;
   std::string allocator;
-  float hierarchical_recovery_factor;
-  Duration hierarchical_recovery_timeout;
+  double allocator_agent_recovery_factor;
+  Duration allocator_recovery_timeout;
   Option<std::set<std::string>> fair_sharing_excluded_resource_names;
   bool filter_gpu_resources;
   std::string min_allocatable_resources;

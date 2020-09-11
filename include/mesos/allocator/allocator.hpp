@@ -70,8 +70,8 @@ struct Options
   bool publishPerFrameworkMetrics = true;
 
   // Recovery options
-  Duration recoveryTimeout = mesos::internal::master::DEFAULT_RECOVERY_TIMEOUT;
-  float agentRecoveryFactor = mesos::internal::master::DEFAULT_AGENT_RECOVERY_FACTOR;
+  Duration recoveryTimeout = mesos::internal::master::DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT;
+  double agentRecoveryFactor = mesos::internal::master::DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR;
 };
 
 
