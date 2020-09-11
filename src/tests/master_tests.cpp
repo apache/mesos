@@ -7747,7 +7747,7 @@ TEST_F(MasterTest, NonCheckpointingFrameworkAgentDisconnectionExecutorOnly)
     const v1::master::Response::GetAgents::Agent& agent =
       response->get_agents().agents(0);
 
-    EXPECT_EQ(false, agent.active());
+    EXPECT_FALSE(agent.active());
   }
 
   EXPECT_CALL(exec, shutdown(_));
