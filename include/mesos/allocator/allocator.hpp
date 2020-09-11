@@ -28,8 +28,6 @@
 
 #include <mesos/quota/quota.hpp>
 
-#include <master/constants.hpp>
-
 #include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
@@ -45,6 +43,10 @@
 
 namespace mesos {
 namespace allocator {
+
+// Hierarchical allocator configuration
+constexpr Duration DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT = Minutes(10);
+constexpr double DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR = 0.80;
 
 /**
  *  Pass in configuration to the allocator.
@@ -70,8 +72,8 @@ struct Options
   bool publishPerFrameworkMetrics = true;
 
   // Recovery options
-  Duration recoveryTimeout = mesos::internal::master::DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT;
-  double agentRecoveryFactor = mesos::internal::master::DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR;
+  Duration recoveryTimeout = DEFAULT_ALLOCATOR_RECOVERY_TIMEOUT;
+  double agentRecoveryFactor = DEFAULT_ALLOCATOR_AGENT_RECOVERY_FACTOR;
 };
 
 
