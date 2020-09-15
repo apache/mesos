@@ -52,6 +52,26 @@ T parse(const void* data, int size)
 }
 
 
+template <class TMessage>
+TMessage constructViaProtobufSerialization(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
+  jsize length = env->GetArrayLength(jdata);
+
+  TMessage result = parse<TMessage>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+  return result;
+}
+
+
 bool construct(JNIEnv* env, jboolean jbool)
 {
   return jbool == JNI_TRUE;
@@ -124,168 +144,56 @@ map<string, string> construct(JNIEnv *env, jobject jobj)
 template <>
 FrameworkInfo construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const FrameworkInfo& framework = parse<FrameworkInfo>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return framework;
+  return constructViaProtobufSerialization<FrameworkInfo>(env, jobj);
 }
 
 
 template <>
 Credential construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const Credential& credential = parse<Credential>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return credential;
+  return constructViaProtobufSerialization<Credential>(env, jobj);
 }
 
 
 template <>
 Filters construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const Filters& filters = parse<Filters>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return filters;
+  return constructViaProtobufSerialization<Filters>(env, jobj);
 }
 
 
 template <>
 FrameworkID construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const FrameworkID& frameworkId = parse<FrameworkID>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return frameworkId;
+  return constructViaProtobufSerialization<FrameworkID>(env, jobj);
 }
 
 
 template <>
 ExecutorID construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const ExecutorID& executorId = parse<ExecutorID>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return executorId;
+  return constructViaProtobufSerialization<ExecutorID>(env, jobj);
 }
 
 
 template <>
 TaskID construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const TaskID& taskId = parse<TaskID>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return taskId;
+  return constructViaProtobufSerialization<TaskID>(env, jobj);
 }
 
 
 template <>
 SlaveID construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const SlaveID& slaveId = parse<SlaveID>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return slaveId;
+  return constructViaProtobufSerialization<SlaveID>(env, jobj);
 }
 
 
 template <>
 OfferID construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const OfferID& offerId = parse<OfferID>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return offerId;
+  return constructViaProtobufSerialization<OfferID>(env, jobj);
 }
 
 
@@ -306,166 +214,54 @@ TaskState construct(JNIEnv* env, jobject jobj)
 template <>
 TaskInfo construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const TaskInfo& task = parse<TaskInfo>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return task;
+  return constructViaProtobufSerialization<TaskInfo>(env, jobj);
 }
 
 
 template <>
 TaskStatus construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const TaskStatus& status = parse<TaskStatus>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return status;
+  return constructViaProtobufSerialization<TaskStatus>(env, jobj);
 }
 
 
 template <>
 ExecutorInfo construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const ExecutorInfo& executor = parse<ExecutorInfo>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return executor;
+  return constructViaProtobufSerialization<ExecutorInfo>(env, jobj);
 }
 
 
 template <>
 Request construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const Request& request = parse<Request>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return request;
+  return constructViaProtobufSerialization<Request>(env, jobj);
 }
 
 
 template <>
 Offer::Operation construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const Offer::Operation& operation = parse<Offer::Operation>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return operation;
+  return constructViaProtobufSerialization<Offer::Operation>(env, jobj);
 }
 
 
 template <>
 v1::Credential construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const v1::Credential& credential = parse<v1::Credential>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return credential;
+  return constructViaProtobufSerialization<v1::Credential>(env, jobj);
 }
 
 
 template <>
 v1::FrameworkInfo construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const v1::FrameworkInfo& framework = parse<v1::FrameworkInfo>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return framework;
+  return constructViaProtobufSerialization<v1::FrameworkInfo>(env, jobj);
 }
 
 
 template<>
 v1::scheduler::Call construct(JNIEnv* env, jobject jobj)
 {
-  jclass clazz = env->GetObjectClass(jobj);
-
-  // byte[] data = obj.toByteArray();
-  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
-
-  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
-
-  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
-  jsize length = env->GetArrayLength(jdata);
-
-  const v1::scheduler::Call& call = parse<v1::scheduler::Call>(data, length);
-
-  env->ReleaseByteArrayElements(jdata, data, 0);
-
-  return call;
+  return constructViaProtobufSerialization<v1::scheduler::Call>(env, jobj);
 }
