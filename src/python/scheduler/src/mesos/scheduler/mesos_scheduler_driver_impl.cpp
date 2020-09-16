@@ -859,7 +859,9 @@ PyObject* MesosSchedulerDriverImpl_updateFramework(
     return nullptr;
   }
 
-  Status status = self->driver->updateFramework(framework, *suppressedRoles);
+  Status status = self->driver->updateFramework(
+      framework, *suppressedRoles, ::mesos::scheduler::OfferConstraints{});
+
   return PyInt_FromLong(status);
 }
 

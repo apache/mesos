@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/scheduler/scheduler.pb.h>
 
 // Mesos scheduler interface and scheduler driver. A scheduler is used
 // to interact with Mesos in order to run distributed computations.
@@ -344,14 +345,16 @@ public:
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
 
-  // Inform Mesos master about changes to the `FrameworkInfo` and
-  // the set of suppressed roles. The driver will store the new
-  // `FrameworkInfo` and the new set of suppressed roles, and all
-  // subsequent re-registrations will use them.
+  // Requests Mesos master to change the `FrameworkInfo`, the set of suppressed
+  // roles and the offer constraints. The driver will store the new
+  // `FrameworkInfo`, the new set of suppressed roles and the new offer
+  // constraints, and all subsequent re-registrations will use them.
   //
   // NOTE: If the supplied info is invalid or fails authorization,
-  // the `error()` callback will be invoked asynchronously (after
-  // the master replies with a `FrameworkErrorMessage`).
+  // or the supplied offer constraints are not valid, the `error()` callback
+  // will be invoked asynchronously (after the master replies with a
+  // `FrameworkErrorMessage`). Note that validity of non-empty (i.e.
+  // not default-constructed) offer constraints may depend on master flags.
   //
   // NOTE: This must be called after initial registration with the
   // master completes and the `FrameworkID` is assigned. The assigned
@@ -362,7 +365,8 @@ public:
   // during driver initialization.
   virtual Status updateFramework(
       const FrameworkInfo& frameworkInfo,
-      const std::vector<std::string>& suppressedRoles) = 0;
+      const std::vector<std::string>& suppressedRoles,
+      ::mesos::scheduler::OfferConstraints&& offerConstraints) = 0;
 };
 
 
@@ -524,7 +528,9 @@ public:
 
   Status updateFramework(
       const FrameworkInfo& frameworkInfo,
-      const std::vector<std::string>& suppressedRoles) override;
+      const std::vector<std::string>& suppressedRoles,
+      ::mesos::scheduler::OfferConstraints&& offerConstraints)
+    override;
 
 protected:
   // Used to detect (i.e., choose) the master.

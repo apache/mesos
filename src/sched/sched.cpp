@@ -105,6 +105,8 @@ using namespace mesos::scheduler;
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::scheduler::OfferConstraints;
+
 using mesos::master::detector::MasterDetector;
 
 using process::Clock;
@@ -839,6 +841,7 @@ protected:
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(framework);
+    *subscribe->mutable_offer_constraints() = offerConstraints;
     *subscribe->mutable_suppressed_roles() = RepeatedPtrField<string>(
         suppressedRoles.begin(), suppressedRoles.end());
 
@@ -1645,7 +1648,8 @@ protected:
 
   void updateFramework(
       const FrameworkInfo& framework_,
-      set<string>&& suppressedRoles_)
+      set<string>&& suppressedRoles_,
+      OfferConstraints&& offerConstraints_)
   {
     if (!framework.has_id() || framework.id().value().empty()) {
       error("MesosSchedulerDriver::updateFramework() must not be called"
@@ -1664,6 +1668,7 @@ protected:
 
     framework = framework_;
     suppressedRoles = std::move(suppressedRoles_);
+    offerConstraints = std::move(offerConstraints_);
 
     if (connected) {
       sendUpdateFramework();
@@ -1725,8 +1730,10 @@ private:
     *call.mutable_framework_id() = framework.id();
 
     call.set_type(Call::UPDATE_FRAMEWORK);
-    *call.mutable_update_framework()->mutable_framework_info() = framework;
-    *call.mutable_update_framework()->mutable_suppressed_roles() =
+    Call::UpdateFramework* updateFramework = call.mutable_update_framework();
+    *updateFramework->mutable_framework_info() = framework;
+    *updateFramework->mutable_offer_constraints() = offerConstraints;
+    *updateFramework->mutable_suppressed_roles() =
       RepeatedPtrField<string>(suppressedRoles.begin(), suppressedRoles.end());
 
     VLOG(1) << "Sending UPDATE_FRAMEWORK message";
@@ -1740,6 +1747,7 @@ private:
   Scheduler* scheduler;
   FrameworkInfo framework;
   set<string> suppressedRoles;
+  OfferConstraints offerConstraints;
 
   std::recursive_mutex* mutex;
   Latch* latch;
@@ -2476,7 +2484,8 @@ Status MesosSchedulerDriver::reconcileTasks(
 
 Status MesosSchedulerDriver::updateFramework(
   const FrameworkInfo& update,
-  const vector<string>& suppressedRoles_)
+  const vector<string>& suppressedRoles_,
+  OfferConstraints&& offerConstraints_)
 {
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
@@ -2497,8 +2506,12 @@ Status MesosSchedulerDriver::updateFramework(
       << " " << suppressedRoles_.size() - suppressedRoles.size()
       << " duplicates " << suppressedRoles_;
 
-    dispatch(process, &SchedulerProcess::updateFramework, framework,
-             std::move(suppressedRoles));
+    dispatch(
+        process,
+        &SchedulerProcess::updateFramework,
+        framework,
+        std::move(suppressedRoles),
+        std::move(offerConstraints_));
 
     return status;
   }

@@ -692,7 +692,7 @@ TEST_F(MesosSchedulerDriverTest, ReviveSingleRole)
   // In addition to setting a filter, suppress role2 (to check that
   // reviveOffers() not only removes filters, but also unsuppresses roles).
   *frameworkInfo.mutable_id() = frameworkId.get();
-  driver.updateFramework(frameworkInfo, {"role2"});
+  driver.updateFramework(frameworkInfo, {"role2"}, {});
 
   // Wait for updateFramework() to be dispatched to the allocator.
   // Otherwise, REVIVE might be processed by the allocator before the update.

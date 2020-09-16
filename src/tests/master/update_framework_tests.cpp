@@ -1003,7 +1003,7 @@ TEST_F(UpdateFrameworkV0Test, DriverErrorWhenCalledBeforeRegistration)
 
   driver.start();
 
-  driver.updateFramework(DEFAULT_FRAMEWORK_INFO, {});
+  driver.updateFramework(DEFAULT_FRAMEWORK_INFO, {}, {});
 
   AWAIT_READY(error);
   EXPECT_EQ(error.get(),
@@ -1042,7 +1042,7 @@ TEST_F(UpdateFrameworkV0Test, DriverErrorOnFrameworkIDMismatch)
   *update.mutable_id() = frameworkId.get();
   *update.mutable_id()->mutable_value() += "-deadbeef";
 
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, {}, {});
 
   AWAIT_READY(error);
   EXPECT_EQ(
@@ -1084,7 +1084,7 @@ TEST_F(UpdateFrameworkV0Test, CheckpointingChangeFails)
   FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
   update.set_checkpoint(!update.checkpoint());
   *update.mutable_id() = frameworkId.get();
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, {}, {});
 
   AWAIT_READY(error);
   EXPECT_TRUE(strings::contains(
@@ -1142,7 +1142,7 @@ TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
   FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
   *update.mutable_id() = frameworkId.get();
 
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, {}, {});
 
   AWAIT_READY(updateFrameworkMessage);
 
@@ -1235,7 +1235,7 @@ TEST_F(UpdateFrameworkV0Test, OffersOnAddingRole)
   update.add_roles("new_role");
   *update.mutable_id() = frameworkId.get();
 
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, {}, {});
 
   AWAIT_READY(offers);
 
@@ -1295,7 +1295,7 @@ TEST_F(UpdateFrameworkV0Test, RescindOnRemovingRoles)
   update.clear_roles();
   *update.mutable_id() = frameworkId.get();
 
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, {}, {});
 
   AWAIT_READY(rescindedOfferId);
   AWAIT_READY(recoverResources);
@@ -1366,7 +1366,7 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
   vector<string> suppressedRoles(
     update.roles().begin(), update.roles().end());
 
-  driver.updateFramework(update, suppressedRoles);
+  driver.updateFramework(update, suppressedRoles, {});
 
   // Ensure that the allocator processes the update, so that this test
   // does not rely on Master maintaining an ordering between scheduler API calls
@@ -1442,8 +1442,8 @@ TEST_F(UpdateFrameworkV0Test, UnsuppressClearsFilters)
   vector<string> suppressedRoles(
     update.roles().begin(), update.roles().end());
 
-  driver.updateFramework(update, suppressedRoles);
-  driver.updateFramework(update, {});
+  driver.updateFramework(update, suppressedRoles, {});
+  driver.updateFramework(update, {}, {});
 
   // Now the previously declined agent should be re-offered.
   Clock::pause();
