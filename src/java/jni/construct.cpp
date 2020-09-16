@@ -25,6 +25,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/scheduler/scheduler.hpp>
@@ -146,6 +148,14 @@ FrameworkInfo construct(JNIEnv* env, jobject jobj)
 {
   return constructViaProtobufSerialization<FrameworkInfo>(env, jobj);
 }
+
+template <>
+::mesos::scheduler::OfferConstraints construct(JNIEnv* env, jobject jobj)
+{
+  return constructViaProtobufSerialization<
+      ::mesos::scheduler::OfferConstraints>(env, jobj);
+}
+
 
 
 template <>

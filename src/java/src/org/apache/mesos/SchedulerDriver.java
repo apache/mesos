@@ -19,6 +19,8 @@
 package org.apache.mesos;
 
 import org.apache.mesos.Protos.*;
+import org.apache.mesos.scheduler.Protos.OfferConstraints;
+
 
 import java.util.Collection;
 import java.util.Map;
@@ -364,14 +366,17 @@ public interface SchedulerDriver {
    */
   Status reconcileTasks(Collection<TaskStatus> statuses);
 
-  /**
-   * Inform Mesos master about changes to the `FrameworkInfo` and the list of
-   * suppressed roles. The driver will store the new `FrameworkInfo` and the new
-   * suppressed roles list, and all subsequent re-registrations will use it.
+  /*
+   * Requests Mesos master to change the `FrameworkInfo`, the set of suppressed
+   * roles and the offer constraints. The driver will store the new
+   * `FrameworkInfo`, the new set of suppressed roles and the new offer
+   * constraints, and all subsequent re-registrations will use them.
    *
    * NOTE: If the supplied info is invalid or fails authorization,
-   * the `error()` callback will be invoked asynchronously (after
-   * the master replies with a `FrameworkErrorMessage`).
+   * or the supplied offer constraints are not valid, the `error()` callback
+   * will be invoked asynchronously (after the master replies with a
+   * `FrameworkErrorMessage`). Note that validity of non-empty (i.e.
+   * not default-constructed) offer constraints may depend on master flags.
    *
    * NOTE: This must be called after initial registration with the
    * master completes and the `FrameworkID` is assigned. The assigned
@@ -381,14 +386,26 @@ public interface SchedulerDriver {
    * fields will be auto-populated using the same approach used
    * during driver initialization.
    *
-   * @param frameworkInfo  The new FrameworkInfo.
+   * @param frameworkInfo     The new FrameworkInfo.
+   * @param suppressedRoles   The new list of suppressed roles.
+   * @param offerConstraints  The new offer constraints.
    *
-   * @param suppressedRoles The new list of suppressed roles.
-   *
-   * @return               The state of the driver after the call.
+   * @return                  The state of the driver after the call.
    *
    * @see FrameworkInfo
+   * @see OfferConstraints
    */
+  Status updateFramework(FrameworkInfo frameworkInfo,
+                         Collection<String> suppressedRoles,
+                         OfferConstraints offerConstraints);
+
+ /**
+  * @deprecated
+  * To call UPDATE_FRAMEWORK without setting offer constraints,
+  * use the new `updateFramework()` signature and pass empty constraints
+  * (for example, the ones returned by `OfferConstraints.getDefaultInstance()`).
+  */
+  @Deprecated
   Status updateFramework(FrameworkInfo frameworkInfo,
                          Collection<String> suppressedRoles);
 }

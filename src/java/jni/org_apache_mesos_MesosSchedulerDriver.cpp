@@ -1068,17 +1068,26 @@ Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks(
 
 /* Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    updateFramework
- * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;Lorg/apache/mesos/scheduler/Protos/OfferConstraints;)Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL
 Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
-    JNIEnv* env, jobject thiz, jobject jframeworkInfo, jobject jsuppressedRoles)
+    JNIEnv* env,
+    jobject thiz,
+    jobject jframeworkInfo,
+    jobject jsuppressedRoles,
+    jobject jofferConstraints)
 {
+  using ::mesos::scheduler::OfferConstraints;
+
   const FrameworkInfo& frameworkInfo =
     construct<FrameworkInfo>(env, jframeworkInfo);
 
   const vector<string> suppressedRoles =
     constructFromIterable<string>(env, jsuppressedRoles);
+
+  ::mesos::scheduler::OfferConstraints offerConstraints =
+    construct<OfferConstraints>(env, jofferConstraints);
 
   jclass clazz = env->GetObjectClass(thiz);
 
@@ -1087,7 +1096,7 @@ Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
   Status status = driver->updateFramework(
-      frameworkInfo, suppressedRoles, ::mesos::scheduler::OfferConstraints());
+      frameworkInfo, suppressedRoles, std::move(offerConstraints));
 
   return convert<Status>(env, status);
 }

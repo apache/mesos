@@ -19,6 +19,7 @@
 package org.apache.mesos;
 
 import org.apache.mesos.Protos.*;
+import org.apache.mesos.scheduler.Protos.OfferConstraints;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -408,7 +409,14 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   public native Status reconcileTasks(Collection<TaskStatus> statuses);
 
   public native Status updateFramework(FrameworkInfo frameworkInfo,
-                                       Collection<String> suppressedRoles);
+                                       Collection<String> suppressedRoles,
+                                       OfferConstraints offerConstraints);
+
+  public Status updateFramework(FrameworkInfo frameworkInfo,
+                                Collection<String> suppressedRoles) {
+    return updateFramework(
+        frameworkInfo, suppressedRoles, OfferConstraints.getDefaultInstance());
+  }
 
   protected native void initialize();
   protected native void finalize();

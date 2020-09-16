@@ -28,6 +28,8 @@ import com.google.protobuf.ByteString;
 
 import org.apache.mesos.*;
 import org.apache.mesos.Protos.*;
+import org.apache.mesos.scheduler.Protos.OfferConstraints;
+import org.apache.mesos.scheduler.Protos.AttributeConstraint;
 
 public class TestFramework {
   static class TestScheduler implements Scheduler {
@@ -50,7 +52,10 @@ public class TestFramework {
       // Clear suppressed roles.
       FrameworkInfo.Builder builder = framework.toBuilder();
       builder.setId(frameworkId);
-      driver.updateFramework(builder.build(), new ArrayList<String>());
+      driver.updateFramework(
+          builder.build(),
+          new ArrayList<String>(),
+          OfferConstraints.getDefaultInstance());
     }
 
     @Override
