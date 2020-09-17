@@ -35,6 +35,7 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/strings.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -968,7 +969,8 @@ class HierarchicalAllocatorProcess
 {
 public:
   HierarchicalAllocatorProcess()
-    : ProcessBase(process::ID::generate("hierarchical-allocator")),
+    : ProcessBase(strings::remove(
+          process::ID::generate("allocator"), "(1)", strings::Mode::SUFFIX)),
       internal::HierarchicalAllocatorProcess(
           [this]() -> Sorter* {
             return new RoleSorter(this->self(), "allocator/mesos/roles/");
