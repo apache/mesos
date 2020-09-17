@@ -4461,7 +4461,8 @@ void Slave::updateFramework(
       // if from a master older than 1.3.
       if (message.has_framework_info()) {
         framework->info.CopyFrom(message.framework_info());
-        framework->capabilities = message.framework_info().capabilities();
+        framework->capabilities = protobuf::framework::Capabilities(
+            message.framework_info().capabilities());
       }
 
       if (pid == UPID()) {

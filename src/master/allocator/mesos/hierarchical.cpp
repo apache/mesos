@@ -933,7 +933,9 @@ void HierarchicalAllocatorProcess::updateFramework(
 
   framework.info = frameworkInfo;
   framework.roles = newRoles;
-  framework.capabilities = frameworkInfo.capabilities();
+  framework.capabilities =
+    protobuf::framework::Capabilities(frameworkInfo.capabilities());
+
   framework.minAllocatableResources =
     unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
 

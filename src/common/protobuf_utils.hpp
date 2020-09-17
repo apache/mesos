@@ -334,7 +334,7 @@ struct Capabilities
   Capabilities() = default;
 
   template <typename Iterable>
-  Capabilities(const Iterable& capabilities)
+  explicit Capabilities(const Iterable& capabilities)
   {
     foreach (const SlaveInfo::Capability& capability, capabilities) {
       switch (capability.type()) {
@@ -550,7 +550,7 @@ struct Capabilities
   Capabilities() = default;
 
   template <typename Iterable>
-  Capabilities(const Iterable& capabilities)
+  explicit Capabilities(const Iterable& capabilities)
   {
     foreach (const MasterInfo::Capability& capability, capabilities) {
       switch (capability.type()) {
@@ -633,7 +633,7 @@ struct Capabilities
   Capabilities() = default;
 
   template <typename Iterable>
-  Capabilities(const Iterable& capabilities)
+  explicit Capabilities(const Iterable& capabilities)
   {
     foreach (const FrameworkInfo::Capability& capability, capabilities) {
       switch (capability.type()) {

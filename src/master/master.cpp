@@ -12989,7 +12989,7 @@ Try<Nothing> Slave::update(
   }
 
   version = _version;
-  capabilities = _capabilities;
+  capabilities = protobuf::slave::Capabilities(_capabilities);
   info = _info;
   checkpointedResources = _checkpointedResources;
 
