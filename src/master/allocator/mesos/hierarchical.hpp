@@ -87,6 +87,8 @@ struct Framework
 
   const FrameworkID frameworkId;
 
+  FrameworkInfo info;
+
   std::set<std::string> roles;
 
   std::set<std::string> suppressedRoles;

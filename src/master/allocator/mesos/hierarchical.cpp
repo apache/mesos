@@ -600,6 +600,7 @@ Framework::Framework(
     bool _active,
     bool publishPerFrameworkMetrics)
   : frameworkId(frameworkInfo.id()),
+    info(frameworkInfo),
     roles(protobuf::framework::getRoles(frameworkInfo)),
     suppressedRoles(std::move(options.suppressedRoles)),
     capabilities(frameworkInfo.capabilities()),
@@ -930,6 +931,7 @@ void HierarchicalAllocatorProcess::updateFramework(
     framework.suppressedRoles.erase(role);
   }
 
+  framework.info = frameworkInfo;
   framework.roles = newRoles;
   framework.capabilities = frameworkInfo.capabilities();
   framework.minAllocatableResources =
