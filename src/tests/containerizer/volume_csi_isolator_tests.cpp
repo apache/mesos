@@ -396,9 +396,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_CommandTaskWithVolume)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
@@ -480,9 +480,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_CommandTaskWithVolume)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   EXPECT_CALL(
       *scheduler,
@@ -611,9 +611,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_TaskGroupWithVolume)
       TEST_CSI_PLUGIN_TYPE,
       TEST_VOLUME_ID,
       TEST_CONTAINER_PATH,
+      mesos::v1::Volume::RW,
       mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-        ::AccessMode::SINGLE_NODE_WRITER,
-      false);
+        ::AccessMode::SINGLE_NODE_WRITER);
 
   taskInfo1.mutable_container()->CopyFrom(
       v1::createContainerInfo("alpine", {volume}));
@@ -804,9 +804,9 @@ TEST_P(VolumeCSIIsolatorTest, UNPRIVILEGED_USER_NonRootTaskUser)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
@@ -906,9 +906,14 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_PluginConfigAddedAtRuntime)
 
   const string pluginName = "org.apache.mesos.csi.added-at-runtime";
 
-  Volume::Source::CSIVolume volume;
-  volume.set_plugin_name(pluginName);
-  volume.mutable_static_provisioning()->CopyFrom(staticVol);
+  Volume::Source::CSIVolume csiVolume;
+  csiVolume.set_plugin_name(pluginName);
+  csiVolume.mutable_static_provisioning()->CopyFrom(staticVol);
+
+  Volume volume;
+  Volume::Source* source = volume.mutable_source();
+  source->set_type(Volume::Source::CSI_VOLUME);
+  source->mutable_csi_volume()->CopyFrom(csiVolume);
 
   // First, perform publish/unpublish calls before we have written the
   // configuration to disk.
@@ -1077,9 +1082,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_UnmanagedPlugin)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
@@ -1207,9 +1212,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_UnpublishAfterAgentFailover)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
@@ -1374,9 +1379,9 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_FinishedWhileAgentDown)
           TEST_CSI_PLUGIN_TYPE,
           TEST_VOLUME_ID,
           TEST_CONTAINER_PATH,
+          mesos::v1::Volume::RW,
           mesos::v1::Volume::Source::CSIVolume::VolumeCapability
-            ::AccessMode::SINGLE_NODE_WRITER,
-          false)}));
+            ::AccessMode::SINGLE_NODE_WRITER)}));
 
   v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
       v1::DEFAULT_EXECUTOR_ID,

@@ -75,8 +75,7 @@ namespace slave {
 
 constexpr char DEFAULT_CSI_CONTAINER_PREFIX[] = "mesos-internal-csi-";
 
-static VolumeState createVolumeState(
-    const Volume::Source::CSIVolume::StaticProvisioning& volume);
+static VolumeState createVolumeState(const Volume& volume);
 
 
 static hashset<CSIPluginContainerInfo::Service> extractServices(
@@ -101,7 +100,7 @@ public:
 
   Future<Nothing> start(const SlaveID& _agentId);
 
-  Future<string> publishVolume(const Volume::Source::CSIVolume& volume);
+  Future<string> publishVolume(const Volume& volume);
 
   Future<Nothing> unpublishVolume(
       const string& pluginName,
@@ -363,12 +362,18 @@ Future<Nothing> CSIServerProcess::start(const SlaveID& _agentId)
 }
 
 
-Future<string> CSIServerProcess::publishVolume(
-    const Volume::Source::CSIVolume& volume)
+Future<string> CSIServerProcess::publishVolume(const Volume& volume)
 {
-  CHECK(volume.has_static_provisioning());
+  CHECK(volume.has_source() &&
+        volume.source().has_type() &&
+        volume.source().type() == Volume::Source::CSI_VOLUME);
 
-  const string& name = volume.plugin_name();
+  CHECK(volume.source().has_csi_volume() &&
+        volume.source().csi_volume().has_static_provisioning());
+
+  const Volume::Source::CSIVolume& csiVolume = volume.source().csi_volume();
+
+  const string& name = csiVolume.plugin_name();
 
   if (!plugins.contains(name)) {
     // This will attempt to load the plugin's configuration, initialize the
@@ -388,13 +393,13 @@ Future<string> CSIServerProcess::publishVolume(
       CHECK(plugins.contains(name));
 
       return plugins.at(name).volumeManager->publishVolume(
-          volume.static_provisioning().volume_id(),
-          createVolumeState(volume.static_provisioning()));
+          csiVolume.static_provisioning().volume_id(),
+          createVolumeState(volume));
       }))
     .then(defer(self(), [=]() {
       CHECK(plugins.contains(name));
 
-      const CSIPluginInfo& info = plugins.at(volume.plugin_name()).info;
+      const CSIPluginInfo& info = plugins.at(csiVolume.plugin_name()).info;
 
       const string mountRootDir = info.has_target_path_root()
           ? info.target_path_root()
@@ -402,7 +407,7 @@ Future<string> CSIServerProcess::publishVolume(
 
       return csi::paths::getMountTargetPath(
           mountRootDir,
-          volume.static_provisioning().volume_id());
+          csiVolume.static_provisioning().volume_id());
     }));
 }
 
@@ -431,14 +436,16 @@ Future<Nothing> CSIServerProcess::unpublishVolume(
 }
 
 
-VolumeState createVolumeState(
-    const Volume::Source::CSIVolume::StaticProvisioning& volume)
+VolumeState createVolumeState(const Volume& volume)
 {
+  const Volume::Source::CSIVolume::StaticProvisioning& staticProvisioning =
+    volume.source().csi_volume().static_provisioning();
+
   VolumeState result;
   result.set_state(VolumeState::NODE_READY);
-  *result.mutable_volume_capability() = volume.volume_capability();
-  *result.mutable_volume_context() = volume.volume_context();
-  result.set_readonly(volume.readonly());
+  *result.mutable_volume_capability() = staticProvisioning.volume_capability();
+  *result.mutable_volume_context() = staticProvisioning.volume_context();
+  result.set_readonly(volume.mode() == Volume::RO);
   result.set_pre_provisioned(true);
 
   return result;
@@ -533,8 +540,7 @@ Future<Nothing> CSIServer::start(const SlaveID& agentId)
 }
 
 
-Future<string> CSIServer::publishVolume(
-    const Volume::Source::CSIVolume& volume)
+Future<string> CSIServer::publishVolume(const Volume& volume)
 {
   return started.future()
     .then(process::defer(

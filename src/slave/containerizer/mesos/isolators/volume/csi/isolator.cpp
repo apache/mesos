@@ -273,13 +273,6 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
     const AccessMode& accessMode =
       csiVolume.static_provisioning().volume_capability().access_mode();
 
-    if (csiVolume.static_provisioning().readonly() &&
-        _volume.mode() == Volume::RW) {
-      return Failure(
-          "Cannot publish the volume '" + volumeId +
-          "' in read-only mode but use it in read-write mode");
-    }
-
     if ((accessMode.mode() == AccessMode::SINGLE_NODE_READER_ONLY ||
          accessMode.mode() == AccessMode::MULTI_NODE_READER_ONLY) &&
         _volume.mode() == Volume::RW) {
@@ -355,10 +348,9 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
     }
 
     Mount mount;
-    mount.csiVolume = csiVolume;
-    mount.volume = volume;
+    mount.volume = _volume;
+    mount.csiVolume = volume;
     mount.target = target;
-    mount.volumeMode = _volume.mode();
 
     mounts.push_back(mount);
     volumeSet.insert(volume);
@@ -390,7 +382,7 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::prepare(
   vector<Future<string>> futures;
   futures.reserve(mounts.size());
   foreach (const Mount& mount, mounts) {
-    futures.push_back(csiServer->publishVolume(mount.csiVolume));
+    futures.push_back(csiServer->publishVolume(mount.volume));
   }
 
   return await(futures)
@@ -449,7 +441,7 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
           continue;
         }
 
-        if (info->volumes.contains(mount.volume)) {
+        if (info->volumes.contains(mount.csiVolume)) {
           isVolumeInUse = true;
           break;
         }
@@ -478,7 +470,7 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
     *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
         source,
         mount.target,
-        MS_BIND | MS_REC | (mount.volumeMode == Volume::RO ? MS_RDONLY : 0));
+        MS_BIND | MS_REC | (mount.volume.mode() == Volume::RO ? MS_RDONLY : 0));
   }
 
   return launchInfo;

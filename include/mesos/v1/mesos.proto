@@ -3194,16 +3194,15 @@ message Volume {
       message StaticProvisioning {
         required string volume_id = 1;
         required VolumeCapability volume_capability = 2;
-        optional bool readonly = 3;
 
         // The secrets needed for staging/publishing the volume, e.g.:
         // {
         //   "username": {"type": REFERENCE, "reference": {"name": "U_SECRET"}},
         //   "password": {"type": REFERENCE, "reference": {"name": "P_SECRET"}}
         // }
-        map<string, Secret> node_stage_secrets = 4;
-        map<string, Secret> node_publish_secrets = 5;
-        map<string, string> volume_context = 6;
+        map<string, Secret> node_stage_secrets = 3;
+        map<string, Secret> node_publish_secrets = 4;
+        map<string, string> volume_context = 5;
       }
 
       optional StaticProvisioning static_provisioning = 2;

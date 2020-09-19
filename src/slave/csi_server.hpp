@@ -66,8 +66,7 @@ public:
   // been called, then the publishing of this volume will not be completed until
   // the CSI server is started.
   // Returns the target path at which the volume has been published.
-  process::Future<std::string> publishVolume(
-      const Volume::Source::CSIVolume& volume);
+  process::Future<std::string> publishVolume(const Volume& volume);
 
   // Unpublishes a CSI volume from this agent. If the `start()` method has not
   // yet been called, then the unpublishing of this volume will not be completed

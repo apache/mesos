@@ -67,10 +67,9 @@ public:
 private:
   struct Mount
   {
-    Volume::Source::CSIVolume csiVolume;
-    CSIVolume volume;
+    Volume volume;
+    CSIVolume csiVolume;
     std::string target;
-    Volume::Mode volumeMode;
   };
 
   struct Info

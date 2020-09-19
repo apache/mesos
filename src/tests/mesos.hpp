@@ -856,14 +856,15 @@ inline TVolume createVolumeFromDockerImage(
 template <typename TVolume>
 inline TVolume createVolumeCsi(
     const std::string& pluginName,
-    const std::string volumeId,
+    const std::string& volumeId,
     const std::string& containerPath,
+    const typename TVolume::Mode& mode,
     const typename TVolume::Source::CSIVolume::VolumeCapability
-      ::AccessMode::Mode mode,
-    bool readonly)
+      ::AccessMode::Mode& accessMode)
 {
   TVolume volume;
   volume.set_container_path(containerPath);
+  volume.set_mode(mode);
 
   typename TVolume::Source* source = volume.mutable_source();
   source->set_type(TVolume::Source::CSI_VOLUME);
@@ -873,41 +874,9 @@ inline TVolume createVolumeCsi(
     source->mutable_csi_volume()->mutable_static_provisioning();
 
   staticInfo->set_volume_id(volumeId);
-  staticInfo->set_readonly(readonly);
   staticInfo->mutable_volume_capability()->mutable_mount();
   staticInfo->mutable_volume_capability()
-    ->mutable_access_mode()->set_mode(mode);
-
-  typedef typename TVolume::Source::CSIVolume::VolumeCapability::AccessMode
-    CSIAccessMode;
-
-  // Set the top-level `mode` field of the volume based on the values of the
-  // CSI access mode and the `readonly` field.
-  typename TVolume::Mode mesosMode;
-
-  switch (mode) {
-    case CSIAccessMode::SINGLE_NODE_WRITER:
-    case CSIAccessMode::MULTI_NODE_SINGLE_WRITER:
-    case CSIAccessMode::MULTI_NODE_MULTI_WRITER: {
-      if (readonly) {
-        mesosMode = TVolume::RO;
-      } else {
-        mesosMode = TVolume::RW;
-      }
-
-      break;
-    }
-
-    case CSIAccessMode::SINGLE_NODE_READER_ONLY:
-    case CSIAccessMode::MULTI_NODE_READER_ONLY:
-    default: {
-      mesosMode = TVolume::RO;
-
-      break;
-    }
-  }
-
-  volume.set_mode(mesosMode);
+    ->mutable_access_mode()->set_mode(accessMode);
 
   return volume;
 }
