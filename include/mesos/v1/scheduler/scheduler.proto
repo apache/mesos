@@ -441,6 +441,15 @@ message AttributeConstraint {
 // NOTE: Even if a particular resource matches offer constraints of a
 // framework's role, there is still no guarantee that it will ever be offered
 // to this role of the framework.
+//
+// NOTE: Each `Group` must contain at least one constraint, and
+// `RoleConstraints` must contain at least one `Group`, otherwise
+// the message is not valid.
+//
+// NOTE: Frameworks are allowed to use default-constructed
+// `OfferConstraints` (instead of not setting the `offer_constraints` field)
+// in the SUBSCRIBE/UPDATE_FRAMEWORK calls to indicate subscription without
+// any offer constraints.
 message OfferConstraints {
   message RoleConstraints {
     message Group {
