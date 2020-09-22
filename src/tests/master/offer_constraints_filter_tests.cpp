@@ -581,3 +581,16 @@ TEST(OfferConstraintsFilter, TwoRoles)
   EXPECT_TRUE(
       filter->isAgentExcluded("roleB", slaveInfoWithAttributes("foo:123")));
 }
+
+
+// Tests that using default-constructed `OfferConstraints` to construct
+// a filter results in a no-op filter that does not exclude any agents
+// (and not, for example, in an error).
+TEST(OfferConstraintsFilter, DefaultOfferConstraints)
+{
+  const Try<OfferConstraintsFilter> filter = createFilter(OfferConstraints{});
+
+  ASSERT_SOME(filter);
+
+  EXPECT_FALSE(filter->isAgentExcluded("role", SlaveInfo{}));
+}
