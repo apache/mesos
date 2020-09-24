@@ -35,7 +35,7 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
-    Option<OfferConstraints>&& offerConstraints,
+    OfferConstraints&& offerConstraints,
     const process::UPID& pid,
     const Owned<ObjectApprovers>& approvers,
     const process::Time& time)
@@ -57,7 +57,7 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
-    Option<OfferConstraints>&& offerConstraints,
+    OfferConstraints&& offerConstraints,
     const StreamingHttpConnection<v1::scheduler::Event>& http,
     const Owned<ObjectApprovers>& approvers,
     const process::Time& time)
@@ -83,7 +83,7 @@ Framework::Framework(
         master,
         masterFlags,
         info,
-        None(),
+        OfferConstraints{},
         RECOVERED,
         false,
         nullptr,
@@ -95,7 +95,7 @@ Framework::Framework(
     Master* const _master,
     const Flags& masterFlags,
     const FrameworkInfo& _info,
-    Option<OfferConstraints>&& offerConstraints,
+    OfferConstraints&& offerConstraints,
     State state,
     bool active_,
     const Owned<ObjectApprovers>& approvers,
@@ -538,7 +538,7 @@ void Framework::removeOperation(Operation* operation)
 
 void Framework::update(
     const FrameworkInfo& newInfo,
-    Option<OfferConstraints>&& offerConstraints)
+    OfferConstraints&& offerConstraints)
 {
   // We only merge 'info' from the same framework 'id'.
   CHECK_EQ(info.id(), newInfo.id());

@@ -1301,9 +1301,7 @@ mesos::master::Response::GetFrameworks::Framework model(
     _framework.mutable_offered_resources()->Add()->CopyFrom(resource);
   }
 
-  if (framework.offerConstraints().isSome()) {
-    *_framework.mutable_offer_constraints() = *framework.offerConstraints();
-  }
+  *_framework.mutable_offer_constraints() = framework.offerConstraints();
 
   return _framework;
 }

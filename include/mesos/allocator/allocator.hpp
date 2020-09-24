@@ -110,7 +110,12 @@ public:
       const Options& options,
       scheduler::OfferConstraints&& constraints);
 
-  OfferConstraintsFilter() = delete;
+  /*
+   * Constructs a no-op filter that does not exclude any agents/resources from
+   * being offered. This is equivalent to passing default-constructed
+   * `OfferConstraints` to the factory method `create()`.
+   */
+  OfferConstraintsFilter();
 
   // Definitions of these need `OfferConstraintsFilterImpl` to be a complete
   // type.
@@ -149,7 +154,7 @@ struct FrameworkOptions
   /**
    * The internal representation of framework's offer constraints.
    */
-  Option<OfferConstraintsFilter> offerConstraintsFilter;
+  OfferConstraintsFilter offerConstraintsFilter;
 };
 
 

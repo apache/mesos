@@ -472,6 +472,12 @@ OfferConstraintsFilter::OfferConstraintsFilter(
 {}
 
 
+OfferConstraintsFilter::OfferConstraintsFilter()
+  : OfferConstraintsFilter(
+        CHECK_NOTERROR(OfferConstraintsFilterImpl::create({Bytes(0), 0}, {})))
+{}
+
+
 OfferConstraintsFilter::OfferConstraintsFilter(OfferConstraintsFilter&&) =
   default;
 
