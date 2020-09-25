@@ -474,7 +474,7 @@ OfferConstraintsFilter::OfferConstraintsFilter(
 
 OfferConstraintsFilter::OfferConstraintsFilter()
   : OfferConstraintsFilter(
-        CHECK_NOTERROR(OfferConstraintsFilterImpl::create({Bytes(0), 0}, {})))
+        CHECK_NOTERROR(OfferConstraintsFilterImpl::create({{Bytes(0), 0}}, {})))
 {}
 
 
