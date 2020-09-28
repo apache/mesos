@@ -66,11 +66,11 @@ RUN curl -sL $CNI_PLUGINS_URL -o /cni-plugins.tgz && \
 COPY mesos/ucr-default-bridge.json /etc/mesos/cni/
 
 # Prepare Marathon environment.
-ARG MARATHON_URL=https://downloads.mesosphere.com/marathon/releases/1.6.322/marathon-1.6.322-2bf46b341.tgz
+ARG MARATHON_URL=https://github.com/mesosphere/marathon/archive/v1.6.590.tar.gz
 ARG MARATHON_INSTALL_DIR=/usr/local/marathon
 
 RUN mkdir -p $MARATHON_INSTALL_DIR && \
-    curl -s $MARATHON_URL -o /marathon.tgz && \
+    curl -Ls $MARATHON_URL -o /marathon.tgz && \
     tar -xzvf /marathon.tgz -C $MARATHON_INSTALL_DIR --strip 1 && \
     rm -f /marathon.tgz
 
