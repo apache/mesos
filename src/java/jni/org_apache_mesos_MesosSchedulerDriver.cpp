@@ -21,6 +21,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
@@ -1066,17 +1067,12 @@ Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks(
   return convert<Status>(env, status);
 }
 
-/* Class:     org_apache_mesos_MesosSchedulerDriver
- * Method:    updateFramework
- * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;Lorg/apache/mesos/scheduler/Protos/OfferConstraints;)Lorg/apache/mesos/Protos/Status;
- */
-JNIEXPORT jobject JNICALL
-Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
+static jobject updateFramework(
     JNIEnv* env,
     jobject thiz,
     jobject jframeworkInfo,
     jobject jsuppressedRoles,
-    jobject jofferConstraints)
+    Option<jobject> jofferConstraints)
 {
   using ::mesos::scheduler::OfferConstraints;
 
@@ -1086,8 +1082,9 @@ Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
   const vector<string> suppressedRoles =
     constructFromIterable<string>(env, jsuppressedRoles);
 
-  ::mesos::scheduler::OfferConstraints offerConstraints =
-    construct<OfferConstraints>(env, jofferConstraints);
+  OfferConstraints offerConstraints = jofferConstraints.isSome()
+      ? construct<OfferConstraints>(env, *jofferConstraints)
+      : OfferConstraints();
 
   jclass clazz = env->GetObjectClass(thiz);
 
@@ -1099,6 +1096,33 @@ Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
       frameworkInfo, suppressedRoles, std::move(offerConstraints));
 
   return convert<Status>(env, status);
+}
+
+/* Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    updateFramework
+ * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
+    JNIEnv* env, jobject thiz, jobject jframeworkInfo, jobject jsuppressedRoles)
+{
+  return updateFramework(env, thiz, jframeworkInfo, jsuppressedRoles, None());
+}
+
+/* Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    updateFrameworkWithConstraints
+ * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;Lorg/apache/mesos/scheduler/Protos/OfferConstraints;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosSchedulerDriver_updateFrameworkWithConstraints(
+    JNIEnv* env,
+    jobject thiz,
+    jobject jframeworkInfo,
+    jobject jsuppressedRoles,
+    jobject jofferConstraints)
+{
+  return updateFramework(
+      env, thiz, jframeworkInfo, jsuppressedRoles, jofferConstraints);
 }
 
 } // extern "C" {

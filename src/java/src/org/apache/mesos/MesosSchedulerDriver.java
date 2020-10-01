@@ -408,15 +408,33 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status reconcileTasks(Collection<TaskStatus> statuses);
 
+  /**
+   * @deprecated Replaced by
+   * {@link #updateFramework(FrameworkInfo, Collection<String>, OfferConstraints)}
+   *
+   * NOTE: The underlying JNI method exists only to maintain compatibility
+   * of newer versions of libmesos-java.so with older versions of mesos.jar
+   */
+  @Deprecated
   public native Status updateFramework(FrameworkInfo frameworkInfo,
-                                       Collection<String> suppressedRoles,
-                                       OfferConstraints offerConstraints);
+                                       Collection<String> suppressedRoles);
 
   public Status updateFramework(FrameworkInfo frameworkInfo,
-                                Collection<String> suppressedRoles) {
-    return updateFramework(
-        frameworkInfo, suppressedRoles, OfferConstraints.getDefaultInstance());
+                                Collection<String> suppressedRoles,
+                                OfferConstraints offerConstraints) {
+    return updateFrameworkWithConstraints(
+        frameworkInfo, suppressedRoles, offerConstraints);
   }
+
+  /*
+   * NOTE: This method exists only because an `updateFramework()` signature
+   * with added offer constraints needs to have a different name, due to the
+   * `extern "C"` linkage of JNI method implementations.
+   */
+  private native Status updateFrameworkWithConstraints(
+      FrameworkInfo frameworkInfo,
+      Collection<String> suppressedRoles,
+      OfferConstraints offerConstraints);
 
   protected native void initialize();
   protected native void finalize();
