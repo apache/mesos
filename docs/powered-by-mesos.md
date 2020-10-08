@@ -73,6 +73,7 @@ layout: documentation
 * [Medidata Solutions](http://www.mdsol.com)
 * [meemo](http://www.meemo.io)
 * [Mesosphere](http://www.mesosphere.io)
+* [mishmash io](https://mishmash.io)
 * [Motus](http://www.motus.com)
 * [Ndustrial.io](http://www.ndustrial.io)
 * [Netflix](http://www.netflix.com)
