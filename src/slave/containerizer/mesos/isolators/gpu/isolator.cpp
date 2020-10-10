@@ -443,6 +443,15 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
   }
 
   foreach (const string& device, nvidia.get()) {
+    // The directory `/dev/nvidia-caps` was introduced in CUDA 11.0, just
+    // ignore it since we only care about the Nvidia GPU device files.
+    //
+    // TODO(qianzhang): Figure out how to handle the directory
+    // `/dev/nvidia-caps` more properly.
+    if (device == "/dev/nvidia-caps") {
+      continue;
+    }
+
     const string devicePath = path::join(
         devicesDir, strings::remove(device, "/dev/", strings::PREFIX), device);
 
