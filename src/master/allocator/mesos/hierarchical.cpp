@@ -2178,8 +2178,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
         const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
         CHECK(framework.active) << frameworkId;
 
-        if (framework.offerConstraintsFilter.isSome() &&
-            framework.offerConstraintsFilter->isAgentExcluded(
+        if (framework.offerConstraintsFilter.isAgentExcluded(
                 role, slave.info)) {
           // Framework filters the agent regardless of remaining resources.
           continue;
@@ -2414,8 +2413,7 @@ void HierarchicalAllocatorProcess::__generateOffers()
 
         const Framework& framework = *CHECK_NOTNONE(getFramework(frameworkId));
 
-        if (framework.offerConstraintsFilter.isSome() &&
-            framework.offerConstraintsFilter->isAgentExcluded(
+        if (framework.offerConstraintsFilter.isAgentExcluded(
                 role, slave.info)) {
           // Framework filters the agent regardless of remaining resources.
           continue;
@@ -3244,14 +3242,15 @@ static string OFFER_CONSTRAINTS_DEBUG_HELP()
         "         \"0b1e7d60-dfbc-44c9-8222-48b57eca8637-S123\",",
         "         \"654af69c-80f7-45ad-bcb3-c7c917f1811b-S045\"],",
         "       \"role2\": [] }},",
-        "   \"b0377da6-090d-4338-9e2e-bf6cf0f309b7-0011\": {}",
+        "   \"b0377da6-090d-4338-9e2e-bf6cf0f309b7-0011\": {",
+        "     \"excluded_by_attribute_constraints\": { \"role1\": [] }}",
         "}}",
         "```",
         "In this example, two agents are excluded from allocation",
         "to the first framework (-0017) under the role \"role1\", no agents",
-        "are excluded from allocation to this framework under \"role2\",",
-        "and the second framework (-0011) has no offer constraints set."
-        ),
+        "are excluded from allocation to this framework under \"role2\".",
+        "The second framework (-0011) is also subscribed to \"role1\",",
+        "but has no agents excluded from allocation to \"role1\"."),
     process::AUTHENTICATION(true),
     process::AUTHORIZATION(
         "This endpoint skips frameworks for which the user is not authorized"
@@ -3301,19 +3300,13 @@ process::http::Response HierarchicalAllocatorProcess::offerConstraintsDebug_(
   auto writeFrameworks = [&](JSON::ObjectWriter* writer) {
     for (const Framework* framework : approvedFrameworks) {
       auto writeFramework = [&](JSON::ObjectWriter* writer) {
-        if (framework->offerConstraintsFilter.isNone()) {
-          // For an authorized frameworks without offer constraints,
-          // an empty object is written.
-          return;
-        }
-
         writer->field(
             "excluded_by_attribute_constraints",
             [&](JSON::ObjectWriter* writer) {
               for (const string& role : framework->roles) {
                 writer->field(role, [&](JSON::ArrayWriter* writer) {
                   foreachvalue (const Slave& slave, slaves) {
-                    if (framework->offerConstraintsFilter->isAgentExcluded(
+                    if (framework->offerConstraintsFilter.isAgentExcluded(
                             role, slave.info)) {
                       writer->element(stringify(slave.id));
                     }

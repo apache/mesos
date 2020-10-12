@@ -117,7 +117,7 @@ struct Framework
   // offer constraints.
   hashmap<std::string, std::vector<ResourceQuantities>> minAllocatableResources;
 
-  Option<::mesos::allocator::OfferConstraintsFilter> offerConstraintsFilter;
+  ::mesos::allocator::OfferConstraintsFilter offerConstraintsFilter;
 };
 
 
