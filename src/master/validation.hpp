@@ -134,6 +134,10 @@ Option<Error> validateSuppressedRoles(
     const std::set<std::string>& validFrameworkRoles,
     const std::set<std::string>& suppressedRoles);
 
+Option<Error> validateOfferConstraintsRoles(
+    const std::set<std::string>& validFrameworkRoles,
+    const scheduler::OfferConstraints& offerConstraints);
+
 } // namespace framework {
 
 

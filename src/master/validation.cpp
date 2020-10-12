@@ -59,6 +59,8 @@ using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::scheduler::OfferConstraints;
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -691,6 +693,23 @@ Option<Error> validateSuppressedRoles(
     return Error(
         "Suppressed roles " + stringify(invalidSuppressedRoles) +
         " are not contained in the set of roles");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateOfferConstraintsRoles(
+    const set<string>& validFrameworkRoles,
+    const OfferConstraints& offerConstraints)
+{
+  for (const auto& pair : offerConstraints.role_constraints()) {
+    const string& role = pair.first;
+    if (validFrameworkRoles.count(role) < 1) {
+      return Error(
+          "Offer constraints specify `role_constraints` for a role '" + role +
+          "'not contained in the set of roles");
+    }
   }
 
   return None();

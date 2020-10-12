@@ -2619,7 +2619,13 @@ static Try<allocator::FrameworkOptions> createAllocatorFrameworkOptions(
     return *error;
   }
 
-  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
+  error = validation::framework::validateOfferConstraintsRoles(
+      validFrameworkRoles, offerConstraints);
+
+  if (error.isSome()) {
+    return *error;
+  }
+
   Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
       filterOptions, std::move(offerConstraints));
 

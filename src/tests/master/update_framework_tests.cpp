@@ -981,6 +981,93 @@ TEST_F(UpdateFrameworkTest, OfferConstraints)
 }
 
 
+// This test ensures that an UPDATE_FRAMEWORK call trying to set offer
+// constraints for a role to which the framework will not be subscribed
+// fails validation and is rejected as a whole.
+TEST_F(UpdateFrameworkTest, OfferConstraintsForUnsubscribedRole)
+{
+  using ::mesos::v1::scheduler::OfferConstraints;
+
+  const Try<JSON::Object> constraintsJson = JSON::parse<JSON::Object>(
+      R"~(
+        {
+          "role_constraints": {
+            ")~" + DEFAULT_FRAMEWORK_INFO.roles(0) + R"~(": {
+              "groups": [{
+                "attribute_constraints": [{
+                  "selector": {"attribute_name": "foo"},
+                  "predicate": {"exists": {}}
+                }]
+              }]
+            }
+          }
+        })~");
+
+  ASSERT_SOME(constraintsJson);
+
+  const Try<OfferConstraints> constraints =
+    ::protobuf::parse<OfferConstraints>(*constraintsJson);
+
+  ASSERT_SOME(constraints);
+
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(Invoke([constraints](Mesos* mesos) {
+      Call call;
+      call.set_type(Call::SUBSCRIBE);
+      *call.mutable_subscribe()->mutable_framework_info() =
+        DEFAULT_FRAMEWORK_INFO;
+
+      *call.mutable_subscribe()->mutable_offer_constraints() = *constraints;
+
+      mesos->send(call);
+    }));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Subscribed> subscribed;
+
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  TestMesos mesos(master->get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+
+  // Try to change framework's role but specify constraints for the old role.
+  FrameworkInfo frameworkInfoWithNewRole = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfoWithNewRole.clear_roles();
+  frameworkInfoWithNewRole.add_roles(DEFAULT_FRAMEWORK_INFO.roles(0) + "_new");
+  *frameworkInfoWithNewRole.mutable_id() = subscribed->framework_id();
+
+  Future<APIResult> result =
+    callUpdateFramework(&mesos, frameworkInfoWithNewRole, {}, *constraints);
+
+  AWAIT_READY(result);
+  EXPECT_EQ(result->status_code(), 400u);
+  EXPECT_TRUE(strings::contains(result->error(), "Offer constraints"));
+
+  Future<v1::master::Response::GetFrameworks> frameworks =
+    getFrameworks(master->get()->pid);
+
+  AWAIT_READY(frameworks);
+
+  ASSERT_EQ(frameworks->frameworks_size(), 1);
+
+  // The framework info should have remained the same, despite
+  // `updatedFrameworkInfo` on its own not containing any invalid updates.
+  FrameworkInfo expected = DEFAULT_FRAMEWORK_INFO;
+  *expected.mutable_id() = subscribed->framework_id();
+  EXPECT_NONE(::mesos::v1::typeutils::diff(
+      frameworks->frameworks(0).framework_info(), expected));
+}
+
 } // namespace scheduler {
 } // namespace v1 {
 
