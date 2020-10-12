@@ -37,6 +37,7 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
+#include <stout/set.hpp>
 #include <stout/stringify.hpp>
 
 #include "checks/checker.hpp"
@@ -674,6 +675,25 @@ void preserveImmutableFields(
 
     newInfo->set_checkpoint(oldInfo.checkpoint());
   }
+}
+
+
+Option<Error> validateSuppressedRoles(
+    const set<string>& validFrameworkRoles,
+    const set<string>& suppressedRoles)
+{
+  // Needed to prevent shadowing of the template '::operator-<std::set<T>>'
+  // by a non-template '::mesos::operator-'
+  using ::operator-;
+
+  set<string> invalidSuppressedRoles = suppressedRoles - validFrameworkRoles;
+  if (!invalidSuppressedRoles.empty()) {
+    return Error(
+        "Suppressed roles " + stringify(invalidSuppressedRoles) +
+        " are not contained in the set of roles");
+  }
+
+  return None();
 }
 
 

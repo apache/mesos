@@ -130,6 +130,10 @@ void preserveImmutableFields(
     const FrameworkInfo& oldInfo,
     FrameworkInfo* newInfo);
 
+Option<Error> validateSuppressedRoles(
+    const std::set<std::string>& validFrameworkRoles,
+    const std::set<std::string>& suppressedRoles);
+
 } // namespace framework {
 
 

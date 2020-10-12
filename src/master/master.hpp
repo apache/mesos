@@ -1058,12 +1058,13 @@ private:
     const std::string role;
   };
 
-  // Performs validations of the FrameworkInfo and suppressed roles set
-  // which do not depend on the current state of this framework.
-  Option<Error> validateFramework(
-      const FrameworkInfo& frameworkInfo,
-      const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles)
-    const;
+  // Performs stateless and stateful validation of the FrameworkInfo.
+  // The stateful validation only uses the master flags and whether
+  // the framework is completed.
+
+  // TODO(asekretenko): Pass in the state explicitly to move this function into
+  // validation.hpp for unit testability and better separation of concerns.
+  Option<Error> validateFramework(const FrameworkInfo& frameworkInfo) const;
 
   /**
    * Inner class used to namespace the handling of quota requests.

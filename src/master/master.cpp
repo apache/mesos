@@ -2551,8 +2551,7 @@ void Master::reregisterFramework(
 
 
 Option<Error> Master::validateFramework(
-  const FrameworkInfo& frameworkInfo,
-  const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles) const
+    const FrameworkInfo& frameworkInfo) const
 {
   Option<Error> validationError =
     validation::framework::validate(frameworkInfo);
@@ -2583,17 +2582,6 @@ Option<Error> Master::validateFramework(
                  " are not present in the master's --roles");
   }
 
-  // Ensure each of the suppressed role is contained in the list of roles.
-  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
-  // The suppressed roles must be contained within the list of all
-  // roles for the framwork.
-  foreach (const string& role, suppressedRoles) {
-    if (!frameworkRoles.count(role)) {
-      return Error("Suppressed role '" + role +
-                   "' is not contained in the list of roles");
-    }
-  }
-
   // TODO(vinod): Deprecate this in favor of authorization.
   if (frameworkInfo.user() == "root" && !flags.root_submissions) {
     return Error("User 'root' is not allowed to run frameworks"
@@ -2611,6 +2599,37 @@ Option<Error> Master::validateFramework(
   }
 
   return Option<Error>::none();
+}
+
+
+static Try<allocator::FrameworkOptions> createAllocatorFrameworkOptions(
+    const set<string>& validFrameworkRoles,
+    const OfferConstraintsFilter::Options filterOptions,
+    google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
+    OfferConstraints offerConstraints)
+{
+  set<string> suppressedRolesSet(
+      make_move_iterator(suppressedRoles.begin()),
+      make_move_iterator(suppressedRoles.end()));
+
+  Option<Error> error = validation::framework::validateSuppressedRoles(
+      validFrameworkRoles, suppressedRolesSet);
+
+  if (error.isSome()) {
+    return *error;
+  }
+
+  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
+  Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
+      filterOptions, std::move(offerConstraints));
+
+  if (filter.isError()) {
+    return Error(
+        "Offer constraints are not valid: " + std::move(filter.error()));
+  }
+
+  return allocator::FrameworkOptions{
+    std::move(suppressedRolesSet), std::move(*filter)};
 }
 
 
@@ -2665,40 +2684,34 @@ void Master::subscribe(
   LOG(INFO) << "Received subscription request for"
             << " HTTP framework '" << frameworkInfo.name() << "'";
 
-  Option<Error> validationError =
-    validateFramework(frameworkInfo, subscribe.suppressed_roles());
-
-  allocator::FrameworkOptions allocatorOptions;
-
-  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
-  if (validationError.isNone()) {
-    Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
-        offerConstraintsFilterOptions,
-        OfferConstraints(subscribe.offer_constraints()));
-
-    if (filter.isError()) {
-      validationError = Error(std::move(filter.error()));
-    } else {
-      allocatorOptions.offerConstraintsFilter = std::move(*filter);
-    }
-  }
-
-  if (validationError.isSome()) {
+  auto refuseSubscription = [&](const string& error) {
     LOG(INFO) << "Refusing subscription of framework"
-              << " '" << frameworkInfo.name() << "': "
-              << validationError->message;
+              << " '" << frameworkInfo.name() << "': " << error;
 
     FrameworkErrorMessage message;
-    message.set_message(validationError->message);
+    message.set_message(error);
 
     http.send(message);
     http.close();
+  };
+
+  const Option<Error> validationError = validateFramework(frameworkInfo);
+  if (validationError.isSome()) {
+    refuseSubscription(validationError->message);
     return;
   }
 
-  allocatorOptions.suppressedRoles = set<string>(
-      make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
-      make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
+  Try<allocator::FrameworkOptions> allocatorOptions =
+    createAllocatorFrameworkOptions(
+        protobuf::framework::getRoles(frameworkInfo),
+        offerConstraintsFilterOptions,
+        std::move(*subscribe.mutable_suppressed_roles()),
+        subscribe.offer_constraints());
+
+  if (allocatorOptions.isError()) {
+    refuseSubscription(allocatorOptions.error());
+    return;
+  }
 
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
@@ -2719,7 +2732,7 @@ void Master::subscribe(
       std::move(frameworkInfo),
       std::move(*subscribe.mutable_offer_constraints()),
       subscribe.force(),
-      std::move(allocatorOptions),
+      std::move(*allocatorOptions),
       lambda::_1));
 }
 
@@ -2918,37 +2931,37 @@ void Master::subscribe(
     return;
   }
 
-  Option<Error> validationError =
-    validateFramework(frameworkInfo, subscribe.suppressed_roles());
+  auto refuseSubscription = [&](const string& error) {
+    LOG(INFO) << "Refusing subscription of framework"
+              << " '" << frameworkInfo.name() << "' at " << from << ": "
+              << error;
+
+    FrameworkErrorMessage message;
+    message.set_message(error);
+    send(from, message);
+  };
+
+  Option<Error> validationError = validateFramework(frameworkInfo);
 
   // Note that re-authentication errors are already handled above.
   if (validationError.isNone()) {
     validationError = validateFrameworkAuthentication(frameworkInfo, from);
   }
 
-  allocator::FrameworkOptions allocatorOptions;
-
-  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
-  if (validationError.isNone()) {
-    Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
-        offerConstraintsFilterOptions,
-        OfferConstraints(subscribe.offer_constraints()));
-
-    if (filter.isError()) {
-      validationError = Error(std::move(filter.error()));
-    } else {
-      allocatorOptions.offerConstraintsFilter = std::move(*filter);
-    }
+  if (validationError.isSome()) {
+    refuseSubscription(validationError->message);
+    return;
   }
 
-  if (validationError.isSome()) {
-    LOG(INFO) << "Refusing subscription of framework"
-              << " '" << frameworkInfo.name() << "' at " << from << ": "
-              << validationError->message;
+  Try<allocator::FrameworkOptions> allocatorOptions =
+    createAllocatorFrameworkOptions(
+        protobuf::framework::getRoles(frameworkInfo),
+        offerConstraintsFilterOptions,
+        std::move(*subscribe.mutable_suppressed_roles()),
+        subscribe.offer_constraints());
 
-    FrameworkErrorMessage message;
-    message.set_message(validationError->message);
-    send(from, message);
+  if (allocatorOptions.isError()) {
+    refuseSubscription(allocatorOptions.error());
     return;
   }
 
@@ -2967,10 +2980,6 @@ void Master::subscribe(
 
     frameworkInfo.set_principal(authenticated[from]);
   }
-
-  allocatorOptions.suppressedRoles = set<string>(
-      make_move_iterator(subscribe.mutable_suppressed_roles()->begin()),
-      make_move_iterator(subscribe.mutable_suppressed_roles()->end()));
 
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
@@ -2991,7 +3000,7 @@ void Master::subscribe(
       std::move(frameworkInfo),
       std::move(*subscribe.mutable_offer_constraints()),
       subscribe.force(),
-      std::move(allocatorOptions),
+      std::move(*allocatorOptions),
       lambda::_1));
 }
 
@@ -3262,8 +3271,7 @@ Future<process::http::Response> Master::updateFramework(
   LOG(INFO) << "Processing UPDATE_FRAMEWORK call for framework "
             << call.framework_info().id();
 
-  Option<Error> error =
-    validateFramework(call.framework_info(), call.suppressed_roles());
+  Option<Error> error = validateFramework(call.framework_info());
 
   if (error.isSome()) {
     return process::http::BadRequest(
@@ -3281,19 +3289,17 @@ Future<process::http::Response> Master::updateFramework(
   const bool frameworkInfoChanged =
     !typeutils::equivalent(framework->info, call.framework_info());
 
-  allocator::FrameworkOptions allocatorOptions;
-  // TODO(asekretenko): Validate roles in offer constraints (see MESOS-10176).
-  Try<OfferConstraintsFilter> filter = OfferConstraintsFilter::create(
-      offerConstraintsFilterOptions,
-      OfferConstraints(call.offer_constraints()));
+  Try<allocator::FrameworkOptions> allocatorOptions =
+    createAllocatorFrameworkOptions(
+        protobuf::framework::getRoles(call.framework_info()),
+        offerConstraintsFilterOptions,
+        std::move(*call.mutable_suppressed_roles()),
+        call.offer_constraints());
 
-    if (filter.isError()) {
-      return process::http::BadRequest(
-          "'UpdateFramework.offer_constraints' are not valid: " +
-          filter.error());
-    }
-
-  allocatorOptions.offerConstraintsFilter = std::move(*filter);
+  if (allocatorOptions.isError()) {
+    return process::http::BadRequest(
+        "'UpdateFramework' call is not valid: " + allocatorOptions.error());
+  }
 
   ActionObject actionObject =
     ActionObject::frameworkRegistration(call.framework_info());
@@ -3312,15 +3318,11 @@ Future<process::http::Response> Master::updateFramework(
         "Not authorized to " + stringify(actionObject));
   }
 
-  allocatorOptions.suppressedRoles = set<string>(
-    make_move_iterator(call.mutable_suppressed_roles()->begin()),
-    make_move_iterator(call.mutable_suppressed_roles()->end()));
-
   updateFramework(
       framework,
       call.framework_info(),
       std::move(*call.mutable_offer_constraints()),
-      std::move(allocatorOptions));
+      std::move(*allocatorOptions));
 
   if (frameworkInfoChanged) {
     // NOTE: Among the framework properties that can be changed by this call
