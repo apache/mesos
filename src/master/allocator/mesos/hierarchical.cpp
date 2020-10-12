@@ -3231,26 +3231,32 @@ static string OFFER_CONSTRAINTS_DEBUG_HELP()
         "Evaluates current framework offer constraints and returns results."),
     process::DESCRIPTION(
         "This endpoint evaluates for each role of each framework a list",
-        "of agents excluded from allocation by offer constraints.",
+        "of agents excluded from allocation by offer constraints,",
+        "and also reports the current set of framework's suppressed roles",
         "",
         "Example:",
         "```",
         "{\"frameworks\": {",
         "   \"0f4c63a9-be1e-4a90-9e11-d7bf0aa6c8ad-0017\": {",
+        "     \"suppressed_roles\": [\"role2\"]",
         "     \"excluded_by_attribute_constraints\": {",
         "       \"role1\": [",
         "         \"0b1e7d60-dfbc-44c9-8222-48b57eca8637-S123\",",
         "         \"654af69c-80f7-45ad-bcb3-c7c917f1811b-S045\"],",
         "       \"role2\": [] }},",
         "   \"b0377da6-090d-4338-9e2e-bf6cf0f309b7-0011\": {",
+        "     \"suppressed_roles\": []",
         "     \"excluded_by_attribute_constraints\": { \"role1\": [] }}",
         "}}",
         "```",
         "In this example, two agents are excluded from allocation",
         "to the first framework (-0017) under the role \"role1\", no agents",
         "are excluded from allocation to this framework under \"role2\".",
+        "In addition, this framework has \"role2\" suppressed.",
         "The second framework (-0011) is also subscribed to \"role1\",",
-        "but has no agents excluded from allocation to \"role1\"."),
+        "but has no agents excluded from allocation to \"role1\";",
+        "this framework has no roles currently suppressed."
+        ),
     process::AUTHENTICATION(true),
     process::AUTHORIZATION(
         "This endpoint skips frameworks for which the user is not authorized"
@@ -3300,6 +3306,12 @@ process::http::Response HierarchicalAllocatorProcess::offerConstraintsDebug_(
   auto writeFrameworks = [&](JSON::ObjectWriter* writer) {
     for (const Framework* framework : approvedFrameworks) {
       auto writeFramework = [&](JSON::ObjectWriter* writer) {
+        writer->field("suppressed_roles", [&](JSON::ArrayWriter* writer) {
+          for (const string& role : framework->suppressedRoles) {
+            writer->element(role);
+          }
+        });
+
         writer->field(
             "excluded_by_attribute_constraints",
             [&](JSON::ObjectWriter* writer) {
