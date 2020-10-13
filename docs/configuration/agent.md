@@ -1528,16 +1528,10 @@ Example config files in this directory:
   "containers": [
     {
       "services": [
-        "CONTROLLER_SERVICE",
         "NODE_SERVICE"
       ],
       "command": {
-        "shell": false,
-        "value": "managed-plugin",
-        "arguments": [
-          "managed-plugin",
-          "--endpoint=$(CSI_ENDPOINT)"
-        ]
+        "value": "<path-to-managed-plugin> --endpoint=$CSI_ENDPOINT"
       },
       "resources": [
         {"name": "cpus", "type": "SCALAR", "scalar": {"value": 0.1}},
