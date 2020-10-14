@@ -560,13 +560,25 @@ Option<Error> validateOfferFilters(const FrameworkInfo& frameworkInfo)
   return None();
 }
 
+
+Option<Error> validateFailoverTimeout(const FrameworkInfo& frameworkInfo)
+{
+  if (Duration::create(frameworkInfo.failover_timeout()).isSome()) {
+    return None();
+  }
+
+  return Error(
+      "The framework failover_timeout (" +
+      stringify(frameworkInfo.failover_timeout()) + ") is invalid");
+}
+
 } // namespace internal {
 
 
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
 {
   // TODO(jay_guo): This currently only validates the role(s),
-  // framework ID and offer filters, validate more fields!
+  // framework ID, offer filters and failover timeout, validate more fields!
   Option<Error> error = internal::validateRoles(frameworkInfo);
 
   if (error.isSome()) {
@@ -582,6 +594,12 @@ Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
   error = internal::validateOfferFilters(frameworkInfo);
 
   if (error.isSome()) {
+    return error;
+  }
+
+  error = internal::validateFailoverTimeout(frameworkInfo);
+
+  if(error.isSome()) {
     return error;
   }
 

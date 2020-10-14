@@ -157,8 +157,6 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::scheduler::OfferConstraints;
 
-static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
-
 
 class SlaveObserver : public ProtobufProcess<SlaveObserver>
 {
@@ -2612,11 +2610,6 @@ Option<Error> Master::validateFramework(
     return Error("Framework has been removed");
   }
 
-  if (!isValidFailoverTimeout(frameworkInfo)) {
-    return Error("The framework failover_timeout (" +
-                 stringify(frameworkInfo.failover_timeout()) +
-                 ") is invalid");
-  }
   return Option<Error>::none();
 }
 
@@ -12316,12 +12309,6 @@ double Master::_resources_revocable_percent(const string& name)
   }
 
   return _resources_revocable_used(name) / total;
-}
-
-
-static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
-{
-  return Duration::create(frameworkInfo.failover_timeout()).isSome();
 }
 
 
