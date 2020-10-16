@@ -14,11 +14,10 @@ test $? != 0 && \
   echo "Failed to find MESOS_BUILD_DIR in environment" && \
   exit 1
 
-
-source ${MESOS_SOURCE_DIR}/support/colors.sh
-source ${MESOS_SOURCE_DIR}/support/atexit.sh
-source ${MESOS_HELPER_DIR}/colors.sh
-source ${MESOS_HELPER_DIR}/atexit.sh
+FILE="${MESOS_SOURCE_DIR}/support/colors.sh" && test -f $FILE && source $FILE
+FILE="${MESOS_SOURCE_DIR}/support/atexit.sh" && test -f $FILE && source $FILE
+FILE="${MESOS_HELPER_DIR}/colors.sh" && test -f $FILE && source $FILE
+FILE="${MESOS_HELPER_DIR}/atexit.sh" && test -f $FILE && source $FILE
 
 MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 
