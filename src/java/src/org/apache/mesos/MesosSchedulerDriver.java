@@ -410,7 +410,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   /**
    * @deprecated Replaced by
-   * {@link #updateFramework(FrameworkInfo, Collection<String>, OfferConstraints)}
+   * {@link #updateFramework(FrameworkInfo, Collection, OfferConstraints)}
    *
    * NOTE: The underlying JNI method exists only to maintain compatibility
    * of newer versions of libmesos-java.so with older versions of mesos.jar
