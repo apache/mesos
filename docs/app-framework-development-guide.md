@@ -66,6 +66,12 @@ schedulers in the same Mesos cluster:
    up-to-date with the minimum desired offer shape for each role will ensure that
    the sccheduler gets a better chance to receive offers sized with sufficient
    resources.
+6. Consider specifying **offer constraints** via `SUBSCRIBE`/`UPDATE_FRAMEWORK`
+   calls so that the framework role's quota is not consumed by offers that the
+   scheduler will have to decline anyway based on agent attributes.
+   See [MESOS-10161](https://issues.apache.org/jira/browse/MESOS-10161])
+   and [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto)
+   for more details.
 
 Operationally, the following can be done to ensure that schedulers get the resources
 they need when co-existing with other schedulers:

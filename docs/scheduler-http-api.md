@@ -55,7 +55,9 @@ The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is enc
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" event stream.
 
-To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo and the list of initially suppressed roles (which must be a subset of roles in FrameworkInfo, see the section for `SUPPRESS` call). Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with either a `SUBSCRIBED` event or an `ERROR` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
+To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo, the list of initially suppressed roles and the initial offer constraints. The initially suppressed roles, as well as roles for which offer constraints are specified, must be contained in the set of roles in FrameworkInfo. Note that Mesos 1.11.0 simply ignores constraints for invalid roles, but this might change in the future.
+
+Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with either a `SUBSCRIBED` event or an `ERROR` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -76,8 +78,20 @@ Connection: close
         "roles": ["test1", "test2"],
         "capabilities" : [{"type": "MULTI_ROLE"}]
       },
-      "suppressed_roles" : ["test2"]
-  }
+      "suppressed_roles" : ["test2"],
+      "offer_constraints" : {
+        "role_constraints": {
+          "test1": {
+            "groups": [{
+              "attribute_constraints": [{
+                "selector": {"attribute_name": "foo"},
+                "predicate": {"exists": {}}
+              }]
+            }]
+          }
+        }
+      }
+   }
 }
 
 SUBSCRIBE Response Event (JSON):
@@ -103,10 +117,11 @@ with a `SUBSCRIBED` event. For further details, see the **Disconnections** secti
 
 NOTE: In the old version of the API, (re-)registered callbacks also included MasterInfo, which contained information about the master the driver currently connected to. With the new API, since schedulers explicitly subscribe with the leading master (see details below in **Master Detection** section), it's not relevant anymore.
 
-NOTE: By providing a different FrameworkInfo and/or set of suppressed roles,
-re-subscribing scheduler can change some of the fields of FrameworkInfo and the
-set of suppressed roles. Allowed changes and their effects are consistent with
-those that can be performed via `UPDATE_FRAMEWORK` call (see below).
+NOTE: By providing a different FrameworkInfo and/or set of suppressed roles
+and/or offer constraints, a re-subscribing scheduler can change some of the
+fields of FrameworkInfo, the set of suppressed roles and/or offer constraints.
+Allowed changes and their effects are consistent with those that can be
+performed via `UPDATE_FRAMEWORK` call (see below).
 
 If subscription fails for whatever reason (e.g., invalid request), an HTTP 4xx response is returned with the error message as part of the body and the connection is closed.
 
@@ -508,8 +523,8 @@ HTTP/1.1 202 Accepted
 ### UPDATE_FRAMEWORK
 
 Sent by the scheduler to change fields of its `FrameworkInfo` and/or the set of
-suppressed roles. Allowed changes and their effects are consistent with changing
-FrameworkInfo and/or set of suppressed roles when re-subscribing.
+suppressed roles and/or offer constraints. Allowed changes and their effects
+are consistent with changing the same fields via re-subscribing.
 
 #### Disallowed updates
 Updating the following `FrameworkInfo` fields is not allowed:
@@ -538,6 +553,21 @@ Updating roles has the following effects:
   will be cleared.
   * Other framework objects that use roles removed by this call (for example,
   tasks) are not affected.
+
+#### Updating offer constraints
+For the `UPDATE_FRAMEWORK` call to be successfull, the `offer_constraints`
+field, if present, must be internally valid (for the constraints validity
+criteria, please refer to comments in
+[scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto))
+
+As of 1.11.0, Mesos ignores offer constraints for roles other than valid roles
+in `framework_info.roles`; future versions of Mesos are going to treat such
+offer constraints as invalid.
+
+Updated offer constraints have an immediate effect on offer generation after
+update, but have no effect on already outstanding offers. Frameworks should not
+expect that offers they receive right after the `UPDATE_FRAMEWORK` call
+will satisfy the new constraints.
 
 #### Updating other fields
   * Updating `name`, `hostname`, `webui_url` and `labels` is fully supported
@@ -579,6 +609,18 @@ Connection: close
         "capabilities" : [{"type": "MULTI_ROLE"}]
       },
       "suppressed_roles" : ["test2"]
+      "offer_constraints" : {
+        "role_constraints": {
+          "test1": {
+            "groups": [{
+              "attribute_constraints": [{
+                "selector": {"attribute_name": "foo"},
+                "predicate": {"exists": {}}
+              }]
+            }]
+          }
+        }
+      }
   }
 }
 
