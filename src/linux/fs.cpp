@@ -193,54 +193,44 @@ Try<MountInfoTable> MountInfoTable::read(
   // them according to the invariant that all parent entries
   // appear before their child entries.
   if (hierarchicalSort) {
-    Option<int> rootParentId = None();
+    // Build an ID to entry and a parent to children IDs map for quick
+    // lookup.
+    hashmap<int, MountInfoTable::Entry> entries;
+    hashmap<int, vector<int>> children;
+    for (const MountInfoTable::Entry& ent : table.entries) {
+      entries.emplace(ent.id, ent);
 
-    // Construct a representation of the mount hierarchy using a hashmap.
-    hashmap<int, vector<MountInfoTable::Entry>> parentToChildren;
-
-    foreach (const MountInfoTable::Entry& entry, table.entries) {
-      if (entry.target == "/") {
-        CHECK_NONE(rootParentId);
-        rootParentId = entry.parent;
+      // It is legal to have a mount info table entry whose ID is the
+      // same as its parent ID. This can happen if, for example, the
+      // system boots from network and then keeps the original / in RAM.
+      // To avoid cycles when walking the mount hierarchy, we skip such
+      // entries in the children map.
+      if (ent.parent != ent.id) {
+        children[ent.parent].push_back(ent.id);
       }
-      parentToChildren[entry.parent].push_back(entry);
     }
 
-    // Walk the hashmap and construct a list of entries sorted
-    // hierarchically. The recursion eventually terminates because
-    // entries in MountInfoTable are guaranteed to have no cycles.
-    // We double check though, just to make sure.
-    hashset<int> visitedParents;
-    vector<MountInfoTable::Entry> sortedEntries;
-
-    std::function<void(int)> sortFrom = [&](int parentId) {
-      CHECK(!visitedParents.contains(parentId))
-        << "Cycle found in mount table hierarchy at entry"
-        << " '" << stringify(parentId) << "': " << std::endl << lines;
-
-      visitedParents.insert(parentId);
-
-      foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
-        sortedEntries.push_back(entry);
-
-        // It is legal to have a `MountInfoTable` entry whose
-        // `entry.id` is the same as its `entry.parent`. This can
-        // happen (for example), if a system boots from the network
-        // and then keeps the original `/` in RAM. To avoid cycles
-        // when walking the mount hierarchy, we only recurse into our
-        // children if this case is not satisfied.
-        if (parentId != entry.id) {
-          sortFrom(entry.id);
+    // Entries without a visible parent (e.g. in a chroot) or referring
+    // to themselves are roots of visible mount trees. Sort them in BFS
+    // order.
+    vector<MountInfoTable::Entry> sorted;
+    sorted.reserve(table.entries.size());
+    for (const MountInfoTable::Entry& ent : table.entries) {
+      if (ent.parent == ent.id || !entries.contains(ent.parent)) {
+        sorted.push_back(ent);
+      }
+    }
+    for (auto it = sorted.begin(); it != sorted.end(); ++it) {
+      if (children.contains(it->id)) {
+        for (const int id : children.at(it->id)) {
+          sorted.push_back(entries.at(id));
         }
       }
-    };
+    }
 
-    // We know the node with a parent id of
-    // `rootParentId` is the root mount point.
-    CHECK_SOME(rootParentId);
-    sortFrom(rootParentId.get());
-
-    table.entries = std::move(sortedEntries);
+    CHECK_EQ(sorted.size(), table.entries.size())
+      << "Possible cycle in mount info table: " << std::endl << lines;
+    table.entries = std::move(sorted); 
   }
 
   return table;

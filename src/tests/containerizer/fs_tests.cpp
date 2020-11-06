@@ -196,7 +196,7 @@ TEST_F(FsTest, MountInfoTableReadSorted)
 
   // Verify that all parent entries appear *before* their children.
   foreach (const MountInfoTable::Entry& entry, table->entries) {
-    if (entry.target != "/") {
+    if (entry.target != "/" && entry.parent != entry.id) {
       ASSERT_TRUE(ids.contains(entry.parent));
     }
 
@@ -225,12 +225,13 @@ TEST_F(FsTest, MountInfoTableReadSortedParentOfSelf)
   // Examine the calling process's mountinfo table.
   Try<MountInfoTable> table = MountInfoTable::read(lines);
   ASSERT_SOME(table);
+  EXPECT_EQ(table->entries.size(), strings::tokenize(lines, "\n").size());
 
   hashset<int> ids;
 
   // Verify that all parent entries appear *before* their children.
   foreach (const MountInfoTable::Entry& entry, table->entries) {
-    if (entry.target != "/") {
+    if (entry.target != "/" && entry.parent != entry.id) {
       ASSERT_TRUE(ids.contains(entry.parent));
     }
 
