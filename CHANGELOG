@@ -1,9 +1,106 @@
-Release Notes - Mesos - Version 1.11.0 (WIP)
+Release Notes - Mesos - Version 1.11.0
 -------------------------------------------
+This release contains the following highlights:
+
+  * Mesos Containerizer now supports using pre-provisioned external CSI storage
+    volumes by means of the new `volume/csi` isolator; the latter significantly
+    extends the range of compatible 3rd party CSI plugins compared to the
+    already existing SLRP-based solution (MESOS-10141).
+
+  * The Scheduler API adds an interface allowing frameworks to put constraints
+    on agent attributes in resource offers to help "picky" frameworks
+    significantly reduce scheduling latency when close to being out of quota
+    (MESOS-10161).
+
+  * The CMake build becomes usable for deploying in production (MESOS-898).
 
 Additional API Changes:
 
   * **Breaking change** Deprecated authentication credential text format support.
+
+Unresolved Critical Issues:
+  * [MESOS-10194] - Mesos master failure "Check failed: 'get_(role)' Must be SOME"
+  * [MESOS-10186] - Segmentation fault while running mesos in SSL mode
+  * [MESOS-10146] - Removing task from slave when framework is disconnected causes master to crash
+  * [MESOS-10066] - mesos-docker-executor process dies when agent stops. Recovery fails when agent returns
+  * [MESOS-10011] - Operation feedback with stale agent ID crashes the master
+  * [MESOS-9967] - Authorization header is missing when using a default registry
+  * [MESOS-9579] - ExecutorHttpApiTest.HeartbeatCalls is flaky.
+  * [MESOS-9536] - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable `MESOS_SANDBOX`
+  * [MESOS-9500] - spark submit with docker image on mesos cluster fails.
+  * [MESOS-9426] - ZK master detection can become forever pending.
+  * [MESOS-9393] - Fetcher crashes extracting archives with non-ASCII filenames.
+  * [MESOS-9365] - Windows - GET_CONTAINERS API call causes the Mesos agent to fail
+  * [MESOS-9355] - Persistence volume does not unmount correctly with wrong artifact URI
+  * [MESOS-9352] - Data in persistent volume deleted accidentally when using Docker container and Persistent volume
+  * [MESOS-9053] - Network ports isolator can falsely trigger while destroying containers.
+  * [MESOS-9006] - The agent's GET_AGENT leaks resource information when using authorization
+  * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8803] - Libprocess deadlocks in a test.
+  * [MESOS-8679] - "If the first KILL stuck in the default executor, all other KILLs will be ignored."
+  * [MESOS-8608] - RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
+  * [MESOS-8257] - "Unified Containerizer ""leaks"" a target container mount path to the host FS when the target resolves to an absolute path"
+  * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8096] - Enqueueing events in MockHTTPScheduler can lead to segfaults.
+  * [MESOS-8038] - Launching GPU task sporadically fails.
+  * [MESOS-7971] - PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
+  * [MESOS-7911] - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7748] - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7721] - Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7566] - Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-6285] - Agents may OOM during recovery if there are too many tasks or executors
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+
+All Resolved Issues:
+
+** Bug
+    * [MESOS-7485] - Add verbose logging for curl commands used in fetcher/puller
+    * [MESOS-7834] - CMake does not set default --launcher_dir correctly
+    * [MESOS-9609] - Master check failure when marking agent unreachable.
+    * [MESOS-10126] - Docker volume isolator needs to clean up the `info` struct regardless the result of unmount operation
+    * [MESOS-10134] - Race between concurrent `javah` runs trying to create `java/jni` output directory.
+    * [MESOS-10137] - Mesos failed to build due to error C2668 on windows with MSVC
+    * [MESOS-10169] - Reintroduce image fetch deduplication while keeping it possible to destroy UCR containers in PROVISIONING state.
+    * [MESOS-10192] - Recent Nvidia CUDA changes break Mesos GPU support
+
+** Epic
+    * [MESOS-898] - Introduce CMake as an alternative build system.
+    * [MESOS-10141] - CSI External Volume Support
+    * [MESOS-10161] - Constraints-based offer filtering
+
+** Improvement
+    * [MESOS-6692] - Install module dependencies during build
+    * [MESOS-6771] - Add and vet `install` target
+
+** Task
+    * [MESOS-10142] - CSI External Volumes MVP Design Doc
+    * [MESOS-10147] - Introduce a new volume type `CSI` into the `Volume` protobuf message
+    * [MESOS-10148] - Update the `CSIPluginInfo` protobuf message for supporting 3rd party CSI plugins
+    * [MESOS-10149] - Improve CSI service manager to support unmanaged CSI plugins
+    * [MESOS-10150] - Refactor CSI volume manager to support pre-provisioned CSI volumes
+    * [MESOS-10151] - Introduce a new agent flag `--csi_plugin_config_dir`
+    * [MESOS-10152] - Implement the `create` method of the `volume/csi` isolator
+    * [MESOS-10153] - Implement the `prepare` method of the `volume/csi` isolator
+    * [MESOS-10154] - Implement the `cleanup` method of the `volume/csi` isolator
+    * [MESOS-10155] - Implement the `recover` method of the `volume/csi` isolator
+    * [MESOS-10156] - Enable the `volume/csi` isolator in UCR
+    * [MESOS-10157] - Add documentation for the `volume/csi` isolator
+    * [MESOS-10162] - Constraints-based offer filtering design doc
+    * [MESOS-10163] - Implement a new component to launch CSI plugins as standalone containers and make CSI gRPC calls
+    * [MESOS-10166] - Avoid sending framework updates to agents and subscribers when frameworkInfo/pid didn't change.
+    * [MESOS-10168] - Add secrets support to the CSI volume managers
+    * [MESOS-10170] - Bundle RE2 into Mesos
+    * [MESOS-10171] - Groundwork for constraints-based filtering using `Exists/NotExists` attribute constraint as an example.
+    * [MESOS-10172] - Add offer constraints on (pseudo)attribute value equality
+    * [MESOS-10173] - Add offer constraints on (pseudo)attribute (not) matching RE2 regex
+    * [MESOS-10175] - Improve CSI service manager to set node ID for managed CSI plugins
+    * [MESOS-10177] - Add an endpoint for offer constraints debug
+    * [MESOS-10179] - Expose framework's OfferConstraints via master API endpoints
+    * [MESOS-10189] - Pass offer constraints through the V0 scheduler driver and its Java bindings.
+
+** Documentation
+    * [MESOS-10193] - Add documentation for offer constraints.
 
 Release Notes - Mesos - Version 1.10.1 (WIP)
 -------------------------------------------
