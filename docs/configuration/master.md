@@ -485,6 +485,32 @@ If not set, offers do not timeout.
   </td>
 </tr>
 
+<tr id="offer_constraints_re2_max_mem">
+  <td>
+    --offer_constraints_re2_max_mem=VALUE
+  </td>
+  <td>
+Limit on the memory usage of each RE2 regular expression in
+framework's offer constraints. If `OfferConstraints` contain a regex
+from which a RE2 object cannot be constructed without exceeding this
+limit, then framework's attempt to subscribe or update subscription
+with these `OfferConstraints` will fail. (default: 4KB)
+  </td>
+</tr>
+
+<tr id="offer_constraints_re2_max_program_size">
+  <td>
+    --offer_constraints_re2_max_program_size=VALUE
+  </td>
+  <td>
+Limit on the RE2 program size of each regular expression in
+framework's offer constraints. If `OfferConstraints` contain a regex
+which results in a RE2 object exceeding this limit,
+then framework's attempt to subscribe or update subscription
+with these `OfferConstraints` will fail. (default: 100)
+  </td>
+</tr>
+
 <tr id="publish_per_framework_metrics">
   <td>
     --[no-]publish_per_framework_metrics
