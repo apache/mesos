@@ -122,7 +122,7 @@ public:
         << "User-Agent: libprocess/" << message.from << "\r\n"
         << "Libprocess-From: " << message.from << "\r\n"
         << "Connection: Keep-Alive\r\n"
-        << "Host: \r\n";
+        << "Host: " << message.to.address << "\r\n";
 
     if (message.body.size() > 0) {
       out << "Transfer-Encoding: chunked\r\n\r\n"
