@@ -33,9 +33,7 @@ ev_async shutdown_watcher;
 // libev.hpp (since these need to live in the static data space).
 struct ev_loop* loop = nullptr;
 
-std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
-
-std::mutex* watchers_mutex = new std::mutex();
+std::mutex* functions_mutex = new std::mutex();
 
 std::queue<lambda::function<void()>>* functions =
   new std::queue<lambda::function<void()>>();
@@ -46,14 +44,7 @@ thread_local bool* _in_event_loop_ = nullptr;
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 {
   std::queue<lambda::function<void()>> run_functions;
-  synchronized (watchers_mutex) {
-    // Start all the new I/O watchers.
-    while (!watchers->empty()) {
-      ev_io* watcher = watchers->front();
-      watchers->pop();
-      ev_io_start(loop, watcher);
-    }
-
+  synchronized (functions_mutex) {
     // Swap the functions into a temporary queue so that we can invoke
     // them outside of the mutex.
     std::swap(run_functions, *functions);

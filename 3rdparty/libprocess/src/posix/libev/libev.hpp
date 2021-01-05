@@ -33,15 +33,9 @@ extern struct ev_loop* loop;
 // with IO watchers and functions (via run_in_event_loop).
 extern ev_async async_watcher;
 
-// Queue of I/O watchers to be asynchronously added to the event loop
-// (protected by 'watchers' below).
-// TODO(benh): Replace this queue with functions that we put in
-// 'functions' below that perform the ev_io_start themselves.
-extern std::queue<ev_io*>* watchers;
-extern std::mutex* watchers_mutex;
-
 // Queue of functions to be invoked asynchronously within the vent
 // loop (protected by 'watchers' above).
+extern std::mutex* functions_mutex;
 extern std::queue<lambda::function<void()>>* functions;
 
 // Per thread bool pointer. We use a pointer to lazily construct the
@@ -81,7 +75,7 @@ Future<T> run_in_event_loop(const lambda::function<Future<T>()>& f)
   Future<T> future = promise->future();
 
   // Enqueue the function.
-  synchronized (watchers_mutex) {
+  synchronized (functions_mutex) {
     functions->push(lambda::bind(&_run_in_event_loop<T>, f, promise));
   }
 
