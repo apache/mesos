@@ -13,6 +13,7 @@
 #include <ev.h>
 #include <signal.h>
 
+#include <condition_variable>
 #include <mutex>
 #include <queue>
 
@@ -25,6 +26,40 @@
 
 namespace process {
 
+namespace internal {
+
+// We need a latch (available in C++20 but not in C++11) to
+// wait for the loop to finish, so define a simple one here.
+// To keep this simple, this only allows 1 triggering thread
+// and 1 waiting thread.
+//
+// TODO(bmahler): Replace this with std::latch in C++20.
+class Latch
+{
+public:
+  void trigger()
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    triggered = true;
+    condition.notify_all();
+  }
+
+  void wait()
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (!triggered) {
+      condition.wait(lock);
+    }
+  }
+
+private:
+  std::mutex mutex;
+  std::condition_variable condition;
+  bool triggered = false;
+};
+
+} // namespace internal {
+
 ev_async async_watcher;
 // We need an asynchronous watcher to receive the request to shutdown.
 ev_async shutdown_watcher;
@@ -32,6 +67,8 @@ ev_async shutdown_watcher;
 // Define the initial values for all of the declarations made in
 // libev.hpp (since these need to live in the static data space).
 struct ev_loop* loop = nullptr;
+
+internal::Latch* loop_destroy_latch = nullptr;
 
 std::mutex* functions_mutex = new std::mutex();
 
@@ -73,23 +110,15 @@ void handle_shutdown(struct ev_loop* loop, ev_async* _, int revents)
 
 void EventLoop::initialize()
 {
-  // libev, when built with child process watcher support (the
-  // EV_CHILD_ENABLE feature flag), will install a SIGCHLD handler
-  // and wait on all processes. We need to save and restore the
-  // current signal handler in order to disable this behavior.
-  struct sigaction chldHandler;
-
-  PCHECK(::sigaction(SIGCHLD, nullptr, &chldHandler) == 0);
-
-  loop = ev_default_loop(EVFLAG_AUTO);
-
-  PCHECK(::sigaction(SIGCHLD, &chldHandler, nullptr) == 0);
+  loop = CHECK_NOTNULL(ev_loop_new(EVFLAG_AUTO));
 
   ev_async_init(&async_watcher, handle_async);
   ev_async_init(&shutdown_watcher, handle_shutdown);
 
   ev_async_start(loop, &async_watcher);
   ev_async_start(loop, &shutdown_watcher);
+
+  loop_destroy_latch = new internal::Latch();
 }
 
 
@@ -153,16 +182,24 @@ double EventLoop::time()
 void EventLoop::run()
 {
   __in_event_loop__ = true;
-
   ev_loop(loop, 0);
-
   __in_event_loop__ = false;
+
+  loop_destroy_latch->trigger();
 }
 
 
 void EventLoop::stop()
 {
   ev_async_send(loop, &shutdown_watcher);
+
+  loop_destroy_latch->wait();
+
+  delete loop_destroy_latch;
+  loop_destroy_latch = nullptr;
+
+  ev_loop_destroy(loop);
+  loop = nullptr;
 }
 
 } // namespace process {
