@@ -26,48 +26,70 @@
 
 namespace process {
 
-// Event loop.
-extern struct ev_loop* loop;
+// Array of event loops.
+extern struct ev_loop** loops;
 
-// Asynchronous watcher for interrupting loop to specifically deal
+// Array of async watchers for interrupting loops to specifically deal
 // with IO watchers and functions (via run_in_event_loop).
-extern ev_async async_watcher;
+extern ev_async* async_watchers;
 
-// Queue of functions to be invoked asynchronously within the vent
-// loop (protected by 'watchers' above).
-extern std::mutex* functions_mutex;
+// Array of queues of functions to be invoked asynchronously within the
+// event loops (each queue is protected by a mutex).
+extern std::mutex* functions_mutexes;
 extern std::queue<lambda::function<void()>>* functions;
 
-// Per thread bool pointer. We use a pointer to lazily construct the
-// actual bool.
-extern thread_local bool* _in_event_loop_;
+// Per thread loop pointer. If this thread is currently inside an
+// event loop, then this will be set to point to the loop that it's
+// executing inside. Otherwise, will be set to null.
+extern thread_local struct ev_loop* _in_event_loop_;
 
-#define __in_event_loop__ *(_in_event_loop_ == nullptr ?                \
-  _in_event_loop_ = new bool(false) : _in_event_loop_)
+// This is a wrapper type of the loop index to ensure that
+// `get_loop(fd)` is called to select the correct loop for
+// `run_in_event_loop(...)`.
+struct LoopIndex
+{
+  size_t index;
+
+private:
+  explicit LoopIndex(size_t index) : index(index) {}
+  LoopIndex() = delete;
+  friend LoopIndex get_loop(int_fd fd);
+};
+
+
+// Since multiple event loops are supported, and fds are assigned
+// to loops, callers must first get the loop based on the fd.
+LoopIndex get_loop(int_fd fd);
 
 
 // Wrapper around function we want to run in the event loop.
 template <typename T>
 void _run_in_event_loop(
-    const lambda::function<Future<T>()>& f,
+    struct ev_loop* loop,
+    const lambda::function<Future<T>(struct ev_loop*)>& f,
     const Owned<Promise<T>>& promise)
 {
   // Don't bother running the function if the future has been discarded.
   if (promise->future().hasDiscard()) {
     promise->discard();
   } else {
-    promise->set(f());
+    promise->set(f(loop));
   }
 }
 
 
-// Helper for running a function in the event loop.
+// Helper for running a function in one of the event loops.
 template <typename T>
-Future<T> run_in_event_loop(const lambda::function<Future<T>()>& f)
+Future<T> run_in_event_loop(
+    const LoopIndex loop_index,
+    const lambda::function<Future<T>(struct ev_loop*)>& f)
 {
-  // If this is already the event loop then just run the function.
-  if (__in_event_loop__) {
-    return f();
+  struct ev_loop* loop = loops[loop_index.index];
+
+  // If this is already the event loop that we're trying to run the
+  // function within, then just run the function.
+  if (_in_event_loop_ == loop) {
+    return f(loop);
   }
 
   Owned<Promise<T>> promise(new Promise<T>());
@@ -75,12 +97,14 @@ Future<T> run_in_event_loop(const lambda::function<Future<T>()>& f)
   Future<T> future = promise->future();
 
   // Enqueue the function.
-  synchronized (functions_mutex) {
-    functions->push(lambda::bind(&_run_in_event_loop<T>, f, promise));
+  {
+    std::lock_guard<std::mutex> guard(functions_mutexes[loop_index.index]);
+    functions[loop_index.index].push(
+        lambda::bind(&_run_in_event_loop<T>, loop, f, promise));
   }
 
   // Interrupt the loop.
-  ev_async_send(loop, &async_watcher);
+  ev_async_send(loop, &async_watchers[loop_index.index]);
 
   return future;
 }

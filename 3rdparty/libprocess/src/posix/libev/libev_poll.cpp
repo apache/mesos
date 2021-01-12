@@ -90,13 +90,13 @@ namespace io {
 namespace internal {
 
 // Helper/continuation of 'poll' on future discard.
-void _poll(const std::shared_ptr<ev_async>& async)
+void _poll(struct ev_loop* loop, const std::shared_ptr<ev_async>& async)
 {
   ev_async_send(loop, async.get());
 }
 
 
-Future<short> poll(int_fd fd, short events)
+Future<short> poll(struct ev_loop* loop, int_fd fd, short events)
 {
   Poll* poll = new Poll();
 
@@ -117,7 +117,7 @@ Future<short> poll(int_fd fd, short events)
   // in this case while we will interrupt the event loop since the
   // async watcher has already been stopped we won't cause
   // 'discard_poll' to get invoked.
-  future.onDiscard(lambda::bind(&_poll, poll->watcher.async));
+  future.onDiscard(lambda::bind(&_poll, loop, poll->watcher.async));
 
   // Initialize and start the I/O watcher.
   ev_io_init(poll->watcher.io.get(), polled, fd, events);
@@ -134,8 +134,9 @@ Future<short> poll(int_fd fd, short events)
   process::initialize();
 
   // TODO(benh): Check if the file descriptor is non-blocking?
-
-  return run_in_event_loop<short>(lambda::bind(&internal::poll, fd, events));
+  return run_in_event_loop<short>(
+      get_loop(fd),
+      lambda::bind(&internal::poll, lambda::_1, fd, events));
 }
 
 } // namespace io {
