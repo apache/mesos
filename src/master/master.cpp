@@ -6582,6 +6582,16 @@ void Master::reregisterSlave(
     return;
   }
 
+  if (slaves.markingUnreachable.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring reregister agent message from agent "
+      << slaveInfo.id() << " at " << from << " ("
+      << slaveInfo.hostname() << ") as a mark unreachable operation is "
+      << "already in progress";
+
+    return;
+  }
+
   if (slaves.markingGone.contains(slaveInfo.id())) {
     LOG(INFO)
       << "Ignoring reregister agent message from agent "

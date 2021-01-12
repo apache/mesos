@@ -11226,6 +11226,78 @@ TEST_F(MasterTest, LostTaskCleanup) {
   EXPECT_TRUE(completedTasks.empty()) << JSON::protobuf(completedTasks);
 }
 
+
+// This regression test verifies that an agent reregistration request
+// made while the agent is being marked as unreachable after a master
+// failover is ignored until the marking is complete. See MESOS-10209.
+TEST_F(MasterTest, AgentReregistrationDuringMarkingUnreachable)
+{
+  // TODO(ipronin): We could use in-memory registry if it was injectable
+  // in StartMaster().
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start an agent and wait for it to be registered.
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Fail over the master.
+  master->reset();
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Intercept the attempted registrar operation. It should be the
+  // operation that marks the agent as unreachable.
+  Promise<bool> promise;
+  Future<Owned<master::RegistryOperation>> mark;
+  EXPECT_CALL(*master.get()->registrar, apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&mark), Return(promise.future())));
+
+  // Trigger agent reregistration timeout to begin marking the agent as
+  // unreachable.
+  Clock::pause();
+  Clock::advance(masterFlags.agent_reregister_timeout);
+  Clock::resume();
+
+  // Wait for the master to attempt to update the registry.
+  AWAIT_READY(mark);
+  EXPECT_NE(nullptr, dynamic_cast<master::MarkSlaveUnreachable*>(mark->get()));
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Detect the new master to start agent reregistration attempts. The
+  // master should drop reregistration messages because agent marking is
+  // in progress.
+  detector.appoint(master.get()->pid);
+  AWAIT_READY(reregisterSlaveMessage);
+
+  // Wait until the agent reregistration message processing is done.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_CALL(*master.get()->registrar, apply(_));
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Allow the registry operation to return success. Note that we don't
+  // actually update the registry here. The agent should be able to
+  // reregister after this.
+  promise.set(true);
+  AWAIT_READY(slaveReregisteredMessage);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
