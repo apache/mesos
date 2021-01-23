@@ -258,7 +258,7 @@ Try<Capabilities> Capabilities::create()
     return Error(
         "System last capability value '" + stringify(lastCap.get()) +
         "' is greater than maximum supported number of capabilities '" +
-        stringify(MAX_CAPABILITY) + "'");
+        stringify(static_cast<int>(MAX_CAPABILITY)) + "'");
   }
 
   // Test whether the kernel supports ambinent capabilities by testing
