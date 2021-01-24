@@ -3367,6 +3367,9 @@ message CapabilityInfo {
     WAKE_ALARM = 1035;
     BLOCK_SUSPEND = 1036;
     AUDIT_READ = 1037;
+    CAP_PERFMON = 1038;
+    CAP_BPF = 1039;
+    CAP_CHECKPOINT_RESTORE = 1040;
   }
 
   repeated Capability capabilities = 1;
