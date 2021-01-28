@@ -7785,6 +7785,11 @@ TEST_F(MasterTest, NonCheckpointingFrameworkAgentDisconnectionExecutorOnly)
   // disconnection since the framework's failover timeout is 0.
   driver.stop(true);
 
+  // Make sure it reaches the master.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   // Check to make sure the framework is removed.
   {
     v1::master::Call call;
