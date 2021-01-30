@@ -417,13 +417,17 @@ Try<ExecutorState> ExecutorState::recover(
   foreach (const string& path, runs.get()) {
     if (Path(path).basename() == paths::LATEST_SYMLINK) {
       const Result<string> latest = os::realpath(path);
-      if (!latest.isSome()) {
+      if (latest.isNone()) {
+        // This can happen if the slave died between garbage collecting the
+        // executor latest run and garbage collecting the top level executor
+        // meta directory, containing the "latest" symlink.
+        LOG(WARNING) << "Dangling 'latest' run symlink of executor '"
+                     << executorId << "'";
+        continue;
+      } else if (latest.isError()) {
         return Error(
             "Failed to find latest run of executor '" +
-            executorId.value() + "': " +
-            (latest.isError()
-             ? latest.error()
-             : "No such file or directory"));
+            executorId.value() + "': " + latest.error());
       }
 
       // Store the ContainerID of the latest executor run.
