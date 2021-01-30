@@ -3301,6 +3301,130 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 }
 
 
+// When the slave is down we remove the latest run directory
+// but not the "latest" symlink, to simulate a situation where the
+// slave died in the middle of gc'ing the run meta directory.
+TYPED_TEST(SlaveRecoveryTest, ExecutorDanglingLatestSymlink)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.strict = true;
+
+  Fetcher fetcher(flags);
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1)).WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  TaskInfo task = createTask(offers1.get()[0], SLEEP_COMMAND(1000));
+
+  // Capture the slave and framework ids.
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
+
+  Future<RegisterExecutorMessage> registerExecutor =
+    FUTURE_PROTOBUF(RegisterExecutorMessage(), _, _);
+
+  Future<Nothing> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  // Capture the executor id.
+  AWAIT_READY(registerExecutor);
+  ExecutorID executorId = registerExecutor->executor_id();
+
+  // Wait for TASK_RUNNING update.
+  AWAIT_READY(status);
+
+  // Terminate the slave.
+  slave.get()->terminate();
+
+  // The "latest" symlink should exist.
+  const string latestPath = paths::getExecutorLatestRunPath(
+      paths::getMetaRootDir(flags.work_dir),
+      slaveId,
+      frameworkId,
+      executorId);
+  ASSERT_TRUE(os::exists(latestPath));
+  // And should point to the latest run.
+  const Result<string> path = os::realpath(latestPath);
+  ASSERT_SOME(path);
+  // Delete it - "latest" will now dangle.
+  ASSERT_SOME(os::rmdir(path.get(), true));
+
+  // Recover the state.
+  Result<slave::state::State> recoverState =
+    slave::state::recover(paths::getMetaRootDir(flags.work_dir), true);
+
+  ASSERT_SOME(recoverState);
+  ASSERT_SOME(recoverState->slave);
+
+  // The executor should be recovered without any run.
+  slave::state::FrameworkState frameworkState =
+    recoverState->slave->frameworks.at(frameworkId);
+  ASSERT_EQ(1u, frameworkState.executors.size());
+  slave::state::ExecutorState& executorState =
+    frameworkState.executors.at(executorId);
+  ASSERT_NONE(executorState.latest);
+  ASSERT_TRUE(executorState.runs.empty());
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // The slave should re-register.
+  AWAIT_READY(reregisterSlaveMessage);
+
+  // Wait until executor's work and meta directories get gc'ed.
+  Clock::pause();
+  Clock::advance(flags.gc_delay);
+  Clock::settle();
+
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      flags.work_dir, slaveId, frameworkId, executorId)));
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      paths::getMetaRootDir(flags.work_dir),
+      slaveId,
+      frameworkId,
+      executorId)));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // The slave is asked to shutdown. When it comes back up, it should
 // reregister as the same agent.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
