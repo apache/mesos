@@ -102,18 +102,26 @@ TEST_F(LinuxNNPIsolatorTest, ROOT_CheckNoNewPrivileges)
   containerId.set_value(id::UUID::random().toString());
 
   // Test that the child process inherits the PR_NO_NEW_PRIVS flag.
-  // Using parameter expansion to parse the process status file
+  // Using convoluted way to parse the process status file
   // due to minimal docker image. The child process should inherit
   // the PR_NO_NEW_PRIVS flag. Parse the process status file and
   // determine if "NoNewPrivs: 1" is found.
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       R"~(
-      #!/bin/bash
-      x=$(cat /proc/self/status);
-      y=${x##*NoNewPrivs:};
-      read -a a <<< $y;
-      if [ ${a[0]} == "1" ]; then exit 0; else exit 1; fi
+      nnp_seen="false"
+      for word in $(cat /proc/self/status); do
+        if [ "$word" = "NoNewPrivs:" ]; then
+          nnp_seen="true"
+        elif [ "$nnp_seen" = "true" ]; then
+          if [ "$word" = "1" ]; then
+            exit 0
+          else
+            exit 1
+          fi
+        fi
+      done
+      exit 1
       )~");
 
   executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
