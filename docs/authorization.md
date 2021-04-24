@@ -892,7 +892,7 @@ message Object {
 }
 ```
 
-`Subject` or `Object` are optional fiels; if they are not set they
+`Subject` or `Object` are optional fields; if they are not set they
 will only match an ACL with ANY or NONE in the
 corresponding location. This allows users to construct the following requests:
 _Can everybody perform action **A** on object **O**?_, or _Can principal **Z**
