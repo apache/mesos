@@ -119,6 +119,18 @@ class Config():
 
         return master
 
+    def principal(self):
+        """
+        Return the principal in the configuration file
+        """
+        return self.data["master"]["principal"]
+
+    def secret(self):
+        """
+        Return the secret in the configuration file
+        """
+        return self.data["master"]["secret"]
+
     def plugins(self):
         """
         Parse the plugins listed in the configuration file and return them.

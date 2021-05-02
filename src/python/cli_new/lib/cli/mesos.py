@@ -44,13 +44,13 @@ from mesos.exceptions import MesosException
 from mesos.exceptions import MesosHTTPException
 
 
-def get_agent_address(agent_id, master):
+def get_agent_address(agent_id, master, config):
     """
     Given a master and an agent id, return the agent address
     by checking the /slaves endpoint of the master.
     """
     try:
-        agents = http.get_json(master, "slaves")["slaves"]
+        agents = http.get_json(master, "slaves", config)["slaves"]
     except Exception as exception:
         raise CLIException("Could not open '/slaves'"
                            " endpoint at '{addr}': {error}"
@@ -62,15 +62,14 @@ def get_agent_address(agent_id, master):
     raise CLIException("Unable to find agent '{id}'".format(id=agent_id))
 
 
-def get_agents(master):
+def get_agents(master, config):
     """
     Get the agents in a Mesos cluster.
     """
     endpoint = "slaves"
     key = "slaves"
-
     try:
-        data = http.get_json(master, endpoint)
+        data = http.get_json(master, endpoint, config)
     except Exception as exception:
         raise CLIException(
             "Could not open '/{endpoint}' on master: {error}"
@@ -114,7 +113,7 @@ def get_container_id(task):
         " Please try again.")
 
 
-def get_tasks(master, query=None):
+def get_tasks(master, config, query=None):
     """
     Get the tasks in a Mesos cluster.
     """
@@ -122,7 +121,7 @@ def get_tasks(master, query=None):
     key = "tasks"
 
     try:
-        data = http.get_json(master, endpoint, query=query)
+        data = http.get_json(master, endpoint, config, query=query)
     except Exception as exception:
         raise CLIException(
             "Could not open '/{endpoint}' with query parameters: {query}"

@@ -19,17 +19,16 @@ A collection of http related functions used by the CLI and its Plugins.
 """
 
 import json
-import urllib.request
-import urllib.error
-import urllib.parse
+import urllib3
 import time
 
 import cli
 
 from cli.exceptions import CLIException
 
+urllib3.disable_warnings()
 
-def read_endpoint(addr, endpoint, query=None):
+def read_endpoint(addr, endpoint, config, query=None):
     """
     Read the specified endpoint and return the results.
     """
@@ -38,20 +37,23 @@ def read_endpoint(addr, endpoint, query=None):
     except Exception as exception:
         raise CLIException("Unable to sanitize address '{addr}': {error}"
                            .format(addr=addr, error=str(exception)))
-
     try:
         url = "{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
         if query is not None:
             url += "?{query}".format(query=urllib.parse.urlencode(query))
-        http_response = urllib.request.urlopen(url).read().decode("utf-8")
+        headers = urllib3.make_headers(basic_auth=config.principal() + ":" + config.secret())
+        http = urllib3.PoolManager()
+        http_response = http.request('GET', url, headers=headers)
     except Exception as exception:
+        print(exception)
         raise CLIException("Unable to open url '{url}': {error}"
                            .format(url=url, error=str(exception)))
 
-    return http_response
+
+    return http_response.data.decode('utf-8')
 
 
-def get_json(addr, endpoint, condition=None, timeout=5, query=None):
+def get_json(addr, endpoint, config, condition=None, timeout=5, query=None):
     """
     Return the contents of the 'endpoint' at 'addr' as JSON data
     subject to the condition specified in 'condition'. If we are
@@ -64,7 +66,7 @@ def get_json(addr, endpoint, condition=None, timeout=5, query=None):
         data = None
 
         try:
-            data = read_endpoint(addr, endpoint, query)
+            data = read_endpoint(addr, endpoint, config, query)
         except Exception as exception:
             pass
 
