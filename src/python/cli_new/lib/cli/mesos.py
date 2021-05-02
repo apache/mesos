@@ -120,6 +120,9 @@ def get_tasks(master, config, query=None):
     endpoint = "tasks"
     key = "tasks"
 
+    if query is None:
+        query = {'order':'asc'}
+
     try:
         data = http.get_json(master, endpoint, config, query=query)
     except Exception as exception:
@@ -161,7 +164,7 @@ class TaskIO():
     HEARTBEAT_INTERVAL = 30
     HEARTBEAT_INTERVAL_NANOSECONDS = HEARTBEAT_INTERVAL * 1000000000
 
-    def __init__(self, master, task_id):
+    def __init__(self, master, config, task_id):
         # Get the task and make sure its container was launched by the UCR.
         # Since task's containers are launched by the UCR by default, we want
         # to allow most tasks to pass through unchecked. The only exception is
@@ -169,7 +172,7 @@ class TaskIO():
         # "MESOS". Having a type of "MESOS" implies that it was launched by the
         # UCR -- all other types imply it was not.
         try:
-            tasks = get_tasks(master, query={'task_id': task_id})
+            tasks = get_tasks(master, config, query={'task_id': task_id})
         except Exception as exception:
             raise CLIException("Unable to get task with ID {task_id}"
                                " from leading master '{master}': {error}"
@@ -198,11 +201,13 @@ class TaskIO():
                         "This command is only supported for tasks"
                         " launched by the Universal Container Runtime (UCR).")
 
+        # Get the scheme of the agent
+        scheme = "https://" if config.agent_ssl() else "http://"
+
         # Get the URL to the agent running the task.
         agent_addr = util.sanitize_address(
-            get_agent_address(task_obj["slave_id"], master))
+            scheme + get_agent_address(task_obj["slave_id"], master, config))
         self.agent_url = mesos.http.simple_urljoin(agent_addr, "api/v1")
-
         # Get the agent's task path by checking the `state` endpoint.
         try:
             self.container_id = get_container_id(task_obj)
@@ -252,6 +257,7 @@ class TaskIO():
         self.interactive = False
         self.tty = False
         self.output_thread_entry_point = None
+        self.config = config
 
         # Allow an exit sequence to be used to break the CLIs attachment to
         # the remote task. Depending on the call, this may be disabled, or
@@ -322,7 +328,6 @@ class TaskIO():
         self.args = _args
         self.interactive = _interactive
         self.tty = _tty
-
         # Override the container ID with the current container ID as the
         # parent, and generate a new UUID for the nested container used to
         # run commands passed to `task exec`.
@@ -412,6 +417,7 @@ class TaskIO():
             'wait_container': {
                 'container_id': self.container_id}}
         req_extra_args = {
+            'verify': self.config.agent_ssl_verify(),
             'additional_headers': {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'}}
@@ -420,6 +426,7 @@ class TaskIO():
             response = resource.request(
                 mesos.http.METHOD_POST,
                 data=json.dumps(message),
+                auth=self.config.authentication_header(),
                 retry=False,
                 timeout=None,
                 **req_extra_args)
@@ -510,6 +517,7 @@ class TaskIO():
 
         req_extra_args = {
             'stream': True,
+            'verify': self.config.agent_ssl_verify(),
             'additional_headers': {
                 'Content-Type': 'application/json',
                 'Accept': 'application/recordio',
@@ -522,6 +530,7 @@ class TaskIO():
                 data=json.dumps(message),
                 retry=False,
                 timeout=None,
+                auth=self.config.authentication_header(),
                 **req_extra_args)
         except MesosHTTPException as e:
             text = "I/O switchboard server was disabled for this container"
@@ -538,6 +547,7 @@ class TaskIO():
         nested container and attach to its output stream.
         The output stream is then sent back in the response.
         """
+
         message = {
             'type': "LAUNCH_NESTED_CONTAINER_SESSION",
             'launch_nested_container_session': {
@@ -556,11 +566,11 @@ class TaskIO():
 
         req_extra_args = {
             'stream': True,
+            'verify': self.config.agent_ssl_verify(),
             'additional_headers': {
                 'Content-Type': 'application/json',
                 'Accept': 'application/recordio',
                 'Message-Accept': 'application/json'}}
-
         resource = mesos.http.Resource(self.agent_url)
         try:
             response = resource.request(
@@ -568,6 +578,7 @@ class TaskIO():
                 data=json.dumps(message),
                 retry=False,
                 timeout=None,
+                auth=self.config.authentication_header(),
                 **req_extra_args)
         except MesosException as exception:
             raise CLIException("{error}".format(error=exception))
@@ -653,6 +664,7 @@ class TaskIO():
                 yield record
 
         req_extra_args = {
+            'verify': self.config.agent_ssl_verify(),
             'additional_headers': {
                 'Content-Type': 'application/recordio',
                 'Message-Content-Type': 'application/json',
@@ -681,6 +693,7 @@ class TaskIO():
                 mesos.http.METHOD_POST,
                 data=_initial_input_streamer(),
                 retry=False,
+                auth=self.config.authentication_header(),
                 **req_extra_args)
         except MesosHTTPException as e:
             if not e.response.status_code == 500:
@@ -697,6 +710,7 @@ class TaskIO():
             data=_input_streamer(),
             retry=False,
             timeout=None,
+            auth=self.config.authentication_header(),
             **req_extra_args)
 
     def _detect_exit_sequence(self, chunk):

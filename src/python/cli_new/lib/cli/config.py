@@ -21,6 +21,7 @@ Config class to manage the configuration file.
 import os
 import toml
 
+import requests
 import cli
 
 from cli.constants import DEFAULT_MASTER_IP
@@ -123,13 +124,74 @@ class Config():
         """
         Return the principal in the configuration file
         """
-        return self.data["master"]["principal"]
+        return self.data["master"].get("principal")
 
     def secret(self):
         """
         Return the secret in the configuration file
         """
-        return self.data["master"]["secret"]
+        return self.data["master"].get("secret")
+
+    def agent_ssl(self, default=False):
+        """
+        Return if the agent support ssl
+        """
+        if "agent" in self.data:
+            agent_ssl = self.data["agent"].get("ssl", default)
+            if not isinstance(agent_ssl, bool):
+                raise CLIException("The 'agent->ssl' field"
+                                   " must be True/False")
+
+            return agent_ssl
+
+        return default
+
+    def agent_ssl_verify(self, default=False):
+        """
+        Return if the ssl certificate should be verified
+        """
+        if "agent" in self.data:
+            ssl_verify = self.data["agent"].get("ssl_verify", default)
+            if not isinstance(ssl_verify, bool):
+                raise CLIException("The 'agent->ssl_verify' field"
+                                   " must be True/False")
+
+            return ssl_verify
+
+        return default
+
+    def agent_timeout(self, default=5):
+        """
+        Return the connection timeout of the agent
+        """
+        if "agent" in self.data:
+            timeout = self.data["agent"].get("timeout", default)
+            if not isinstance(timeout, int):
+                raise CLIException("The 'agent->timeout' field"
+                                   " must be a number in seconds")
+
+            return timeout
+
+        return default
+
+
+    def agent_principal(self):
+        """
+        Return the principal in the configuration file
+        """
+        if "agent" in self.data:
+            return self.data["agent"].get("principal")
+
+        return None
+
+    def agent_secret(self):
+        """
+        Return the secret in the configuration file
+        """
+        if "agent" in self.data:
+            return self.data["agent"].get("secret")
+
+        return None
 
     def plugins(self):
         """
@@ -149,3 +211,15 @@ class Config():
             return self.data["plugins"]
 
         return []
+
+    def authentication_header(self):
+        """
+        Return the BasicAuth authentication header
+        """
+        if (self.agent_principal() is not None
+                and self.agent_secret() is not None):
+            return requests.auth.HTTPBasicAuth(
+                self.agent_principal(),
+                self.agent_secret()
+            )
+        return None

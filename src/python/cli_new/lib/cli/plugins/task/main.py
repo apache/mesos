@@ -75,11 +75,12 @@ class Task(PluginBase):
         """
         try:
             master = self.config.master()
+            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        task_io = TaskIO(master, argv["<task-id>"])
+        task_io = TaskIO(master, config, argv["<task-id>"])
         return task_io.attach(argv["--no-stdin"])
 
 
@@ -89,11 +90,12 @@ class Task(PluginBase):
         """
         try:
             master = self.config.master()
+            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        task_io = TaskIO(master, argv["<task-id>"])
+        task_io = TaskIO(master, config, argv["<task-id>"])
         return task_io.exec(argv["<command>"],
                             argv["<args>"],
                             argv["--interactive"],

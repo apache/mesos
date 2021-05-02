@@ -19,19 +19,22 @@ A collection of http related functions used by the CLI and its Plugins.
 """
 
 import json
+from urllib.parse import urlencode
 import urllib3
-import time
 
 import cli
 
 from cli.exceptions import CLIException
 
+# Disable all SSL warnings. These are not necessary, as the user has
+# the option to disable SSL verification.
 urllib3.disable_warnings()
 
 def read_endpoint(addr, endpoint, config, query=None):
     """
     Read the specified endpoint and return the results.
     """
+
     try:
         addr = cli.util.sanitize_address(addr)
     except Exception as exception:
@@ -40,51 +43,46 @@ def read_endpoint(addr, endpoint, config, query=None):
     try:
         url = "{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
         if query is not None:
-            url += "?{query}".format(query=urllib.parse.urlencode(query))
-        headers = urllib3.make_headers(basic_auth=config.principal() + ":" + config.secret())
+            url += "?{query}".format(query=urlencode(query))
+        if config.principal() is not None and config.secret() is not None:
+            headers = urllib3.make_headers(
+                basic_auth=config.principal() + ":" + config.secret()
+            )
+        else:
+            headers = None
         http = urllib3.PoolManager()
-        http_response = http.request('GET', url, headers=headers)
+        http_response = http.request(
+            'GET',
+            url,
+            headers=headers,
+            timeout=config.agent_timeout()
+        )
+        return http_response.data.decode('utf-8')
+
     except Exception as exception:
-        print(exception)
         raise CLIException("Unable to open url '{url}': {error}"
                            .format(url=url, error=str(exception)))
 
 
-    return http_response.data.decode('utf-8')
-
-
-def get_json(addr, endpoint, config, condition=None, timeout=5, query=None):
+def get_json(addr, endpoint, config, condition=None, query=None):
     """
     Return the contents of the 'endpoint' at 'addr' as JSON data
     subject to the condition specified in 'condition'. If we are
-    unable to read the data or unable to meet the condition within
-    'timeout' seconds we throw an error.
+    unable to read the data we throw an error.
     """
-    start_time = time.time()
 
-    while True:
-        data = None
+    data = read_endpoint(addr, endpoint, config, query)
 
-        try:
-            data = read_endpoint(addr, endpoint, config, query)
-        except Exception as exception:
-            pass
+    try:
+        data = json.loads(data)
+    except Exception as exception:
+        raise CLIException("Could not load JSON from '{data}': {error}"
+                           .format(data=data, error=str(exception)))
 
-        if data:
-            try:
-                data = json.loads(data)
-            except Exception as exception:
-                raise CLIException("Could not load JSON from '{data}': {error}"
-                                   .format(data=data, error=str(exception)))
+    if not condition:
+        return data
 
-            if not condition:
-                return data
+    if condition(data):
+        return data
 
-            if condition(data):
-                return data
-
-        if time.time() - start_time > timeout:
-            raise CLIException("Failed to get data within {seconds} seconds"
-                               .format(seconds=str(timeout)))
-
-        time.sleep(0.1)
+    return data

@@ -72,7 +72,7 @@ class TestTaskPlugin(CLITestCase):
                 .format(name=task.name, state="TASK_RUNNING", error=exception))
 
         try:
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         except Exception as exception:
             raise CLIException(
                 "Could not get tasks from '/{endpoint}' on master: {error}"
@@ -116,7 +116,7 @@ class TestTaskPlugin(CLITestCase):
                 .format(name=task.name, state="TASK_RUNNING", error=exception))
 
         try:
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         except Exception as exception:
             raise CLIException(
                 "Could not get tasks from '/{endpoint}' on master: {error}"
@@ -162,7 +162,7 @@ class TestTaskPlugin(CLITestCase):
                 .format(name=task.name, state="TASK_RUNNING", error=exception))
 
         try:
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         except Exception as exception:
             raise CLIException(
                 "Could not get tasks from '/{endpoint}' on master: {error}"
@@ -210,7 +210,7 @@ class TestTaskPlugin(CLITestCase):
                 .format(name=task.name, state="TASK_RUNNING", error=exception))
 
         try:
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         except Exception as exception:
             raise CLIException(
                 "Could not get tasks from '/{endpoint}' on master: {error}"
@@ -281,7 +281,7 @@ class TestTaskPlugin(CLITestCase):
                 .format(name=task2.name, state=task2_state, error=exception))
 
         try:
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         except Exception as exception:
             raise CLIException(
                 "Could not get tasks from '/{endpoint}' on master: {error}"

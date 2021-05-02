@@ -104,6 +104,9 @@ plugins = [
 # `address` or `zookeeper` field, but not both. For example:
 [master]
   address = "10.10.0.30:5050"
+  principal = "username"
+  secret = "password"
+  
   # The `zookeeper` field has an `addresses` array and a `path` field.
   # [master.zookeeper]
   #   addresses = [
@@ -112,6 +115,13 @@ plugins = [
   #     "10.10.0.33:5050"
   #   ]
   #   path = "/mesos"
+
+[agent]
+  ssl = true
+  ssl_verify = false
+  principal = "username"
+  secret = "password"
+  timeout = 5
 ```
 
 You can override the location of this configuration file using
