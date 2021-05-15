@@ -321,6 +321,154 @@ TYPED_TEST(LogStorageTest, TruncateWithManyHoles)
 }
 
 
+TYPED_TEST(LogStorageTest, Overflow)
+{
+  // This test checks that the log storage correctly handles positions
+  // up to UINT64_MAX, see MESOS-10216.
+  // Specifically we check some values which would overflow when `encode`
+  // formatted them as signed integer, and collide with each other.
+  TypeParam storage;
+
+  Try<Storage::State> state = storage.restore(os::getcwd() + "/.log");
+  ASSERT_SOME(state);
+
+  EXPECT_EQ(Metadata::EMPTY, state->metadata.status());
+  EXPECT_EQ(0u, state->metadata.promised());
+  EXPECT_EQ(0u, state->begin);
+  EXPECT_EQ(0u, state->end);
+
+  // Note that position 0 is reserved so internally the positions below
+  // have 1 added to them before being encoded, see `encode`.
+  std::vector<uint64_t> positions{
+                          // The positions below are encoded using legacy
+                          // 10-width format.
+    0,
+    INT32_MAX - 1,
+    INT32_MAX,            // Would overflow to INT32_MIN.
+    2ull * INT32_MAX + 1, // Would overflow to 0.
+    4ull * INT32_MAX + 3, // Would overflow to 0 as well.
+    UINT32_MAX - 1,
+    UINT32_MAX,
+    9999999998,           // 1 below legacy 10-width limit.
+
+                          // The positions below are encoded with new A+20-width
+                          // format.
+    9999999999,
+    10000000000,
+    9999999999 + 2 * (INT32_MAX + 1ull),
+    10000000000 + 2 * (INT32_MAX + 1ull),
+    UINT64_MAX - 1 - 2 * (INT32_MAX + 1ull),
+    UINT64_MAX - 1,
+  };
+
+  foreach(uint64_t i, positions) {
+    Action action;
+    action.set_position(i);
+    action.set_promised(1);
+    action.set_performed(1);
+    action.set_learned(true);
+    action.set_type(Action::APPEND);
+    action.mutable_append()->set_bytes(stringify(i));
+
+    ASSERT_SOME(storage.persist(action));
+  }
+
+  foreach(uint64_t i, positions) {
+    Try<Action> action = storage.read(i);
+    ASSERT_SOME(action);
+
+    EXPECT_EQ(i, action->position());
+    EXPECT_EQ(1u, action->promised());
+    EXPECT_EQ(1u, action->performed());
+    EXPECT_TRUE(action->learned());
+    EXPECT_EQ(Action::APPEND, action->type());
+    ASSERT_TRUE(action->has_append());
+    EXPECT_EQ(stringify(i), action->append().bytes());
+  }
+}
+
+
+TYPED_TEST(LogStorageTest, OverflowTruncate)
+{
+  // Similar to test `Overflow` above, but here we test `truncate`
+  // which checks that the encoded positions are strictly monotonically
+  // increasing.
+  // The reason we check this in a separate test is that `truncate`
+  // requires iterating over positions from the first known position
+  // in the log, so the `Overflow` test above would take too long
+  // since it starts from 0.
+  TypeParam storage;
+
+  Try<Storage::State> state = storage.restore(os::getcwd() + "/.log");
+  ASSERT_SOME(state);
+
+  EXPECT_EQ(Metadata::EMPTY, state->metadata.status());
+  EXPECT_EQ(0u, state->metadata.promised());
+  EXPECT_EQ(0u, state->begin);
+  EXPECT_EQ(0u, state->end);
+
+  // Test positions around the legacy 10-width limit.
+  std::vector<uint64_t> positions{
+    9999999997,
+    9999999998,
+    9999999999,
+    10000000000,
+    10000000042,
+  };
+
+  foreach(uint64_t i, positions) {
+    Action action;
+    action.set_position(i);
+    action.set_promised(1);
+    action.set_performed(1);
+    action.set_learned(true);
+    action.set_type(Action::APPEND);
+    action.mutable_append()->set_bytes(stringify(i));
+
+    ASSERT_SOME(storage.persist(action));
+  }
+
+  // Truncate to position 9'999'999'999 (at position 10'000'000'000).
+  Action truncate;
+  truncate.set_position(10000000000ull);
+  truncate.set_promised(1);
+  truncate.set_performed(1);
+  truncate.set_learned(true);
+  truncate.set_type(Action::TRUNCATE);
+  truncate.mutable_truncate()->set_to(9999999999ull);
+
+  ASSERT_SOME(storage.persist(truncate));
+
+  foreach(uint64_t i, positions) {
+    Try<Action> action = storage.read(i);
+
+    if (i < 9999999999ull) {
+      // Position below 9'999'999'999 have been truncated.
+      EXPECT_ERROR(action);
+    } else if (i == 10000000000ull) {
+      // Position 10'000'000'000 is a truncate (to position
+      // 9'999'999'999).
+      EXPECT_EQ(i, action->position());
+      EXPECT_EQ(1u, action->promised());
+      EXPECT_EQ(1u, action->performed());
+      EXPECT_TRUE(action->learned());
+      EXPECT_EQ(Action::TRUNCATE, action->type());
+      ASSERT_TRUE(action->has_truncate());
+      EXPECT_EQ(9999999999ull, action->truncate().to());
+    } else {
+      // Remaining positions have been preserved.
+      ASSERT_SOME(action);
+      EXPECT_EQ(i, action->position());
+      EXPECT_EQ(1u, action->promised());
+      EXPECT_EQ(1u, action->performed());
+      EXPECT_TRUE(action->learned());
+      EXPECT_EQ(Action::APPEND, action->type());
+      ASSERT_TRUE(action->has_append());
+      EXPECT_EQ(stringify(i), action->append().bytes());
+    }
+  }
+}
+
 class ReplicaTest : public TemporaryDirectoryTest
 {
 protected:
