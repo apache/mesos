@@ -88,7 +88,10 @@ public:
 static string encode(uint64_t position, bool adjust = true)
 {
   // Adjusted stringified represenation is plus 1 of actual position.
-  position = adjust ? position + 1 : position;
+  if (adjust) {
+    CHECK_LT(position, UINT64_MAX);
+    position += 1;
+  }
 
   // TODO(benh): Use varint encoding for VarInt64Comparator!
   // string s;
@@ -98,7 +101,31 @@ static string encode(uint64_t position, bool adjust = true)
   // stream.WriteVarint64(position);
   // return s;
 
-  Try<string> s = strings::format("%.*d", 10, position);
+  // Historically, positions were encoded with a width of 10, which limited the
+  // maximum position to 9'999'999'999. And actually the code suffered from
+  // overflow above INT32_MAX, see MESOS-10186.
+  // In order to be backward compatible, we still encode positions up to
+  // 9'999'999'999 using a width of 10, however for positions above that, we
+  // switch to a width of 20 with the twist that we prepend 'A' in order to
+  // preserve lexicographic ordering. Here's what it looks like:
+  //
+  // 0000000000
+  // .......
+  // 9999999998
+  // 9999999999
+  // A00000000010000000000
+  // A00000000010000000001
+  //
+  // The reason this works is because the only property which is required
+  // by the encoding function is that it is strictly monotonically increasing,
+  // i.e. if i < j, then encode(i) < encode(j) in lexicographic order.
+  Try<string> s = "";
+  if (position <= 9999999999ull) {
+    s = strings::format("%.*llu", 10, position);
+  } else {
+    s = strings::format("A%.*llu", 20, position);
+  }
+
   CHECK_SOME(s);
   return s.get();
 }
@@ -160,6 +187,14 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
   CHECK(leveldb::BytewiseComparator()->Compare(one, ten) < 0);
   CHECK(leveldb::BytewiseComparator()->Compare(ten, two) > 0);
   CHECK(leveldb::BytewiseComparator()->Compare(ten, ten) == 0);
+  CHECK(leveldb::BytewiseComparator()->Compare(
+      encode(9999999998), encode(9999999999)) < 0);
+  CHECK(leveldb::BytewiseComparator()->Compare(
+      encode(9999999999), encode(10000000000)) < 0);
+  CHECK(leveldb::BytewiseComparator()->Compare(
+      encode(10000000000), encode(UINT64_MAX - 2)) < 0);
+  CHECK(leveldb::BytewiseComparator()->Compare(
+      encode(UINT64_MAX - 2), encode(UINT64_MAX - 1)) < 0);
 
   Stopwatch stopwatch;
   stopwatch.start();
