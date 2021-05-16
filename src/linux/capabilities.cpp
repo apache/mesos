@@ -494,9 +494,9 @@ ostream& operator<<(ostream& stream, const Capability& capability)
     case WAKE_ALARM:              return stream << "WAKE_ALARM";
     case BLOCK_SUSPEND:           return stream << "BLOCK_SUSPEND";
     case AUDIT_READ:              return stream << "AUDIT_READ";
-    case CAP_PERFMON:             return stream << "CAP_PERFMON";
-    case CAP_BPF:                 return stream << "CAP_BPF";
-    case CAP_CHECKPOINT_RESTORE:  return stream << "CAP_CHECKPOINT_RESTORE";
+    case PERFMON:                 return stream << "PERFMON";
+    case BPF:                     return stream << "BPF";
+    case CHECKPOINT_RESTORE:      return stream << "CHECKPOINT_RESTORE";
     case MAX_CAPABILITY:          UNREACHABLE();
   }
 
