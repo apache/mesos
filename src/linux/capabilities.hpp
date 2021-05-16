@@ -72,9 +72,9 @@ enum Capability : int
   WAKE_ALARM             = 35,
   BLOCK_SUSPEND          = 36,
   AUDIT_READ             = 37,
-  CAP_PERFMON            = 38,
-  CAP_BPF                = 39,
-  CAP_CHECKPOINT_RESTORE = 40,
+  PERFMON                = 38,
+  BPF                    = 39,
+  CHECKPOINT_RESTORE     = 40,
   MAX_CAPABILITY         = 41,
 };
 
