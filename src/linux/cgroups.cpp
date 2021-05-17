@@ -1398,15 +1398,14 @@ public:
   // Return a future indicating the state of the killer.
   // Failure occurs if any process in the cgroup is unable to be
   // killed.
+  // Discarding the future will cause this process to stop the next time it
+  // calls `freeze`: we don't want to stop at an arbitrary point since it might
+  // leave the cgroup frozen.
   Future<Nothing> future() { return promise.future(); }
 
 protected:
   void initialize() override
   {
-    // Stop when no one cares.
-    promise.future().onDiscard(lambda::bind(
-        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
-
     killTasks();
   }
 
@@ -1425,16 +1424,15 @@ private:
       const PID<TasksKiller>& pid)
   {
     // Cancel the freeze operation.
-    // TODO(jieyu): Wait until 'future' is in DISCARDED state before
-    // starting retry.
     future.discard();
 
-    // We attempt to kill the processes before we thaw again,
-    // due to a bug in the kernel. See MESOS-1758 for more details.
-    // We thaw the cgroup before trying to freeze again to allow any
-    // pending signals to be delivered. See MESOS-1689 for details.
-    // This is a short term hack until we have PID namespace support.
-    return Future<bool>(true)
+    // Wait until the freeze is cancelled, and then attempt to kill the
+    // processes before we thaw again, due to a bug in the kernel. See
+    // MESOS-1758 for more details.  We thaw the cgroup before trying to freeze
+    // again to allow any pending signals to be delivered. See MESOS-1689 for
+    // details.  This is a short term hack until we have PID namespace support.
+    return future
+      .recover([](const Future<Nothing>&){ return Future<Nothing>(Nothing()); })
       .then(defer(pid, &Self::kill))
       .then(defer(pid, &Self::thaw))
       .then(defer(pid, &Self::freeze));
@@ -1452,6 +1450,12 @@ private:
 
   Future<Nothing> freeze()
   {
+    // Don't start another `killTasks` cycle if we've been asked to stop.
+    if (promise.future().hasDiscard()) {
+        terminate(self());
+        return Nothing();
+    }
+
     // TODO(jieyu): This is a workaround for MESOS-1689. We will move
     // away from freezer once we have pid namespace support.
     return cgroups::freezer::freeze(hierarchy, cgroup).after(
