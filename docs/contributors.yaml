@@ -76,6 +76,14 @@
   jira_user: anandmazumdar
   reviewboard_user: anandmazumdar
 
+- name: Andreas Peters
+  affiliations:
+    - {organization: AVENTER}
+  emails:
+    - ap@aventer.biz
+  jira_user: apeters
+  reviewboard_user: apeters
+
 - name: Andrei Budnik
   affiliations:
     - {organization: Mesosphere}
