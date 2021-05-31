@@ -32,10 +32,11 @@
 using std::string;
 using std::vector;
 
-// There are two formats for ld.so.cache. The pre-glibc format 2.2
-// listed the number of library entries, followed by the entries
-// themselves, followed by a string table holding strings pointed
-// to by the library entries. This format is summarized below:
+// There are three formats for ld.so.cache. The "old" pre-glibc
+// format 2.2 listed the number of library entries, followed by
+// the entries themselves, followed by a string table holding
+// strings pointed to by the library entries. This format is
+// summarized below:
 //
 //      HEADER_MAGIC_OLD
 //      nlibs
@@ -46,21 +47,22 @@ using std::vector;
 //      ^                                           ^
 //      start of string table     end of string table
 //
-// For glibc 2.2 and beyond, a new format was created so that each
+// For glibc 2.2 and beyond, a "new" format was created so that each
 // library entry could hold more meta-data about the libraries they
-// reference. To preserve backwards compatibility, the new format was
-// embedded in the old format inside its string table (simply moving
-// all existing strings further down in the string table). This makes
-// sense for backwards compatibility because code that could parse the
-// old format still works (the offsets for strings pointed to by
-// the library entries are just larger now).
+// reference. To preserve backwards compatibility, a "compat" format
+// was introduced where the new format was embedded in the old
+// format inside its string table (simply moving all existing strings
+// further down in the string table). This makes sense for backwards
+// compatibility because code that could parse the old format still
+// works (the offsets for strings pointed to by the library entries
+// are just larger now).
 //
-// However, it adds complications when parsing for the new format
+// However, it adds complications when parsing for the compat format
 // because the new format header needs to be aligned on an 8 byte
 // boundary (potentially pushing the start address of the string table
-// down a few bytes). A summary of the new format embedded in the old
-// format with annotations on the start address of the string table
-// can be seen below:
+// down a few bytes). A summary of the compat format with the new
+// format embedded in the old format with annotations on the start
+// address of the string table can be seen below:
 //
 //      HEADER_MAGIC_OLD
 //      nlibs
@@ -79,8 +81,22 @@ using std::vector;
 //                                                  ^
 //                                end of string table
 //
-// We currently only support the new format, since glibc 2.2
-// was released in late 2000.
+// Then from glibc 2.32 the default changed to the new format, without
+// the compatibility header:
+//
+//      HEADER_MAGIC_NEW
+//      nlibs
+//      len_strings
+//      unused    // 20 bytes reserved for extensions
+//      libs[0]
+//      ...
+//      libs[nlibs-1]
+//      first string\0second string\0...last string\0
+//                                                  ^
+//                                end of string table
+//
+// We support the compat and new formats: no need to support the old
+// format since glibc 2.2 was released in late 2000.
 
 namespace ldcache {
 
@@ -146,33 +162,49 @@ Try<vector<Entry>> parse(const string& path)
 
   const char* data = buffer->data();
 
-  // Grab a pointer to the old format header (for verification of
-  // HEADER_MAGIC_OLD later on). Then jump forward to the location of
-  // the new format header (it is the only format we support).
-  HeaderOld* headerOld = (HeaderOld*)data;
-  data += sizeof(HeaderOld);
-  if (data >= buffer->data() + buffer->size()) {
+  HeaderNew* headerNew = (HeaderNew*)data;
+  if (data + sizeof(HeaderNew) >= buffer->data() + buffer->size()) {
     return Error("Invalid format");
   }
 
-  data += headerOld->libraryCount * sizeof(EntryOld);
-  if (data >= buffer->data() + buffer->size()) {
-    return Error("Invalid format");
-  }
+  if (strncmp(headerNew->magic,
+      HEADER_MAGIC_NEW,
+      sizeof(HEADER_MAGIC_NEW) - 1) != 0) {
+    // If the data doesn't start with the new header, it must be a
+    // compat format, therefore we expect an old header.
+    HeaderOld* headerOld = (HeaderOld*)data;
+    data += sizeof(HeaderOld);
+    if (data >= buffer->data() + buffer->size()) {
+      return Error("Invalid format");
+    }
 
-  // The new format header and all of its library entries are embedded
-  // in the old format's string table (the current location of data).
-  // However, the header is aligned on an 8 byte boundary, so we
-  // need to align 'data' to get it to point to the new header.
-  data = align(data, alignof(HeaderNew));
-  if (data >= buffer->data() + buffer->size()) {
-    return Error("Invalid format");
+    // Validate our header magic.
+    if (strncmp(headerOld->magic,
+        HEADER_MAGIC_OLD,
+        sizeof(HEADER_MAGIC_OLD) - 1) != 0) {
+      return Error("Invalid format");
+    }
+
+    data += headerOld->libraryCount * sizeof(EntryOld);
+    if (data >= buffer->data() + buffer->size()) {
+      return Error("Invalid format");
+    }
+
+    // The new format header and all of its library entries are embedded
+    // in the old format's string table (the current location of data).
+    // However, the header is aligned on an 8 byte boundary, so we
+    // need to align 'data' to get it to point to the new header.
+    data = align(data, alignof(HeaderNew));
+    if (data >= buffer->data() + buffer->size()) {
+      return Error("Invalid format");
+    }
+
+    headerNew = (HeaderNew*)data;
   }
 
   // Construct pointers to all of the important regions in the new
   // format: the header, the libentry array, and the new string table
   // (which starts at the same address as the aligned headerNew pointer).
-  HeaderNew* headerNew = (HeaderNew*)data;
   data += sizeof(HeaderNew);
   if (data >= buffer->data() + buffer->size()) {
     return Error("Invalid format");
@@ -193,19 +225,6 @@ Try<vector<Entry>> parse(const string& path)
   // point to an address just beyond the end of the file.
   data += headerNew->stringsLength;
   if ((size_t)(data - buffer->data()) != buffer->size()) {
-    return Error("Invalid format");
-  }
-
-  // Validate our header magic.
-  if (strncmp(headerOld->magic,
-        HEADER_MAGIC_OLD,
-        sizeof(HEADER_MAGIC_OLD) - 1) != 0) {
-    return Error("Invalid format");
-  }
-
-  if (strncmp(headerNew->magic,
-        HEADER_MAGIC_NEW,
-        sizeof(HEADER_MAGIC_NEW) - 1) != 0) {
     return Error("Invalid format");
   }
 
