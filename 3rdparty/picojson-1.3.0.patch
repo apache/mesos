@@ -204,3 +204,29 @@ index ed9656d..b04ed59 100644
  }
 --
 2.17.1
+From 62b52d4c43531cfb285c2c72c785485b84911867 Mon Sep 17 00:00:00 2001
+From: Charles-Francois Natali <cf.natali@gmail.com>
+Date: Sat, 12 Jun 2021 18:50:18 +0100
+Subject: [PATCH] Backported fix for -Wparentheses warning with recent GCC
+ versions.
+
+---
+ picojson.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/picojson.h b/picojson.h
+index 48bb64e..ae4fda6 100644
+--- a/picojson.h
++++ b/picojson.h
+@@ -301,7 +301,7 @@ namespace picojson {
+   GET(array, *u_.array_)
+   GET(object, *u_.object_)
+ #ifdef PICOJSON_USE_INT64
+-  GET(double, (type_ == int64_type && (const_cast<value*>(this)->type_ = number_type, const_cast<value*>(this)->u_.number_ = u_.int64_), u_.number_))
++  GET(double, (type_ == int64_type && (const_cast<value*>(this)->type_ = number_type, (const_cast<value*>(this)->u_.number_ = u_.int64_)), u_.number_))
+   GET(int64_t, u_.int64_)
+ #else
+   GET(double, u_.number_)
+-- 
+2.30.2
+
