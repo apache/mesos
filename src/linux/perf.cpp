@@ -125,6 +125,12 @@ protected:
 private:
   void execute()
   {
+    // If the locale is such that `LC_NUMERIC` uses the comma ',' as decimal
+    // separator, parsing won't work - because of unexpected number of fields
+    // and floating points format - so make sure it's set to `C`.
+    std::map<string, string> env = os::environment();
+    env["LC_ALL"] = "C";
+
     // NOTE: The supervisor childhook places perf in its own process group
     // and will kill the perf process when the parent dies.
     Try<Subprocess> _perf = subprocess(
@@ -134,7 +140,7 @@ private:
         Subprocess::PIPE(),
         Subprocess::PIPE(),
         nullptr,
-        None(),
+        env,
         None(),
         {},
         {Subprocess::ChildHook::SUPERVISOR()});
