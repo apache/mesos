@@ -857,11 +857,19 @@ AS_IF([test "x$enable_parallel_test_execution" = "xyes"],
 AS_IF([test "x$enable_werror" != "xno"],
       [AC_SUBST([WERROR], [-Werror])])
 
-# Check for libunwind, and link it in if present.
+# Check for libunwind - used by glog for tracebacks - and link it in if
+# present.
+# `-lgcc_s` is necessary on e.g. ARM64 and IA-64, see
+# https://bugzilla.redhat.com/show_bug.cgi?id=480412
+# Notes:
+# - Omitting it causes glog to link it anyway, resulting in the same problem.
+# - If `-lgcc_s` isn't available, e.g. if compiling with a pure LLVM toolchain,
+#   then we won't link it here but glog will link it anyway, but it won't suffer
+#   from the problem which affects only libgcc.
 if test "x$OS_NAME" = "xfreebsd"; then
   AC_CHECK_LIB(execinfo, backtrace, LIBS="$LIBS -lexecinfo")
 else
-  AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
+  AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lgcc_s -lunwind")
 fi
 
 
