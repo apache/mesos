@@ -222,16 +222,16 @@ Try<vector<Entry>> parse(const string& path)
 
   // Adjust the pointer to add on the additional size of the strings
   // contained in the string table. At this point, 'data' should
-  // point to an address just beyond the end of the file.
+  // point to an address just inside or beyond the end of the file.
   data += headerNew->stringsLength;
-  if ((size_t)(data - buffer->data()) != buffer->size()) {
+  if ((size_t)(data - buffer->data()) > buffer->size()) {
     return Error("Invalid format");
   }
 
-  // Make sure the very last character in the buffer is a '\0'.
+  // Make sure the prior character to the data pointer is a '\0'.
   // This way, no matter what strings we index in the string
   // table, we know they will never run beyond the end of the
-  // file buffer when extracting them.
+  // useful data in the buffer when extracting them.
   if (*(data - 1) != '\0') {
     return Error("Invalid format");
   }
