@@ -776,6 +776,12 @@
   jira_user: okuryu
   reviewboard_user: okuryu
 
+- name: Saad Ur Rahman
+  emails:
+    - saad.ur.rahman@gmail.com
+  jira_user: surahman
+  reviewboard_user: saad.ur.rahman
+
 - name: Sachin Paryani
   emails:
     - sachin.paryani@gmail.com
