@@ -114,6 +114,17 @@ using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::ReturnArg;
 
+
+namespace process {
+
+// Used by TimerAfterReinitialize.
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+}
+
 // TODO(bmahler): Move tests into their own files as appropriate.
 
 class ProcessTest : public TemporaryDirectoryTest {};
@@ -2108,4 +2119,30 @@ TEST_F(ProcessTest, ProcessesEndpointNoHang)
 
   AWAIT_READY(response);
   EXPECT_EQ(http::Status::OK, response->code);
+}
+
+
+// Test for a bug where timers wouldn't be handled after libprocess was
+// reinitialized.
+TEST_F(ProcessTest, TimerAfterReinitialize)
+{
+  // Schedule a timer, which won't have time to expire before...
+  process::Timer timer_before = Clock::timer(Milliseconds(10), []() {});
+
+  // We reinitialize libprocess.
+  process::reinitialize(
+    None(),
+    process::READWRITE_HTTP_AUTHENTICATION_REALM,
+    process::READONLY_HTTP_AUTHENTICATION_REALM);
+
+  // Now, schedule a new timer which is supposed to fire later than the one
+  // above.
+  Promise<Nothing> promise;
+  Future<Nothing> future = promise.future();
+
+  process::Timer timer_after = Clock::timer(Milliseconds(10),
+                                            [&]() { promise.set(Nothing()); });
+
+  // Wait until it fires.
+  AWAIT_READY(future);
 }
