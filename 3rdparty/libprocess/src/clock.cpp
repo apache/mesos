@@ -218,11 +218,13 @@ void Clock::finalize()
   synchronized (timers_mutex) {
     // NOTE: `currents` is only non-empty when the clock is paused.
 
-    // This, along with the `timers_mutex`, is all that is required to clean
-    // up any pending timers.  Timers are triggered via "ticks".  However,
-    // we do not need to clear `ticks` because a "tick" with an empty `timers`
-    // map will effectively be a no-op.
+    // Clear both timers and ticks.
+    // Note that we need to clear `ticks` as well because the earliest tick in
+    // `ticks` is used by `scheduleTick` to decide whether to schedule an event
+    // loop tick when a new timer is added, so not clearing `ticks` could
+    // cause, after reinitialization, new timers to never fire.
     timers->clear();
+    clock::ticks->clear();
   }
 }
 
