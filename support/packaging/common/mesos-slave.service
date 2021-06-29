@@ -11,6 +11,7 @@ RestartSec=20
 LimitNOFILE=16384
 CPUAccounting=true
 MemoryAccounting=true
+Delegate=true
 
 [Install]
 WantedBy=multi-user.target
