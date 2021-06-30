@@ -40,8 +40,6 @@ struct Authentication
     : scheme(_scheme),
       credentials(_credentials)
   {
-    // TODO(benh): Fix output operator below once this changes.
-    CHECK_EQ(scheme, "digest") << "Unsupported authentication scheme";
   }
 
   const std::string scheme;
@@ -62,9 +60,7 @@ inline std::ostream& operator<<(
     std::ostream& stream,
     const Authentication& authentication)
 {
-  // TODO(benh): Fix this once we support more than just 'digest'.
-  CHECK_EQ(authentication.scheme, "digest");
-  return stream << authentication.credentials;
+  return stream << authentication.scheme << "!" << authentication.credentials;
 }
 
 } // namespace zookeeper {
