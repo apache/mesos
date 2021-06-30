@@ -59,3 +59,9 @@ page "/api/*", :directory_index => false
 activate :directory_indexes
 activate :syntax
 activate :livereload
+
+page "asf.yaml", :layout => false
+
+after_build do
+  File.rename 'publish/asf.yaml', 'publish/.asf.yaml'
+end
