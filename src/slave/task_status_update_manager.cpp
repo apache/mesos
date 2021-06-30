@@ -881,11 +881,21 @@ void TaskStatusUpdateStream::_handle(
     // Add it to the pending updates queue.
     pending.push(update);
   } else {
-    // Record this ACK.
-    acknowledged.insert(id::UUID::fromBytes(update.uuid()).get());
+    StatusUpdate& pendingUpdate = pending.front();
 
-    // Remove the corresponding update from the pending queue.
-    pending.pop();
+    if (pendingUpdate.uuid() == update.uuid()) {
+      // Record this ACK.
+      acknowledged.insert(id::UUID::fromBytes(update.uuid()).get());
+
+      // Remove the corresponding update from the pending queue.
+      pending.pop();
+    } else {
+      // Ignore task status update acknowledgement received out of
+      // order.
+      LOG(WARNING) << "Received task status update acknowledgment (UUID: "
+                   << update.uuid() << "), ignoring as expected update for "
+                   << pendingUpdate;
+    }
 
     if (!terminated) {
       terminated = protobuf::isTerminalState(update.status().state());
