@@ -61,12 +61,12 @@ TEST(Base64Test, EncodeURLSafe)
       base64::encode_url_safe("user:password~~~", true));
 
   EXPECT_EQ(
-      u8"fn5-w7_Dv8O_w78",
-      base64::encode_url_safe(u8"~~~\u00ff\u00ff\u00ff\u00ff", false));
+      "fn5-w7_Dv8O_w78",
+      base64::encode_url_safe("~~~\u00ff\u00ff\u00ff\u00ff", false));
 
   EXPECT_EQ(
-      u8"fn5-w7_Dv8O_w78=",
-      base64::encode_url_safe(u8"~~~\u00ff\u00ff\u00ff\u00ff", true));
+      "fn5-w7_Dv8O_w78=",
+      base64::encode_url_safe("~~~\u00ff\u00ff\u00ff\u00ff", true));
 }
 
 
@@ -81,10 +81,10 @@ TEST(Base64Test, DecodeURLSafe)
       base64::decode_url_safe("dXNlcjpwYXNzd29yZH5-fg=="));
 
   EXPECT_SOME_EQ(
-      u8"~~~\u00ff\u00ff\u00ff\u00ff",
-      base64::decode_url_safe(u8"fn5-w7_Dv8O_w78"));
+      "~~~\u00ff\u00ff\u00ff\u00ff",
+      base64::decode_url_safe("fn5-w7_Dv8O_w78"));
 
   EXPECT_SOME_EQ(
-      u8"~~~\u00ff\u00ff\u00ff\u00ff",
-      base64::decode_url_safe(u8"fn5-w7_Dv8O_w78="));
+      "~~~\u00ff\u00ff\u00ff\u00ff",
+      base64::decode_url_safe("fn5-w7_Dv8O_w78="));
 }
