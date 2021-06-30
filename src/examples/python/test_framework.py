@@ -22,7 +22,7 @@ import time
 
 import mesos.interface
 from mesos.interface import mesos_pb2
-from mesos.scheduler import MesosSchedulerDriver
+from mesos.native import MesosSchedulerDriver
 
 TOTAL_TASKS = 5
 
