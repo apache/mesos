@@ -66,3 +66,14 @@ Mesos supports the following built-in isolators.
 - [volume/secret](secrets.md#file-based-secrets)
 - [windows/cpu](isolators/windows.md#cpu-limits)
 - [windows/mem](isolators/windows.md#memory-limits)
+
+## Systemd Integration
+
+To prevent systemd from manipulating cgroups managed by the agent,
+it's recommended to add 'Delegate' under 'Service' in the service
+unit file of Mesos agent, for example:
+
+```
+[Service]
+Delegate=true
+```
