@@ -53,12 +53,13 @@ class Agent(PluginBase):
         # pylint: disable=unused-argument
         try:
             master = self.config.master()
+            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
         try:
-            agents = get_agents(master)
+            agents = get_agents(master, config)
         except Exception as exception:
             raise CLIException("Unable to get agents from leading"
                                " master '{master}': {error}"

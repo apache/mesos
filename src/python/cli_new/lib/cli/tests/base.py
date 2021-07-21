@@ -346,7 +346,7 @@ class Task(Executable):
         to return data subject to 'condition'.
         """
         try:
-            data = http.get_json(self.flags["master"], "slaves")
+            data = http.get_json(self.flags["master"], None, "slaves")
         except Exception as exception:
             raise CLIException("Could not get '/slaves' endpoint"
                                " as JSON: {error}"
@@ -510,7 +510,7 @@ def wait_for_task(master, name, state, delay=1):
     """
     @retry(wait=wait_fixed(0.2), stop=stop_after_delay(delay))
     def _wait_for_task():
-        tasks = http.get_json(master.addr, "tasks")["tasks"]
+        tasks = http.get_json(master.addr, None, "tasks")["tasks"]
         for task in tasks:
             if task["name"] == name and task["state"] == state:
                 return task

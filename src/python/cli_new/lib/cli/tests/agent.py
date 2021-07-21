@@ -48,7 +48,7 @@ class TestAgentPlugin(CLITestCase):
 
         # Open the master's `/slaves` endpoint and read the
         # agents' information ourselves.
-        agents = http.get_json(master.addr, 'slaves')["slaves"]
+        agents = http.get_json(master.addr, None, 'slaves')["slaves"]
 
         self.assertEqual(type(agents), list)
         self.assertEqual(len(agents), 1)
