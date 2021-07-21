@@ -35,6 +35,8 @@ if (ENABLE_NEW_CLI)
     lib/cli/plugins/agent/main.py
     lib/cli/plugins/config/__init__.py
     lib/cli/plugins/config/main.py
+    lib/cli/plugins/framework/__init__.py
+    lib/cli/plugins/framework/main.py
     lib/cli/plugins/task/__init__.py
     lib/cli/plugins/task/main.py)
 

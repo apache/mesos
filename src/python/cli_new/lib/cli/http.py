@@ -34,9 +34,9 @@ def read_endpoint(addr, endpoint, config, query=None):
     """
     Read the specified endpoint and return the results.
     """
-
     try:
         addr = cli.util.sanitize_address(addr)
+
     except Exception as exception:
         raise CLIException("Unable to sanitize address '{addr}': {error}"
                            .format(addr=addr, error=str(exception)))
@@ -64,13 +64,11 @@ def read_endpoint(addr, endpoint, config, query=None):
                            .format(url=url, error=str(exception)))
 
 
-def get_json(addr, endpoint, config, condition=None, query=None):
+def get_json(addr, endpoint, config, query=None):
     """
-    Return the contents of the 'endpoint' at 'addr' as JSON data
-    subject to the condition specified in 'condition'. If we are
-    unable to read the data we throw an error.
+    Return the contents of the 'endpoint' at 'addr' as JSON data. 
+    If we are unable to read the data we throw an error.
     """
-
     data = read_endpoint(addr, endpoint, config, query)
 
     try:
@@ -78,11 +76,5 @@ def get_json(addr, endpoint, config, condition=None, query=None):
     except Exception as exception:
         raise CLIException("Could not load JSON from '{data}': {error}"
                            .format(data=data, error=str(exception)))
-
-    if not condition:
-        return data
-
-    if condition(data):
-        return data
 
     return data

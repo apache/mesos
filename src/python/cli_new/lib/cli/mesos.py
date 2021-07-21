@@ -49,13 +49,8 @@ def get_agent_address(agent_id, master, config):
     Given a master and an agent id, return the agent address
     by checking the /slaves endpoint of the master.
     """
-    try:
-        agents = http.get_json(master, "slaves", config)["slaves"]
-    except Exception as exception:
-        raise CLIException("Could not open '/slaves'"
-                           " endpoint at '{addr}': {error}"
-                           .format(addr=master,
-                                   error=exception))
+    agents = get_agents(master, config)
+
     for agent in agents:
         if agent["id"] == agent_id:
             return agent["pid"].split("@")[1]
@@ -66,8 +61,40 @@ def get_agents(master, config):
     """
     Get the agents in a Mesos cluster.
     """
+
     endpoint = "slaves"
     key = "slaves"
+    return get_key_endpoint(key, endpoint, master, config)
+
+def get_framework_address(framework_id, master, config):
+    """
+    Given a master and an framework id, return the framework address
+    by checking the /master/frameworks endpoint of the master.
+    """
+    frameworks = get_frameworks(master, config)
+
+    for framework in frameworks:
+        if framework["id"] == framework_id:
+            return framework["webui_url"]
+    # pylint: disable=line-too-long
+    raise CLIException("Unable to find framework '{id}'".format(id=framework_id))
+
+
+def get_frameworks(master, config):
+    """
+    Get the frameworks in a Mesos cluster.
+    """
+
+    endpoint = "master/frameworks/"
+    key = "frameworks"
+    return get_key_endpoint(key, endpoint, master, config)
+
+
+def get_key_endpoint(key, endpoint, master, config):
+    """
+    Get the json key of the given endpoint
+    """
+
     try:
         data = http.get_json(master, endpoint, config)
     except Exception as exception:
@@ -82,6 +109,7 @@ def get_agents(master, config):
             .format(key=key, endpoint=endpoint))
 
     return data[key]
+
 
 
 def get_container_id(task):
@@ -121,7 +149,7 @@ def get_tasks(master, config, query=None):
     key = "tasks"
 
     if query is None:
-        query = {'order':'asc'}
+        query = {'order':'asc', 'limit':'-1'}
 
     try:
         data = http.get_json(master, endpoint, config, query=query)

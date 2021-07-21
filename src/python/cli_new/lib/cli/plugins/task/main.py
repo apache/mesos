@@ -18,6 +18,8 @@
 The task plugin.
 """
 
+import json
+
 from cli.exceptions import CLIException
 from cli.mesos import get_tasks
 from cli.plugins import PluginBase
@@ -59,12 +61,18 @@ class Task(PluginBase):
             "long_help": "Execute commands in a task's container"
         },
         "list": {
-            "arguments": [],
+            "arguments": ['[<framework_id>]'],
             "flags": {
-                "-a --all": "list all tasks, not only running [default: False]"
+                "-a --all": "list all tasks, not only running [default: False]",
             },
             "short_help": "List all running tasks in a Mesos cluster",
             "long_help": "List all running tasks in a Mesos cluster"
+        },
+        "inspect": {
+            "arguments": ['<task_id>'],
+            "flags": {},
+            "short_help": "Return low-level information of the task.",
+            "long_help": "Return low-level information of the task."
         }
     }
 
@@ -134,6 +142,12 @@ class Task(PluginBase):
                 if not argv["--all"] and task_state != "TASK_RUNNING":
                     continue
 
+                if (
+                        (argv["<framework_id>"]) and 
+                        (task["framework_id"] != argv["<framework_id>"])
+                   ):
+                    continue
+
                 table.add_row([task["id"],
                                task_state,
                                task["framework_id"],
@@ -143,3 +157,28 @@ class Task(PluginBase):
                                .format(error=exception))
 
         print(str(table))
+
+
+    def inspect(self, argv):
+        """
+        Show the low-level information of the task.
+        """
+
+        try:
+            master = self.config.master()
+            config = self.config
+        except Exception as exception:
+            raise CLIException("Unable to get leading master address: {error}"
+                               .format(error=exception))
+
+        data = get_tasks(master, config)
+        try:
+            for task in data:
+                if task["id"] != argv["<task_id>"]:
+                    continue
+
+                print(json.dumps(task, indent=4))
+
+        except Exception as exception:
+            raise CLIException("Unable to build table of task: {error}"
+                               .format(error=exception))
