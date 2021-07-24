@@ -239,7 +239,7 @@ constexpr char TEST_PEER_LINK[] = "veth-peer";
 class RoutingVethTest : public RoutingAdvancedTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     RoutingAdvancedTest::SetUp();
 
@@ -251,7 +251,7 @@ protected:
     ASSERT_SOME_FALSE(link::exists(TEST_PEER_LINK));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     link::remove(TEST_VETH_LINK);
   }
