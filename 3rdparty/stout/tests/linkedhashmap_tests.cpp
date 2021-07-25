@@ -236,4 +236,11 @@ TEST(LinkedHashMapTest, Assignment)
 
   EXPECT_NE(map.keys(), copy.keys());
   EXPECT_NE(map.values(), copy.values());
+
+  // Test self-assignment.
+  copy = map;
+  map = map;
+
+  EXPECT_EQ(copy.keys(), map.keys());
+  EXPECT_EQ(copy.values(), map.values());
 }

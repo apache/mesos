@@ -46,13 +46,15 @@ public:
 
   LinkedHashMap& operator=(const LinkedHashMap<Key, Value>& other)
   {
-    clear();
+    if (this != &other) {
+      clear();
 
-    entries_ = other.entries_;
+      entries_ = other.entries_;
 
-    // Build up the index.
-    for (auto it = entries_.begin(); it != entries_.end(); ++it) {
-      keys_[it->first] = it;
+      // Build up the index.
+      for (auto it = entries_.begin(); it != entries_.end(); ++it) {
+        keys_[it->first] = it;
+      }
     }
 
     return *this;
