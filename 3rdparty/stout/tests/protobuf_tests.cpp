@@ -899,10 +899,14 @@ TEST(ProtobufTest, JsonInfinity)
       expected.end());
 
   JSON::Object referenceObject;
-  referenceObject.values["d1"] = JSON::Number(std::numeric_limits<double>::infinity());
-  referenceObject.values["d2"] = JSON::Number(-std::numeric_limits<double>::infinity());
-  referenceObject.values["f1"] = JSON::Number(std::numeric_limits<double>::infinity());
-  referenceObject.values["f2"] = JSON::Number(-std::numeric_limits<double>::infinity());
+  referenceObject.values["d1"] =
+    JSON::Number(std::numeric_limits<double>::infinity());
+  referenceObject.values["d2"] =
+    JSON::Number(-std::numeric_limits<double>::infinity());
+  referenceObject.values["f1"] =
+    JSON::Number(std::numeric_limits<double>::infinity());
+  referenceObject.values["f2"] =
+    JSON::Number(-std::numeric_limits<double>::infinity());
 
   // Check Protobuf -> JSON.
   JSON::Object protobufObject = JSON::protobuf(message);
