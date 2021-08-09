@@ -157,6 +157,23 @@ protected:
 
     return containerConfig;
   }
+
+  static bool awaitSynchronizationFile(const string& path)
+  {
+    Duration waited = Duration::zero();
+    Duration interval = Milliseconds(1);
+
+    do {
+      if (os::exists(path)) {
+        return true;
+      }
+
+      os::sleep(interval);
+      waited += interval;
+    } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+    return false;
+  }
 };
 
 
@@ -663,15 +680,14 @@ TEST_F(NestedMesosContainerizerTest,
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  // Use a pipe to synchronize with the top-level container.
-  string pipe = path::join(sandbox.get(), "pipe");
-  ASSERT_EQ(0, ::mkfifo(pipe.c_str(), 0700));
+  // Use a file to synchronize with the top-level container.
+  string syncFile = path::join(sandbox.get(), "syncFile");
 
   const string filename = "nested_inherits_work_dir";
 
   ExecutorInfo executor = createExecutorInfo(
       "executor",
-      "touch " + filename + "; echo running > " + pipe + "; sleep 1000",
+      "touch " + filename + "; touch " + syncFile + "; sleep 1000",
       "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
@@ -695,9 +711,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   // Wait for the parent container to start running its task
   // before launching a debug container inside it.
-  Result<string> read = os::read(pipe);
-  ASSERT_SOME(read);
-  ASSERT_EQ("running\n", read.get());
+  ASSERT_TRUE(awaitSynchronizationFile(syncFile));
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -1093,15 +1107,14 @@ TEST_F(NestedMesosContainerizerTest,
   AWAIT_READY(offers);
   ASSERT_EQ(1u, offers->size());
 
-  // Use a pipe to synchronize with the top-level container.
-  string pipe = path::join(sandbox.get(), "pipe");
-  ASSERT_EQ(0, ::mkfifo(pipe.c_str(), 0700));
+  // Use a file to synchronize with the top-level container.
+  string syncFile = path::join(sandbox.get(), "syncFile");
 
   // Launch a command task within the `alpine` docker image.
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "echo running > /tmp/pipe; sleep 1000");
+      "touch /tmp/syncFile; sleep 1000");
 
   task.mutable_container()->CopyFrom(createContainerInfo(
       "alpine", {createVolumeHostPath("/tmp", sandbox.get(), Volume::RW)}));
@@ -1123,9 +1136,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   // Wait for the parent container to start running its task
   // before launching a debug container inside it.
-  Result<string> read = os::read(pipe);
-  ASSERT_SOME(read);
-  ASSERT_EQ("running\n", read.get());
+  ASSERT_TRUE(awaitSynchronizationFile(syncFile));
 
   ASSERT_TRUE(statusRunning->has_slave_id());
   ASSERT_TRUE(statusRunning->has_container_status());
@@ -1207,14 +1218,13 @@ TEST_F(NestedMesosContainerizerTest,
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  string pipe = path::join(sandbox.get(), "pipe");
-  ASSERT_EQ(0, ::mkfifo(pipe.c_str(), 0700));
+  string syncFile = path::join(sandbox.get(), "syncFile");
 
   const string cmd =
     "(unshare -m sh -c"
     " 'mkdir -p test_mnt; mount tmpfs -t tmpfs test_mnt;"
     " touch test_mnt/check; exec sleep 1000')&"
-    "echo running > " + pipe + "; exec sleep 1000";
+    "touch " + syncFile + "; exec sleep 1000";
 
   ExecutorInfo executor = createExecutorInfo("executor", cmd, "cpus:1");
 
@@ -1231,9 +1241,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   // Wait for the parent container to start running its task
   // before launching a debug nested container.
-  Result<string> read = os::read(pipe);
-  ASSERT_SOME(read);
-  ASSERT_EQ("running\n", read.get());
+  ASSERT_TRUE(awaitSynchronizationFile(syncFile));
 
   // Launch a nested debug container.
   ContainerID nestedContainerId;
@@ -1650,13 +1658,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  // Use a fifo to synchronize with the top-level container.
-  string pipe = path::join(sandbox.get(), "pipe");
-  ASSERT_EQ(0, ::mkfifo(pipe.c_str(), 0700));
+  // Use a file to synchronize with the top-level container.
+  string syncFile = path::join(sandbox.get(), "syncFile");
 
   ExecutorInfo executor = createExecutorInfo(
       "executor",
-      createCommandInfo("echo running > " + pipe + "; sleep 1000"),
+      createCommandInfo("touch " + syncFile + "; sleep 1000"),
       "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
@@ -1694,9 +1701,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
 
   // Wait for the parent container to start running its executor
   // process before sending it a signal.
-  Result<string> read = os::read(pipe);
-  ASSERT_SOME(read);
-  ASSERT_EQ("running\n", read.get());
+  ASSERT_TRUE(awaitSynchronizationFile(syncFile));
 
   ASSERT_EQ(0, os::kill(status->executor_pid(), SIGTERM));
 
