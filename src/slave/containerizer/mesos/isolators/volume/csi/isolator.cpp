@@ -404,7 +404,6 @@ Future<Option<ContainerLaunchInfo>> VolumeCSIIsolatorProcess::_prepare(
     const Option<string>& user,
     const vector<Future<string>>& futures)
 {
-
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
 

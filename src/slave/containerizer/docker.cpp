@@ -1395,7 +1395,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
 #endif
         container->environment,
         None(), // No extra devices.
-        flags.docker_mesos_image.isNone() ? flags.default_container_dns : None(),
+        flags.docker_mesos_image.isNone() ?
+          flags.default_container_dns : None(),
         container->resourceLimits);
 
     if (runOptions.isError()) {
@@ -1917,7 +1918,8 @@ Future<Nothing> DockerContainerizerProcess::__update(
 
     // Set CFS quota to CPU limit (if any) or to CPU request (if the
     // flag `--cgroups_enable_cfs` is true).
-    if (cpuLimit.isSome() || (flags.cgroups_enable_cfs && cpuRequest.isSome())) {
+    if (cpuLimit.isSome() ||
+        (flags.cgroups_enable_cfs && cpuRequest.isSome())) {
       Try<Nothing> write = cgroups::cpu::cfs_period_us(
           cpuHierarchy.get(),
           cpuCgroup.get(),

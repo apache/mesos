@@ -188,8 +188,8 @@ static CommandInfo defaultExecutorCommandInfo(
     const Option<std::string>& user);
 
 
-// Sets the executor resource limit (the `limit` parameter) based on the resource
-// passed in (the `value` parameter).
+// Sets the executor resource limit (the `limit` parameter) based on the
+// resource passed in (the `value` parameter).
 static void setLimit(Option<Value::Scalar>& limit, const Value::Scalar& value);
 
 
