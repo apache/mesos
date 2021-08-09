@@ -132,7 +132,7 @@ mesos::internal::slave::Flags::Flags()
       "        \"NODE_SERVICE\"\n"
       "      ],\n"
       "      \"command\": {\n"
-      "        \"value\": \"<path-to-managed-plugin> --endpoint=$CSI_ENDPOINT\"\n"
+      "        \"value\": \"<path-to-managed-plugin> --endpoint=$CSI_ENDPOINT\"\n" // NOLINT(whitespace/line_length)
       "      },\n"
       "      \"resources\": [\n"
       "        {\"name\": \"cpus\", \"type\": \"SCALAR\", \"scalar\": {\"value\": 0.1}},\n" // NOLINT(whitespace/line_length)

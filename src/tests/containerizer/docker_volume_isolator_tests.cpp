@@ -1681,7 +1681,8 @@ TEST_F(DockerVolumeIsolatorTest,
 // This test verifies that unmount operation can be still invoked for
 // a docker volume even the previous unmount operation for the same
 // docker volume failed. This is a regression test for MESOS-10126.
-TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithUnmountVolumeFailure)
+TEST_F(DockerVolumeIsolatorTest,
+       ROOT_CommandTaskNoRootfsWithUnmountVolumeFailure)
 {
   Clock::pause();
 

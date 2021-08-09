@@ -30,7 +30,8 @@ namespace slave {
 
 inline bool operator==(const CSIVolume& left, const CSIVolume& right)
 {
-  return (left.plugin_name() == right.plugin_name()) && (left.id() == right.id());
+  return (left.plugin_name() == right.plugin_name()) &&
+           (left.id() == right.id());
 }
 
 } // namespace slave {

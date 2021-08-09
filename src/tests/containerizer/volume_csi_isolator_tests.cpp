@@ -597,7 +597,8 @@ TEST_P(VolumeCSIIsolatorTest, ROOT_INTERNET_CURL_TaskGroupWithVolume)
       TEST_CONTAINER_PATH + TEST_OUTPUT_FILE);
 
   Try<string> taskCommand2 = strings::format(
-      "while [ \"`cat %s 2>/dev/null`\" != \"%s\" ]; do : sleep 0.1 ; done; exit 0",
+      "while [ \"`cat %s 2>/dev/null`\" != \"%s\" ]; do : "
+      "sleep 0.1 ; done; exit 0",
       TEST_CONTAINER_PATH + TEST_OUTPUT_FILE,
       TEST_OUTPUT_STRING);
 
