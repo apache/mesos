@@ -27,7 +27,9 @@ If you are a committer, here are some guidelines for committing changes:
    this for you, but be careful when rebasing or ammending.
 4. **Never ever commit a merge**: always rebase instead, as appropriate.
    Likewise, never 'force push'.
-5. **Don't break the build**: we support Linux, Mac OS X, and Windows. However,
+5. **Don't break the build**: we support [Linux x86_64](https://ci-builds.apache.org/job/Mesos/job/Mesos-Buildbot/),
+   [Linux aarch64](https://ci-builds.apache.org/job/Mesos/job/Mesos-Buildbot-ARM/),
+   Mac OS X and [Windows](https://ci-builds.apache.org/job/Mesos/job/Mesos-Buildbot-Windows/). However,
    not all configurations are being tested in Jenkins, so be aware of that.
    Also, pay attention to the Jenkins review bot if it flags a review as
    breaking the build. Note that if you do break the build, the fixes are

@@ -42,9 +42,9 @@ If your changes are documentation-only, then you should view them with a markdow
 
 If you are changing any code in Mesos, then you should build and run the tests before opening a PR. You should run `make check` and ensure that all tests pass before opening a PR.
 
-## Open a PR
+## Open a Pull Request
 
-Once changes are completed and tested, it's time to open a PR so that they can be reviewed. When your local branch is clean and ready to submit, push it to your Mesos fork. You can then open a PR against the Apache Mesos GitHub repository. Once your PR is open, you can notify the community on [Mesos Slack](/community) or on the developer mailing list.
+Once changes are completed and tested, it's time to open a Pull Request (PR) so that they can be reviewed. When your local branch is clean and ready to submit, push it to your Mesos fork. You can then open a PR against the Apache Mesos GitHub repository. Once your PR is open, you can notify the community on [Mesos Slack](/community) or on the developer mailing list.
 
 # Getting Started Guidance
 
