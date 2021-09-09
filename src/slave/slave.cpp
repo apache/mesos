@@ -3191,7 +3191,16 @@ void Slave::__run(
     if (taskGroup.isNone() && task->has_command()) {
       // We are dealing with command task; a new command executor will be
       // launched.
-      CHECK(executor == nullptr);
+      // It is possible for an executor with this ID to already exist, if the
+      // TaskID was re-used - see MESOS-9657. If this happens, we have no
+      // choice but to drop the task.
+      if (executor != nullptr) {
+        sendTaskDroppedUpdate(
+            TaskStatus::REASON_TASK_INVALID,
+            "Cannot reuse an already existing executor for a command task");
+
+        return;
+      }
     } else {
       // Master set the `launch_executor` flag and this is not a command task.
       if (launchExecutor.get() && executor != nullptr) {
