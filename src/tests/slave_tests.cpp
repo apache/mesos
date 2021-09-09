@@ -12876,6 +12876,101 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
   EXPECT_EQ(TaskStatus::REASON_SLAVE_DRAINING, statusKilled->reason());
 }
 
+TEST_F(SlaveTest, DuplicateTaskIdCommandExecutor)
+{
+  // Start a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start a slave.
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers1;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+  Offer offer1 = offers1.get()[0];
+
+  // Start the first task, and wait for it to complete.
+  TaskInfo task1 = createTask(
+      offer1.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      echoAuthorCommand(),
+      None(),
+      "task-1",
+      "duplicate-task-id");
+
+  Future<TaskStatus> statusStarting1;
+  Future<TaskStatus> statusRunning1;
+  Future<TaskStatus> statusFinished1;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
+    .WillOnce(FutureArg<1>(&statusRunning1))
+    .WillOnce(FutureArg<1>(&statusFinished1));
+
+  driver.launchTasks(offer1.id(), {task1});
+
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
+
+  AWAIT_READY(statusRunning1);
+  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+
+  AWAIT_READY(statusFinished1);
+  EXPECT_EQ(TASK_FINISHED, statusFinished1->state());
+
+  // Start second task with same TaskId.
+  Future<vector<Offer>> offers2;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+  Offer offer2 = offers2.get()[0];
+
+  TaskInfo task2 = createTask(
+      offer2.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      echoAuthorCommand(),
+      None(),
+      "task-2",
+      "duplicate-task-id");
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.launchTasks(offer2.id(), {task2});
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_LOST, status2->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status2->reason());
+  EXPECT_EQ(status2->message(),
+      "Cannot reuse an already existing executor for a command task");
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
