@@ -33,7 +33,7 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_fixed
 
-from cli import http
+from cli import http, config
 
 from cli.tests.constants import TEST_AGENT_IP
 from cli.tests.constants import TEST_AGENT_PORT
@@ -182,6 +182,7 @@ class Master(Executable):
         self.flags = flags
         self.name = "master"
         self.addr = "{ip}:{port}".format(ip=flags["ip"], port=flags["port"])
+        self.config = config.Config(None)
         self.executable = os.path.join(
             CLITestCase.MESOS_BUILD_DIR,
             "bin",
@@ -248,6 +249,7 @@ class Agent(Executable):
         self.flags = flags
         self.name = "agent"
         self.addr = "{ip}:{port}".format(ip=flags["ip"], port=flags["port"])
+        self.config = config.Config(None)
         self.executable = os.path.join(
             CLITestCase.MESOS_BUILD_DIR,
             "bin",
@@ -263,7 +265,7 @@ class Agent(Executable):
             shutil.rmtree(self.flags["runtime_dir"])
 
     # pylint: disable=arguments-differ
-    def launch(self, timeout=TIMEOUT):
+    def launch(self):
         """
         After starting the agent, we first need to make sure its
         reference count is increased and then check that it has
@@ -272,41 +274,33 @@ class Agent(Executable):
         super(Agent, self).launch()
         Agent.count += 1
 
-        try:
-            # pylint: disable=missing-docstring
-            def single_slave(data):
-                return len(data["slaves"]) == 1
-
-            http.get_json(self.flags["master"], "slaves", single_slave, timeout)
-        except Exception as exception:
+        data = http.get_json(self.flags["master"], "slaves", self.config)
+        if len(data["slaves"]) == 1:
             stdout = ""
             if self.proc.poll():
                 stdout = "\n{output}".format(output=self.proc.stdout.read())
 
             raise CLIException("Could not get '/slaves' endpoint as JSON with"
-                               " only 1 agent in it: {error}{stdout}"
-                               .format(error=exception, stdout=stdout))
+                               " only 1 agent in it: {stdout}"
+                               .format(stdout=stdout))
 
     # pylint: disable=arguments-differ
-    def kill(self, timeout=TIMEOUT):
+    def kill(self):
         """
         After killing the agent, we need to make sure it has
         successfully unregistered from the master before proceeding.
         """
         super(Agent, self).kill()
 
-        try:
-            # pylint: disable=missing-docstring
-            def one_inactive_slave(data):
-                slaves = data["slaves"]
-                return len(slaves) == 1 and not slaves[0]["active"]
+        data = http.get_json(self.flags["master"], "slaves", self.config)
+        if len(data["slaves"]) == 1 and not data["slaves"][0]["active"]:
+            stdout = ""
+            if self.proc.poll():
+                stdout = "\n{output}".format(output=self.proc.stdout.read())
 
-            http.get_json(
-                self.flags["master"], "slaves", one_inactive_slave, timeout)
-        except Exception as exception:
             raise CLIException("Could not get '/slaves' endpoint as"
-                               " JSON with 0 agents in it: {error}"
-                               .format(error=exception))
+                               " JSON with 0 agents in it: {stdout}"
+                               .format(stdout=stdout))
 
         Agent.count -= 1
 
@@ -335,18 +329,19 @@ class Task(Executable):
 
         self.flags = flags
         self.name = flags["name"]
+        self.config = config.Config(None)
         self.executable = os.path.join(
             CLITestCase.MESOS_BUILD_DIR,
             "src",
             "mesos-execute")
 
-    def __wait_for_containers(self, condition, timeout=TIMEOUT):
+    def __wait_for_containers(self, condition):
         """
         Wait for the agent's '/containers' endpoint
         to return data subject to 'condition'.
         """
         try:
-            data = http.get_json(self.flags["master"], None, "slaves")
+            data = http.get_json(self.flags["master"], "slaves", self.config)
         except Exception as exception:
             raise CLIException("Could not get '/slaves' endpoint"
                                " as JSON: {error}"
@@ -368,15 +363,16 @@ class Task(Executable):
             data = http.get_json(
                 agent["addr"],
                 "containers",
-                condition,
-                timeout)
+                self.config)
+
+            condition(data)
         except Exception as exception:
             raise CLIException("Could not get '/containers' endpoint as"
                                " JSON subject to condition: {error}"
                                .format(error=exception))
 
     # pylint: disable=arguments-differ
-    def launch(self, timeout=TIMEOUT):
+    def launch(self):
         """
         After starting the task, we need to make sure its container
         has actually been added to the agent before proceeding.
@@ -390,7 +386,7 @@ class Task(Executable):
                 return any(container["executor_id"] == self.flags["name"]
                            for container in data)
 
-            self.__wait_for_containers(container_exists, timeout)
+            self.__wait_for_containers(container_exists)
         except Exception as exception:
             stdout = ""
             if self.proc.poll():
@@ -404,7 +400,7 @@ class Task(Executable):
                                        stdout=stdout))
 
     # pylint: disable=arguments-differ
-    def kill(self, timeout=TIMEOUT):
+    def kill(self):
         """
         After killing the task, we need to make sure its container has
         actually been removed from the agent before proceeding.
@@ -417,7 +413,7 @@ class Task(Executable):
                 return not any(container["executor_id"] == self.flags["name"]
                                for container in data)
 
-            self.__wait_for_containers(container_does_not_exist, timeout)
+            self.__wait_for_containers(container_does_not_exist)
         except Exception as exception:
             raise CLIException("Container with name '{name}' still"
                                " exists after timeout: {error}"
@@ -510,7 +506,8 @@ def wait_for_task(master, name, state, delay=1):
     """
     @retry(wait=wait_fixed(0.2), stop=stop_after_delay(delay))
     def _wait_for_task():
-        tasks = http.get_json(master.addr, None, "tasks")["tasks"]
+        tasks = http.get_json(master.addr, "tasks",
+                              config.Config(None))["tasks"]
         for task in tasks:
             if task["name"] == name and task["state"] == state:
                 return task
