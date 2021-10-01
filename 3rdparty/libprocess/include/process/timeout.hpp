@@ -34,10 +34,20 @@ public:
   // from now.
   static Timeout in(const Duration& duration)
   {
+    Time now = Clock::now();
+    if (duration < Duration::zero()) {
+      // If duration is negative, we need now() + duration > Duration::min() to avoid overflow.
+      // Therefore, we check for now() > duration::min() - duration.
+      if (now.duration() > Duration::min() - duration) {
+          return Timeout(now + duration);
+      }
+      return Timeout(Time::epoch());
+    }
+
     // We need now() + duration < Duration::max() to avoid overflow.
     // Therefore, we check for now() < duration::max() - duration.
-    if (Clock::now().duration() < Duration::max() - duration) {
-      return Timeout(Clock::now() + duration);
+    if (now.duration() < Duration::max() - duration) {
+      return Timeout(now + duration);
     }
 
     return Timeout(Time::max());
