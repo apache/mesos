@@ -736,7 +736,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ======================================================================
 For jQuery
-(src/webui/master/static/js/jquery-3.2.1.min.js):
+(src/webui/master/static/js/jquery-3.6.0.min.js):
 ======================================================================
 
 Copyright JS Foundation and other contributors, https://js.foundation/

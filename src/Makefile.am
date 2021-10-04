@@ -2020,7 +2020,7 @@ nobase_dist_pkgdata_DATA +=						\
   webui/assets/libs/angular-route-1.2.32.min.js				\
   webui/assets/libs/bootstrap-table-1.11.1.min.js			\
   webui/assets/libs/clipboard-1.5.16.min.js				\
-  webui/assets/libs/jquery-3.2.1.min.js					\
+  webui/assets/libs/jquery-3.6.0.min.js					\
   webui/assets/libs/jquery.pailer.js					\
   webui/assets/libs/relative-date.js					\
   webui/assets/libs/ui-bootstrap-tpls-0.9.0.min.js			\
