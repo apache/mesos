@@ -109,14 +109,17 @@ TEST_F(GarbageCollectorTest, Schedule)
   const string& file1 = "file1";
   const string& file2 = "file2";
   const string& file3 = "file3";
+  const string& file4 = "file4";
 
   ASSERT_SOME(os::touch(file1));
   ASSERT_SOME(os::touch(file2));
   ASSERT_SOME(os::touch(file3));
+  ASSERT_SOME(os::touch(file4));
 
   ASSERT_TRUE(os::exists(file1));
   ASSERT_TRUE(os::exists(file2));
   ASSERT_TRUE(os::exists(file3));
+  ASSERT_TRUE(os::exists(file4));
 
   Clock::pause();
 
@@ -126,24 +129,34 @@ TEST_F(GarbageCollectorTest, Schedule)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
   Future<Nothing> scheduleDispatch3 =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+  Future<Nothing> scheduleDispatch4 =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Schedule the gc operations.
   Future<Nothing> schedule1 = gc.schedule(Seconds(10), file1);
   Future<Nothing> schedule2 = gc.schedule(Seconds(10), file2);
   Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
+  Future<Nothing> schedule4 = gc.schedule(Seconds(-15), file4);
 
   // Ensure the dispatches are completed before advancing the clock.
   AWAIT_READY(scheduleDispatch1);
   AWAIT_READY(scheduleDispatch2);
   AWAIT_READY(scheduleDispatch3);
+  AWAIT_READY(scheduleDispatch4);
   Clock::settle();
+
+  AWAIT_READY(schedule4);
 
   JSON::Object metrics = Metrics();
 
   ASSERT_EQ(1u, metrics.values.count("gc/path_removals_pending"));
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_succeeded"));
   EXPECT_SOME_EQ(
       3u,
       metrics.at<JSON::Number>("gc/path_removals_pending"));
+  EXPECT_SOME_EQ(
+      1u,
+      metrics.at<JSON::Number>("gc/path_removals_succeeded"));
 
   // Advance the clock to trigger the GC of file1 and file2.
   Clock::advance(Seconds(10));
@@ -155,6 +168,7 @@ TEST_F(GarbageCollectorTest, Schedule)
 
   EXPECT_FALSE(os::exists(file1));
   EXPECT_FALSE(os::exists(file2));
+  EXPECT_FALSE(os::exists(file4));
   EXPECT_TRUE(os::exists(file3));
 
   // Trigger the GC of file3.
@@ -175,7 +189,7 @@ TEST_F(GarbageCollectorTest, Schedule)
       0u,
       metrics.at<JSON::Number>("gc/path_removals_pending"));
   EXPECT_SOME_EQ(
-      3u,
+      4u,
       metrics.at<JSON::Number>("gc/path_removals_succeeded"));
   EXPECT_SOME_EQ(
       0u,
