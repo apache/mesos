@@ -1229,7 +1229,7 @@ Try<Nothing> FetcherProcess::Cache::adjust(
     if (d <= 0) {
       entry->size = size.get();
 
-      releaseSpace(Bytes(d));
+      releaseSpace(Bytes(-d));
     } else {
       return Error("More cache size now necessary, not adjusting " +
                    entry->key);
