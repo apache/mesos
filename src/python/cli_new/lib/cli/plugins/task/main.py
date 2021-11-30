@@ -18,6 +18,8 @@
 The task plugin.
 """
 
+import json
+
 from cli.exceptions import CLIException
 from cli.mesos import get_tasks
 from cli.plugins import PluginBase
@@ -65,7 +67,13 @@ class Task(PluginBase):
             },
             "short_help": "List all running tasks in a Mesos cluster",
             "long_help": "List all running tasks in a Mesos cluster"
-        }
+        },
+        "inspect": {
+            "arguments": ['<task_id>'],
+            "flags": {},
+            "short_help": "Return low-level information on the task",
+            "long_help": "Return low-level information on the task"
+        }        
     }
 
     def attach(self, argv):
@@ -75,12 +83,11 @@ class Task(PluginBase):
         """
         try:
             master = self.config.master()
-            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        task_io = TaskIO(master, config, argv["<task-id>"])
+        task_io = TaskIO(master, self.config, argv["<task-id>"])
         return task_io.attach(argv["--no-stdin"])
 
 
@@ -90,12 +97,11 @@ class Task(PluginBase):
         """
         try:
             master = self.config.master()
-            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        task_io = TaskIO(master, config, argv["<task-id>"])
+        task_io = TaskIO(master, self.config, argv["<task-id>"])
         return task_io.exec(argv["<command>"],
                             argv["<args>"],
                             argv["--interactive"],
@@ -108,13 +114,12 @@ class Task(PluginBase):
         # pylint: disable=unused-argument
         try:
             master = self.config.master()
-            config = self.config
         except Exception as exception:
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
         try:
-            tasks = get_tasks(master, config)
+            tasks = get_tasks(master, self.config)
         except Exception as exception:
             raise CLIException("Unable to get tasks from leading"
                                " master '{master}': {error}"
@@ -143,3 +148,21 @@ class Task(PluginBase):
                                .format(error=exception))
 
         print(str(table))
+
+    def inspect(self, argv):
+        """
+        Show the low-level information on the task.
+        """
+        try:
+            master = self.config.master()
+        except Exception as exception:
+            raise CLIException("Unable to get leading master address: {error}"
+                               .format(error=exception))
+
+        data = get_tasks(master, self.config)
+        for task in data:
+            if task["id"] != argv["<task_id>"]:
+                continue
+
+            print(json.dumps(task, indent=4))
+
