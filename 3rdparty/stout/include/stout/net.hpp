@@ -117,9 +117,16 @@ inline Try<Bytes> contentLength(const std::string& url)
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
   CURLcode curlErrorCode = curl_easy_perform(curl);
-  if (curlErrorCode != 0) {
+  if (curlErrorCode != CURLE_OK) {
     curl_easy_cleanup(curl);
     return Error(curl_easy_strerror(curlErrorCode));
+  }
+
+  long response_code;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+  if(response_code < 200 || response_code >= 300) {
+      curl_easy_cleanup(curl);
+      return Error("Curl contentLength request returned non 2XX code");
   }
 
   double result;
@@ -133,7 +140,6 @@ inline Try<Bytes> contentLength(const std::string& url)
 
   return Bytes(uint64_t(result));
 }
-
 
 // Returns the HTTP response code resulting from attempting to
 // download the specified HTTP or FTP URL into a file at the specified
@@ -206,7 +212,7 @@ inline Try<int> download(
   }
 
   CURLcode curlErrorCode = curl_easy_perform(curl);
-  if (curlErrorCode != 0) {
+  if (curlErrorCode != CURLE_OK) {
     curl_easy_cleanup(curl);
     // NOTE: `fclose()` also closes the associated file descriptor, so
     // we do not call `close()`.
