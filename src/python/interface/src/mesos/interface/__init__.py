@@ -26,7 +26,7 @@ import sys
 
 __all__ = (
   'Executor',
-  'ExecutorDriver'
+  'ExecutorDriver',
   'Scheduler',
   'SchedulerDriver',
 )
