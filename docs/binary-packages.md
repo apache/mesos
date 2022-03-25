@@ -5,30 +5,11 @@ layout: documentation
 
 # Binary Packages
 
-## Downloading the Mesos RPM
+## Downloading the Mesos binaries
 
-Download and install the latest stable RPM binary from the [Bintray Repository](https://bintray.com/apache/mesos/):
+Download and install [the latest stable Mesos binaries](https://mesos.apache.org/downloads/).
 
-    $ cat > /tmp/bintray-mesos-el.repo <<EOF
-    #bintray-mesos-el - packages by mesos from Bintray
-    [bintray-mesos-el]
-    name=bintray-mesos-el
-    baseurl=https://dl.bintray.com/apache/mesos/el7/x86_64
-    gpgcheck=0
-    repo_gpgcheck=0
-    enabled=1
-    EOF
-
-    $ sudo mv /tmp/bintray-mesos-el.repo /etc/yum.repos.d/bintray-mesos-el.repo
-
-    $ sudo yum update
-
-    $ sudo yum install mesos
-
-The above instructions show how to install the latest version of Mesos for RHEL 7.
-Substitute `baseurl` the with the appropriate URL for your operating system.
-
-## Start Mesos Master and Agent.
+## Start Mesos Master and Agent
 
 The RPM installation creates the directory `/var/lib/mesos` that can be used as a work directory.
 
