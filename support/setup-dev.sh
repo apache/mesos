@@ -27,7 +27,8 @@ __EOF__
 fi
 
 if test ! -e .gitignore; then
-  ln -s support/gitignore .gitignore
+  # Git version 2.32.0 does not support gitignore as symlink (https://github.com/git/git/blob/master/Documentation/RelNotes/2.32.0.txt)
+  cp support/gitignore .gitignore
 fi
 
 if test ! -e .reviewboardrc; then
