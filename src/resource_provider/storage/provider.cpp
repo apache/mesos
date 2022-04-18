@@ -471,7 +471,8 @@ StorageLocalResourceProviderProcess::StorageLocalResourceProviderProcess(
 
 void StorageLocalResourceProviderProcess::connected()
 {
-  CHECK_EQ(DISCONNECTED, state);
+  CHECK(state == DISCONNECTED || state == READY)
+      << "Unexpected state: " << state;
 
   LOG(INFO) << "Connected to resource provider manager";
 
