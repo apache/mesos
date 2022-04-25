@@ -33,9 +33,9 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       ${CMAKE_ARGS} \
       "${SRCDIR}"
 
-# Set up CMake to run as many parallel build process as we have cores instead
-# of relying on the default parallelism of the particular build tool.
-export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+# Specify CMake parallelism instead of relying on the default parallelism of
+# the particular build tool.
+export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
 
 # Build the external dependencies.
 # TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
@@ -78,7 +78,7 @@ cat compile_commands.json \
   | sed 's/"//g' \
   | sed 's/^\ //g' \
   | grep "^${SRCDIR}/.*\.cpp$" \
-  | parallel -j $(nproc) clang-tidy -p "${PWD}" \
+  | parallel -j "${JOBS}" clang-tidy -p "${PWD}" \
       -extra-arg=-Wno-unknown-warning-option \
       -extra-arg=-Wno-unused-command-line-argument \
       -header-filter="^${SRCDIR}/.*\.hpp$" -checks="${CHECKS}" \

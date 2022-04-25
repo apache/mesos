@@ -19,6 +19,8 @@
 set -e
 set -o pipefail
 
+: "${JOBS:=$(nproc)}"
+
 MESOS_DIR=$(git rev-parse --show-toplevel)
 
 # Check for unstaged or uncommitted changes.
@@ -36,4 +38,5 @@ docker run \
   -v "${MESOS_DIR}":/SRC:Z \
   -e CHECKS="${CHECKS}" \
   -e CMAKE_ARGS="${CMAKE_ARGS}" \
+  -e JOBS="${JOBS}" \
   mesos/mesos-tidy
