@@ -103,7 +103,7 @@ class VolumeCSIIsolatorTest
     public testing::WithParamInterface<string>
 {
 public:
-  void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 
@@ -137,7 +137,7 @@ public:
     return flags;
   }
 
-  void TearDown()
+  void TearDown() override
   {
     const string csiRootDir = slave::paths::getCsiRootDir(agentWorkDir);
 
