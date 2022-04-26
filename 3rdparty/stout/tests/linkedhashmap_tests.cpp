@@ -239,7 +239,7 @@ TEST(LinkedHashMapTest, Assignment)
 
   // Test self-assignment.
   copy = map;
-  map = map;
+  map = map;  // NOLINT(clang-diagnostic-self-assign-overloaded)
 
   EXPECT_EQ(copy.keys(), map.keys());
   EXPECT_EQ(copy.values(), map.values());
