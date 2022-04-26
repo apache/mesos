@@ -82,7 +82,7 @@ cat compile_commands.json \
       -extra-arg=-Wno-unknown-warning-option \
       -extra-arg=-Wno-unused-command-line-argument \
       -header-filter="^${SRCDIR}/.*\.hpp$" -checks="${CHECKS}" \
-  1> clang-tidy.log 2> /dev/null
+  1> clang-tidy.log 2> /dev/null || true
 
 # Propagate any errors.
 if test -s clang-tidy.log; then
