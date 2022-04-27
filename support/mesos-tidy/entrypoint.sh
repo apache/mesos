@@ -56,6 +56,7 @@ cmake --build 3rdparty --target leveldb-1.19
 cmake --build 3rdparty --target nvml-352.79
 cmake --build 3rdparty --target picojson-1.3.0
 cmake --build 3rdparty --target protobuf-3.5.0
+cmake --build 3rdparty --target re2-2020-07-06
 cmake --build 3rdparty --target zookeeper-3.4.8
 
 # Generate the protobuf definitions.
