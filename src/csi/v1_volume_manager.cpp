@@ -1114,7 +1114,7 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
 
   if (!volumeState.node_stage_secrets().empty()) {
     rpcResult = resolveSecrets(volumeState.node_stage_secrets())
-      .then([=](const Map<string, string>& secrets) {
+      .then(process::defer(self(), [=](const Map<string, string>& secrets) {
         NodeStageVolumeRequest request_(request);
         *request_.mutable_secrets() = secrets;
 
@@ -1122,7 +1122,7 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
             NODE_SERVICE,
             &Client::nodeStageVolume,
             std::move(request_));
-      });
+      }));
   } else {
     rpcResult =
       call(NODE_SERVICE, &Client::nodeStageVolume, std::move(request));
