@@ -131,33 +131,18 @@ layout: documentation
 
 <div class="row">
   <div class="col-xs-6 col-md-4">
-    <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-cookbook" class="thumbnail">
-      <img src="https://d255esdrn735hr.cloudfront.net/sites/default/files/imagecache/ppv4_main_book_cover/9781785884627.png" alt="Apache Mesos Cookbook by David Blomquist, Tomasz Janiszewski">
-    </a>
-    <p class="text-center">Apache Mesos Cookbook by David Blomquist, Tomasz Janiszewski (Packt, August 2017)</p>
+    <p class="text-center"><a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-cookbook">Apache Mesos Cookbook by David Blomquist, Tomasz Janiszewski</a> (Packt, August 2017)</p>
   </div>
   <div class="col-xs-6 col-md-4">
-    <a href="https://www.manning.com/books/mesos-in-action" class="thumbnail">
-      <img src="https://images.manning.com/255/340/resize/book/d/62f5c9b-0946-4569-ad50-ffdb84876ddc/Ignazio-Mesos-HI.png" alt="Mesos in Action by Roger Ignazio">
-    </a>
-    <p class="text-center">Mesos in Action by Roger Ignazio (Manning, 2016)</p>
+    <p class="text-center"><a href="https://www.manning.com/books/mesos-in-action">Mesos in Action by Roger Ignazio</a> (Manning, 2016)</p>
   </div>
   <div class="col-xs-6 col-md-4">
-    <a href="https://www.packtpub.com/big-data-and-business-intelligence/mastering-mesos" class="thumbnail">
-      <img src="https://www.packtpub.com/sites/default/files/6249OS_5186%20Mastering%20Mesos.jpg" alt="Mastering Mesos by Dipa Dubhashi and Akhil Das">
-    </a>
-    <p class="text-center">Mastering Mesos by Dipa Dubhashi and Akhil Das (Packt, 2016)</p>
+    <p class="text-center"><a href="https://www.packtpub.com/big-data-and-business-intelligence/mastering-mesos">Mastering Mesos by Dipa Dubhashi and Akhil Das</a> (Packt, 2016)</p>
   </div>
   <div class="col-xs-6 col-md-4">
-    <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-essentials" class="thumbnail">
-      <img src="https://www.packtpub.com/sites/default/files/9781783288762.png" alt="Apache Mesos Essentials by Dharmesh Kakadia">
-    </a>
-    <p class="text-center">Apache Mesos Essentials by Dharmesh Kakadia (Packt, 2015)</p>
+    <p class="text-center"><a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-essentials">Apache Mesos Essentials by Dharmesh Kakadia</a> (Packt, 2015)</p>
   </div>
   <div class="col-xs-6 col-md-4">
-    <a href="http://shop.oreilly.com/product/0636920039952.do" class="thumbnail">
-      <img src="http://akamaicovers.oreilly.com/images/0636920039952/lrg.jpg" alt="Building Applications on Mesos by David Greenberg">
-    </a>
-    <p class="text-center">Building Applications on Mesos by David Greenberg (O'Reilly, 2015)</p>
+    <p class="text-center"><a href="http://shop.oreilly.com/product/0636920039952.do" class="thumbnail">Building Applications on Mesos by David Greenberg</a> (O'Reilly, 2015)</p>
   </div>
 </div>
