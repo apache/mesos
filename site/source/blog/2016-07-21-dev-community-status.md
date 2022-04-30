@@ -34,7 +34,7 @@ We mined the data for this post from Mesos [git log](https://git1-us-west.apache
 [contributors.yaml](https://git1-us-west.apache.org/repos/asf?p=mesos.git;a=blob;f=docs/contributors.yaml;h=e17fed49ea358837eb33827dc3aceea9cd69c1b3;hb=9c8bfa9b1bfe52fa6b44aaf883333311bdde5519) file for mapping contributors to organizations.
 
 ### Community Growth and Diversity
-<%= image_tag '2016-developer-community-1.png' %>
+<%= image_tag 'blog/2016-developer-community-1.png' %>
 
 The number of unique contributors has been increasing steadily over time. As of
 this writing, the number of contributors for the most recent release is greater
@@ -51,7 +51,7 @@ This is a great milestone for all of our individual contributors out there!
 We greatly appreciate your contribution to the project and we're looking forward
 to seeing even more commits from individual contributors in the future.
 
-<%= image_tag '2016-developer-community-2.png' %>
+<%= image_tag 'blog/2016-developer-community-2.png' %>
 
 In terms of numbers of commits from an organization, Mesosphere has the highest number after
 contributing 62.8% of the commits. It is followed by 'Other' (which is a default organization
@@ -63,7 +63,7 @@ than previous releases, and that is why there is a significant spike in the numb
 commits for 1.0-rc2.
 Here is how the same graph looks like once we change the breakdown from releases to months.
 
-<%= image_tag '2016-developer-community-3.png' %>
+<%= image_tag 'blog/2016-developer-community-3.png' %>
 
 It presents a fuller picture where the upward trend is still there, but one can also notice
 that the smooth growth trend has been there for a while.
@@ -74,7 +74,7 @@ the number of commits authored by non-committers vastly outnumbers the ones orig
 from committers. This shows that the active committers spend a lot of time shepherding
 and landing patches from contributors.
 
-<%= image_tag '2016-developer-community-4.png' %>
+<%= image_tag 'blog/2016-developer-community-4.png' %>
 
 Going forward we are going to introduce a page on our website where we will continuously
 publish up-to-date statistics around the developer community. We are also going to double
