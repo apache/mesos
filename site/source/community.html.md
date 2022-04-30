@@ -167,11 +167,6 @@ layout: community_section
             </td>
           </tr>
         </table>
-
-
         </p>
-
-    <h3 name="calendar">Events Calendar</h3>
-    <iframe src="https://calendar.google.com/calendar/embed?src=2hecvndc0mnaqlir34cqnfvtak%40group.calendar.google.com" style="border: 0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>
   </div>
 </div>
