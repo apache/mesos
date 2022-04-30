@@ -25,7 +25,7 @@
                    enabling fault-tolerant and elastic distributed systems
                    to easily be built and run effectively."/>
 
-    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <%= stylesheet_link_tag 'bootstrap.min.css' %>
     <link rel="alternate" type="application/atom+xml" title="Apache Mesos Blog" href="/blog/feed.xml">
     <%= stylesheet_link_tag 'main.css' %>
 
@@ -85,9 +85,9 @@
     </div><!-- /.footer -->
 
     <!-- JS -->
-    <%= javascript_include_tag '//code.jquery.com/jquery-1.11.0.min.js' %>
-    <%= javascript_include_tag '//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js' %>
-    <%= javascript_include_tag '//cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js' %>
+    <%= javascript_include_tag 'jquery-1.11.0.min.js' %>
+    <%= javascript_include_tag 'bootstrap.min.js' %>
+    <%= javascript_include_tag 'anchor-4.1.0.min.js' %>
 
     <!-- Inject anchors for all headings on the page, see https://www.bryanbraun.com/anchorjs. -->
     <script type="text/javascript">
