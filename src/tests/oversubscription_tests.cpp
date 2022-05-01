@@ -703,6 +703,22 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
   Clock::settle();
 
   AWAIT_READY(update);
+
+  // Depending on the recovery timing, the slave could send an
+  // UpdateSlaveMessage message before the resource estimator is
+  // ready, so if that's the case, wait for another update.
+  if (!update->has_update_oversubscribed_resources() ||
+      !update->update_oversubscribed_resources()) {
+    Future<UpdateSlaveMessage> update1 =
+      FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+    Clock::advance(flags.oversubscribed_resources_interval);
+    Clock::settle();
+
+    AWAIT_READY(update1);
+    update = update1;
+  }
+
   ASSERT_TRUE(update->has_update_oversubscribed_resources());
   ASSERT_TRUE(update->update_oversubscribed_resources());
 
