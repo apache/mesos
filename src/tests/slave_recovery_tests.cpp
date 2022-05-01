@@ -1010,6 +1010,15 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
 
   slave.get()->terminate();
 
+  // Make sure that timers started by the previous slave's process expire,
+  // because we reuse the same PID we don't want them to fire while the
+  // new process is running.
+  Clock::pause();
+  Clock::advance(masterFlags.agent_ping_timeout *
+    masterFlags.max_agent_ping_timeouts);
+  Clock::settle();
+  Clock::resume();
+
   Future<ReregisterExecutorMessage> reregisterExecutor =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
