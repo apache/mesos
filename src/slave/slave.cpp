@@ -255,6 +255,8 @@ Slave::~Slave()
   // TODO(benh): Shut down executors? The executor should get an "exited"
   // event and initiate a shut down itself.
 
+  Clock::cancel(pingTimer);
+
   foreachvalue (Framework* framework, frameworks) {
     delete framework;
   }
