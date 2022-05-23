@@ -46,7 +46,7 @@ GEM
     htmlentities (4.3.4)
     http_parser.rb (0.6.0)
     i18n (0.7.0)
-    json (2.2.0)
+    json (2.6.2)
     kramdown (1.17.0)
     libv8 (3.16.14.19)
     listen (3.0.8)
