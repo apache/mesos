@@ -12,7 +12,6 @@ tags: MesosCon
 The countdown until [#MesosCon](http://events.linuxfoundation.org/events/mesoscon) has begun:
 
 <blockquote class="twitter-tweet" lang="en"><p lang="en" dir="ltr">Only 7 weeks until <a href="https://twitter.com/hashtag/MesosCon?src=hash">#MesosCon</a>! Register today and join us in Seattle <a href="http://t.co/bVJ9dL5CEO">http://t.co/bVJ9dL5CEO</a></p>&mdash; #MesosCon (@mesoscon) <a href="https://twitter.com/mesoscon/status/616320613922275332">July 1, 2015</a></blockquote>
-<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 MesosCon is an annual conference organized by the Apache Mesos community, bringing together users and developers to share and learn about the project and its growing ecosystem. [Register now](http://events.linuxfoundation.org/events/mesoscon/attend/register) and join us in Seattle this August!
 
