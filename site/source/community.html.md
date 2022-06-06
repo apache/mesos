@@ -44,16 +44,15 @@ layout: community_section
     <p>Thank you <a href="https://www.criteo.com">Criteo</a> for sponsoring Slack standard plan.</p>
 
 
-    <h3 name="ircchannel">IRC </h3>
-    <p> If you want to connect to our slack team through an IRC client please click <a href="https://my.slack.com/gateways">here</a> after signing up.</p>
+    <h3 name="ircchannel">IRC</h3>
+    <p>If you want to connect to our slack team through an IRC client please click <a href="https://my.slack.com/gateways">here</a> after signing up.</p>
 
     <p>The slack channel is currently also mirrored at #mesos channel on irc.freenode.net.</p>
 
     <p>If you are new to IRC, you can use a <a href="http://webchat.freenode.net/?channels=#mesos">web-based client</a>.</p>
 
     <h3 name="twitter">Follow us on Twitter</h3>
-    <a class="twitter-timeline" href="https://twitter.com/ApacheMesos" data-widget-id="426586952293289985">Tweets by @ApacheMesos</a>
-    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <p><a href="https://twitter.com/ApacheMesos">@ApacheMesos</a></p>
 
   </div>
   <div class="col-md-12">
