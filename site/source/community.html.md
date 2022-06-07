@@ -47,7 +47,7 @@ layout: community_section
     <h3 name="ircchannel">IRC</h3>
     <p>If you want to connect to our slack team through an IRC client please click <a href="https://my.slack.com/gateways">here</a> after signing up.</p>
 
-    <p>The slack channel is currently also mirrored at #mesos channel on irc.freenode.net.</p>
+    <p>The slack channel is currently also mirrored at #mesos channel on irc.freenode.net and at <a href="https://matrix.to/#/#mesos:matrix.aventer.biz">matrix</a>.</p>
 
     <p>If you are new to IRC, you can use a <a href="http://webchat.freenode.net/?channels=#mesos">web-based client</a>.</p>
 
