@@ -491,6 +491,10 @@ if (LINUX)
     "Use jemalloc as memory allocator for the master and agent binaries."
     FALSE)
 
+  if (ENABLE_JEMALLOC_ALLOCATOR)
+    add_definitions(-DENABLE_JEMALLOC_ALLOCATOR)
+  endif ()
+
   option(ENABLE_XFS_DISK_ISOLATOR
     "Whether to enable the XFS disk isolator."
     FALSE)
