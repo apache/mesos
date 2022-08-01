@@ -1306,6 +1306,8 @@ correct if you're already doing this.
   else
     with_bundled_jemalloc=yes
   fi
+
+  AC_DEFINE([ENABLE_JEMALLOC_ALLOCATOR])
 fi
 
 AC_SUBST(WITH_JEMALLOC)
