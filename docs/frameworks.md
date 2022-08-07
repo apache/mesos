@@ -11,12 +11,15 @@ layout: documentation
 ## Long Running Services
 
 * [Aurora](http://aurora.apache.org) is a service scheduler that runs on top of Mesos, enabling you to run long-running services that take advantage of Mesos' scalability, fault-tolerance, and resource isolation.
+* [Compose](https://github.com/AVENTER-UG/mesos-compose) is a scheduler (HTTP API) for long running Mesos tasks. The syntax is compatible to docker-compose.
+* [M3s](https://github.com/AVENTER-UG/mesos-m3s) is a scheduler (HTTP API) to run multiple K3s (Kubernetes) cluster on top of Mesos.
 * [Marathon](https://github.com/mesosphere/marathon) is a private PaaS built on Mesos. It automatically handles hardware or software failures and ensures that an app is "always on".
 * [Singularity](https://github.com/HubSpot/Singularity) is a scheduler (HTTP API and web interface) for running Mesos tasks: long running processes, one-off tasks, and scheduled jobs.
 * [SSSP](https://github.com/mesosphere/sssp) is a simple web application that provides a white-label "Megaupload" for storing and sharing files in S3.
 
 ## Big Data Processing
 
+* [Apache Airflow provider](https://github.com/AVENTER-UG/airflow-provider-mesos) is a scheduler to scale out Apache Airflow DAG's on Mesos.
 * [Cray Chapel](https://github.com/nqn/mesos-chapel) is a productive parallel programming language. The Chapel Mesos scheduler lets you run Chapel programs on Mesos.
 * [Dpark](https://github.com/douban/dpark) is a Python clone of Spark, a MapReduce-like framework written in Python, running on Mesos.
 * [Exelixi](https://github.com/mesosphere/exelixi) is a distributed framework for running genetic algorithms at scale.
@@ -49,3 +52,8 @@ layout: documentation
 ## Machine Learning
 
 * [TFMesos](https://github.com/douban/tfmesos) is a lightweight framework to help running distributed [Tensorflow](https://www.tensorflow.org/) Machine Learning tasks on Apache Mesos with GPU support.
+
+## Load Balancing
+
+* [Traefik Mesos provider](https://github.com/AVENTER-UG/traefik-mesos) is a modern HTTP reverse proxy and load balancer with build-in TCP and UDP support.
+
