@@ -27,6 +27,7 @@ extern "C" {
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 
+#include "common/kernel_version.hpp"
 #include "linux/cgroups.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.hpp"
@@ -107,230 +108,241 @@ Future<ResourceStatistics> BlkioSubsystemProcess::usage(
   CgroupInfo::Blkio::CFQ::Statistics totalCfqRecursive;
   CgroupInfo::Blkio::Throttling::Statistics totalThrottling;
 
-  // Get CFQ statistics.
-  Try<vector<cgroups::blkio::Value>> time = cfq::time(hierarchy, cgroup);
-  if (time.isError()) {
-    return Failure(time.error());
+  // Get CFQ statistics, if available - CFQ was removed from kernel 5.0, see
+  // https://github.com/torvalds/linux/commit/f382fb0bcef4c37dc049e9f6963e3baf204d815c
+
+  Try<Version> version = mesos::kernelVersion();
+  if (version.isError()) {
+    return Failure("Could not determine kernel version");
   }
 
-  foreach (const cgroups::blkio::Value& value, time.get()) {
-    if (value.device.isNone()) {
-      totalCfq.set_time(value.value);
-    } else {
-      cfq[value.device.get()].set_time(value.value);
+  if (version.get() < Version(5, 0, 0)) {
+    Try<vector<cgroups::blkio::Value>> time = cfq::time(hierarchy, cgroup);
+    if (time.isError()) {
+      return Failure(time.error());
     }
-  }
 
-  Try<vector<cgroups::blkio::Value>> sectors = cfq::sectors(hierarchy, cgroup);
-  if (sectors.isError()) {
-    return Failure(sectors.error());
-  }
-
-  foreach (const cgroups::blkio::Value& value, sectors.get()) {
-    if (value.device.isNone()) {
-      totalCfq.set_sectors(value.value);
-    } else {
-      cfq[value.device.get()].set_sectors(value.value);
+    foreach (const cgroups::blkio::Value& value, time.get()) {
+      if (value.device.isNone()) {
+        totalCfq.set_time(value.value);
+      } else {
+        cfq[value.device.get()].set_time(value.value);
+      }
     }
-  }
 
-  Try<vector<cgroups::blkio::Value>> io_service_bytes =
-    cfq::io_service_bytes(hierarchy, cgroup);
-
-  if (io_service_bytes.isError()) {
-    return Failure(io_service_bytes.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_service_bytes.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_service_bytes()
-      : totalCfq.add_io_service_bytes();
-
-    setValue(statValue, value);
-  }
-
-  Try<vector<cgroups::blkio::Value>> io_serviced =
-    cfq::io_serviced(hierarchy, cgroup);
-
-  if (io_serviced.isError()) {
-    return Failure(io_serviced.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_serviced.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_serviced()
-      : totalCfq.add_io_serviced();
-
-    setValue(statValue, value);
-  }
-
-  Try<vector<cgroups::blkio::Value>> io_service_time =
-    cfq::io_service_time(hierarchy, cgroup);
-
-  if (io_service_time.isError()) {
-    return Failure(io_service_time.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_service_time.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_service_time()
-      : totalCfq.add_io_service_time();
-
-    setValue(statValue, value);
-  }
-
-  Try<vector<cgroups::blkio::Value>> io_wait_time =
-    cfq::io_wait_time(hierarchy, cgroup);
-
-  if (io_wait_time.isError()) {
-    return Failure(io_wait_time.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_wait_time.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_wait_time()
-      : totalCfq.add_io_wait_time();
-
-    setValue(statValue, value);
-  }
-
-  Try<vector<cgroups::blkio::Value>> io_merged =
-    cfq::io_merged(hierarchy, cgroup);
-
-  if (io_merged.isError()) {
-    return Failure(io_merged.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_merged.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_merged()
-      : totalCfq.add_io_merged();
-
-    setValue(statValue, value);
-  }
-
-  Try<vector<cgroups::blkio::Value>> io_queued =
-    cfq::io_queued(hierarchy, cgroup);
-
-  if (io_queued.isError()) {
-    return Failure(io_queued.error());
-  }
-
-  foreach (const cgroups::blkio::Value& statValue, io_queued.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfq[statValue.device.get()].add_io_queued()
-      : totalCfq.add_io_queued();
-
-    setValue(statValue, value);
-  }
-
-  // Get CFQ recursive statistics (blkio.*_recursive).
-  time = cfq::time_recursive(hierarchy, cgroup);
-  if (time.isError()) {
-    return Failure(time.error());
-  }
-
-  foreach (const cgroups::blkio::Value& value, time.get()) {
-    if (value.device.isNone()) {
-      totalCfqRecursive.set_time(value.value);
-    } else {
-      cfqRecursive[value.device.get()].set_time(value.value);
+    Try<vector<cgroups::blkio::Value>> sectors =
+      cfq::sectors(hierarchy, cgroup);
+    if (sectors.isError()) {
+      return Failure(sectors.error());
     }
-  }
 
-  sectors = cfq::sectors_recursive(hierarchy, cgroup);
-  if (sectors.isError()) {
-    return Failure(sectors.error());
-  }
-
-  foreach (const cgroups::blkio::Value& value, sectors.get()) {
-    if (value.device.isNone()) {
-      totalCfqRecursive.set_sectors(value.value);
-    } else {
-      cfqRecursive[value.device.get()].set_sectors(value.value);
+    foreach (const cgroups::blkio::Value& value, sectors.get()) {
+      if (value.device.isNone()) {
+        totalCfq.set_sectors(value.value);
+      } else {
+        cfq[value.device.get()].set_sectors(value.value);
+      }
     }
-  }
 
-  io_service_bytes = cfq::io_service_bytes_recursive(hierarchy, cgroup);
-  if (io_service_bytes.isError()) {
-    return Failure(io_service_bytes.error());
-  }
+    Try<vector<cgroups::blkio::Value>> io_service_bytes =
+      cfq::io_service_bytes(hierarchy, cgroup);
 
-  foreach (const cgroups::blkio::Value& statValue, io_service_bytes.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_service_bytes()
-      : totalCfqRecursive.add_io_service_bytes();
+    if (io_service_bytes.isError()) {
+      return Failure(io_service_bytes.error());
+    }
 
-    setValue(statValue, value);
-  }
+    foreach (const cgroups::blkio::Value& statValue, io_service_bytes.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_service_bytes()
+        : totalCfq.add_io_service_bytes();
 
-  io_serviced = cfq::io_serviced_recursive(hierarchy, cgroup);
-  if (io_serviced.isError()) {
-    return Failure(io_serviced.error());
-  }
+      setValue(statValue, value);
+    }
 
-  foreach (const cgroups::blkio::Value& statValue, io_serviced.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_serviced()
-      : totalCfqRecursive.add_io_serviced();
+    Try<vector<cgroups::blkio::Value>> io_serviced =
+      cfq::io_serviced(hierarchy, cgroup);
 
-    setValue(statValue, value);
-  }
+    if (io_serviced.isError()) {
+      return Failure(io_serviced.error());
+    }
 
-  io_service_time = cfq::io_service_time_recursive(hierarchy, cgroup);
-  if (io_service_time.isError()) {
-    return Failure(io_service_time.error());
-  }
+    foreach (const cgroups::blkio::Value& statValue, io_serviced.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_serviced()
+        : totalCfq.add_io_serviced();
 
-  foreach (const cgroups::blkio::Value& statValue, io_service_time.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_service_time()
-      : totalCfqRecursive.add_io_service_time();
+      setValue(statValue, value);
+    }
 
-    setValue(statValue, value);
-  }
+    Try<vector<cgroups::blkio::Value>> io_service_time =
+      cfq::io_service_time(hierarchy, cgroup);
 
-  io_wait_time = cfq::io_wait_time_recursive(hierarchy, cgroup);
-  if (io_wait_time.isError()) {
-    return Failure(io_wait_time.error());
-  }
+    if (io_service_time.isError()) {
+      return Failure(io_service_time.error());
+    }
 
-  foreach (const cgroups::blkio::Value& statValue, io_wait_time.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_wait_time()
-      : totalCfqRecursive.add_io_wait_time();
+    foreach (const cgroups::blkio::Value& statValue, io_service_time.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_service_time()
+        : totalCfq.add_io_service_time();
 
-    setValue(statValue, value);
-  }
+      setValue(statValue, value);
+    }
 
-  io_merged = cfq::io_merged_recursive(hierarchy, cgroup);
-  if (io_merged.isError()) {
-    return Failure(io_merged.error());
-  }
+    Try<vector<cgroups::blkio::Value>> io_wait_time =
+      cfq::io_wait_time(hierarchy, cgroup);
 
-  foreach (const cgroups::blkio::Value& statValue, io_merged.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_merged()
-      : totalCfqRecursive.add_io_merged();
+    if (io_wait_time.isError()) {
+      return Failure(io_wait_time.error());
+    }
 
-    setValue(statValue, value);
-  }
+    foreach (const cgroups::blkio::Value& statValue, io_wait_time.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_wait_time()
+        : totalCfq.add_io_wait_time();
 
-  io_queued = cfq::io_queued_recursive(hierarchy, cgroup);
-  if (io_queued.isError()) {
-    return Failure(io_queued.error());
-  }
+      setValue(statValue, value);
+    }
 
-  foreach (const cgroups::blkio::Value& statValue, io_queued.get()) {
-    CgroupInfo::Blkio::Value* value = statValue.device.isSome()
-      ? cfqRecursive[statValue.device.get()].add_io_queued()
-      : totalCfqRecursive.add_io_queued();
+    Try<vector<cgroups::blkio::Value>> io_merged =
+      cfq::io_merged(hierarchy, cgroup);
 
-    setValue(statValue, value);
+    if (io_merged.isError()) {
+      return Failure(io_merged.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_merged.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_merged()
+        : totalCfq.add_io_merged();
+
+      setValue(statValue, value);
+    }
+
+    Try<vector<cgroups::blkio::Value>> io_queued =
+      cfq::io_queued(hierarchy, cgroup);
+
+    if (io_queued.isError()) {
+      return Failure(io_queued.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_queued.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfq[statValue.device.get()].add_io_queued()
+        : totalCfq.add_io_queued();
+
+      setValue(statValue, value);
+    }
+
+    // Get CFQ recursive statistics (blkio.*_recursive).
+    time = cfq::time_recursive(hierarchy, cgroup);
+    if (time.isError()) {
+      return Failure(time.error());
+    }
+
+    foreach (const cgroups::blkio::Value& value, time.get()) {
+      if (value.device.isNone()) {
+        totalCfqRecursive.set_time(value.value);
+      } else {
+        cfqRecursive[value.device.get()].set_time(value.value);
+      }
+    }
+
+    sectors = cfq::sectors_recursive(hierarchy, cgroup);
+    if (sectors.isError()) {
+      return Failure(sectors.error());
+    }
+
+    foreach (const cgroups::blkio::Value& value, sectors.get()) {
+      if (value.device.isNone()) {
+        totalCfqRecursive.set_sectors(value.value);
+      } else {
+        cfqRecursive[value.device.get()].set_sectors(value.value);
+      }
+    }
+
+    io_service_bytes = cfq::io_service_bytes_recursive(hierarchy, cgroup);
+    if (io_service_bytes.isError()) {
+      return Failure(io_service_bytes.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_service_bytes.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_service_bytes()
+        : totalCfqRecursive.add_io_service_bytes();
+
+      setValue(statValue, value);
+    }
+
+    io_serviced = cfq::io_serviced_recursive(hierarchy, cgroup);
+    if (io_serviced.isError()) {
+      return Failure(io_serviced.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_serviced.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_serviced()
+        : totalCfqRecursive.add_io_serviced();
+
+      setValue(statValue, value);
+    }
+
+    io_service_time = cfq::io_service_time_recursive(hierarchy, cgroup);
+    if (io_service_time.isError()) {
+      return Failure(io_service_time.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_service_time.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_service_time()
+        : totalCfqRecursive.add_io_service_time();
+
+      setValue(statValue, value);
+    }
+
+    io_wait_time = cfq::io_wait_time_recursive(hierarchy, cgroup);
+    if (io_wait_time.isError()) {
+      return Failure(io_wait_time.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_wait_time.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_wait_time()
+        : totalCfqRecursive.add_io_wait_time();
+
+      setValue(statValue, value);
+    }
+
+    io_merged = cfq::io_merged_recursive(hierarchy, cgroup);
+    if (io_merged.isError()) {
+      return Failure(io_merged.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_merged.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_merged()
+        : totalCfqRecursive.add_io_merged();
+
+      setValue(statValue, value);
+    }
+
+    io_queued = cfq::io_queued_recursive(hierarchy, cgroup);
+    if (io_queued.isError()) {
+      return Failure(io_queued.error());
+    }
+
+    foreach (const cgroups::blkio::Value& statValue, io_queued.get()) {
+      CgroupInfo::Blkio::Value* value = statValue.device.isSome()
+        ? cfqRecursive[statValue.device.get()].add_io_queued()
+        : totalCfqRecursive.add_io_queued();
+
+      setValue(statValue, value);
+    }
   }
 
   // Get throttling statistics.
-  io_serviced = throttle::io_serviced(hierarchy, cgroup);
+  Try<vector<cgroups::blkio::Value>> io_serviced =
+    throttle::io_serviced(hierarchy, cgroup);
   if (io_serviced.isError()) {
     return Failure(io_serviced.error());
   }
@@ -343,7 +355,8 @@ Future<ResourceStatistics> BlkioSubsystemProcess::usage(
     setValue(statValue, value);
   }
 
-  io_service_bytes = throttle::io_service_bytes(hierarchy, cgroup);
+  Try<vector<cgroups::blkio::Value>> io_service_bytes =
+    throttle::io_service_bytes(hierarchy, cgroup);
   if (io_service_bytes.isError()) {
     return Failure(io_service_bytes.error());
   }
