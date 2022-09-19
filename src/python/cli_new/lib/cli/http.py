@@ -30,7 +30,7 @@ from cli.exceptions import CLIException
 # the option to disable SSL verification.
 urllib3.disable_warnings()
 
-def read_endpoint(addr, endpoint, config, query=None):
+def read_endpoint(addr, endpoint, config, query=None, method="GET"):
     """
     Read the specified endpoint and return the results.
     """
@@ -52,7 +52,7 @@ def read_endpoint(addr, endpoint, config, query=None):
             headers = None
         http = urllib3.PoolManager()
         http_response = http.request(
-            'GET',
+            method,
             url,
             headers=headers,
             timeout=config.agent_timeout()
