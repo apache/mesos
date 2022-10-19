@@ -53,6 +53,7 @@ Try<Nothing> initialize();
 // NVML wrapper functions. May be called after initializing
 // the library.
 Try<std::string> systemGetDriverVersion();
+Try<unsigned int> systemGetCapsMajor();
 Try<unsigned int> deviceGetCount();
 Try<nvmlDevice_t> deviceGetHandleByIndex(unsigned int index);
 Try<unsigned int> deviceGetMinorNumber(nvmlDevice_t handle);

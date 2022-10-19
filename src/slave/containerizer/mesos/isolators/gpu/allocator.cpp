@@ -95,6 +95,11 @@ static Try<set<Gpu>> enumerateGpus(
     }
   }
 
+  Try<unsigned int> caps_major = nvml::systemGetCapsMajor();
+  if (caps_major.isError()) {
+    return Error("Failed to get nvidia caps major: " + caps_major.error());
+  }
+
   set<Gpu> gpus;
 
   foreach (unsigned int index, indices) {
@@ -148,6 +153,7 @@ static Try<set<Gpu>> enumerateGpus(
       gpu.major = NVIDIA_MAJOR_DEVICE;
       gpu.minor = minor.get();
       gpu.ismig = true;
+      gpu.caps_major = caps_major.get();
       gpu.gi_minor = gi_minor.get();
       gpu.ci_minor = ci_minor.get();
 

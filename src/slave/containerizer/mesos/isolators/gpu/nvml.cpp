@@ -237,6 +237,30 @@ bool isAvailable()
 }
 
 
+Try<unsigned int> systemGetCapsMajor()
+{
+  std::ifstream procfile("/proc/devices");
+
+  while (procfile) {
+    string procline;
+    std::getline(procfile, procline);
+
+    if (procline.find(" nvidia-caps") != std::string::npos) {
+      unsigned int major;
+
+      try {
+	major = std::stoi(procline);
+      } catch (...) {
+	return Error("Could not parse nvidia-caps major from /proc/devices");
+      }
+
+      return major;
+    }
+  }
+  return Error("nvidia-caps not found in /proc/devices");
+}
+
+
 Try<string> systemGetDriverVersion()
 {
   if (nvml == nullptr) {

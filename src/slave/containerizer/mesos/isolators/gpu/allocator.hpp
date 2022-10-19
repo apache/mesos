@@ -47,6 +47,7 @@ struct Gpu
 
   // MIG support
   bool ismig;
+  unsigned int caps_major;
   unsigned int gi_minor;
   unsigned int ci_minor;
 };
