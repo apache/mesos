@@ -41,8 +41,14 @@ namespace slave {
 // abstraction in terms of it.
 struct Gpu
 {
+  // GPU device
   unsigned int major;
   unsigned int minor;
+
+  // MIG support
+  bool ismig;
+  unsigned int gi_minor;
+  unsigned int ci_minor;
 };
 
 

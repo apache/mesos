@@ -85,7 +85,12 @@ static Try<set<Gpu>> enumerateGpus(
   if (flags.nvidia_gpu_devices.isSome()) {
     indices = flags.nvidia_gpu_devices.get();
   } else {
-    for (size_t i = 0; i < resources.gpus().getOrElse(0); ++i) {
+    Try<unsigned int> available = nvml::deviceGetCount();
+    if (available.isError()) {
+      return Error("Failed to nvml::deviceGetCount: " + available.error());
+    }
+
+    for (unsigned int i = 0; i < available.get(); ++i) {
       indices.push_back(i);
     }
   }
@@ -103,14 +108,87 @@ static Try<set<Gpu>> enumerateGpus(
       return Error("Failed to nvml::deviceGetMinorNumber: " + minor.error());
     }
 
-    Gpu gpu;
-    gpu.major = NVIDIA_MAJOR_DEVICE;
-    gpu.minor = minor.get();
+    Try<bool> ismig = nvml::deviceGetMigMode(handle.get());
+    if (ismig.isError()) {
+      return Error("Failed to nvml::deviceGetMigMode: " + ismig.error());
+    }
 
-    gpus.insert(gpu);
+    if (!ismig.get()) {
+      Gpu gpu;
+      gpu.major = NVIDIA_MAJOR_DEVICE;
+      gpu.minor = minor.get();
+
+      gpus.insert(gpu);
+
+      continue;
+    }
+
+    Try<unsigned int> migcount = nvml::deviceGetMigDeviceCount(handle.get());
+    if (migcount.isError()) {
+      return Error("Failed to nvml::deviceGetMigDeviceCount: " + migcount.error());
+    }
+
+    for (unsigned int migindex = 0; migindex < migcount.get(); migindex++) {
+      Try<nvmlDevice_t> mighandle = nvml::deviceGetMigDeviceHandleByIndex(handle.get(), migindex);
+      if (mighandle.isError()) {
+	return Error("Failed to nvml::deviceGetMigDeviceHandleByIndex: " + mighandle.error());
+      }
+
+      Try<unsigned int> gi_minor = nvml::deviceGetGpuInstanceMinor(mighandle.get());
+      if (gi_minor.isError()) {
+	return Error("Failed to nvml::deviceGetGpuInstanceMinor: " + gi_minor.error());
+      }
+
+      Try<unsigned int> ci_minor = nvml::deviceGetComputeInstanceMinor(mighandle.get());
+      if (ci_minor.isError()) {
+	return Error("Failed to nvml::deviceGetComputeInstanceMinor: " + ci_minor.error());
+      }
+
+      Gpu gpu;
+      gpu.major = NVIDIA_MAJOR_DEVICE;
+      gpu.minor = minor.get();
+      gpu.ismig = true;
+      gpu.gi_minor = gi_minor.get();
+      gpu.ci_minor = ci_minor.get();
+
+      gpus.insert(gpu);
+    }
   }
 
   return gpus;
+}
+
+
+static Try<unsigned int> countGpuInstancesForDevices(
+    const vector<unsigned int>& devices)
+{
+  unsigned int count = 0;
+
+  foreach (unsigned int device, devices) {
+    Try<nvmlDevice_t> handle = nvml::deviceGetHandleByIndex(device);
+    if (handle.isError()) {
+      return Error("Failed to nvml::deviceGetHandleByIndex: " + handle.error());
+    }
+
+    Try<bool> ismig = nvml::deviceGetMigMode(handle.get());
+    if (ismig.isError()) {
+      return Error("Failed to nvml::deviceGetMigMode: " + ismig.error());
+    }
+
+    if (!ismig.get()) {
+      count++;
+      continue;
+    }
+
+    Try<unsigned int> migcount = nvml::deviceGetMigDeviceCount(handle.get());
+    if (migcount.isError()) {
+      return Error("Failed to nvml::deviceGetMigDeviceCount: " + migcount.error());
+    }
+
+    count += migcount.get();
+  }
+
+  return count;
 }
 
 
@@ -174,11 +252,6 @@ static Try<Resources> enumerateGpuResources(const Flags& flags)
     return Error("Failed to nvml::initialize: " + initialized.error());
   }
 
-  Try<unsigned int> available = nvml::deviceGetCount();
-  if (available.isError()) {
-    return Error("Failed to nvml::deviceGetCount: " + available.error());
-  }
-
   // The `Resources` wrapper does not allow us to distinguish between
   // a user specifying "gpus:0" in the --resources flag and not
   // specifying "gpus" at all. To help with this we short circuit
@@ -225,9 +298,11 @@ static Try<Resources> enumerateGpuResources(const Flags& flags)
       return Error("'--nvidia_gpu_devices' contains duplicates");
     }
 
-    if (flags.nvidia_gpu_devices->size() != resources.gpus().get()) {
-      return Error("'--resources' and '--nvidia_gpu_devices' specify"
-                   " different numbers of GPU devices");
+    Try<unsigned int> available = countGpuInstancesForDevices(unique);
+    if (available.isError()) {
+      return Error("Failed to count all GPU instances for devices"
+		   " specified by --nvidia_gpu_devices: "
+		   + available.error());
     }
 
     if (resources.gpus().get() > available.get()) {
@@ -236,6 +311,22 @@ static Try<Resources> enumerateGpuResources(const Flags& flags)
     }
 
     return resources;
+  }
+
+  Try<unsigned int> available = nvml::deviceGetCount();
+  if (available.isError()) {
+    return Error("Failed to nvml::deviceGetCount: " + available.error());
+  }
+
+  vector<unsigned int> indices;
+  for (unsigned int i = 0; i < available.get(); ++i) {
+    indices.push_back(i);
+  }
+
+  available = countGpuInstancesForDevices(indices);
+  if (available.isError()) {
+    return Error("Failed to count all GPU instances: "
+		 + available.error());
   }
 
   return Resources::parse(
@@ -378,7 +469,15 @@ Future<Nothing> NvidiaGpuAllocator::deallocate(const set<Gpu>& gpus)
 bool operator<(const Gpu& left, const Gpu& right)
 {
   if (left.major == right.major) {
-    return left.minor < right.minor;
+    // Either or both aren't MIG, comparing major/minor is enough
+    if (!left.ismig || !right.ismig || (left.minor != right.minor)) {
+      return left.minor < right.minor;
+    }
+
+    if (left.gi_minor == right.gi_minor) {
+      return left.ci_minor < right.ci_minor;
+    }
+    return left.gi_minor < right.gi_minor;
   }
   return left.major < right.major;
 }
@@ -404,7 +503,14 @@ bool operator>=(const Gpu& left, const Gpu& right)
 
 bool operator==(const Gpu& left, const Gpu& right)
 {
-  return left.major == right.major && left.minor == right.minor;
+  if (left.ismig != right.ismig)
+    return false;
+
+  if (!left.ismig)
+    return left.major == right.major && left.minor == right.minor;
+
+  return left.major == right.major && left.minor == right.minor
+    && left.gi_minor == right.gi_minor && left.ci_minor == right.ci_minor;
 }
 
 
@@ -416,7 +522,10 @@ bool operator!=(const Gpu& left, const Gpu& right)
 
 ostream& operator<<(ostream& stream, const Gpu& gpu)
 {
-  return stream << gpu.major << '.' << gpu.minor;
+  if (gpu.ismig)
+    return stream << gpu.major << '.' << gpu.minor << ':' << gpu.gi_minor << '.' << gpu.ci_minor;
+  else
+    return stream << gpu.major << '.' << gpu.minor;
 }
 
 } // namespace slave {
