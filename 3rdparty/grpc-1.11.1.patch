@@ -1,0 +1,118 @@
+diff --git a/Makefile b/Makefile
+index fc4924fc7d..ed9b845581 100644
+--- a/Makefile
++++ b/Makefile
+@@ -16592,8 +16592,6 @@ $(OBJDIR)/$(CONFIG)/src/proto/grpc/testing/stats.o:  $(LIBDIR)/$(CONFIG)/libgrpc
+ 
+ $(OBJDIR)/$(CONFIG)/test/cpp/codegen/codegen_test_minimal.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
+ 
+-$(OBJDIR)/$(CONFIG)/src/cpp/codegen/codegen_init.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
+-
+ deps_codegen_test_minimal: $(CODEGEN_TEST_MINIMAL_OBJS:.o=.dep)
+ 
+ ifneq ($(NO_SECURE),true)
+diff --git a/cmake/ssl.cmake b/cmake/ssl.cmake
+index 83f642a675..007ce99796 100644
+--- a/cmake/ssl.cmake
++++ b/cmake/ssl.cmake
+@@ -36,7 +36,11 @@ elseif("${gRPC_SSL_PROVIDER}" STREQUAL "package")
+   # project itself does not provide installation support in its CMakeLists.txt
+   # See https://cmake.org/cmake/help/v3.6/module/FindOpenSSL.html
+   find_package(OpenSSL REQUIRED)
+-  
++
++  if (OPENSSL_VERSION VERSION_LESS "1.0.2")
++    add_definitions(-DTSI_OPENSSL_ALPN_SUPPORT=0)
++  endif()
++
+   if(TARGET OpenSSL::SSL)
+     set(_gRPC_SSL_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+   else()
+diff --git a/include/grpc/impl/codegen/port_platform.h b/include/grpc/impl/codegen/port_platform.h
+index 819d17ce2a..77b587dac3 100644
+--- a/include/grpc/impl/codegen/port_platform.h
++++ b/include/grpc/impl/codegen/port_platform.h
+@@ -39,6 +39,8 @@
+ #define NOMINMAX
+ #endif /* NOMINMAX */
+ 
++#include <windows.h>
++
+ #ifndef _WIN32_WINNT
+ #error \
+     "Please compile grpc with _WIN32_WINNT of at least 0x600 (aka Windows Vista)"
+@@ -49,8 +51,6 @@
+ #endif /* _WIN32_WINNT < 0x0600 */
+ #endif /* defined(_WIN32_WINNT) */
+ 
+-#include <windows.h>
+-
+ #ifdef GRPC_WIN32_LEAN_AND_MEAN_WAS_NOT_DEFINED
+ #undef GRPC_WIN32_LEAN_AND_MEAN_WAS_NOT_DEFINED
+ #undef WIN32_LEAN_AND_MEAN
+diff --git a/src/core/lib/gpr/log_linux.cc b/src/core/lib/gpr/log_linux.cc
+index e4417d9d5d..117502da48 100644
+--- a/src/core/lib/gpr/log_linux.cc
++++ b/src/core/lib/gpr/log_linux.cc
+@@ -40,7 +40,7 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
+-static long gettid(void) { return syscall(__NR_gettid); }
++static long sys_gettid(void) { return syscall(__NR_gettid); }
+ 
+ void gpr_log(const char* file, int line, gpr_log_severity severity,
+              const char* format, ...) {
+@@ -66,7 +66,7 @@ void gpr_default_log(gpr_log_func_args* args) {
+   gpr_timespec now = gpr_now(GPR_CLOCK_REALTIME);
+   struct tm tm;
+   static __thread long tid = 0;
+-  if (tid == 0) tid = gettid();
++  if (tid == 0) tid = sys_gettid();
+ 
+   timer = static_cast<time_t>(now.tv_sec);
+   final_slash = strrchr(args->file, '/');
+diff --git a/src/core/lib/gpr/log_posix.cc b/src/core/lib/gpr/log_posix.cc
+index 6f93cdefcd..39d943964f 100644
+--- a/src/core/lib/gpr/log_posix.cc
++++ b/src/core/lib/gpr/log_posix.cc
+@@ -30,7 +30,7 @@
+ #include <string.h>
+ #include <time.h>
+ 
+-static intptr_t gettid(void) { return (intptr_t)pthread_self(); }
++static intptr_t sys_gettid(void) { return (intptr_t)pthread_self(); }
+ 
+ void gpr_log(const char* file, int line, gpr_log_severity severity,
+              const char* format, ...) {
+@@ -81,7 +81,7 @@ void gpr_default_log(gpr_log_func_args* args) {
+   char* prefix;
+   gpr_asprintf(&prefix, "%s%s.%09d %7tu %s:%d]",
+                gpr_log_severity_string(args->severity), time_buffer,
+-               (int)(now.tv_nsec), gettid(), display_file, args->line);
++               (int)(now.tv_nsec), sys_gettid(), display_file, args->line);
+ 
+   fprintf(stderr, "%-70s %s\n", prefix, args->message);
+   gpr_free(prefix);
+diff --git a/src/core/lib/iomgr/ev_epollex_linux.cc b/src/core/lib/iomgr/ev_epollex_linux.cc
+index 0ef7c03056..5d0fbbacd7 100644
+--- a/src/core/lib/iomgr/ev_epollex_linux.cc
++++ b/src/core/lib/iomgr/ev_epollex_linux.cc
+@@ -967,7 +967,7 @@ static void end_worker(grpc_pollset* pollset, grpc_pollset_worker* worker,
+ }
+ 
+ #ifndef NDEBUG
+-static long gettid(void) { return syscall(__NR_gettid); }
++static long sys_gettid(void) { return syscall(__NR_gettid); }
+ #endif
+ 
+ /* pollset->mu lock must be held by the caller before calling this.
+@@ -987,7 +987,7 @@ static grpc_error* pollset_work(grpc_pollset* pollset,
+ #define WORKER_PTR (&worker)
+ #endif
+ #ifndef NDEBUG
+-  WORKER_PTR->originator = gettid();
++  WORKER_PTR->originator = sys_gettid();
+ #endif
+   if (grpc_polling_trace.enabled()) {
+     gpr_log(GPR_DEBUG,
