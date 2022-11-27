@@ -14,7 +14,7 @@ tar zcvf grpc-<version>.tar.gz --exclude .git grpc-<version>
 
 ## Bundled Version
 
-We bundle 1.10.0 for better CMake build support.
+We bundle 1.11.1 for better CMake build support, and s390x support.
 
 ## Cherry Picks
 
@@ -29,11 +29,3 @@ We bundle 1.10.0 for better CMake build support.
 - [CMake: Automatic fallbacking on system's OpenSSL if it only has NPN.](https://github.com/chhsia0/grpc/commit/5c13ad2a3df1108184c716379818eab6fc0ba72d)
 
   Upstream PR: https://github.com/grpc/grpc/pull/17726
-
-- [Fix gettid() naming conflict.](https://github.com/grpc/grpc/commit/de6255941a5e1c2fb2d50e57f84e38c09f45023d)
-
-  Upstream PR: https://github.com/grpc/grpc/pull/20048
-
-- [Rename gettid() functions.](https://github.com/grpc/grpc/commit/57586a1ca7f17b1916aed3dea4ff8de872dbf853)
-
-  Upstream PR: https://github.com/grpc/grpc/pull/18950

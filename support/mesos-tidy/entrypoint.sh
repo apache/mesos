@@ -43,7 +43,7 @@ cmake --build 3rdparty --target boost-1.65.0
 cmake --build 3rdparty --target elfio-3.2
 cmake --build 3rdparty --target glog-0.4.0
 cmake --build 3rdparty --target googletest-1.8.0
-cmake --build 3rdparty --target grpc-1.10.0
+cmake --build 3rdparty --target grpc-1.11.1
 cmake --build 3rdparty --target http_parser-2.6.2
 
 # TODO(mpark): The `|| true` is a hack to try both `libev` and `libevent` and
