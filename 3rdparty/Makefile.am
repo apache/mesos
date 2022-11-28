@@ -143,6 +143,7 @@ EXTRA_DIST +=			\
   $(GOOGLETEST).patch		\
   $(LIBARCHIVE).patch		\
   $(PROTOBUF).patch		\
+  ${PROTOBUF}_s390x.patch       \
   bzip2-1.0.6.patch		\
   cyrus-sasl-2.1.27rc3.patch	\
   xz-5.2.3.patch
@@ -477,13 +478,17 @@ ALL_LOCAL += $(RAPIDJSON)-stamp
 endif
 
 if WITH_BUNDLED_PROTOBUF
+# Special patch needed for s390x machines
+$(PROTOBUF)_s390x-stamp:$(PROTOBUF)-stamp
+	 test ! -e $(srcdir)/protobuf-3.5.0_s390x.patch || patch -d protobuf-3.5.0 -p1 <$(srcdir)/protobuf-3.5.0_s390x.patch
+	 touch $@
 $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
 
 # NOTE: The `--with-zlib` flag works differently between Mesos and
 # Protobuf. Protobuf uses `--with-zlib` as an on/off switch for data
 # compression instead of a path specifier for ZLib, so we need to set up
 # the `CPPFLAGS` and `LDFLAGS` if `--with-zlib=DIR` is given.
-$(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
+$(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp $(PROTOBUF)_s390x-stamp
 	cd $(PROTOBUF) &&				\
 	  ./configure $(CONFIGURE_ARGS)			\
 	              CPPFLAGS="$(ZLIB_INCLUDE_FLAGS)"	\

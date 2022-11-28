@@ -1465,6 +1465,7 @@ if (WIN32)
   endif ()
 else ()
   # This is for single-configuration generators such as GNU Make.
+  PATCH_CMD(PROTOBUF_PATCH_CMD protobuf-${PROTOBUF_VERSION}_s390x.patch)
   if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(PROTOBUF_SUFFIX d)
   endif ()
