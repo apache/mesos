@@ -74,7 +74,7 @@ releases:
     version: "0.27.2"
   -
     date: 2/22/2016
-    discussion_link: "http://markmail.org/message/4fp5rz6pycw3bcri"
+    discussion_link: "https://markmail.org/message/4fp5rz6pycw3bcri"
     features:
       - "Bug fix"
     managers:
@@ -83,7 +83,7 @@ releases:
     version: "0.27.1"
   -
     date: 1/31/2016
-    discussion_link: "http://markmail.org/message/p5fvfv5rhhr7hfmf"
+    discussion_link: "https://markmail.org/message/p5fvfv5rhhr7hfmf"
     features:
       - Quota
       - "Multi-Disk support"
@@ -96,7 +96,7 @@ releases:
     version: "0.27.0"
   -
     date: 4/12/2016
-    discussion_link: "http://markmail.org/search/?q=0.26.1-rc4#query:0.26.1-rc4+page:1+mid:z7zffl4mf3wupbw7+state:results"
+    discussion_link: "https://markmail.org/search/?q=0.26.1-rc4#query:0.26.1-rc4+page:1+mid:z7zffl4mf3wupbw7+state:results"
     features:
       - "Bug fix"
     managers:
@@ -112,7 +112,7 @@ releases:
     version: "0.26.0"
   -
     date: 4/12/2016
-    discussion_link: "http://markmail.org/search/?q=0.25.1-rc4#query:0.25.1-rc4+page:1+mid:bq3gmzbmpi3x2tpg+state:results"
+    discussion_link: "https://markmail.org/search/?q=0.25.1-rc4#query:0.25.1-rc4+page:1+mid:bq3gmzbmpi3x2tpg+state:results"
     features:
       - "Bug fix"
     managers:
@@ -120,7 +120,7 @@ releases:
     version: "0.25.1"
   -
     date: 10/12/2015
-    discussion_link: "http://markmail.org/message/ilpudgplhqugvejb"
+    discussion_link: "https://markmail.org/message/ilpudgplhqugvejb"
     features:
       - "Maintenance primitives"
       - "Networking plug-ability"
@@ -134,7 +134,7 @@ releases:
     version: "0.25.0"
   -
     date: 4/12/2016
-    discussion_link: "http://markmail.org/search/?q=0.24.2-rc5#query:0.24.2-rc5+page:1+mid:5uwd3i3hqbypfnbn+state:results"
+    discussion_link: "https://markmail.org/search/?q=0.24.2-rc5#query:0.24.2-rc5+page:1+mid:5uwd3i3hqbypfnbn+state:results"
     features:
       - "Bug fix"
     managers:
@@ -142,7 +142,7 @@ releases:
     version: "0.24.2"
   -
     date: 9/4/2015
-    discussion_link: "http://markmail.org/message/nfixftbrsugfga66"
+    discussion_link: "https://markmail.org/message/nfixftbrsugfga66"
     features:
       - "HTTP Scheduler API"
     jira_issue: MESOS-2562
@@ -162,7 +162,7 @@ releases:
     version: "0.23.0"
   -
     date: 5/04/2015
-    discussion_link: "http://markmail.org/message/gvos3xal5rqxtde7"
+    discussion_link: "https://markmail.org/message/gvos3xal5rqxtde7"
     features:
       - "Bug fix"
     jira_issue: MESOS-2579
@@ -171,7 +171,7 @@ releases:
     version: "0.22.1"
   -
     date: 3/24/2015
-    discussion_link: "http://markmail.org/message/prxzfhpldfxm2bxx"
+    discussion_link: "https://markmail.org/message/prxzfhpldfxm2bxx"
     features:
       - "Disk isolation"
       - "Task Labels"
@@ -182,7 +182,7 @@ releases:
     version: "0.22.0"
   -
     date: 12/18/2014
-    discussion_link: "http://markmail.org/message/4m662gmwg6nv3rcc"
+    discussion_link: "https://markmail.org/message/4m662gmwg6nv3rcc"
     features:
       - "Bug fix"
     managers:
@@ -190,7 +190,7 @@ releases:
     version: "0.21.1"
   -
     date: 11/13/2014
-    discussion_link: "http://markmail.org/message/omvyu7uwirq6ng7o"
+    discussion_link: "https://markmail.org/message/omvyu7uwirq6ng7o"
     features:
       - "State reconciliation"
     jira_issue: MESOS-1964
@@ -200,7 +200,7 @@ releases:
     version: "0.21.0"
   -
     date: 9/18/2014
-    discussion_link: "http://markmail.org/message/q4vsi5hoyurdb4lw"
+    discussion_link: "https://markmail.org/message/q4vsi5hoyurdb4lw"
     features:
       - "Bug fix"
     managers:
@@ -209,7 +209,7 @@ releases:
     version: "0.20.1"
   -
     date: 8/18/2014
-    discussion_link: "http://markmail.org/message/b5aub2afd4uzxiar"
+    discussion_link: "https://markmail.org/message/b5aub2afd4uzxiar"
     features:
       - "Docker support"
       - "network monitoring"
