@@ -18,14 +18,14 @@ layout: community_section
           <b>Reviews</b>: <a href="mailto:reviews-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:reviews-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?reviews@mesos.apache.org">Archives</a><br />
           <b>Jenkins Builds</b>: <a href="mailto:builds-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:builds-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?builds@mesos.apache.org">Archives</a><br />
           <b>Commits</b>: <a href="mailto:commits-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:commits-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?commits@mesos.apache.org">Archives</a><br />
-          <b>Modules</b>: <a href="mailto:modules-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:modules-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/modules@mesos.apache.org/">Archives</a><br /></p>
+          <b>Modules</b>: <a href="mailto:modules-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:modules-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://www.mail-archive.com/modules@mesos.apache.org/">Archives</a><br /></p>
 
     <h3 name="meetup">Local User Groups</h3>
     <p><a href="user-groups/">Mesos User Groups</a> organize local Mesos events in different cities. Join one in your city, or learn how to start your own.</p>
 
     <h3>Contribute</h3>
     <h3 name="reportbugs">Report or track a bug</h3>
-    <p>New bugs can be reported on our <a href="http://issues.apache.org/jira/browse/MESOS">issue tracker</a>. In order to create a new issue, you'll need to signup for an account. See the guidelines <a href="/documentation/latest/reporting-an-issue/">here</a>.</p>
+    <p>New bugs can be reported on our <a href="https://issues.apache.org/jira/browse/MESOS">issue tracker</a>. In order to create a new issue, you'll need to signup for an account. See the guidelines <a href="/documentation/latest/reporting-an-issue/">here</a>.</p>
 
     <h3 name="contribute">Contribute a patch</h3>
     <p>Mesos relies on its community to test releases, find bugs, contribute fixes and features, and provide feedback on existing APIs. Your contributions are greatly appreciated! Since the infrastructure that the Mesos community uses day-to-day (ReviewBoard and JIRA) is unfamiliar to some, we also provide a beginner contribution guide which will help you get started using only GitHub.</p>
@@ -49,7 +49,7 @@ layout: community_section
 
     <p>The slack channel is currently also mirrored at #mesos channel on irc.freenode.net and at <a href="https://matrix.to/#/#mesos:matrix.aventer.biz">matrix</a>.</p>
 
-    <p>If you are new to IRC, you can use a <a href="http://webchat.freenode.net/?channels=#mesos">web-based client</a>.</p>
+    <p>If you are new to IRC, you can use a <a href="https://webchat.freenode.net/?channels=#mesos">web-based client</a>.</p>
 
     <h3 name="twitter">Follow us on Twitter</h3>
     <p><a href="https://twitter.com/ApacheMesos">@ApacheMesos</a></p>

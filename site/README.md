@@ -4,7 +4,7 @@ to simplify our generation and development workflows.
 
 ## Generating the site
 
-1. Compile Mesos following the [build instructions](http://mesos.apache.org/documentation/latest/building/).
+1. Compile Mesos following the [build instructions](https://mesos.apache.org/documentation/latest/building/).
 
 2. Run this script to generate the endpoint help pages.
 ```

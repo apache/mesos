@@ -10,7 +10,7 @@ breadcrumb: Downloads
     <ul>
       <% data.releases.versions.each do |item| %>
       <li>
-        <a href="http://archive.apache.org/dist/mesos/<%= item.version %>/">
+        <a href="https://archive.apache.org/dist/mesos/<%= item.version %>/">
           <%= item.version %>
         </a>
         (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=<%= item.jira_version %>">
@@ -29,7 +29,7 @@ breadcrumb: Downloads
       <ul>
         <li>
           Source
-	  <a href="http://www.apache.org/dyn/closer.cgi/mesos/<%= data.releases.latest_stable.version %>/mesos-<%= data.releases.latest_stable.version %>.tar.gz">
+	  <a href="https://www.apache.org/dyn/closer.cgi/mesos/<%= data.releases.latest_stable.version %>/mesos-<%= data.releases.latest_stable.version %>.tar.gz">
           <%= data.releases.latest_stable.version %>
           </a>
         </li>
