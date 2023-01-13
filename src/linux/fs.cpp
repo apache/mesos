@@ -424,7 +424,7 @@ Try<MountTable> MountTable::read(const string& path)
 
   FILE* file = ::setmntent(path.c_str(), "r");
   if (file == nullptr) {
-    return Error("Failed to open '" + path + "'");
+    return ErrnoError("Failed to open '" + path + "'");
   }
 
   while (true) {
