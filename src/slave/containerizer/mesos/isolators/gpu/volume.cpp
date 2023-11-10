@@ -101,6 +101,7 @@ static constexpr const char* LIBRARIES[] = {
 
   "libnvidia-ml.so",         // Management library.
   "libnvidia-cfg.so",        // GPU configuration.
+  "libnvidia-gpucomp.so",    // GPU compiler, shared by 'Compute' and 'Graphics'
 
   // -------- Compute --------
 
