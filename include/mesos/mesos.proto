@@ -1878,6 +1878,10 @@ message ResourceStatistics {
   optional uint64 net_tx_errors = 20;
   optional uint64 net_tx_dropped = 21;
 
+  optional uint64 net_tx_rate_limit = 46;
+  optional uint64 net_tx_burst_rate_limit = 47;
+  optional uint64 net_tx_burst_size = 48;
+
   // The kernel keeps track of RTT (round-trip time) for its TCP
   // sockets. RTT is a way to tell the latency of a container.
   optional double net_tcp_rtt_microsecs_p50 = 22;

@@ -1226,6 +1226,35 @@ mesos::internal::slave::Flags::Flags()
       "This flag uses the Bytes type (defined in stout) and is used by\n"
       "the `network/port_mapping` isolator.");
 
+  add(&Flags::egress_rate_per_cpu,
+      "egress_rate_per_cpu",
+      "Scale the limit of egress traffic for each container by\n"
+      "egress_rate_per_cpu Bytes/s for each whole unit of CPU resource,\n"
+      "i.e., floor(CPU), subject to the values of the\n"
+      "minimum_egress_rate_limit and maximum_egress_rate_limit flags."
+      "This flag is used by the `network/port_mapping` isolator,");
+
+  add(&Flags::minimum_egress_rate_limit,
+      "minimum_egress_rate_limit",
+      "Minimum limit of the egress traffic for each container, in Bytes/s."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::maximum_egress_rate_limit,
+      "maximum_egress_rate_limit",
+      "Maximum limit of the egress traffic for each container, in Bytes/s."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::egress_ceil_limit,
+      "egress_ceil_limit",
+      "Additional ceil rate in Bytes/s that containers can burst up to\n"
+      "'egress_burst' bytes at."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::egress_burst,
+      "egress_burst",
+      "Amount of data in Bytes that can sent at the higher ceil rate."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
   add(&Flags::egress_unique_flow_per_container,
       "egress_unique_flow_per_container",
       "Whether to assign an individual flow for each container for the\n"
