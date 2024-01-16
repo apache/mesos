@@ -1043,7 +1043,7 @@ TEST_F(CniIsolatorTest, ROOT_DynamicAddDelofCniConfig)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-
+  slaveFlags.isolation = "network/cni";
   slaveFlags.network_cni_plugins_dir = cniPluginDir;
   slaveFlags.network_cni_config_dir = cniConfigDir;
 
