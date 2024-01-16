@@ -480,6 +480,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
 
   ContainerConfig containerConfig1;
   containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig1.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
@@ -549,6 +550,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
 
   ContainerConfig containerConfig2;
   containerConfig2.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig2.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
@@ -643,6 +645,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
 
   ContainerConfig containerConfig1;
   containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig1.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
@@ -712,6 +715,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
 
   ContainerConfig containerConfig2;
   containerConfig2.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig2.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
@@ -808,6 +812,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
 
   ContainerConfig containerConfig;
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -870,22 +875,23 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   command2 << "printf hello1 | nc -w1 -u localhost " << validPort;
   ASSERT_SOME(os::shell(command2.str()));
 
-  // Send to 'localhost' and 'invalidPort'. The command should return
-  // successfully because UDP is stateless but no data could be sent.
+  // Send to 'localhost' and 'invalidPort'. Some 'nc' implementations
+  // (e.g. Ncat from Nmap) return an error when they see ECONNREFUSED
+  // on a datagram socket, so we don't check the exit code when
+  // sending to 'invalidPort'.
   ostringstream command3;
   command3 << "printf hello2 | nc -w1 -u localhost " << invalidPort;
-  ASSERT_SOME(os::shell(command3.str()));
+  os::shell(command3.str());
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
   command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << validPort;
   ASSERT_SOME(os::shell(command4.str()));
 
-  // Send to 'public IP' and 'invalidPort'. The command should return
-  // successfully because UDP is stateless but no data could be sent.
+  // Send to 'public IP' and 'invalidPort'.
   ostringstream command5;
   command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << invalidPort;
-  ASSERT_SOME(os::shell(command5.str()));
+  os::shell(command5.str());
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
@@ -926,6 +932,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
 
   ContainerConfig containerConfig;
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1229,6 +1236,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
 
   ContainerConfig containerConfig;
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1537,6 +1545,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
 
   ContainerConfig containerConfig;
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1812,6 +1821,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
 
   ContainerConfig containerConfig;
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -2116,7 +2126,8 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedContainers)
       Resources::parse("cpus:1;mem:512").get(),
       "sleep 1000");
 
-  EXPECT_CALL(sched, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
@@ -2148,14 +2159,10 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedContainers)
   slave = StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover1);
-
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-  Clock::advance(slaveFlags.executor_reregistration_timeout);
-
   AWAIT_READY(slaveReregisteredMessage1);
+
+  Clock::pause();
 
   Clock::settle(); // Make sure an allocation is scheduled.
   Clock::advance(masterFlags.allocation_interval);
@@ -2170,7 +2177,8 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedContainers)
   // Start a long running task using the network isolator.
   TaskInfo task2 = createTask(offer2, "sleep 1000");
 
-  EXPECT_CALL(sched, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
 
   Future<Nothing> _statusUpdateAcknowledgement2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
@@ -2197,16 +2205,8 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedContainers)
   slave = StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover2);
-
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-  Clock::advance(slaveFlags.executor_reregistration_timeout);
-
   AWAIT_READY(slaveReregisteredMessage2);
-
-  Clock::resume();
 
   // Ensure that both containers (with and without network isolation)
   // were recovered.
@@ -2533,7 +2533,7 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedKnownAndUnKnownOrphans)
   ASSERT_EQ(TASK_STARTING, status1->state());
 
   AWAIT_READY(status4);
-  ASSERT_EQ(TASK_RUNNING, status2->state());
+  ASSERT_EQ(TASK_RUNNING, status4->state());
 
   // Obtain the container IDs.
   Future<hashset<ContainerID>> containers = containerizer->containers();
@@ -2562,6 +2562,10 @@ TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedKnownAndUnKnownOrphans)
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Destroy the old containerizer first so that it won't remove new
+  // containerizer's metrics.
+  containerizer.reset();
 
   _containerizer = MesosContainerizer::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
