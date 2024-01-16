@@ -274,6 +274,8 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
     alive.insert(state.container_id());
   }
 
+  vector<string> unmanaged;
+
   foreach (const string& sandbox, sandboxes.get()) {
     // Skip the "latest" symlink.
     if (os::stat::islink(sandbox)) {
@@ -297,6 +299,7 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
     // first time an operator enables the XFS disk isolator and we recover a
     // set of containers that we did not isolate.
     if (projectId.isNone()) {
+      unmanaged.push_back(sandbox);
       continue;
     }
 
@@ -462,6 +465,40 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
           "Unable to schedule project ID " + stringify(projectId.get()) +
           " for reclaimation: " + scheduled.error());
     }
+  }
+
+  // Assign project IDs to sandboxes that were previously not managed by this
+  // isolator. Quotas will be set later when the containerizer will send an
+  // update call upon executor re-registration.
+  foreach (const string& sandbox, unmanaged) {
+    ContainerID containerId;
+    containerId.set_value(Path(sandbox).basename());
+    CHECK(!infos.contains(containerId));
+
+    // Ignore the container if it is not alive or if it is a known orphan. In
+    // the latter case the containerizer will send a cleanup call for it anyway.
+    if (orphans.contains(containerId) || !alive.contains(containerId)) {
+      continue;
+    }
+
+    Option<prid_t> projectId = nextProjectId();
+    if (projectId.isNone()) {
+      return Failure(
+        "Failed to assign project to sandbox : Failed to obtain"
+        + " next project ID: range exhausted");
+    }
+
+    infos.put(containerId, Owned<Info>(new Info(sandbox, projectId.get())));
+
+    Try<Nothing> status = xfs::setProjectId(sandbox, projectId.get());
+    if (status.isError()) {
+      return Failure(
+          "Failed to assign project " + stringify(projectId.get()) + ": " +
+          status.error());
+    }
+
+    LOG(INFO) << "Assigned project " << stringify(projectId.get()) << " to '"
+              << sandbox << "'";
   }
 
   return Nothing();
