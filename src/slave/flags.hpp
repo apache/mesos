@@ -203,6 +203,7 @@ public:
 #if ENABLE_XFS_DISK_ISOLATOR
   std::string xfs_project_range;
   bool xfs_kill_containers;
+  Bytes xfs_quota_headroom;
 #endif
 #if ENABLE_SECCOMP_ISOLATOR
   Option<std::string> seccomp_config_dir;
