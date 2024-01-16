@@ -153,6 +153,11 @@ public:
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
+  Option<Bytes> egress_rate_per_cpu;
+  Option<Bytes> minimum_egress_rate_limit;
+  Option<Bytes> maximum_egress_rate_limit;
+  Option<Bytes> egress_ceil_limit;
+  Option<Bytes> egress_burst;
   bool egress_unique_flow_per_container;
   std::string egress_flow_classifier_parent;
   bool network_enable_socket_statistics_summary;
