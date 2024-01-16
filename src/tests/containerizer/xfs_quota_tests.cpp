@@ -915,6 +915,94 @@ TEST_F(ROOT_XFS_QuotaTest, VolumeUsageExceedsQuotaWithKill)
 }
 
 
+// Verify that a task that tries to consume more disk space than it has requested
+// is able to do so, but eventually will be killed by the containerizer. For
+// this test we set up a custom quota headroom.
+TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaWithSoftKillViolation)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.xfs_kill_containers = true;
+  flags.container_disk_watch_interval = Seconds(2);
+  flags.xfs_quota_headroom = Megabytes(20);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  const string containerReadyFile =
+    path::join(flags.work_dir, "container_ready");
+
+  // Create a task which requests 1MB disk, but actually uses more
+  // than 12MB disk.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=12 && touch " +
+      containerReadyFile + " && sleep 1000");
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  // Prevent the isolator from signaling the limitation.
+  Clock::pause();
+  Clock::settle();
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  // Await for the synchronization file to be created.
+  ASSERT_TRUE(waitForFileCreation(containerReadyFile));
+
+  Clock::advance(flags.container_disk_watch_interval);
+  Clock::resume();
+
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(task.task_id(), killedStatus->task_id());
+  EXPECT_EQ(TASK_FAILED, killedStatus->state());
+
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, killedStatus->source());
+  EXPECT_EQ(
+      TaskStatus::REASON_CONTAINER_LIMITATION_DISK, killedStatus->reason());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This is the same logic as DiskUsageExceedsQuota except we turn off disk quota
 // enforcement, so exceeding the quota should be allowed.
 TEST_P(ROOT_XFS_QuotaEnforcement, DiskUsageExceedsQuotaNoEnforce)

@@ -220,7 +220,8 @@ Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
           quotaPolicy,
           flags.work_dir,
           totalProjectIds.get(),
-          flags.disk_watch_interval)));
+          flags.disk_watch_interval,
+          flags.xfs_quota_headroom)));
 }
 
 
@@ -229,14 +230,16 @@ XfsDiskIsolatorProcess::XfsDiskIsolatorProcess(
     xfs::QuotaPolicy _quotaPolicy,
     const std::string& _workDir,
     const IntervalSet<prid_t>& projectIds,
-    Duration _projectWatchInterval)
+    Duration _projectWatchInterval,
+    const Bytes _quotaHeadroom)
   : ProcessBase(process::ID::generate("xfs-disk-isolator")),
     watchInterval(_watchInterval),
     projectWatchInterval(_projectWatchInterval),
     quotaPolicy(_quotaPolicy),
     workDir(_workDir),
     totalProjectIds(projectIds),
-    freeProjectIds(projectIds)
+    freeProjectIds(projectIds),
+    quotaHeadroom(_quotaHeadroom)
 {
   // At the beginning, the free project range is the same as the
   // configured project range.
@@ -491,7 +494,7 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
     if (projectId.isNone()) {
       return Failure(
         "Failed to assign project to sandbox : Failed to obtain"
-        + " next project ID: range exhausted");
+        " next project ID: range exhausted");
     }
 
     infos.put(containerId, Owned<Info>(new Info(sandbox, projectId.get())));
@@ -595,6 +598,7 @@ static Try<xfs::QuotaInfo> applyProjectQuota(
     const string& path,
     prid_t projectId,
     Bytes limit,
+    Bytes headroom,
     xfs::QuotaPolicy quotaPolicy)
 {
   switch (quotaPolicy) {
@@ -618,7 +622,7 @@ static Try<xfs::QuotaInfo> applyProjectQuota(
       // has been reached without allowing the process to allocate too
       // much beyond the desired limit.
       if (quotaPolicy == xfs::QuotaPolicy::ENFORCING_ACTIVE) {
-        hardLimit += Megabytes(10);
+        hardLimit += headroom;
       }
 
       Try<Nothing> status = xfs::setProjectQuota(
@@ -658,7 +662,11 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
         pathInfo.quota = sandboxQuota.get();
 
         Try<xfs::QuotaInfo> status = applyProjectQuota(
-            directory, pathInfo.projectId, sandboxQuota.get(), quotaPolicy);
+            directory,
+            pathInfo.projectId,
+            sandboxQuota.get(),
+            quotaHeadroom,
+            quotaPolicy);
         if (status.isError()) {
           return Failure(status.error());
         }
@@ -720,8 +728,12 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
                 << directory << "'";
     }
 
-    Try<xfs::QuotaInfo> status =
-      applyProjectQuota(directory, projectId.get(), size, quotaPolicy);
+    Try<xfs::QuotaInfo> status = applyProjectQuota(
+        directory,
+        projectId.get(),
+        size,
+        quotaHeadroom,
+        quotaPolicy);
     if (status.isError()) {
       return Failure(status.error());
     }

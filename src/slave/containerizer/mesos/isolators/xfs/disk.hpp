@@ -106,7 +106,8 @@ private:
       xfs::QuotaPolicy quotaPolicy,
       const std::string& workDir,
       const IntervalSet<prid_t>& projectIds,
-      Duration projectWatchInterval);
+      Duration projectWatchInterval,
+      const Bytes quotaHeadroom);
 
   // Responsible for validating a container hasn't broken the soft limit.
   void check();
@@ -131,6 +132,7 @@ private:
   const IntervalSet<prid_t> totalProjectIds;
   IntervalSet<prid_t> freeProjectIds;
   hashmap<ContainerID, process::Owned<Info>> infos;
+  const Bytes quotaHeadroom;
 
   // Track the device and filesystem path of unused project IDs we want
   // to reclaim.

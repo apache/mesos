@@ -1581,6 +1581,11 @@ mesos::internal::slave::Flags::Flags()
       "Whether the `disk/xfs` isolator should detect and terminate\n"
       "containers that exceed their allocated disk quota.",
       false);
+
+  add(&Flags::xfs_quota_headroom,
+      "xfs_quota_headroom",
+      "The size of hard XFS quota headroom.",
+      Megabytes(10));
 #endif
 
 #if ENABLE_SECCOMP_ISOLATOR
