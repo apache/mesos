@@ -274,7 +274,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespaceWhenDisallow)
 // namespace and nested container will share the IPC namespace with its
 // parent container. If the container does not have its own rootfs, it
 // will share agent's /dev/shm, otherwise it will have its own /dev/shm.
-TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCModeUnset)
+TEST_F(NamespacesIsolatorTest, ROOT_INTERNET_IPCNamespaceWithIPCModeUnset)
 {
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer("filesystem/linux,namespaces/ipc");
@@ -411,7 +411,8 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCModeUnset)
 // containers will share IPC namespace with agent, and if the container
 // does not have its own rootfs, it will also share agent's /dev/shm,
 // otherwise it will have its own /dev/shm.
-TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCIsolatorDisabled)
+TEST_F(NamespacesIsolatorTest,
+       ROOT_INTERNET_IPCNamespaceWithIPCIsolatorDisabled)
 {
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer("filesystem/linux");
@@ -525,7 +526,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCIsolatorDisabled)
 // have its own IPC namespace and /dev/shm, and it can share IPC namespace
 // and /dev/shm with its child containers, grandchild containers and debug
 // containers.
-TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
+TEST_F(NamespacesIsolatorTest, ROOT_INTERNET_ShareIPCNamespace)
 {
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer("filesystem/linux,namespaces/ipc");
@@ -924,7 +925,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_PrivateIPCNamespace)
 
 // This test verifies that top-level container and nested
 // containers can share agent's IPC namespace and /dev/shm.
-TEST_F(NamespacesIsolatorTest, ROOT_ShareAgentIPCNamespace)
+TEST_F(NamespacesIsolatorTest, ROOT_INTERNET_ShareAgentIPCNamespace)
 {
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer("filesystem/linux,namespaces/ipc");
