@@ -1937,7 +1937,7 @@ message ResourceStatistics {
     optional double sampling_interval_secs = 10;
   }
 
-  optional RateStatistics net_rate_statistics = 51;
+  optional RateStatistics net_rate_statistics = 54;
 
   // The kernel keeps track of RTT (round-trip time) for its TCP
   // sockets. RTT is a way to tell the latency of a container.
