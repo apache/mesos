@@ -3983,8 +3983,8 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     }
   }
 
-  Option<htb::cls::Config> egressConfig = egressHTBConfig(resources);
-  Option<htb::cls::Config> ingressConfig = ingressHTBConfig(resources);
+  Option<htb::cls::Config> egressConfig = egressHTBConfig(resourceRequests);
+  Option<htb::cls::Config> ingressConfig = ingressHTBConfig(resourceRequests);
 
   // Update ingress HTB configuration.
   if (ingressConfig != info->ingressConfig &&
