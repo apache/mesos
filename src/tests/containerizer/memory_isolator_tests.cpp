@@ -162,7 +162,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
     if (kmemExists.get()) {
       // We can assume more than 4096 bytes here, since a kernel page size is
       // 4kB and we are allocating at least one.
-      ASSERT_LT(4096u, usage.get().mem_kmem_usage_bytes());
+      ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
     }
   }
 

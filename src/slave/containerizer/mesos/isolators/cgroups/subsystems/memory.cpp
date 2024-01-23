@@ -467,7 +467,7 @@ Future<ResourceStatistics> MemorySubsystemProcess::usage(
     return Failure("Failed to parse 'memory.kmem.usage_in_bytes': " +
                    kmem_usage.error());
   } else if (kmem_usage.isSome()) {
-    result.set_mem_kmem_usage_bytes(kmem_usage.get().bytes());
+    result.set_mem_kmem_usage_bytes(kmem_usage->bytes());
   }
 
   Result<Bytes> kmem_tcp_usage = cgroups::memory::kmem_tcp_usage_in_bytes(
@@ -477,7 +477,7 @@ Future<ResourceStatistics> MemorySubsystemProcess::usage(
     return Failure("Failed to parse 'memory.kmem.tcp.usage_in_bytes': " +
                    kmem_tcp_usage.error());
   } else if (kmem_tcp_usage.isSome()) {
-    result.set_mem_kmem_tcp_usage_bytes(kmem_tcp_usage.get().bytes());
+    result.set_mem_kmem_tcp_usage_bytes(kmem_tcp_usage->bytes());
   }
 
   if (flags.cgroups_limit_swap) {
