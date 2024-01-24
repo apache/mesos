@@ -1892,6 +1892,11 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPUAutoConfig)
   Try<Launcher*> launcher = LinuxLauncher::create(flags);
   ASSERT_SOME(launcher);
 
+  // The isolator should report the calculated per-CPU limit as a metric.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(egressRatePerCpu.bytes(),
+            metrics.values["port_mapping/per_cpu_egress_rate_limit"]);
+
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(lowCpu.get());
 
@@ -2126,6 +2131,11 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPUAutoConfig)
 
   Try<Launcher*> launcher = LinuxLauncher::create(flags);
   ASSERT_SOME(launcher);
+
+  // The isolator should report the calculated per-CPU limit as a metric.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(ingressRatePerCpu.bytes(),
+            metrics.values["port_mapping/per_cpu_ingress_rate_limit"]);
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(lowCpu.get());
