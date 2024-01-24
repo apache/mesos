@@ -23,7 +23,7 @@ AC_DEFUN([MESOS_MSG_LIBNL3_ERROR], [
 
 AC_MSG_ERROR([$1
 -------------------------------------------------------------------
-Please install libnl3 (version 3.2.26 or higher):
+Please install libnl3 (version 3.5.0 or higher):
 https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
 ])
@@ -52,6 +52,25 @@ AS_IF([test x$ac_mesos_have_libnl3 = x], [
     CPPFLAGS="-I/usr/include/libnl3 $CPPFLAGS"
   ])
 ])
+
+# Check for version 3.5.0 or higher.
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <netlink/version.h>
+
+int main() {
+  if (LIBNL_VER_MAJ < 3) {
+    return 1;
+  } else if (LIBNL_VER_MAJ > 3) {
+    return 0;
+  }
+
+  if (LIBNL_VER_MIN < 5) {
+    return 1;
+  } 
+
+  return 0;
+}
+]])], [], [ac_mesos_have_libnl3=no], [])
 
 AC_CHECK_HEADERS(
   [netlink/netlink.h netlink/route/link/veth.h],
