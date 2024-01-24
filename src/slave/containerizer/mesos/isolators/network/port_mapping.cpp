@@ -5294,10 +5294,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc class add dev " << eth0 << " parent "
            << CONTAINER_TX_HTB_HANDLE << " classid "
            << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
-           << static_cast<uint64_t>(info->egressConfig->rate) * 8 << "bit";
+           << info->egressConfig->rate * 8 << "bit";
     if (info->egressConfig->ceil.isSome()) {
       script << " ceil "
-             << static_cast<uint64_t>(info->egressConfig->ceil.get()) * 8
+             << info->egressConfig->ceil.get() * 8
              << "bit";
       if (info->egressConfig->burst.isSome()) {
         // Use bytes here because tc command borks at bits.

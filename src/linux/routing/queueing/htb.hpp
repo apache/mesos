@@ -28,6 +28,12 @@
 
 #include "linux/routing/handle.hpp"
 
+#include <netlink/version.h>
+
+#if LIBNL_VER_MAJ < 3 || (LIBNL_VER_MAJ == 3 && LIBNL_VER_MIN < 5)
+#error libnl3 >= 3.5 required. Please update your installed libnl3 version.
+#endif
+
 namespace routing {
 namespace queueing {
 namespace htb {
