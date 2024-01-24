@@ -1940,7 +1940,11 @@ PortMappingIsolatorProcess::Metrics::Metrics()
     updating_eth0_arp_filters_do_not_exist(
         "port_mapping/updating_eth0_arp_filters_do_not_exist"),
     updating_container_ip_filters_errors(
-        "port_mapping/updating_container_ip_filters_errors")
+        "port_mapping/updating_container_ip_filters_errors"),
+    per_cpu_egress_rate_limit(
+        "port_mapping/per_cpu_egress_rate_limit"),
+    per_cpu_ingress_rate_limit(
+        "port_mapping/per_cpu_ingress_rate_limit")
 {
   process::metrics::add(adding_eth0_ip_filters_errors);
   process::metrics::add(adding_eth0_ip_filters_already_exist);
@@ -1973,6 +1977,8 @@ PortMappingIsolatorProcess::Metrics::Metrics()
   process::metrics::add(updating_eth0_arp_filters_already_exist);
   process::metrics::add(updating_eth0_arp_filters_do_not_exist);
   process::metrics::add(updating_container_ip_filters_errors);
+  process::metrics::add(per_cpu_egress_rate_limit);
+  process::metrics::add(per_cpu_ingress_rate_limit);
 }
 
 
@@ -2009,6 +2015,8 @@ PortMappingIsolatorProcess::Metrics::~Metrics()
   process::metrics::remove(updating_eth0_arp_filters_already_exist);
   process::metrics::remove(updating_eth0_arp_filters_do_not_exist);
   process::metrics::remove(updating_container_ip_filters_errors);
+  process::metrics::remove(per_cpu_egress_rate_limit);
+  process::metrics::remove(per_cpu_ingress_rate_limit);
 }
 
 
@@ -2890,7 +2898,10 @@ PortMappingIsolatorProcess::PortMappingIsolatorProcess(
     ratesCollector(_ratesCollector),
     egressRatePerCpu(_egressRatePerCpu),
     ingressRatePerCpu(_ingressRatePerCpu)
-{}
+{
+  metrics.per_cpu_egress_rate_limit = egressRatePerCpu.getOrElse(0).bytes();
+  metrics.per_cpu_ingress_rate_limit = ingressRatePerCpu.getOrElse(0).bytes();
+}
 
 
 Result<htb::cls::Config> recoverHTBConfig(

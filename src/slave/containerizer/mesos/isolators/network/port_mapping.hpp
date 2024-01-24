@@ -32,6 +32,7 @@
 
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/counter.hpp>
+#include <process/metrics/push_gauge.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
@@ -326,6 +327,8 @@ private:
     process::metrics::Counter updating_eth0_arp_filters_already_exist;
     process::metrics::Counter updating_eth0_arp_filters_do_not_exist;
     process::metrics::Counter updating_container_ip_filters_errors;
+    process::metrics::PushGauge per_cpu_egress_rate_limit;
+    process::metrics::PushGauge per_cpu_ingress_rate_limit;
   } metrics;
 
   PortMappingIsolatorProcess(
