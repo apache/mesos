@@ -1844,6 +1844,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleEgressWithCPU)
   // Kill the container
   AWAIT_READY(launcher.get()->destroy(containerId1));
   AWAIT_READY(isolator.get()->cleanup(containerId1));
+
+  delete launcher.get();
+  delete isolator.get();
 }
 
 
@@ -2078,6 +2081,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPU)
   // Kill the container
   AWAIT_READY(launcher.get()->destroy(containerId1));
   AWAIT_READY(isolator.get()->cleanup(containerId1));
+
+  delete launcher.get();
+  delete isolator.get();
 }
 
 
@@ -2203,6 +2209,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPUAutoConfig)
   // Kill the container
   AWAIT_READY(launcher.get()->destroy(containerId1));
   AWAIT_READY(isolator.get()->cleanup(containerId1));
+
+  delete launcher.get();
+  delete isolator.get();
 }
 
 
