@@ -299,6 +299,7 @@ set(INTERNAL_SRC
 set(LINUX_SRC
   linux/capabilities.cpp
   linux/cgroups.cpp
+  linux/cgroups2.cpp
   linux/fs.cpp
   linux/ldcache.cpp
   linux/ldd.cpp
