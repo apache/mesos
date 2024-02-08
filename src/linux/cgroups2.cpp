@@ -254,6 +254,25 @@ Try<set<string>> available(const string& cgroup) {
   return cgroups2::control::controllers::available(cgroup);
 }
 
+Try<bool> available(
+  const string& cgroup,
+  const vector<string> subsystems
+) {
+  Try<set<string>> available = cgroups2::control::controllers::available(cgroup);
+  if (available.isError()) {
+    return Error(available.error());
+  }
+
+  foreach(string subsystem, subsystems) {
+    if (available.get().find(subsystem) == available.get().end()) {
+      // Found unavailable subsystem.
+      return false;
+    }
+  }
+
+  return true;
+}
+
 Try<Nothing> enable(
   const string& cgroup, 
   const vector<string>& subsystems

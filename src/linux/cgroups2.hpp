@@ -87,6 +87,12 @@ namespace subsystems {
 // Returns the subsystems available on the system if no cgroup is provided.
 Try<std::set<std::string>> available(const std::string& cgroup = ROOT_CGROUP); 
 
+// Checks if the given subsystems can be controlled by the provided cgroup.
+Try<bool> available(
+  const std::string& cgroup,
+  const std::vector<std::string> subsystems
+);
+
 // Enables the given subsystems in the cgroup and disable all other subsystems.
 // Errors if a requested subsystem is not available.
 Try<Nothing> enable(
