@@ -15,15 +15,25 @@
 // limitations under the License.
 
 #include <string>
-
+ 
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups2.hpp"
 #include "linux/fs.hpp"
 
 using std::string;
+using mesos::internal::fs::MountTable;
 
 namespace cgroups2 {
+
+// Active mount point used by cgroups2. If Some() the expected value is
+// expected to be mounted with the cgroup2 file system.
+Option<string> rootMountPoint = None();
+// Flag to check if Mesos created the mount point or whether an existing
+// mount point was used. This impacts the behaviour of unmount(), as a 
+// pre-existing mount point will not be destroyed on unmount().
+bool createdMountPoint = false;
 
 bool enabled() {
 #ifndef __linux__
@@ -32,6 +42,97 @@ bool enabled() {
 #endif
   Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
   return supported.isSome() && supported.get();
+}
+
+Try<Nothing> mount(const string& mountPoint) {
+  if (!cgroups2::enabled()) {
+    return Error("Mounting the cgroups2 hierarchy failed as cgroups2"
+                 " is not enabled");
+  }
+  if (os::exists(mountPoint)) {
+    return Error("'" + mountPoint + "' already exists in the file system");
+  }
+
+  // Create the directory for the hierarchy.
+  Try<Nothing> mkdir = os::mkdir(mountPoint);
+  if (mkdir.isError()) {
+    return Error("Failed to create cgroups2 directory '" + mountPoint + 
+                 "': " + mkdir.error());
+  }
+
+  Try<Nothing> result = mesos::internal::fs::mount(
+    None(), 
+    mountPoint, 
+    cgroups2::FILE_SYSTEM, 
+    0, 
+    None()
+  );
+
+  rootMountPoint = mountPoint;
+  createdMountPoint = true;
+  return Nothing();
+}
+
+Try<string> mount_or_create(const std::string& mountPoint) {
+  Try<MountTable> mountTable = MountTable::read("/proc/mounts");
+  if (mountTable.isError()) {
+    return Error(mountTable.error());
+  }
+
+  // Check of an existing cgroup2 mount point. 
+  foreach (MountTable::Entry entry, mountTable.get().entries) {
+    if (entry.type == cgroups2::FILE_SYSTEM) {
+      rootMountPoint = entry.dir;
+      createdMountPoint = false;
+      return entry.dir;
+    }
+  }
+
+  Try<Nothing> mount = cgroups2::mount(mountPoint);
+  if (mount.isError()) {
+    return Error(mount.error());
+  }
+
+  return mountPoint; 
+}
+
+Try<Nothing> unmount() {
+  if (rootMountPoint.isNone()) {
+    return Error("Failed to unmount the cgroup2 hierarchy because it is "
+           "not mounted");
+  }
+  if (createdMountPoint) {
+    Try<Nothing> result = mesos::internal::fs::unmount(
+      rootMountPoint.get()     
+    );
+    if (result.isError()) {
+      return Error("Failed to unmount the cgroup2 hierarchy ('" + 
+                  rootMountPoint.get() + 
+                  "'): " + result.error());
+    }
+
+    Try<Nothing> rmdir = os::rmdir(rootMountPoint.get());
+    if (rmdir.isError()) {
+      return Error(
+        "Failed to remove directory '" + rootMountPoint.get() + "': " + 
+        rmdir.error());
+    }
+
+    rootMountPoint = None();
+    createdMountPoint = false;
+  }
+
+  return Nothing();
+}
+
+Try<Nothing> cleanup() {
+  if (rootMountPoint.isNone()) {
+    // Hierarchy is not mounted and therefore does not need to be 
+    // cleaned up.
+    return Nothing();
+  }
+  
+  return cgroups2::unmount();
 }
 
 } // namespace cgroups2
