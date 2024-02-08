@@ -35,6 +35,25 @@ const string FILE_SYSTEM = "cgroup2";
 const string MOUNT_POINT = "/sys/fs/cgroup";
 
 
+namespace control {
+
+// Interface files found in all cgroups.
+const std::string CONTROLLERS = "cgroup.controllers";
+const std::string EVENTS = "cgroup.events";
+const std::string FREEZE = "cgroup.freeze";
+const std::string IRQ_PRESSURE = "irq.pressure";
+const std::string KILL = "cgroup.kill";
+const std::string MAX_DEPTH = "cgroup.max.depth";
+const std::string MAX_DESCENDANTS = "cgroup.max.descendants";
+const std::string PRESSURE = "cgroup.pressure";
+const std::string PROCESSES = "cgroup.procs";
+const std::string STATS = "cgroup.stat";
+const std::string SUBTREE_CONTROLLERS = "cgroup.subtree_control";
+const std::string THREADS = "cgroup.threads";
+const std::string TYPE = "cgroup.type";
+
+} // namespace control {
+
 bool enabled()
 {
   Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
