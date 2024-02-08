@@ -46,6 +46,14 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_Enabled)
   EXPECT_TRUE(cgroups2::enabled());
 }
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
+{
+  EXPECT_SOME(cgroups2::mount_or_create("/tmp/cgroup2"));
+  EXPECT_SOME(cgroups2::subsystems::available());
+  EXPECT_TRUE(cgroups2::subsystems::available().get().count("cpu") == 1);
+  EXPECT_SOME(cgroups2::cleanup());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

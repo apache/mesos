@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <set>
  
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -23,9 +24,33 @@
 #include "linux/fs.hpp"
 
 using std::string;
+using std::set;
+using std::vector;
 using mesos::internal::fs::MountTable;
 
 namespace cgroups2 {
+
+namespace control {
+
+namespace controllers {
+// List the available controllers/subsystems in the provided cgroup. 
+Try<set<string>> available(const string& cgroup) {
+   Try<string> subsystems = cgroups2::read(
+    cgroup, 
+    cgroups2::control::CONTROLLERS
+  );
+  if (subsystems.isError()) {
+    return Error("Failed to check available subsystems"
+                 ": " + subsystems.error());
+  }
+  vector<string> v = strings::split(subsystems.get(), " ");
+  set<string> systems(std::make_move_iterator(v.begin()), 
+                      std::make_move_iterator(v.end()));
+  return systems;
+}
+
+} // namespace controllers
+} // namespace control
 
 // Active mount point used by cgroups2. If Some() the expected value is
 // expected to be mounted with the cgroup2 file system.
@@ -155,5 +180,13 @@ Try<Nothing> cleanup() {
   
   return cgroups2::unmount();
 }
+
+namespace subsystem {
+
+Try<set<string>> available(const string& cgroup) {
+  return cgroups2::control::controllers::available(cgroup);
+}
+
+} // namespace subsystem
 
 } // namespace cgroups2

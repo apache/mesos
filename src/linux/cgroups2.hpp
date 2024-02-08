@@ -44,6 +44,9 @@ const std::string TYPE = "cgroup.type";
 
 // Name of the cgroupv2 filesystem as found in /proc/filesystems.
 const std::string FILE_SYSTEM = "cgroup2";
+// The root cgroup has the same path as the mount point for the cgroup2 file 
+// system meaning it's relative path is the empty string.
+const std::string ROOT_CGROUP = "";
 
 // Read from a control (e.g. cpu.weight) inside of cgroup.
 Try<std::string> read(const std::string& cgroup, const std::string& control);
@@ -77,6 +80,14 @@ Try<Nothing> unmount();
 // cgroups, unmounting the hierarchy, and deleting the mount point. Does nothing
 // if the cgroup2 hierarchy has already been destroyed.
 Try<Nothing> cleanup();
+
+namespace subsystems {
+
+// Gets the subsystems that can be controlled by the provided cgroup.
+// Returns the subsystems available on the system if no cgroup is provided.
+Try<std::set<std::string>> available(const std::string& cgroup = ROOT_CGROUP); 
+
+} // namespace subsystem
 
 namespace internal {
 
