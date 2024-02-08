@@ -61,6 +61,9 @@ Try<Nothing> write(
 // Checks if cgroups2 is available on the system.
 bool enabled();
 
+// Checks if the client has the required permissions to use cgroups2.
+bool has_permissions();
+
 // Mount the cgroupv2 hierarchy at the given mount point
 // with the provided options. Errors if the mount point
 // already exists.
@@ -80,6 +83,14 @@ Try<Nothing> unmount();
 // cgroups, unmounting the hierarchy, and deleting the mount point. Does nothing
 // if the cgroup2 hierarchy has already been destroyed.
 Try<Nothing> cleanup();
+
+// Entrypoint into cgroups2. Checks that the host supports cgroups2
+// and all of the requested subsystems, then mounts the cgroups2 filesystem
+// and enables all of the requested subsystems.
+Try<Nothing> prepare(
+  const std::string &mountPoint,
+  const std::vector<std::string> &subsystems
+);
 
 namespace subsystems {
 

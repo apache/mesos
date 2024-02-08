@@ -157,6 +157,11 @@ bool enabled() {
   return supported.isSome() && supported.get();
 }
 
+bool has_permissions() {
+  // Check for root permissions.
+  return geteuid() == 0;
+}
+
 Try<Nothing> mount(const string& mountPoint) {
   if (!cgroups2::enabled()) {
     return Error("Mounting the cgroups2 hierarchy failed as cgroups2"
@@ -246,6 +251,36 @@ Try<Nothing> cleanup() {
   }
   
   return cgroups2::unmount();
+}
+
+Try<Nothing> prepare(
+  const string& mountPoint,
+  const vector<string>& subsystems
+) {
+  if (!cgroups2::enabled()) {
+    return Error("No cgroups2 support detected in this kernel");
+  }
+
+  if (!cgroups2::has_permissions()) {
+    return Error("Using cgroups2 requires root permissions");
+  }
+
+  Try<string> mount = cgroups2::mount_or_create(mountPoint);
+  if (mount.isError()) {
+    return Error(
+      "Failed to mount cgroups hierarchy at '" + mountPoint +
+      "': " + mount.error());
+  }
+
+  Try<bool> available = cgroups2::subsystems::available(ROOT_CGROUP, subsystems);
+  if (available.isError()) {
+    return Error("Failed to find available subsystems : " + available.error());
+  }
+  if (!available.get()) {
+    return Error("All requested subsystems are not available on the host");
+  }
+
+  return cgroups2::subsystems::enable(ROOT_CGROUP, subsystems);
 }
 
 namespace subsystems {
