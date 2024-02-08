@@ -35,6 +35,27 @@ Option<string> rootMountPoint = None();
 // pre-existing mount point will not be destroyed on unmount().
 bool createdMountPoint = false;
 
+Try<string> read(const string& cgroup, const string& control) {
+  return os::read(cgroups2::internal::join(
+    cgroups2::rootMountPoint.get(), 
+    cgroup, 
+    control
+  ));
+}
+
+Try<Nothing> write(
+  const string& cgroup, 
+  const string& control, 
+  const string& value
+) {
+  return os::write(cgroups2::internal::join(
+      cgroups2::rootMountPoint.get(), 
+      cgroup, 
+      control
+    ), value
+  );
+}
+
 bool enabled() {
 #ifndef __linux__
   // cgroups(v2) is only available on Linux.

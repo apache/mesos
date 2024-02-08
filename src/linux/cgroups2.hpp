@@ -45,6 +45,16 @@ const std::string TYPE = "cgroup.type";
 // Name of the cgroupv2 filesystem as found in /proc/filesystems.
 const std::string FILE_SYSTEM = "cgroup2";
 
+// Read from a control (e.g. cpu.weight) inside of cgroup.
+Try<std::string> read(const std::string& cgroup, const std::string& control);
+
+// Write to a control (e.g. cpu.weight) inside of a cgroup.
+Try<Nothing> write(
+  const std::string& cgroup, 
+  const std::string& control,
+  const std::string& value
+);
+
 // Checks if cgroups2 is available on the system.
 bool enabled();
 
@@ -68,6 +78,24 @@ Try<Nothing> unmount();
 // if the cgroup2 hierarchy has already been destroyed.
 Try<Nothing> cleanup();
 
+namespace internal {
+
+// Utility for resolving cgroups2 paths. Equivalent to
+// path::normalize(path::join(...)). path::join() can't be used
+// because a cgroup can be empty (i.e. "") because the mount point
+// in cgroup2 is a cgroup itself, giving an empty relative path.
+template <typename... Paths>
+inline std::string join(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    Paths&&... paths)
+{
+  return path::normalize(
+    path::join(hierarchy, path::join(cgroup, std::forward<Paths>(paths)...))
+  ).get();
+}
+
+} // namespace internal
 } // namespace cgroups2
 
 #endif // __CGROUPS_V2_HPP__
