@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include <process/gtest.hpp>
@@ -25,9 +27,13 @@
 
 #include "tests/mesos.hpp"
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace tests {
+
+const string TEST_MOUNT_POINT = "/tmp/cgroups2";
 
 class Cgroups2Test : public TemporaryDirectoryTest 
 {
@@ -48,7 +54,7 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_Enabled)
 
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
 {
-  EXPECT_SOME(cgroups2::mount_or_create("/tmp/cgroup2"));
+  EXPECT_SOME(cgroups2::mount_or_create(TEST_MOUNT_POINT));
   EXPECT_SOME(cgroups2::subsystems::available());
   EXPECT_TRUE(cgroups2::subsystems::available().get().count("cpu") == 1);
   EXPECT_SOME(cgroups2::cleanup());
@@ -56,8 +62,8 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
 
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_Prepare)
 {
-  EXPECT_SOME(cgroups2::prepare("/tmp/cgroups2", { "cpu" }));
-  EXPECT_TRUE(cgroups2::available_subsystems().get().count("cpu") == 1);
+  EXPECT_SOME(cgroups2::prepare(TEST_MOUNT_POINT, { "cpu" }));
+  EXPECT_TRUE(cgroups2::subsystems::available().get().count("cpu") == 1);
   EXPECT_SOME(cgroups2::cleanup());
 }
 
