@@ -16,6 +16,7 @@
 
 #include <string>
 #include <set>
+#include <sstream>
  
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -26,6 +27,7 @@
 using std::string;
 using std::set;
 using std::vector;
+using std::stringstream;
 using mesos::internal::fs::MountTable;
 
 namespace cgroups2 {
@@ -50,6 +52,71 @@ Try<set<string>> available(const string& cgroup) {
 }
 
 } // namespace controllers
+
+namespace subtree_control {
+struct State {
+  State() = default;
+
+  // Check if a subsystem is enabled.
+  bool enabled(const string& subsystem) {
+    return m_enabled.find(subsystem) != m_enabled.end();
+  }
+
+  void enable(const vector<string> subsystems) {
+    foreach(const string& subsystem, subsystems) {
+      enable(subsystem);
+    }
+  } 
+
+  void enable(const string& subsystem) {
+    m_disabled.erase(subsystem);
+    m_enabled.insert(subsystem);
+  }
+
+  set<string> enabled() const {
+    return m_enabled;
+  }
+
+  set<string> disabled() const {
+    return m_disabled;
+  }
+
+  static Try<State> read(const string& cgroup) {
+    Try<string> contents = cgroups2::read(
+      cgroup, 
+      cgroups2::control::SUBTREE_CONTROLLERS
+    );
+    if (contents.isError()) {
+      return Error(contents.error());
+    }
+
+    State control;
+    vector<string> subsystems = strings::split(contents.get(), " ");
+    control.m_enabled.insert(subsystems.begin(), subsystems.end());
+
+    return control;
+  }
+  
+private:
+  set<string> m_enabled; 
+  set<string> m_disabled;
+};  
+
+Try<Nothing> write(const string& cgroup, const State &state) {
+  stringstream ss;
+
+  foreach(const string& system, state.enabled()) {
+    ss << "+" << system << " ";
+  }
+  foreach(const string& system, state.disabled()) {
+    ss << "-" << system << " ";
+  }
+
+  return cgroups2::write(cgroup, control::SUBTREE_CONTROLLERS, ss.str());
+}
+
+} // namespace subtree_control
+
 } // namespace control
 
 // Active mount point used by cgroups2. If Some() the expected value is
@@ -181,12 +248,28 @@ Try<Nothing> cleanup() {
   return cgroups2::unmount();
 }
 
-namespace subsystem {
+namespace subsystems {
 
 Try<set<string>> available(const string& cgroup) {
   return cgroups2::control::controllers::available(cgroup);
 }
 
-} // namespace subsystem
+Try<Nothing> enable(
+  const string& cgroup, 
+  const vector<string>& subsystems
+) {
+  using control::subtree_control::State;
+
+  Try<State> control = State::read(cgroup);
+  if (control.isError()) {
+    return Error(control.error());
+  }
+
+  control.get().enable(subsystems); 
+  return control::subtree_control::write(cgroup, control.get());
+}
+
+} // namespace subsystems
+
 
 } // namespace cgroups2
