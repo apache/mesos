@@ -17,4 +17,16 @@
 #ifndef __CGROUPS_V2_HPP__
 #define __CGROUPS_V2_HPP__
 
+#include <string>
+
+namespace cgroups2 {
+
+// Name of the cgroupv2 filesystem as found in /proc/filesystems.
+const std::string FILE_SYSTEM = "cgroup2";
+
+// Checks if cgroups2 is available on the system.
+bool enabled();
+
+} // namespace cgroups2
+
 #endif // __CGROUPS_V2_HPP__
