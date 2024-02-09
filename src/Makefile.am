@@ -1403,6 +1403,8 @@ MESOS_LINUX_FILES =									\
   linux/sched.hpp									\
   linux/systemd.cpp									\
   linux/systemd.hpp									\
+  linux/ebpf.cpp              \
+  linux/ebpf.hpp              \
   slave/containerizer/mesos/linux_launcher.cpp						\
   slave/containerizer/mesos/linux_launcher.hpp						\
   slave/containerizer/mesos/isolators/appc/runtime.cpp					\
