@@ -306,6 +306,7 @@ set(LINUX_SRC
   linux/ns.cpp
   linux/perf.cpp
   linux/systemd.cpp
+  linux/ebpf.cpp
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/appc/runtime.cpp
   slave/containerizer/mesos/isolators/cgroups/cgroups.cpp
