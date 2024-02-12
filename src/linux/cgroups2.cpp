@@ -382,4 +382,22 @@ Try<set<string>> enabled(const string& cgroup)
 
 } // namespace controllers {
 
+namespace cpu {
+
+namespace control {
+
+const std::string IDLE = "cpu.idle";
+const std::string MAX = "cpu.max";
+const std::string MAX_BURST = "cpu.max.burst";
+const std::string PRESSURE = "cpu.pressure";
+const std::string STATS = "cpu.stat";
+const std::string UCLAMP_MAX = "cpu.uclamp.max";
+const std::string UCLAMP_MIN = "cpu.uclamp.min";
+const std::string WEIGHT = "cpu.weight";
+const std::string WEIGHT_NICE = "cpu.weight.nice";
+
+} // namespace control {
+
+} // namespace cpu {
+
 } // namespace cgroups2 {
