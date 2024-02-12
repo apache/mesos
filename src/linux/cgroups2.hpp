@@ -95,6 +95,19 @@ Try<std::set<std::string>> enabled(const std::string& cgroup);
 
 } // namespace controllers {
 
+namespace cpu {
+
+// Set the weight for a cgroup.
+// Cannot be used for the root cgroup.
+Try<Nothing> weight(const std::string& cgroup, uint32_t weight);
+
+
+// Determine the weight a cgroup.
+// Cannot be used for the root cgroup.
+Try<uint32_t> weight(const std::string& cgroup);
+
+} // namespace cpu {
+
 } // namespace cgroups2 {
 
 #endif // __CGROUPS_V2_HPP__

@@ -151,12 +151,34 @@ Try<string> read(const string& cgroup, const string& control)
 
 
 template <>
+Try<uint64_t> read(const string& cgroup, const string& control)
+{
+  Try<string> content = read<string>(cgroup, control);
+  if (content.isError()) {
+    return Error(content.error());
+  }
+
+  return std::stoull(strings::trim(*content));
+}
+
+
+template <>
 Try<Nothing> write(
     const string& cgroup,
     const string& control,
     const string& value)
 {
   return os::write(path::join(cgroups2::MOUNT_POINT, cgroup, control), value);
+}
+
+
+template <>
+Try<Nothing> write(
+    const string& cgroup,
+    const string& control,
+    const uint64_t& value)
+{
+  return write(cgroup, control, stringify(value));
 }
 
 
@@ -397,6 +419,26 @@ const std::string WEIGHT = "cpu.weight";
 const std::string WEIGHT_NICE = "cpu.weight.nice";
 
 } // namespace control {
+
+Try<Nothing> weight(const string& cgroup, uint32_t weight)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation does not exist for the root cgroup");
+  }
+
+  return cgroups2::write(cgroup, cpu::control::WEIGHT, (uint64_t) weight);
+}
+
+
+Try<uint32_t> weight(const string& cgroup)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation does not exist for the root cgroup");
+  }
+
+  Try<uint64_t> weight = cgroups2::read<uint64_t>(cgroup, cpu::control::WEIGHT);
+  return static_cast<uint32_t>(*weight);
+}
 
 } // namespace cpu {
 
