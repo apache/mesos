@@ -281,7 +281,7 @@ int main(int argc, char** argv)
       rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
     }
 
-    process::firewall::install(move(rules));
+    process::firewall::install(std::move(rules));
   }
 
   // Initialize modules.
