@@ -92,6 +92,12 @@ Try<Nothing> prepare(
   const std::vector<std::string> &subsystems
 );
 
+// Creates a cgroup off of the base hierarchy, i.e. <ROOT>/<cgroup>.
+// cgroup can be a nested cgroup (e.g. foo/bar/baz). If cgroup is a nested
+// cgroup and the parent cgroups do not exist, an error will be returned unless
+// recursive=true.
+Try<Nothing> create(const std::string& cgroup, bool recursive = false);
+
 namespace subsystems {
 
 // Gets the subsystems that can be controlled by the provided cgroup.

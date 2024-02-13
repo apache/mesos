@@ -283,6 +283,19 @@ Try<Nothing> prepare(
   return cgroups2::subsystems::enable(ROOT_CGROUP, subsystems);
 }
 
+Try<Nothing> create(const string& cgroup, bool recursive) {
+  Try<Nothing> mkdir = os::mkdir(cgroups2::internal::join(
+    rootMountPoint.get(),
+    cgroup
+  ), recursive);
+
+  if (mkdir.isError()) {
+    return Error("Failed to make cgroup \'" + cgroup + "\'");
+  }
+
+  return Nothing();
+}
+
 namespace subsystems {
 
 Try<set<string>> available(const string& cgroup) {
@@ -324,6 +337,5 @@ Try<Nothing> enable(
 }
 
 } // namespace subsystems
-
 
 } // namespace cgroups2
