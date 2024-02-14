@@ -64,6 +64,10 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_Prepare)
 {
   EXPECT_SOME(cgroups2::prepare(TEST_MOUNT_POINT, { "cpu" }));
   EXPECT_TRUE(cgroups2::subsystems::available().get().count("cpu") == 1);
+  EXPECT_SOME_TRUE(cgroups2::subsystems::enabled(
+    cgroups2::ROOT_CGROUP, 
+    { "cpu"}
+  ));
   EXPECT_SOME(cgroups2::cleanup());
 }
 

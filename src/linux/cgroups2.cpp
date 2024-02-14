@@ -336,6 +336,26 @@ Try<Nothing> enable(
   return control::subtree_control::write(cgroup, control.get());
 }
 
+Try<bool> enabled(
+  const string& cgroup,
+  const vector<string>& subsystems
+) {
+  using control::subtree_control::State;
+
+  Try<State> control = State::read(cgroup);
+  if (control.isError()) {
+    return Error(control.error());
+  }
+
+  foreach (const string& subsystem, subsystems) {
+    if (!control.get().enabled(subsystem)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 } // namespace subsystems
 
 } // namespace cgroups2
