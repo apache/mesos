@@ -126,14 +126,8 @@ namespace internal {
 // because a cgroup can be empty (i.e. "") because the mount point
 // in cgroup2 is a cgroup itself, giving an empty relative path.
 template <typename... Paths>
-inline std::string join(
-    const std::string& hierarchy,
-    const std::string& cgroup,
-    Paths&&... paths)
-{
-  return path::normalize(
-    path::join(hierarchy, path::join(cgroup, std::forward<Paths>(paths)...))
-  ).get();
+inline std::string join(const std::string& path, Paths&&... paths) {
+  return path::normalize(path::join(path, std::forward<Paths>(paths)...)).get();
 }
 
 } // namespace internal
