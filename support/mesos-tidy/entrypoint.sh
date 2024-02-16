@@ -39,7 +39,7 @@ export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
 
 # Build the external dependencies.
 # TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
-cmake --build 3rdparty --target boost-1.65.0
+cmake --build 3rdparty --target boost-1.81.0
 cmake --build 3rdparty --target elfio-3.2
 cmake --build 3rdparty --target glog-0.4.0
 cmake --build 3rdparty --target googletest-1.8.0
