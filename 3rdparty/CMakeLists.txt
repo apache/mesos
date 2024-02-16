@@ -216,13 +216,9 @@ if ("${BOOST_ROOT_DIR}" STREQUAL "")
   endif ()
   target_include_directories(boost INTERFACE ${BOOST_ROOT})
 
-  # Patch Boost to avoid repeated "Unknown compiler warnings" on Windows.
-  PATCH_CMD(BOOST_PATCH_CMD boost-${BOOST_VERSION}.patch)
-
   ExternalProject_Add(
     ${BOOST_TARGET}
     PREFIX            ${BOOST_CMAKE_ROOT}
-    PATCH_COMMAND     ${BOOST_PATCH_CMD}
     CONFIGURE_COMMAND ${CMAKE_NOOP}
     BUILD_COMMAND     ${CMAKE_NOOP}
     INSTALL_COMMAND   ${CMAKE_NOOP}

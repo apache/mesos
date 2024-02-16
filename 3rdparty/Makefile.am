@@ -139,7 +139,6 @@ EXTRA_DIST +=			\
 
 # We need the following patches for CMake and/or Windows builds.
 EXTRA_DIST +=			\
-  $(BOOST).patch		\
   $(GOOGLETEST).patch		\
   $(LIBARCHIVE).patch		\
   $(PROTOBUF).patch		\
