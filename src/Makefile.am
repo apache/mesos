@@ -1388,6 +1388,8 @@ MESOS_LINUX_FILES =									\
   linux/capabilities.hpp								\
   linux/cgroups.cpp									\
   linux/cgroups.hpp									\
+  linux/cgroups2.cpp									\
+  linux/cgroups2.hpp              \
   linux/fs.cpp										\
   linux/fs.hpp										\
   linux/ldcache.cpp									\
