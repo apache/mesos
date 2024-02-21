@@ -2502,15 +2502,13 @@ if test "x$enable_python" = "xyes" || \
     AC_MSG_ERROR([only specify one of PYTHON or PYTHON_VERSION])
   fi
 
-  if test -n "$PYTHON"; then
-    PYTHON_VERSION=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`
-  fi
-
   if test -n "$PYTHON_VERSION"; then
+    # Set $PYTHON using $PYTHON_VERSION
     AC_SUBST([PYTHON], [python$PYTHON_VERSION])
-  fi
-
-  if test -z "$PYTHON" && test -z "$PYTHON_VERSION"; then
+  elif test -n "$PYTHON"; then
+    # Set $PYTHON_VERSION using $PYTHON
+    PYTHON_VERSION=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`
+  else
     AM_PATH_PYTHON()
   fi
 fi
@@ -2521,7 +2519,7 @@ if test "x$enable_python" = "xyes"; then
   AM_PYTHON_CHECK_VERSION([$PYTHON], [2.6], [],
                  [AC_MSG_ERROR([Mesos requires Python >= 2.6
 -------------------------------------------------------------------
-The detected Python version is $PYTHON_VERSION.
+The detected Python version is $PYTHON_VERSION from $PYTHON.
 
 If you already have Python 2.6+ installed (and it's the default python
 on the path), you might want to check if you have the PYTHON environment
@@ -2532,7 +2530,7 @@ variable set to an older version of Python.
   AM_PYTHON_CHECK_VERSION([$PYTHON], [3.0],
                  [AC_MSG_ERROR([Mesos requires Python < 3.0
 -------------------------------------------------------------------
-The detected Python version is $PYTHON_VERSION.
+The detected Python version is $PYTHON_VERSION from $PYTHON.
 
 If you already have Python 2.6+ installed (and it's the default python
 on the path), you might want to check if you have the PYTHON environment
@@ -2543,7 +2541,8 @@ variable set to a version of Python greater than 3.0.
   if test "x$enable_new_cli" = "xyes" && test -z "$PYTHON_3"; then
     AC_MSG_ERROR([Missing PYTHON_3 environment variable
 -------------------------------------------------------------------
-The detected Python version is $PYTHON_VERSION. Python 3 not detected.
+The detected Python version is $PYTHON_VERSION from $PYTHON.
+Python 3 not detected.
 
 When building both the Python bindings and the CLI, the detected Python
 version is used to build the bindings and PYTHON_3 must be set
