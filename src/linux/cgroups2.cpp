@@ -14,4 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
+#include <stout/try.hpp>
+
 #include "linux/cgroups2.hpp"
+#include "linux/fs.hpp"
+
+using std::string;
+
+namespace cgroups2 {
+
+// Name of the cgroupv2 filesystem as found in /proc/filesystems.
+const string FILE_SYSTEM = "cgroup2";
+
+bool enabled() {
+  Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
+  return supported.isSome() && *supported;
+}
+
+} // namespace cgroups2

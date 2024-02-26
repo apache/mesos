@@ -17,4 +17,11 @@
 #ifndef __CGROUPS_V2_HPP__
 #define __CGROUPS_V2_HPP__
 
+namespace cgroups2 {
+
+// Checks if cgroups2 is available on the system.
+bool enabled();
+
+} // namespace cgroups2
+
 #endif // __CGROUPS_V2_HPP__
