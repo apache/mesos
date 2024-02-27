@@ -28,7 +28,8 @@ namespace cgroups2 {
 // Name of the cgroupv2 filesystem as found in /proc/filesystems.
 const string FILE_SYSTEM = "cgroup2";
 
-bool enabled() {
+bool enabled()
+{
   Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
   return supported.isSome() && *supported;
 }
