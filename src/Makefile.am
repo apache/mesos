@@ -2860,6 +2860,7 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/capabilities_test_helper.cpp		\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
+  tests/containerizer/cgroups2_tests.cpp			\
   tests/containerizer/cni_isolator_tests.cpp			\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_devices_isolator_tests.cpp		\

@@ -232,6 +232,7 @@ if (LINUX)
     containerizer/capabilities_tests.cpp
     containerizer/cgroups_isolator_tests.cpp
     containerizer/cgroups_tests.cpp
+    containerizer/cgroups2_tests.cpp
     containerizer/cni_isolator_tests.cpp
     containerizer/docker_volume_isolator_tests.cpp
     containerizer/fs_tests.cpp

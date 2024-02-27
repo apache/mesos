@@ -60,6 +60,7 @@
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/cgroups2.hpp"
 #include "linux/fs.hpp"
 #include "linux/perf.hpp"
 #endif
@@ -194,7 +195,8 @@ public:
 
   bool disable(const ::testing::TestInfo* test) const override
   {
-    if (matches(test, "CGROUPS_") || matches(test, "Cgroups")) {
+    if (matches(test, "CGROUPS_") ||
+       (matches(test, "Cgroups") && !matches(test, "Cgroups2"))) {
 #ifdef __linux__
       Result<string> user = os::user();
       CHECK_SOME(user);
@@ -216,6 +218,31 @@ public:
 
 private:
   Option<Error> error;
+};
+
+
+class Cgroups2Filter : public TestFilter
+{
+public:
+  Cgroups2Filter() {}
+
+  // We disable cgroups2 tests if cgroups2 is not enabled or the user is
+  // not root.
+  bool disable(const ::testing::TestInfo* test) const override
+  {
+
+    if (matches(test, "CGROUPS2_") || matches(test, "Cgroups2")) {
+#ifdef __linux__
+      Result<string> user = os::user();
+      CHECK_SOME(user);
+      return *user != "root" || !cgroups2::enabled();
+#else
+      return true;
+#endif // __linux__
+    }
+
+    return false;
+  }
 };
 
 
@@ -1103,6 +1130,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<BenchmarkFilter>(),
             std::make_shared<CfsFilter>(),
             std::make_shared<CgroupsFilter>(),
+            std::make_shared<Cgroups2Filter>(),
             std::make_shared<CurlFilter>(),
             std::make_shared<DockerFilter>(),
             std::make_shared<DtypeFilter>(),
