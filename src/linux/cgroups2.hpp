@@ -17,10 +17,26 @@
 #ifndef __CGROUPS_V2_HPP__
 #define __CGROUPS_V2_HPP__
 
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
 namespace cgroups2 {
 
 // Checks if cgroups2 is available on the system.
 bool enabled();
+
+// Mounts the cgroups2 file system at /sys/fs/cgroup. Errors if
+// the cgroups v2 file system is already mounted.
+Try<Nothing> mount();
+
+// Checks if the cgroup2 file systems is mounted at /sys/fs/cgroup,
+// returns an error if the mount is found at an unexpected location.
+Try<bool> mounted();
+
+// Unmounts the cgroups2 file system from /sys/fs/cgroup. Errors if
+// the cgroup2 file system is not mounted at /sys/fs/cgroup. It's the
+// responsibility of the caller to ensure all child cgroups have been destroyed.
+Try<Nothing> unmount();
 
 } // namespace cgroups2
 

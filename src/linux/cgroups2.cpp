@@ -16,22 +16,109 @@
 
 #include <string>
 
+#include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups2.hpp"
 #include "linux/fs.hpp"
 
 using std::string;
+using mesos::internal::fs::MountTable;
 
 namespace cgroups2 {
 
-// Name of the cgroupv2 filesystem as found in /proc/filesystems.
+// Name of the cgroups v2 filesystem as found in /proc/filesystems.
 const string FILE_SYSTEM = "cgroup2";
+
+// Mount point for the cgroups2 file system.
+const string MOUNT_POINT = "/sys/fs/cgroup";
+
 
 bool enabled()
 {
   Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
   return supported.isSome() && *supported;
+}
+
+
+Try<Nothing> mount()
+{
+  if (!cgroups2::enabled()) {
+    return Error("cgroups2 is not enabled");
+  }
+
+  Try<bool> mounted = cgroups2::mounted();
+  if (mounted.isError()) {
+    return Error("Failed to check if cgroups2 filesystem is mounted: "
+                 + mounted.error());
+  }
+  if (*mounted) {
+    return Error("cgroup2 filesystem is already mounted at"
+                 " '" + cgroups2::MOUNT_POINT + "'");
+  }
+
+  Try<Nothing> mkdir = os::mkdir(cgroups2::MOUNT_POINT);
+  if (mkdir.isError()) {
+    return Error("Failed to create cgroups2 directory"
+                 " '" + cgroups2::MOUNT_POINT + "'"
+                 ": " + mkdir.error());
+  }
+
+  return mesos::internal::fs::mount(
+    None(),
+    cgroups2::MOUNT_POINT,
+    cgroups2::FILE_SYSTEM,
+    0,
+    None());
+}
+
+
+Try<bool> mounted()
+{
+  Try<MountTable> mountTable = MountTable::read("/proc/mounts");
+  if (mountTable.isError()) {
+    return Error("Failed to read /proc/mounts: " + mountTable.error());
+  }
+
+  foreach (MountTable::Entry entry, mountTable.get().entries) {
+    if (entry.type == cgroups2::FILE_SYSTEM) {
+      if (entry.dir == MOUNT_POINT) {
+        return true;
+      }
+      return Error("Found cgroups2 mount at an unexpected location"
+                   " '" + entry.dir + "'");
+    }
+  }
+
+  return false;
+}
+
+
+Try<Nothing> unmount()
+{
+  Try<bool> mounted = cgroups2::mounted();
+  if (mounted.isError()) {
+    return Error("Failed to check if the cgroup2 filesystem is mounted: "
+                 + mounted.error());
+  }
+
+  if (!*mounted) {
+    return Error("cgroups2 filesystem is not mounted");
+  }
+
+  Try<Nothing> result = mesos::internal::fs::unmount(MOUNT_POINT);
+  if (result.isError()) {
+    return Error("Failed to unmount the cgroup2 hierarchy" +
+                 " '" + cgroups2::MOUNT_POINT + "': " + result.error());
+  }
+
+  Try<Nothing> rmdir = os::rmdir(cgroups2::MOUNT_POINT);
+  if (rmdir.isError()) {
+    return Error(
+      "Failed to remove directory '" + cgroups2::MOUNT_POINT + "': " +
+      rmdir.error());
+  }
 }
 
 } // namespace cgroups2
