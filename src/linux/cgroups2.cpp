@@ -54,6 +54,29 @@ const std::string TYPE = "cgroup.type";
 
 } // namespace control {
 
+
+Try<string> read(const string& cgroup, const string& control)
+{
+  return os::read(path::join(
+    cgroups2::MOUNT_POINT,
+    cgroup,
+    control));
+}
+
+
+Try<Nothing> write(
+  const string& cgroup,
+  const string& control,
+  const string& value)
+{
+  return os::write(path::join(
+      cgroups2::MOUNT_POINT,
+      cgroup,
+      control
+    ), value);
+}
+
+
 bool enabled()
 {
   Try<bool> supported = mesos::internal::fs::supported(cgroups2::FILE_SYSTEM);
