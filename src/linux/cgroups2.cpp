@@ -14,16 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iterator>
+#include <ostream>
+#include <set>
 #include <string>
+#include <vector>
 
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups2.hpp"
 #include "linux/fs.hpp"
 
+using std::ostream;
+using std::set;
 using std::string;
+using std::vector;
+
 using mesos::internal::fs::MountTable;
 
 namespace cgroups2 {
@@ -53,6 +62,76 @@ const std::string THREADS = "cgroup.threads";
 const std::string TYPE = "cgroup.type";
 
 } // namespace control {
+
+
+namespace subtree_control {
+
+struct State
+{
+  State() = default;
+
+  // We don't return errors here because enabling something
+  // unknown will fail when writing it back out.
+  void enable(const vector<string>& subsystems)
+  {
+    foreach(const string& subsystem, subsystems) {
+      enable(subsystem);
+    }
+  }
+
+  // We don't return errors here because enabling something
+  // unknown will fail when writing it back out.
+  void enable(const string& subsystem)
+  {
+    _disabled.erase(subsystem);
+    _enabled.insert(subsystem);
+  }
+
+  // We don't return errors here since disabling something
+  // unknown will fail when writing it back out.
+  void disable(const string& subsystem)
+  {
+    _enabled.erase(subsystem);
+    _disabled.insert(subsystem);
+  }
+
+  set<string> enabled()  const { return _enabled; }
+  set<string> disabled() const { return _disabled; }
+
+  bool enabled(const string& subsystem) const
+  {
+    return _enabled.find(subsystem) != _enabled.end();
+  }
+
+  static State parse(const string& contents)
+  {
+    State control;
+    vector<string> subsystems = strings::split(contents, " ");
+    control._enabled.insert(
+        std::make_move_iterator(subsystems.begin()),
+        std::make_move_iterator(subsystems.end()));
+    return control;
+  }
+
+private:
+  set<string> _enabled;
+  set<string> _disabled;
+};
+
+
+std::ostream& operator<<(std::ostream& stream, const State& state)
+{
+  foreach(const string& system, state.enabled()) {
+    stream << "+" << system << " ";
+  }
+  foreach(const string& system, state.disabled()) {
+    stream << "-" << system << " ";
+  }
+  return stream;
+}
+
+} // namespace subtree_control {
+
 
 
 Try<string> read(const string& cgroup, const string& control)
@@ -163,4 +242,45 @@ Try<Nothing> unmount()
   }
 }
 
-} // namespace cgroups2
+namespace subsystems {
+
+Try<set<string>> available(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read(
+      cgroup,
+      cgroups2::control::CONTROLLERS);
+
+  if (contents.isError()) {
+    return Error("Failed to read cgroup.controllers in"
+                 " '" + cgroup + "': " + contents.error());
+  }
+
+  vector<string> subsystems = strings::split(*contents, " ");
+  return set<string>(std::make_move_iterator(subsystems.begin()),
+                     std::make_move_iterator(subsystems.end()));
+}
+
+
+Try<Nothing> enable(
+    const string& cgroup,
+    const vector<string>& subsystems)
+{
+  Try<string> contents = cgroups2::read(
+      cgroup,
+      cgroups2::control::SUBTREE_CONTROLLERS);
+
+  if (contents.isError()) {
+    return Error(contents.error());
+  }
+
+  subtree_control::State control = subtree_control::State::parse(*contents);
+  control.enable(subsystems);
+  return cgroups2::write(
+      cgroup,
+      control::SUBTREE_CONTROLLERS,
+      stringify(control));
+}
+
+} // namespace subsystems {
+
+} // namespace cgroups2 {

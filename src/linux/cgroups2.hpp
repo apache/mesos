@@ -22,6 +22,10 @@
 
 namespace cgroups2 {
 
+// Root cgroup in the cgroup v2 hierarchy. Since the root cgroup has the same
+// path as the root mount point its relative path is the empty string.
+const std::string ROOT_CGROUP = "";
+
 // Checks if cgroups2 is available on the system.
 bool enabled();
 
@@ -38,6 +42,20 @@ Try<bool> mounted();
 // responsibility of the caller to ensure all child cgroups have been destroyed.
 Try<Nothing> unmount();
 
+namespace subsystems {
+
+// Gets the subsystems that can be controlled by the provided cgroup.
+// Providing cgroups2::ROOT_CGROUP will yield the set of subsystems available
+// on the host.
+Try<std::set<std::string>> available(const std::string& cgroup);
+
+// Enables the given subsystems in the cgroup and disables all other subsystems.
+// Errors if a requested subsystem is not available.
+Try<Nothing> enable(
+  const std::string &cgroup,
+  const std::vector<std::string>& subsystems);
+
+} // namespace subsystems {
 } // namespace cgroups2
 
 #endif // __CGROUPS_V2_HPP__

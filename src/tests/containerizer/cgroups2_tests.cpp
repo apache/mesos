@@ -14,9 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <set>
+#include <string>
+
 #include <stout/tests/utils.hpp>
+#include <stout/try.hpp>
 
 #include "linux/cgroups2.hpp"
+
+using std::set;
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -24,9 +31,32 @@ namespace tests {
 
 class Cgroups2Test : public TemporaryDirectoryTest {};
 
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_Enabled)
 {
   EXPECT_TRUE(cgroups2::enabled());
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
+{
+
+  Try<bool> mounted = cgroups2::mounted();
+  ASSERT_SOME(mounted);
+
+  if (!*mounted) {
+    ASSERT_SOME(cgroups2::mount());
+  }
+
+  Try<set<string>> available = cgroups2::subsystems::available(
+    cgroups2::ROOT_CGROUP);
+
+  ASSERT_SOME(available);
+  EXPECT_TRUE(available->count("cpu") == 1);
+
+  if (!*mounted) {
+    EXPECT_SOME(cgroups2::unmount());
+  }
 }
 
 } // namespace tests {
