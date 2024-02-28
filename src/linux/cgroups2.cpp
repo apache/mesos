@@ -230,16 +230,18 @@ Try<Nothing> unmount()
 
   Try<Nothing> result = mesos::internal::fs::unmount(MOUNT_POINT);
   if (result.isError()) {
-    return Error("Failed to unmount the cgroup2 hierarchy" +
+    return Error("Failed to unmount the cgroup2 hierarchy"
                  " '" + cgroups2::MOUNT_POINT + "': " + result.error());
   }
 
   Try<Nothing> rmdir = os::rmdir(cgroups2::MOUNT_POINT);
   if (rmdir.isError()) {
     return Error(
-      "Failed to remove directory '" + cgroups2::MOUNT_POINT + "': " +
-      rmdir.error());
+        "Failed to remove directory '" + cgroups2::MOUNT_POINT + "': " +
+        rmdir.error());
   }
+
+  return Nothing();
 }
 
 namespace subsystems {
