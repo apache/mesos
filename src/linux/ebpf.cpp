@@ -151,6 +151,43 @@ Try<Nothing> attach(int fd, const string& cgroup)
   return Nothing();
 }
 
+
+Try<vector<uint32_t>> attached(const string& cgroup)
+{
+  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  if (cgroup_fd.isError()) {
+    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+  }
+
+  // Program ids are unsigned 32-bit integers. We assume that a maximum
+  // of 64 programs are attached to a cgroup; there should only be 0 or 1
+  // but we allow for more to be safe.
+  const int MAX_IDS = 64;
+  vector<uint32_t> ids(MAX_IDS);
+
+  bpf_attr attr;
+  memset(&attr, 0, sizeof(attr));
+  attr.query.target_fd = *cgroup_fd;
+  attr.query.attach_type = BPF_CGROUP_DEVICE;
+  attr.query.prog_cnt = MAX_IDS;
+  attr.query.prog_ids = reinterpret_cast<uint64_t>(ids.data());
+
+  Try<int, ErrnoError> result = bpf(BPF_PROG_QUERY, &attr, sizeof(attr));
+  os::close(*cgroup_fd);
+
+  if (result.isError()) {
+    return Error(
+        "bpf syscall to BPF_PROG_QUERY for BPF_CGROUP_DEVICE programs failed:"
+        " " + result.error().message);
+  }
+
+  // Although `attr.query.prog_cnt` is not a pointer, the bpf() system call
+  // sets it to the number of program ids that were stored in the `ids` buffer.
+  ids.resize(attr.query.prog_cnt);
+
+  return ids;
+}
+
 } // namespace cgroups2 {
 
 } // namespace ebpf {
