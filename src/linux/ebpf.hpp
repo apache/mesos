@@ -61,6 +61,15 @@ namespace cgroups2 {
 // device access dynamically.
 Try<Nothing> attach(int fd, const std::string& cgroup);
 
+// Detach a BPF_CGROUP_DEVICE eBPF program from a cgroup, by program id.
+// @param    cgroup       Absolute path of a cgroup.
+// @param    program_id   Id of the eBPF program to detach.
+Try<Nothing> detach(const std::string& cgroup, uint32_t program_id);
+
+// Get the program ids of all programs that have been attached to a cgroup.
+// @param    cgroup   Absolute path of a cgroup.
+Try<std::vector<uint32_t>> attached(const std::string& cgroup);
+
 } // namespace cgroups2 {
 
 

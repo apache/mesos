@@ -188,6 +188,46 @@ Try<vector<uint32_t>> attached(const string& cgroup)
   return ids;
 }
 
+
+// Detach an eBPF program from a target (AKA path) by its attachment type
+// and program id. Returns Nothing() on success or if no program is found.
+Try<Nothing> detach(const string& cgroup, uint32_t program_id)
+{
+  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  if (cgroup_fd.isError()) {
+    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+  }
+
+  bpf_attr attr;
+  memset(&attr, 0, sizeof(attr));
+  attr.prog_id = program_id;
+
+  Try<int, ErrnoError> program_fd =
+    bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
+
+  if (program_fd.isError()) {
+    return Error(
+        "bpf syscall to BPF_PROG_GET_FD_BY_ID failed: " +
+        program_fd.error().message);
+  }
+
+  memset(&attr, 0, sizeof(attr));
+  attr.attach_type = BPF_CGROUP_DEVICE;
+  attr.target_fd = *cgroup_fd;
+  attr.attach_bpf_fd = *program_fd;
+
+  Try<int, ErrnoError> result = bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
+  os::close(*cgroup_fd);
+  os::close(*program_fd);
+
+  if (result.isError()) {
+    return Error(
+        "bpf syscall to BPF_PROG_DETACH failed: " + result.error().message);
+  }
+
+  return Nothing();
+}
+
 } // namespace cgroups2 {
 
 } // namespace ebpf {
