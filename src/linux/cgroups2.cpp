@@ -43,6 +43,14 @@ const string FILE_SYSTEM = "cgroup2";
 // Mount point for the cgroups2 file system.
 const string MOUNT_POINT = "/sys/fs/cgroup";
 
+// Forward declaration.
+Try<string> read(const string& cgroup, const string& control);
+
+// Forward declaration.
+Try<Nothing> write(
+  const string& cgroup,
+  const string& control,
+  const string& value);
 
 namespace control {
 
