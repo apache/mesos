@@ -52,8 +52,8 @@ Try<std::set<std::string>> available(const std::string& cgroup);
 // Enables the given subsystems in the cgroup and disables all other subsystems.
 // Errors if a requested subsystem is not available.
 Try<Nothing> enable(
-  const std::string &cgroup,
-  const std::vector<std::string>& subsystems);
+    const std::string& cgroup,
+    const std::vector<std::string>& subsystems);
 
 } // namespace subsystems {
 } // namespace cgroups2
