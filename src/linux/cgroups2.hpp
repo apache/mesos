@@ -46,20 +46,20 @@ Try<bool> mounted();
 // responsibility of the caller to ensure all child cgroups have been destroyed.
 Try<Nothing> unmount();
 
-namespace subsystems {
+namespace controllers {
 
-// Gets the subsystems that can be controlled by the provided cgroup.
-// Providing cgroups2::ROOT_CGROUP will yield the set of subsystems available
+// Gets the controllers that can be controlled by the provided cgroup.
+// Providing cgroups2::ROOT_CGROUP will yield the set of controllers available
 // on the host.
 Try<std::set<std::string>> available(const std::string& cgroup);
 
-// Enables the given subsystems in the cgroup and disables all other subsystems.
-// Errors if a requested subsystem is not available.
+// Enables the given controllers in the cgroup and disables all other
+// controllers. Errors if a requested controller is not available.
 Try<Nothing> enable(
     const std::string& cgroup,
-    const std::vector<std::string>& subsystems);
+    const std::vector<std::string>& controllers);
 
-} // namespace subsystems {
+} // namespace controllers {
 } // namespace cgroups2
 
 #endif // __CGROUPS_V2_HPP__
