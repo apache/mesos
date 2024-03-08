@@ -22,8 +22,10 @@
 
 #include <linux/bpf.h>
 
+#include <string>
 #include <vector>
 
+#include "stout/nothing.hpp"
 #include "stout/try.hpp"
 
 namespace ebpf {
@@ -49,6 +51,15 @@ public:
 // descriptor of loaded program.
 Try<int> load(const Program& program);
 
+
+namespace cgroups2 {
+
+// Attaches an eBPF program to a cgroup.
+// @param   fd       File descriptor of the loaded eBPF program.
+// @param   cgroup   Absolute path to the target cgroup.
+Try<Nothing> attach(int fd, const std::string& cgroup);
+
+} // namespace cgroups2 {
 
 // Utility macros for constructing eBPF instructions.
 #define BPF_ALU32_IMM(OP, DST, IMM)       \
