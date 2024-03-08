@@ -72,6 +72,26 @@ const std::string TYPE = "cgroup.type";
 
 } // namespace control {
 
+namespace controllers {
+
+// Find the available controllers (AKA subsystems) in the provided cgroup.
+Try<set<string>> available(const string& cgroup)
+{
+  Try<string> read =
+    cgroups2::read(cgroup, cgroups2::control::CONTROLLERS);
+
+  if (read.isError()) {
+    return Error("Failed to read cgroup.controllers: " + read.error());
+  }
+
+  vector<string> subsystems = strings::split(*read, " ");
+  return set<string>(
+      std::make_move_iterator(subsystems.begin()),
+      std::make_move_iterator(subsystems.end()));
+}
+
+} // namespace controllers {
+
 
 namespace subtree_control {
 
