@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -278,6 +279,26 @@ Try<set<string>> available(const string& cgroup)
   return set<string>(
       std::make_move_iterator(subsystems.begin()),
       std::make_move_iterator(subsystems.end()));
+}
+
+
+Try<bool> available(const string& cgroup, const vector<string>& subsystems)
+{
+  Try<set<string>> available = controllers::available(cgroup);
+  if (available.isError()) {
+    return Error(
+        "Failed to determine the available subsystems for the cgroup '" +
+        cgroup + "': " + available.error());
+  }
+
+  foreach (const string& subsystem, subsystems) {
+    if (available.get().find(subsystem) == available.get().end()) {
+      // `subsystem` was not found.
+      return false;
+    }
+  }
+
+  return true;
 }
 
 

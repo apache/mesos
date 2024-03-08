@@ -53,6 +53,11 @@ namespace subsystems {
 // on the host.
 Try<std::set<std::string>> available(const std::string& cgroup);
 
+// Check if a list of subsystems can be enabled by a cgroup.
+Try<bool> available(
+    const std::string& cgroup,
+    const std::vector<std::string>& subsystems);
+
 // Enables the given subsystems in the cgroup and disables all other subsystems.
 // Errors if a requested subsystem is not available.
 Try<Nothing> enable(
