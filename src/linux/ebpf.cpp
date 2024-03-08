@@ -24,6 +24,9 @@
 
 #include "stout/check.hpp"
 #include "stout/error.hpp"
+#include "stout/nothing.hpp"
+#include "stout/os/close.hpp"
+#include "stout/os/open.hpp"
 #include "stout/try.hpp"
 
 using std::string;
@@ -95,5 +98,59 @@ Try<int> load(const Program& program)
 
   return *fd;
 }
+
+namespace cgroups2 {
+
+Try<Nothing> attach(int fd, const string& cgroup)
+{
+  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  if (cgroup_fd.isError()) {
+    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+  }
+
+  bpf_attr attr;
+  memset(&attr, 0, sizeof(attr));
+  attr.attach_type = BPF_CGROUP_DEVICE;
+  attr.target_fd = *cgroup_fd;
+  attr.attach_bpf_fd = fd;
+
+  // TODO(dleamy): Replace any existing attached programs here!
+  //
+  // BPF_F_ALLOW_MULTI allows multiple eBPF programs to be attached to a single
+  // cgroup and determines how the programs up and down the hierarchy will run.
+  //
+  // Rules (assuming all cgroups use BPF_F_ALLOW_MULTI):
+  //
+  //   1. Programs attached to child cgroups run before programs attached
+  //      to their parent.
+  //   2. Within a cgroup, programs attached earlier will run before programs
+  //      attached later. Note that we do not want to attach multiple programs
+  //      to a single cgroup.
+  //
+  // Order: oldest, ..., newest
+  // cgroup1: A, B
+  //   cgroup2: C
+  //   cgroup3: D, E
+  //     cgroup4: F
+  // cgroup4 run order: F, D, E, A, B
+  // cgroup2 run order: C, A, B
+  //
+  // For full details, see:
+  // https://elixir.bootlin.com/linux/v6.7.9/source/include/uapi/linux/bpf.h#L1090
+  attr.attach_flags = BPF_F_ALLOW_MULTI;
+
+  Try<int, ErrnoError> result = bpf(BPF_PROG_ATTACH, &attr, sizeof(attr));
+
+  os::close(*cgroup_fd);
+
+  if (result.isError()) {
+    return Error("BPF program attach syscall failed: "
+                 + result.error().message);
+  }
+
+  return Nothing();
+}
+
+} // namespace cgroups2 {
 
 } // namespace ebpf {

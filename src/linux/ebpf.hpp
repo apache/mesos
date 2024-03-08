@@ -22,8 +22,10 @@
 
 #include <linux/bpf.h>
 
+#include <string>
 #include <vector>
 
+#include "stout/nothing.hpp"
 #include "stout/try.hpp"
 
 namespace ebpf {
@@ -48,6 +50,18 @@ public:
 // Loads the provided eBPF program into the kernel and returns the file
 // descriptor of loaded program.
 Try<int> load(const Program& program);
+
+
+namespace cgroups2 {
+
+// Attaches the eBPF program identified by the provided fd to a cgroup.
+//
+// TODO(dleamy): This currently does not replace existing programs attached
+// to the cgroup, we will need to add replacement to support adding / removing
+// device access dynamically.
+Try<Nothing> attach(int fd, const std::string& cgroup);
+
+} // namespace cgroups2 {
 
 
 // Utility macros for constructing eBPF instructions.
