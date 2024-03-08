@@ -17,6 +17,10 @@
 #ifndef __CGROUPS_V2_HPP__
 #define __CGROUPS_V2_HPP__
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
