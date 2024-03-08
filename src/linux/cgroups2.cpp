@@ -72,27 +72,6 @@ const std::string TYPE = "cgroup.type";
 
 } // namespace control {
 
-namespace controllers {
-
-// Find the available controllers (AKA subsystems) in the provided cgroup.
-Try<set<string>> available(const string& cgroup)
-{
-  Try<string> read =
-    cgroups2::read(cgroup, cgroups2::control::CONTROLLERS);
-
-  if (read.isError()) {
-    return Error("Failed to read cgroup.controllers: " + read.error());
-  }
-
-  vector<string> subsystems = strings::split(*read, " ");
-  return set<string>(
-      std::make_move_iterator(subsystems.begin()),
-      std::make_move_iterator(subsystems.end()));
-}
-
-} // namespace controllers {
-
-
 namespace subtree_control {
 
 struct State
@@ -101,44 +80,44 @@ struct State
 
   // We don't return errors here because enabling something
   // unknown will fail when writing it back out.
-  void enable(const vector<string>& subsystems)
+  void enable(const vector<string>& controllers)
   {
-    foreach (const string& subsystem, subsystems) {
-      enable(subsystem);
+    foreach (const string& controller, controllers) {
+      enable(controller);
     }
   }
 
   // We don't return errors here because enabling something
   // unknown will fail when writing it back out.
-  void enable(const string& subsystem)
+  void enable(const string& controller)
   {
-    _disabled.erase(subsystem);
-    _enabled.insert(subsystem);
+    _disabled.erase(controller);
+    _enabled.insert(controller);
   }
 
   // We don't return errors here since disabling something
   // unknown will fail when writing it back out.
-  void disable(const string& subsystem)
+  void disable(const string& controller)
   {
-    _enabled.erase(subsystem);
-    _disabled.insert(subsystem);
+    _enabled.erase(controller);
+    _disabled.insert(controller);
   }
 
   set<string> enabled()  const { return _enabled; }
   set<string> disabled() const { return _disabled; }
 
-  bool enabled(const string& subsystem) const
+  bool enabled(const string& controller) const
   {
-    return _enabled.find(subsystem) != _enabled.end();
+    return _enabled.find(controller) != _enabled.end();
   }
 
   static State parse(const string& contents)
   {
     State control;
-    vector<string> subsystems = strings::split(contents, " ");
+    vector<string> controllers = strings::split(contents, " ");
     control._enabled.insert(
-      std::make_move_iterator(subsystems.begin()),
-      std::make_move_iterator(subsystems.end()));
+      std::make_move_iterator(controllers.begin()),
+      std::make_move_iterator(controllers.end()));
     return control;
   }
 
@@ -263,7 +242,7 @@ Try<Nothing> unmount()
   return Nothing();
 }
 
-namespace subsystems {
+namespace controllers {
 
 Try<set<string>> available(const string& cgroup)
 {
@@ -274,14 +253,14 @@ Try<set<string>> available(const string& cgroup)
                  + contents.error());
   }
 
-  vector<string> subsystems = strings::split(*contents, " ");
+  vector<string> controllers = strings::split(*contents, " ");
   return set<string>(
-      std::make_move_iterator(subsystems.begin()),
-      std::make_move_iterator(subsystems.end()));
+      std::make_move_iterator(controllers.begin()),
+      std::make_move_iterator(controllers.end()));
 }
 
 
-Try<Nothing> enable(const string& cgroup, const vector<string>& subsystems)
+Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 {
   Try<string> contents =
     cgroups2::read(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
@@ -291,12 +270,12 @@ Try<Nothing> enable(const string& cgroup, const vector<string>& subsystems)
   }
 
   subtree_control::State control = subtree_control::State::parse(*contents);
-  control.enable(subsystems);
+  control.enable(controllers);
   return cgroups2::write(
       cgroup,
       control::SUBTREE_CONTROLLERS,
       stringify(control));
 }
 
-} // namespace subsystems {
+} // namespace controllers {
 } // namespace cgroups2 {
