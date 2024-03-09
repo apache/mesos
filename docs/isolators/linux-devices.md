@@ -9,7 +9,7 @@ While the `cgroups/devices` isolator allows operators to control
 container access to host devices, the container might still need
 additional privileges to create a device node to actually use the
 device. The `linux/devices` isolator ensures that containers that
-are granted access to host devices are populated with the the correct
+are granted access to host devices are populated with the correct
 set of device nodes. Access to host devices is granted by using the
 [`--allowed_devices`](../configuration/agent.md#allowed_devices) flag
 on the agent.

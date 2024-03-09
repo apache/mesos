@@ -868,7 +868,7 @@ Future<Nothing> IOSwitchboard::cleanup(
         // NOTE: As the I/O switchboard creates a unix domain socket using
         // a provisional address before initialiazing and renaming it, we assume
         // that the absence of the unix socket at the original address means
-        // that the the I/O switchboard has been terminated before renaming.
+        // that the I/O switchboard has been terminated before renaming.
         Result<unix::Address> address = getContainerIOSwitchboardAddress(
             flags.runtime_dir, containerId);
 

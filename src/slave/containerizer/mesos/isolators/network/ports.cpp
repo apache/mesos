@@ -204,7 +204,7 @@ static uint32_t extractSocketInode(const string& sock)
 }
 
 
-// Return the inodes of all the sockets open in the the given process.
+// Return the inodes of all the sockets open in the given process.
 Try<vector<uint32_t>> NetworkPortsIsolatorProcess::getProcessSockets(pid_t pid)
 {
   const string fdPath = path::join("/proc", stringify(pid), "fd");
