@@ -1193,7 +1193,7 @@ TEST_P(ROOT_XFS_QuotaEnforcement, DiskUsageExceedsQuotaWithKill)
 
   // Expect that we were limited on a single disk resource that represents
   // the amount of disk that the task consumed. The task used up to 2MB
-  // and the the executor logs might use more, but as long we report that
+  // and the executor logs might use more, but as long we report that
   // the task used more than the 1MB in its resources, we are happy.
   EXPECT_EQ(1u, limit.size());
   ASSERT_SOME(limit.disk());

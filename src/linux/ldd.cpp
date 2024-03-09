@@ -86,7 +86,7 @@ Try<hashset<string>> ldd(
       // inspect that too. We need both to be able to run an executable program.
       // NOTE: The same object may be specified as a dependency too but on some
       // systems (e.g. Ubuntu), the exact path of the two can differ even though
-      // they link to the the same file (see MESOS-7060). We however need the
+      // they link to the same file (see MESOS-7060). We however need the
       // exact path specified in the interpreter section to run the executable.
       Result<string> interpreter = elf->get_interpreter();
       if (interpreter.isSome()) {

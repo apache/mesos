@@ -6208,7 +6208,7 @@ TEST_F(SlaveTest, AgentFailoverTerminatesExecutorWithNoTask)
 
   TaskInfo task = createTask(offers->front(), "sleep 1000");
 
-  // Before sending the the task to the executor, restart the agent.
+  // Before sending the task to the executor, restart the agent.
   Future<Nothing> ___run;
   EXPECT_CALL(*slave.get()->mock(), ___run(_, _, _, _, _, _))
     .WillOnce(FutureSatisfy(&___run));
@@ -6517,7 +6517,7 @@ TEST_F(SlaveTest, AgentFailoverTerminatesHTTPExecutorWithNoTask)
   mesos.send(
       v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
-  // Before sending the the task to the executor, restart the agent.
+  // Before sending the task to the executor, restart the agent.
   AWAIT_READY(___run);
 
   slave.get()->terminate();

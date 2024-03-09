@@ -102,7 +102,7 @@ vector<ActionObject> ActionObject::agentRegistration(
 
 
 // Returns effective reservation role of resource for the purpose
-// of authorizing an operation; that is, the the role of the most
+// of authorizing an operation; that is, the role of the most
 // refined reservation if the resource is reserved.
 //
 // NOTE: If the resource is not reserved, the default role '*' is

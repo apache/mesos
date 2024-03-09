@@ -4713,7 +4713,7 @@ TEST_P(StorageLocalResourceProviderTest, ContainerTerminationMetric)
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::advance(slaveFlags.authentication_backoff_factor);
 
-  // Wait for the the resource provider to subscribe before killing it
+  // Wait for the resource provider to subscribe before killing it
   // by observing the agent report the resource provider to the
   // master. This prevents the plugin from entering a failed, non-
   // restartable state, see MESOS-9130.
