@@ -70,8 +70,6 @@ const std::string SUBTREE_CONTROLLERS = "cgroup.subtree_control";
 const std::string THREADS = "cgroup.threads";
 const std::string TYPE = "cgroup.type";
 
-} // namespace control {
-
 namespace subtree_control {
 
 struct State
@@ -139,6 +137,8 @@ std::ostream& operator<<(std::ostream& stream, const State& state)
 }
 
 } // namespace subtree_control {
+
+} // namespace control {
 
 
 Try<string> read(const string& cgroup, const string& control)
@@ -269,7 +269,8 @@ Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
     return Error(contents.error());
   }
 
-  subtree_control::State control = subtree_control::State::parse(*contents);
+  using State = control::subtree_control::State;
+  State control = State::parse(*contents);
   control.enable(controllers);
   return cgroups2::write(
       cgroup,
