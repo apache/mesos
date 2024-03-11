@@ -65,6 +65,8 @@ void Program::append(vector<bpf_insn>&& instructions)
 }
 
 
+// Load an eBPF program into the kernel and return the file
+// descriptor of the loaded program.
 Try<int> load(const Program& program)
 {
   bpf_attr attribute;
@@ -101,7 +103,12 @@ Try<int> load(const Program& program)
 
 namespace cgroups2 {
 
-Try<Nothing> attach(int fd, const string& cgroup)
+// Attaches the eBPF program identified by the provided fd to a cgroup.
+//
+// TODO(dleamy): This currently does not replace existing programs attached
+// to the cgroup, we will need to add replacement to support adding / removing
+// device access dynamically.
+Try<Nothing> attach(const string& cgroup, int fd)
 {
   Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
   if (cgroup_fd.isError()) {
@@ -146,6 +153,23 @@ Try<Nothing> attach(int fd, const string& cgroup)
   if (result.isError()) {
     return Error("BPF program attach syscall failed: "
                  + result.error().message);
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> attach(const string& cgroup, const Program& program)
+{
+  Try<int> program_fd = ebpf::load(program);
+  if (program_fd.isError()) {
+    return Error("Failed to load eBPF program: " + program_fd.error());
+  }
+
+  Try<Nothing> _attach = attach(cgroup, *program_fd);
+  os::close(*program_fd);
+  if (_attach.isError()) {
+    return Error("Failed to attach eBPF program: " + _attach.error());
   }
 
   return Nothing();
