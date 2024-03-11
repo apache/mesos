@@ -54,14 +54,14 @@ Try<int> load(const Program& program);
 
 namespace cgroups2 {
 
-// Attaches the eBPF program identified by the provided fd to a cgroup.
-//
-// TODO(dleamy): This currently does not replace existing programs attached
-// to the cgroup, we will need to add replacement to support adding / removing
-// device access dynamically.
-Try<Nothing> attach(int fd, const std::string& cgroup);
+// Load and attach an BPF_CGROUP_DEVICE eBPF program to a cgroup.
+// @param   cgroup    Absolute path of a cgroup.
+// @param   program   eBPF program to be loaded.
+Try<Nothing> attach(const std::string& cgroup, const Program& program);
 
-// Detach a BPF_CGROUP_DEVICE eBPF program from a cgroup, by program id.
+// Detach an BPF_CGROUP_DEVICE eBPF program from a cgroup, by program id.
+// @param    cgroup       Absolute path of a cgroup.
+// @param    program_id   Id of the eBPF program to detach.
 Try<Nothing> detach(const std::string& cgroup, uint32_t program_id);
 
 // Get the program ids of all programs that have been attached to a cgroup.
