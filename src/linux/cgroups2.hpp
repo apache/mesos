@@ -33,13 +33,16 @@ const std::string ROOT_CGROUP = "";
 // Checks if cgroups2 is available on the system.
 bool enabled();
 
+
 // Mounts the cgroups2 file system at /sys/fs/cgroup. Errors if
 // the cgroups v2 file system is already mounted.
 Try<Nothing> mount();
 
+
 // Checks if the cgroup2 file systems is mounted at /sys/fs/cgroup,
 // returns an error if the mount is found at an unexpected location.
 Try<bool> mounted();
+
 
 // Unmounts the cgroups2 file system from /sys/fs/cgroup. Errors if
 // the cgroup2 file system is not mounted at /sys/fs/cgroup. It's the
@@ -53,6 +56,7 @@ namespace controllers {
 // on the host.
 Try<std::set<std::string>> available(const std::string& cgroup);
 
+
 // Enables the given controllers in the cgroup and disables all other
 // controllers. Errors if a requested controller is not available.
 Try<Nothing> enable(
@@ -60,6 +64,7 @@ Try<Nothing> enable(
     const std::vector<std::string>& controllers);
 
 } // namespace controllers {
-} // namespace cgroups2
+
+} // namespace cgroups2 {
 
 #endif // __CGROUPS_V2_HPP__

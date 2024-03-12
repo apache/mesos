@@ -52,8 +52,10 @@ namespace cgroups2 {
 // Load and attach a BPF_CGROUP_DEVICE eBPF program to a cgroup.
 Try<Nothing> attach(const std::string& cgroup, const Program& program);
 
+
 // Detach a BPF_CGROUP_DEVICE eBPF program from a cgroup, by program id.
 Try<Nothing> detach(const std::string& cgroup, uint32_t program_id);
+
 
 // Get the program ids of all programs that have been attached to a cgroup.
 Try<std::vector<uint32_t>> attached(const std::string& cgroup);

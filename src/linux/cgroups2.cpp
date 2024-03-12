@@ -279,4 +279,5 @@ Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 }
 
 } // namespace controllers {
+
 } // namespace cgroups2 {
