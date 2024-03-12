@@ -60,6 +60,8 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
 }
 
 } // namespace tests {
+
 } // namespace internal {
+
 } // namespace mesos {
 

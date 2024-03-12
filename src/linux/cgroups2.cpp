@@ -102,6 +102,7 @@ struct State
   }
 
   set<string> enabled()  const { return _enabled; }
+
   set<string> disabled() const { return _disabled; }
 
   bool enabled(const string& controller) const
@@ -279,4 +280,5 @@ Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 }
 
 } // namespace controllers {
+
 } // namespace cgroups2 {
