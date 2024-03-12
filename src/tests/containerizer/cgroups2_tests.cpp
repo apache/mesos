@@ -48,7 +48,7 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
     ASSERT_SOME(cgroups2::mount());
   }
 
-  Try<set<string>> available = cgroups2::subsystems::available(
+  Try<set<string>> available = cgroups2::controllers::available(
     cgroups2::ROOT_CGROUP);
 
   ASSERT_SOME(available);
