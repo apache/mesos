@@ -28,11 +28,19 @@ To run checks over a Mesos checkout invoke
 
 ```bash
 $ docker run \
+      --platform linux/amd64 \
       --rm \
       -v <MESOS_CHECKOUT>:/SRC \
       [-e CHECKS=<CHECKS>] \
       [-e CMAKE_ARGS=<CMAKE_ARGS>] \
       mesos-tidy
+```
+
+If running on macOS, it will run out of memory by default and you need
+to constrain the JOB count, for example:
+
+```bash
+docker run --rm -v <MESOS_CHECKOUT>:/SRC --platform linux/amd64 --env JOBS=4 --memory 32GB mesos-tidy
 ```
 
 Here `MESOS_CHECKOUT` points to a git checkout of the Mesos source tree.
