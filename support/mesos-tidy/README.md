@@ -14,10 +14,15 @@ Building the image involves compiling a Mesos-flavored version of
 `clang-tidy`, installing Mesos dependencies, and installation of tools
 to drive check invocations.
 
-The image can be built with
-
+The image can be built with:
 ```bash
 $ docker build -t mesos-tidy .
+```
+
+On an M1 Mac, you may need to pass `--platform` to avoid an error with
+`qemu-x86_64: Could not open '/lib64/ld-linux-x86-64.so.2': No such file or directory`:
+```bash
+$ docker build -t mesos-tidy --platform linux/amd64 .
 ```
 
 A pre-built image is available via Docker Hub as `mesos/mesos-tidy`.
@@ -28,11 +33,19 @@ To run checks over a Mesos checkout invoke
 
 ```bash
 $ docker run \
+      --platform linux/amd64 \
       --rm \
       -v <MESOS_CHECKOUT>:/SRC \
       [-e CHECKS=<CHECKS>] \
       [-e CMAKE_ARGS=<CMAKE_ARGS>] \
       mesos-tidy
+```
+
+If running on macOS, it will run out of memory by default and you need
+to constrain the JOB count, for example:
+
+```bash
+docker run --rm -v <MESOS_CHECKOUT>:/SRC --platform linux/amd64 --env JOBS=4 --memory 32GB mesos-tidy
 ```
 
 Here `MESOS_CHECKOUT` points to a git checkout of the Mesos source tree.
