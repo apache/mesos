@@ -39,11 +39,11 @@ RUN curl -sSL https://cmake.org/files/v3.16/cmake-3.16.0-Linux-x86_64.sh \
     sh /tmp/install-cmake.sh --skip-license --prefix=/usr/local
 
 RUN \
-  git clone --depth 1 -b release_90 http://llvm.org/git/llvm /tmp/llvm && \
-  git clone --depth 1 -b mesos_90 http://github.com/mesos/clang.git /tmp/llvm/tools/clang && \
-  git clone --depth 1 -b mesos_90 http://github.com/mesos/clang-tools-extra.git /tmp/llvm/tools/clang/tools/extra && \
+  git clone --depth 1 -b release/9.x http://github.com/llvm/llvm-project.git /tmp/llvm-project && \
+  git clone --depth 1 -b mesos_90 http://github.com/mesos/clang.git /tmp/llvm-project/llvm/tools/clang && \
+  git clone --depth 1 -b mesos_90 http://github.com/mesos/clang-tools-extra.git /tmp/llvm-project/llvm/tools/clang/tools/extra && \
   \
-  cmake /tmp/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt && \
+  cmake /tmp/llvm-project/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt && \
   cmake --build tools/clang/lib/Headers --target install -- -j $(nproc) && \
   cmake --build tools/clang/tools/extra/clang-tidy --target install -- -j $(nproc) && \
   \
