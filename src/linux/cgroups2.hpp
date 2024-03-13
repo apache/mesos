@@ -63,6 +63,10 @@ Try<Nothing> enable(
     const std::string& cgroup,
     const std::vector<std::string>& controllers);
 
+
+// Get all the controllers that are enabled for a cgroup.
+Try<std::set<std::string>> enabled(const std::string& cgroup);
+
 } // namespace controllers {
 
 } // namespace cgroups2 {
