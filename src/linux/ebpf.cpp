@@ -91,7 +91,9 @@ Try<int> load(const Program& program)
     CHECK_ERROR(fd);
     CHECK_EQ(EACCES, fd.error().code)
       << "Expected BPF syscall to fail again with EACCES";
-    return Error(string("BPF verifier failed: ") + verifier_logs.c_str());
+    // Convert `verifier_logs` to a C string to avoid outputting
+    // the zeroed bytes.
+    return Error(string("BPF verifier failed: ") + verifier_logs.data());
   }
 
   if (fd.isError()) {

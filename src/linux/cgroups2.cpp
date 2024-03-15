@@ -201,7 +201,7 @@ Try<bool> mounted()
     return Error("Failed to read /proc/mounts: " + mountTable.error());
   }
 
-  foreach (MountTable::Entry entry, mountTable.get().entries) {
+  foreach (MountTable::Entry entry, mountTable->entries) {
     if (entry.type == cgroups2::FILE_SYSTEM) {
       if (entry.dir == MOUNT_POINT) {
         return true;
