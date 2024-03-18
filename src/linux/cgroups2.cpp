@@ -242,6 +242,20 @@ Try<Nothing> unmount()
   return Nothing();
 }
 
+
+Try<Nothing> create(const string& cgroup, bool recursive)
+{
+  const string absolutePath = path::join(MOUNT_POINT, cgroup);
+
+  Try<Nothing> mkdir = os::mkdir(absolutePath, recursive);
+  if (mkdir.isError()) {
+    return Error("Failed to create directory '" + absolutePath + "': "
+                 + mkdir.error());
+  }
+
+  return Nothing();
+}
+
 namespace controllers {
 
 Try<set<string>> available(const string& cgroup)
