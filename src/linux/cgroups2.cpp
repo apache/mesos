@@ -265,7 +265,7 @@ Try<Nothing> destroy(const string& cgroup)
     return Error("There does not exist a cgroup at '" + absolutePath + "'");
   }
 
-  Try<Nothing> rmdir = os::rmdir(absolutePath);
+  Try<Nothing> rmdir = os::rmdir(absolutePath, false);
   if (rmdir.isError()) {
     return Error("Failed to remove directory '" + absolutePath + "': "
                  + rmdir.error());
