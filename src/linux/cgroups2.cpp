@@ -274,6 +274,46 @@ Try<Nothing> destroy(const string& cgroup)
   return Nothing();
 }
 
+
+Try<Nothing> move_process(const string& cgroup, pid_t pid)
+{
+  const string absolutePath = path::join(MOUNT_POINT, cgroup);
+
+  if (!os::exists(absolutePath)) {
+    return Error("There does not exist a cgroup at '" + absolutePath + "'");
+  }
+
+  return cgroups2::write(cgroup, control::PROCESSES, std::to_string(pid));
+}
+
+
+Try<string> cgroup(pid_t pid)
+{
+  // A process's cgroup membership is listed in '/proc/{pid}/cgroup'.
+  //
+  // The format, e.g for the cgroup `/sys/fs/cgroup/foo/bar`, is:
+  // """"
+  // 0::/foo/bar
+  // or
+  // 0::/foo/bar (deleted)
+  // """
+  const string& cgroupFile = path::join("/proc", std::to_string(pid), "cgroup");
+  if (!os::exists(cgroupFile)) {
+    return Error("File '" + cgroupFile + "' does not exist");
+  }
+
+  Try<string> content = os::read(cgroupFile);
+  if (content.isError()) {
+    return Error("Failed to read '" + cgroupFile + "'");
+  }
+
+  string parsed = strings::remove(
+      strings::trim(*content), "0::/", strings::Mode::PREFIX);
+  parsed = strings::remove(parsed, " (deleted)", strings::Mode::SUFFIX);
+
+  return parsed;
+}
+
 namespace controllers {
 
 Try<set<string>> available(const string& cgroup)

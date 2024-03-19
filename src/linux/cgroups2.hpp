@@ -61,6 +61,15 @@ Try<Nothing> create(const std::string& cgroup, bool recursive = false);
 // e.g. because it contains processes, an error is returned.
 Try<Nothing> destroy(const std::string& cgroup);
 
+
+// Moves a process into a cgroup, by PID. Errors if the cgroup does not exist.
+// If the process is already in the cgroup, this operation is a NOP.
+Try<Nothing> move_process(const std::string& cgroup, pid_t pid);
+
+
+// Get the cgroup that a process is part of.
+Try<std::string> cgroup(pid_t pid);
+
 namespace controllers {
 
 // Gets the controllers that can be controlled by the provided cgroup.
