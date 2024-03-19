@@ -274,6 +274,51 @@ Try<Nothing> destroy(const string& cgroup)
   return Nothing();
 }
 
+
+Try<Nothing> move_process(const string& cgroup, pid_t pid)
+{
+  const string absolutePath = path::join(MOUNT_POINT, cgroup);
+
+  if (!os::exists(absolutePath)) {
+    return Error("There does not exist a cgroup at '" + absolutePath + "'");
+  }
+
+  return cgroups2::write(cgroup, control::PROCESSES, stringify(pid));
+}
+
+
+Try<string> cgroup(pid_t pid)
+{
+  // A process's cgroup membership is listed in /proc/{pid}/cgroup.
+  // The format, e.g if the process belongs to /sys/fs/cgroup/foo/bar, is:
+  //
+  //   0::/foo/bar
+  //   or
+  //   0::/foo/bar (deleted)
+  //
+  // See: https://docs.kernel.org/admin-guide/cgroup-v2.html#processes
+  // https://man7.org/linux/man-pages/man7/cgroups.7.html
+  const string& cgroupFile = path::join("/proc", stringify(pid), "cgroup");
+  if (!os::exists(cgroupFile)) {
+    return Error("'" + cgroupFile + "' does not exist");
+  }
+
+  Try<string> read = os::read(cgroupFile);
+  if (read.isError()) {
+    return Error("Failed to read '" + cgroupFile + "': " + read.error());
+  }
+
+  string content = strings::trim(*read);
+  if (!strings::startsWith(content, "0::/")) {
+    return Error("process belongs to a v1 cgroup: " + content);
+  }
+
+  content = strings::remove(content, "0::/", strings::Mode::PREFIX);
+  content = strings::remove(content, " (deleted)", strings::Mode::SUFFIX);
+
+  return content;
+}
+
 namespace controllers {
 
 Try<set<string>> available(const string& cgroup)

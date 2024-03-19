@@ -17,6 +17,10 @@
 #include <set>
 #include <string>
 
+#include <process/reap.hpp>
+#include <process/gtest.hpp>
+
+#include <stout/exit.hpp>
 #include <stout/tests/utils.hpp>
 #include <stout/try.hpp>
 
@@ -57,6 +61,35 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
   if (!*mounted) {
     EXPECT_SOME(cgroups2::unmount());
   }
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
+{
+  string cgroup = "test";
+  ASSERT_SOME(cgroups2::create(cgroup));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process, wait for kill signal.
+    while (true) { sleep(1); }
+
+    SAFE_EXIT(
+        EXIT_FAILURE, "Error, child should be killed before reaching here");
+  }
+
+  // Add the forked child to the cgroup and check that its 'cgroup' membership
+  // is correct.
+  EXPECT_SOME(cgroups2::move_process(cgroup, pid));
+  EXPECT_SOME_EQ(cgroup, cgroups2::cgroup(pid));
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
+
+  EXPECT_SOME(cgroups2::destroy(cgroup));
 }
 
 } // namespace tests {
