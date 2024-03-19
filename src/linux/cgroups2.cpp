@@ -243,6 +243,12 @@ Try<Nothing> unmount()
 }
 
 
+bool exists(const string& cgroup)
+{
+  return os::exists(path::join(MOUNT_POINT, cgroup));
+}
+
+
 Try<Nothing> create(const string& cgroup, bool recursive)
 {
   const string absolutePath = path::join(MOUNT_POINT, cgroup);
@@ -259,12 +265,11 @@ Try<Nothing> create(const string& cgroup, bool recursive)
 
 Try<Nothing> destroy(const string& cgroup)
 {
-  const string absolutePath = path::join(MOUNT_POINT, cgroup);
-
-  if (!os::exists(absolutePath)) {
-    return Error("There does not exist a cgroup at '" + absolutePath + "'");
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
+  const string absolutePath = path::join(MOUNT_POINT, cgroup);
   Try<Nothing> rmdir = os::rmdir(absolutePath, false);
   if (rmdir.isError()) {
     return Error("Failed to remove directory '" + absolutePath + "': "

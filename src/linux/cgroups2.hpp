@@ -50,6 +50,10 @@ Try<bool> mounted();
 Try<Nothing> unmount();
 
 
+// Check if a cgroup exists.
+bool exists(const std::string& cgroup);
+
+
 // Creates a cgroup off of the base hierarchy, i.e. /sys/fs/cgroup/<cgroup>.
 // cgroup can be a nested cgroup (e.g. foo/bar/baz). If cgroup is a nested
 // cgroup and the parent cgroups do not exist, an error will be returned unless
