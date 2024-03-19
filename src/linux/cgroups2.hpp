@@ -56,6 +56,11 @@ Try<Nothing> unmount();
 // recursive=true.
 Try<Nothing> create(const std::string& cgroup, bool recursive = false);
 
+
+// Destroy a cgroup. If the cgroup does not exist or cannot be destroyed,
+// e.g. because it contains processes, an error is returned.
+Try<Nothing> destroy(const std::string& cgroup);
+
 namespace controllers {
 
 // Gets the controllers that can be controlled by the provided cgroup.
