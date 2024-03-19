@@ -44,14 +44,16 @@ const string FILE_SYSTEM = "cgroup2";
 // Mount point for the cgroups2 file system.
 const string MOUNT_POINT = "/sys/fs/cgroup";
 
-// Forward declaration.
-Try<string> read(const string& cgroup, const string& control);
 
-// Forward declaration.
+template <typename T>
+Try<T> read(const string& cgroup, const string& control);
+
+template <typename T>
 Try<Nothing> write(
     const string& cgroup,
     const string& control,
-    const string& value);
+    const T& value);
+
 
 namespace control {
 
@@ -141,16 +143,18 @@ std::ostream& operator<<(std::ostream& stream, const State& state)
 } // namespace control {
 
 
+template <>
 Try<string> read(const string& cgroup, const string& control)
 {
   return os::read(path::join(cgroups2::MOUNT_POINT, cgroup, control));
 }
 
 
+template <>
 Try<Nothing> write(
-  const string& cgroup,
-  const string& control,
-  const string& value)
+    const string& cgroup,
+    const string& control,
+    const string& value)
 {
   return os::write(path::join(cgroups2::MOUNT_POINT, cgroup, control), value);
 }
@@ -328,7 +332,8 @@ namespace controllers {
 
 Try<set<string>> available(const string& cgroup)
 {
-  Try<string> contents = cgroups2::read(cgroup, cgroups2::control::CONTROLLERS);
+  Try<string> contents =
+    cgroups2::read<string>(cgroup, cgroups2::control::CONTROLLERS);
 
   if (contents.isError()) {
     return Error("Failed to read cgroup.controllers in '" + cgroup + "': "
@@ -345,7 +350,7 @@ Try<set<string>> available(const string& cgroup)
 Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 {
   Try<string> contents =
-    cgroups2::read(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
+    cgroups2::read<string>(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
 
   if (contents.isError()) {
     return Error(contents.error());
@@ -364,7 +369,7 @@ Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 Try<set<string>> enabled(const string& cgroup)
 {
   Try<string> contents =
-    cgroups2::read(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
+    cgroups2::read<string>(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
   if (contents.isError()) {
     return Error("Failed to read 'cgroup.subtree_control' in '" + cgroup + "'"
                  ": " + contents.error());
