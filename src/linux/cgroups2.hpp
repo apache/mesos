@@ -19,12 +19,24 @@
 
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 namespace cgroups2 {
+
+template <typename T>
+static Try<T> read(const std::string& cgroup, const std::string& control);
+
+
+template <typename T>
+static Try<Nothing> write(
+    const std::string& cgroup,
+    const std::string& control,
+    const T& value);
+
 
 // Root cgroup in the cgroup v2 hierarchy. Since the root cgroup has the same
 // path as the root mount point its relative path is the empty string.
