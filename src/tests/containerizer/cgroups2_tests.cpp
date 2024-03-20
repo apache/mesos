@@ -33,7 +33,29 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class Cgroups2Test : public TemporaryDirectoryTest {};
+const string TEST_CGROUP = "test";
+
+// Cgroups2 test fixture that ensures `TEST_CGROUP` does not
+// exist before and after the test is run.
+class Cgroups2Test : public TemporaryDirectoryTest
+{
+public:
+  static void SetUpTestCase()
+  {
+    // Cleanup the test cgroup, in case a previous test run didn't clean it
+    // up properly.
+    if (cgroups2::exists(TEST_CGROUP)) {
+      ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
+    }
+  }
+
+  static void TearDownTestCase()
+  {
+    if (cgroups2::exists(TEST_CGROUP)) {
+      ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
+    }
+  }
+};
 
 
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_Enabled)
@@ -66,8 +88,7 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
 
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
 {
-  string cgroup = "test";
-  ASSERT_SOME(cgroups2::create(cgroup));
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
@@ -82,14 +103,12 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
 
   // Add the forked child to the cgroup and check that its 'cgroup' membership
   // is correct.
-  EXPECT_SOME(cgroups2::move_process(cgroup, pid));
-  EXPECT_SOME_EQ(cgroup, cgroups2::cgroup(pid));
+  EXPECT_SOME(cgroups2::move_process(TEST_CGROUP, pid));
+  EXPECT_SOME_EQ(TEST_CGROUP, cgroups2::cgroup(pid));
 
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
-
-  EXPECT_SOME(cgroups2::destroy(cgroup));
 }
 
 } // namespace tests {
