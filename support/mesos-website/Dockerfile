@@ -20,7 +20,7 @@ RUN apt-get update && \
 # Install ruby version manager to get a more updated ruby version                                
 RUN curl -sSL https://rvm.io/mpapis.asc | gpg --import - && \
     curl -sSL https://rvm.io/pkuczynski.asc | gpg --import - && \ 
-    curl -k -sSL https://get.rvm.io | bash -s stable --ruby=2.6.6 
+    curl -sSL https://get.rvm.io | bash -s stable --ruby=2.6.6 
 
 ENV PATH=/usr/local/rvm/rubies/ruby-2.6.6/bin:$PATH    
 
