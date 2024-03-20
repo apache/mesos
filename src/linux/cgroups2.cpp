@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -151,12 +152,34 @@ Try<string> read(const string& cgroup, const string& control)
 
 
 template <>
+Try<uint64_t> read(const string& cgroup, const string& control)
+{
+  Try<string> content = read<string>(cgroup, control);
+  if (content.isError()) {
+    return Error(content.error());
+  }
+
+  return numify<uint64_t>(strings::trim(*content));
+}
+
+
+template <>
 Try<Nothing> write(
     const string& cgroup,
     const string& control,
     const string& value)
 {
   return os::write(path::join(cgroups2::MOUNT_POINT, cgroup, control), value);
+}
+
+
+template <>
+Try<Nothing> write(
+    const string& cgroup,
+    const string& control,
+    const uint64_t& value)
+{
+  return write(cgroup, control, stringify(value));
 }
 
 
@@ -381,5 +404,42 @@ Try<set<string>> enabled(const string& cgroup)
 }
 
 } // namespace controllers {
+
+namespace cpu {
+
+namespace control {
+
+const std::string IDLE = "cpu.idle";
+const std::string MAX = "cpu.max";
+const std::string MAX_BURST = "cpu.max.burst";
+const std::string PRESSURE = "cpu.pressure";
+const std::string STATS = "cpu.stat";
+const std::string UCLAMP_MAX = "cpu.uclamp.max";
+const std::string UCLAMP_MIN = "cpu.uclamp.min";
+const std::string WEIGHT = "cpu.weight";
+const std::string WEIGHT_NICE = "cpu.weight.nice";
+
+} // namespace control {
+
+Try<Nothing> weight(const string& cgroup, uint64_t weight)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation not supported for the root cgroup");
+  }
+
+  return cgroups2::write(cgroup, cpu::control::WEIGHT, weight);
+}
+
+
+Try<uint64_t> weight(const string& cgroup)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation not supported for the root cgroup");
+  }
+
+  return cgroups2::read<uint64_t>(cgroup, cpu::control::WEIGHT);
+}
+
+} // namespace cpu {
 
 } // namespace cgroups2 {
