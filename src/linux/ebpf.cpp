@@ -19,6 +19,7 @@
 #include <linux/bpf.h>
 #include <sys/syscall.h>
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -91,9 +92,10 @@ Try<int> load(const Program& program)
     CHECK_ERROR(fd);
     CHECK_EQ(EACCES, fd.error().code)
       << "Expected BPF syscall to fail again with EACCES";
-    // Convert `verifier_logs` to a C string to avoid outputting
-    // the zeroed bytes.
-    return Error(string("BPF verifier failed: ") + verifier_logs.data());
+
+    // Truncate the verifier logs based on how many bytes were written.
+    verifier_logs.resize(strlen(verifier_logs.data()));
+    return Error("BPF verifier failed: " + verifier_logs);
   }
 
   if (fd.isError()) {
