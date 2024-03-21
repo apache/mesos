@@ -115,7 +115,14 @@ struct State
   static State parse(const string& contents)
   {
     State control;
-    vector<string> controllers = strings::split(contents, " ");
+
+    // Trim trailing newline.
+    const string trimmed = strings::trim(contents);
+    if (trimmed.empty()) {
+      return control;
+    }
+
+    vector<string> controllers = strings::split(trimmed, " ");
     control._enabled.insert(
       std::make_move_iterator(controllers.begin()),
       std::make_move_iterator(controllers.end()));
@@ -359,15 +366,21 @@ namespace controllers {
 
 Try<set<string>> available(const string& cgroup)
 {
-  Try<string> contents =
+  Try<string> read =
     cgroups2::read<string>(cgroup, cgroups2::control::CONTROLLERS);
 
-  if (contents.isError()) {
+  if (read.isError()) {
     return Error("Failed to read cgroup.controllers in '" + cgroup + "': "
-                 + contents.error());
+                 + read.error());
   }
 
-  vector<string> controllers = strings::split(*contents, " ");
+  // Trim trailing newline.
+  const string contents = strings::trim(*read);
+  if (contents.empty()) {
+    return set<string>();
+  }
+
+  vector<string> controllers = strings::split(contents, " ");
   return set<string>(
       std::make_move_iterator(controllers.begin()),
       std::make_move_iterator(controllers.end()));
