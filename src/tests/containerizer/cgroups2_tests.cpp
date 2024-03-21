@@ -90,8 +90,21 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AvailableSubsystems)
 }
 
 
-TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
+TEST_F(Cgroups2Test, CGROUPS2_Path)
 {
+  EXPECT_EQ("/sys/fs/cgroup/", cgroups2::path(cgroups2::ROOT_CGROUP));
+  EXPECT_EQ("/sys/fs/cgroup/foo", cgroups2::path("foo"));
+  EXPECT_EQ("/sys/fs/cgroup/foo/bar", cgroups2::path("foo/bar"));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcesses)
+{
+  Try<set<pid_t>> pids = cgroups2::processes(cgroups2::ROOT_CGROUP);
+
+  EXPECT_SOME(pids);
+  EXPECT_TRUE(pids->size() > 0);
+
   ASSERT_SOME(cgroups2::create(TEST_CGROUP));
 
   pid_t pid = ::fork();
@@ -105,22 +118,20 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
         EXIT_FAILURE, "Error, child should be killed before reaching here");
   }
 
-  // Add the forked child to the cgroup and check that its 'cgroup' membership
-  // is correct.
-  EXPECT_SOME(cgroups2::move_process(TEST_CGROUP, pid));
-  EXPECT_SOME_EQ(TEST_CGROUP, cgroups2::cgroup(pid));
+  pids = cgroups2::processes(TEST_CGROUP);
+  EXPECT_SOME(pids);
+  EXPECT_EQ(0u, pids->size());
+
+  EXPECT_SOME(cgroups2::assign(TEST_CGROUP, pid));
+  pids = cgroups2::processes(TEST_CGROUP);
+
+  EXPECT_SOME(pids);
+  EXPECT_EQ(1u, pids->size());
+  EXPECT_EQ(pid, *pids->begin());
 
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
-}
-
-
-TEST_F(Cgroups2Test, CGROUPS2_Path)
-{
-  EXPECT_EQ("/sys/fs/cgroup/", cgroups2::path(cgroups2::ROOT_CGROUP));
-  EXPECT_EQ("/sys/fs/cgroup/foo", cgroups2::path("foo"));
-  EXPECT_EQ("/sys/fs/cgroup/foo/bar", cgroups2::path("foo/bar"));
 }
 
 } // namespace tests {

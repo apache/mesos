@@ -312,12 +312,10 @@ Try<Nothing> destroy(const string& cgroup)
 }
 
 
-Try<Nothing> move_process(const string& cgroup, pid_t pid)
+Try<Nothing> assign(const string& cgroup, pid_t pid)
 {
-  const string path = cgroups2::path(cgroup);
-
-  if (!os::exists(path)) {
-    return Error("There does not exist a cgroup at '" + path + "'");
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
   return cgroups2::write(cgroup, control::PROCESSES, stringify(pid));
@@ -354,6 +352,37 @@ Try<string> cgroup(pid_t pid)
   content = strings::remove(content, " (deleted)", strings::Mode::SUFFIX);
 
   return content;
+}
+
+
+Try<set<pid_t>> processes(const string& cgroup)
+{
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup '" + cgroup + "' does not exist");
+  }
+
+  Try<string> contents = cgroups2::read<string>(cgroup, control::PROCESSES);
+  if (contents.isError()) {
+    return Error(
+        "Failed to read cgroup.procs in '" + cgroup + "': " + contents.error());
+  }
+
+  if (contents->empty() || contents->at(0) == '\n') {
+    return set<pid_t>();
+  }
+
+  set<pid_t> pids;
+  foreach (const string& line, strings::split(*contents, "\n")) {
+    Try<pid_t> pid = numify<pid_t>(line);
+    if (pid.isError()) {
+      return Error(
+          "Failed to parse line '" + line + "' as a pid: " + pid.error());
+    }
+
+    pids.insert(*pid);
+  }
+
+  return pids;
 }
 
 
