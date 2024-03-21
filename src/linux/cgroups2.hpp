@@ -24,6 +24,8 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include "linux/cgroups.hpp"
+
 namespace cgroups2 {
 
 // Root cgroup in the cgroup v2 hierarchy. Since the root cgroup has the same
@@ -111,6 +113,20 @@ Try<Nothing> weight(const std::string& cgroup, uint64_t weight);
 Try<uint64_t> weight(const std::string& cgroup);
 
 } // namespace cpu {
+
+namespace devices {
+
+using cgroups::devices::Entry;
+
+// Configure the device access permissions for the cgroup. These permissions
+// are hierarchical. I.e. if a parent cgroup does not allow an access then
+// 'this' cgroup will be denied access.
+Try<Nothing> configure(
+    const std::string& cgroup,
+    const std::vector<Entry>& allow,
+    const std::vector<Entry>& deny);
+
+} // namespace devices {
 
 } // namespace cgroups2 {
 
