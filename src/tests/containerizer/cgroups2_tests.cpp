@@ -62,6 +62,26 @@ protected:
 };
 
 
+// Enables the "cpu" controller in the TEST_CGROUP.
+class Cgroups2CpuTest : public Cgroups2Test
+{
+protected:
+  void SetUp() override
+  {
+    Cgroups2Test::SetUp();
+
+    ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+
+    // Enable "cpu" in the root cgroup, so it's available to the test cgroup.
+    // TODO(dleamy): Disable "cpu" on tear down, if it wasn't initially enabled.
+    ASSERT_SOME(cgroups2::controllers::enable(cgroups2::ROOT_CGROUP, {"cpu"}));
+
+    // Enable "cpu" in the test cgroup.
+    ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"}));
+  }
+};
+
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_Enabled)
 {
   EXPECT_TRUE(cgroups2::enabled());
@@ -132,6 +152,12 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcesses)
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
+}
+
+
+TEST_F(Cgroups2CpuTest, ROOT_CGROUPS2_CpuStats)
+{
+  ASSERT_SOME(cgroups2::cpu::stats(TEST_CGROUP));
 }
 
 } // namespace tests {

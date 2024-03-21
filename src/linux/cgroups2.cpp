@@ -465,6 +465,53 @@ const std::string UCLAMP_MIN = "cpu.uclamp.min";
 const std::string WEIGHT = "cpu.weight";
 const std::string WEIGHT_NICE = "cpu.weight.nice";
 
+namespace stat {
+
+Try<Stats> parse(const string& content)
+{
+  const vector<string>& lines = strings::split(content, "\n");
+  cpu::Stats stats;
+
+  foreach (const string& line, lines) {
+    const string trimmed = strings::trim(line);
+    if (trimmed.empty()) {
+      continue;
+    }
+
+    vector<string> tokens = strings::split(trimmed, " ");
+    if (tokens.size() != 2) {
+      return Error(
+          "Invalid line format in 'cpu.stat' expected "
+          "<key> <value> received: '" + trimmed + "'");
+    }
+
+    string field = tokens[0];
+    string value = tokens[1];
+
+    Try<Duration> duration = Duration::parse(value + "us");
+    Try<uint64_t> number = numify<uint64_t>(value);
+
+    // Duration::parse will succeed if `value` is a number, so we only check
+    // that `number` parsed successfully.
+    if (number.isError()) {
+      return Error("Failed to parse '" + field + "': " + number.error());
+    }
+
+    if (field == "usage_usec") { stats.usage = *duration; }
+    else if (field == "user_usec") { stats.user_time = *duration; }
+    else if (field == "system_usec") { stats.system_time = *duration; }
+    else if (field == "nr_periods") { stats.periods = *number; }
+    else if (field == "nr_throttled") { stats.throttled = *number; }
+    else if (field == "throttled_usec") { stats.throttle_time = *duration; }
+    else if (field == "nr_burst") { stats.bursts = *number; }
+    else if (field == "burst_usec") { stats.bursts_time = *duration; }
+  }
+
+  return stats;
+}
+
+} // namespace stat {
+
 } // namespace control {
 
 Try<Nothing> weight(const string& cgroup, uint64_t weight)
@@ -473,7 +520,7 @@ Try<Nothing> weight(const string& cgroup, uint64_t weight)
     return Error("Operation not supported for the root cgroup");
   }
 
-  return cgroups2::write(cgroup, cpu::control::WEIGHT, weight);
+  return cgroups2::write<uint64_t>(cgroup, cpu::control::WEIGHT, weight);
 }
 
 
@@ -484,6 +531,20 @@ Try<uint64_t> weight(const string& cgroup)
   }
 
   return cgroups2::read<uint64_t>(cgroup, cpu::control::WEIGHT);
+}
+
+
+Try<cpu::Stats> stats(const string& cgroup)
+{
+  Try<string> content = cgroups2::read<string>(
+      cgroup, cgroups2::cpu::control::STATS);
+  if (content.isError()) {
+    return Error(
+        "Failed to read 'cpu.stat' for the cgroup '" + cgroup + "': "
+        + content.error());
+  }
+
+  return cpu::control::stat::parse(*content);
 }
 
 } // namespace cpu {
