@@ -115,6 +115,14 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcessToCgroup)
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
 }
 
+
+TEST_F(Cgroups2Test, CGROUPS2_Path)
+{
+  EXPECT_EQ("/sys/fs/cgroup/", cgroups2::path(cgroups2::ROOT_CGROUP));
+  EXPECT_EQ("/sys/fs/cgroup/foo", cgroups2::path("foo"));
+  EXPECT_EQ("/sys/fs/cgroup/foo/bar", cgroups2::path("foo/bar"));
+}
+
 } // namespace tests {
 
 } // namespace internal {

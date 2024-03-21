@@ -75,6 +75,10 @@ Try<Nothing> move_process(const std::string& cgroup, pid_t pid);
 // /sys/fs/cgroup. E.g. For /sys/fs/cgroup/test, this will return "test".
 Try<std::string> cgroup(pid_t pid);
 
+
+// Get the absolute of a cgroup. The cgroup provided should not start with '/'.
+std::string path(const std::string& cgroup);
+
 namespace controllers {
 
 // Gets the controllers that can be controlled by the provided cgroup.
