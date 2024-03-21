@@ -112,9 +112,14 @@ struct State
     return _enabled.find(controller) != _enabled.end();
   }
 
-  static State parse(const string& contents)
+  static State parse(const string& _contents)
   {
     State control;
+    const string& contents = strings::trim(_contents);
+    if (contents == "") {
+      return control;
+    }
+
     vector<string> controllers = strings::split(contents, " ");
     control._enabled.insert(
       std::make_move_iterator(controllers.begin()),
@@ -355,15 +360,20 @@ namespace controllers {
 
 Try<set<string>> available(const string& cgroup)
 {
-  Try<string> contents =
+  Try<string> _contents =
     cgroups2::read<string>(cgroup, cgroups2::control::CONTROLLERS);
 
-  if (contents.isError()) {
+  if (_contents.isError()) {
     return Error("Failed to read cgroup.controllers in '" + cgroup + "': "
-                 + contents.error());
+                 + _contents.error());
   }
 
-  vector<string> controllers = strings::split(*contents, " ");
+  const string& contents = strings::trim(*_contents);
+  if (contents == "") {
+    return set<string>();
+  }
+
+  vector<string> controllers = strings::split(contents, " ");
   return set<string>(
       std::make_move_iterator(controllers.begin()),
       std::make_move_iterator(controllers.end()));
