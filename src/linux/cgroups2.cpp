@@ -147,7 +147,7 @@ std::ostream& operator<<(std::ostream& stream, const State& state)
 template <>
 Try<string> read(const string& cgroup, const string& control)
 {
-  return os::read(path::join(cgroups2::MOUNT_POINT, cgroup, control));
+  return os::read(path::join(cgroups2::path(cgroup), control));
 }
 
 
@@ -169,7 +169,7 @@ Try<Nothing> write(
     const string& control,
     const string& value)
 {
-  return os::write(path::join(cgroups2::MOUNT_POINT, cgroup, control), value);
+  return os::write(path::join(cgroups2::path(cgroup), control), value);
 }
 
 
@@ -272,18 +272,17 @@ Try<Nothing> unmount()
 
 bool exists(const string& cgroup)
 {
-  return os::exists(path::join(MOUNT_POINT, cgroup));
+  return os::exists(cgroups2::path(cgroup));
 }
 
 
 Try<Nothing> create(const string& cgroup, bool recursive)
 {
-  const string absolutePath = path::join(MOUNT_POINT, cgroup);
+  const string path = cgroups2::path(cgroup);
 
-  Try<Nothing> mkdir = os::mkdir(absolutePath, recursive);
+  Try<Nothing> mkdir = os::mkdir(path, recursive);
   if (mkdir.isError()) {
-    return Error("Failed to create directory '" + absolutePath + "': "
-                 + mkdir.error());
+    return Error("Failed to create directory '" + path + "': " + mkdir.error());
   }
 
   return Nothing();
@@ -296,11 +295,10 @@ Try<Nothing> destroy(const string& cgroup)
     return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
-  const string absolutePath = path::join(MOUNT_POINT, cgroup);
-  Try<Nothing> rmdir = os::rmdir(absolutePath, false);
+  const string path = cgroups2::path(cgroup);
+  Try<Nothing> rmdir = os::rmdir(path, false);
   if (rmdir.isError()) {
-    return Error("Failed to remove directory '" + absolutePath + "': "
-                 + rmdir.error());
+    return Error("Failed to remove directory '" + path + "': " + rmdir.error());
   }
 
   return Nothing();
@@ -309,10 +307,10 @@ Try<Nothing> destroy(const string& cgroup)
 
 Try<Nothing> move_process(const string& cgroup, pid_t pid)
 {
-  const string absolutePath = path::join(MOUNT_POINT, cgroup);
+  const string& path = cgroups2::path(cgroup);
 
-  if (!os::exists(absolutePath)) {
-    return Error("There does not exist a cgroup at '" + absolutePath + "'");
+  if (!os::exists(path)) {
+    return Error("There does not exist a cgroup at '" + path + "'");
   }
 
   return cgroups2::write(cgroup, control::PROCESSES, stringify(pid));
@@ -349,6 +347,12 @@ Try<string> cgroup(pid_t pid)
   content = strings::remove(content, " (deleted)", strings::Mode::SUFFIX);
 
   return content;
+}
+
+
+string path(const string& cgroup)
+{
+  return path::join(cgroups2::MOUNT_POINT, cgroup);
 }
 
 namespace controllers {
