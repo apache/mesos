@@ -357,6 +357,47 @@ Try<string> cgroup(pid_t pid)
 }
 
 
+Try<set<pid_t>> processes(const string& cgroup)
+{
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup '" + cgroup + "' does not exist");
+  }
+
+  Try<string> contents = cgroups2::read<string>(cgroup, control::PROCESSES);
+  if (contents.isError()) {
+    return Error(
+        "Failed to read cgroup.procs in '" + cgroup + "': " + contents.error());
+  }
+
+  string trimmed = strings::trim(*contents);
+  if (trimmed.empty()) {
+    return set<pid_t>();
+  }
+
+  set<pid_t> pids;
+  foreach (const string& _pid, strings::split(strings::trim(*contents), "\n")) {
+    Try<pid_t> pid = numify<pid_t>(strings::trim(_pid));
+    if (pid.isError()) {
+      return Error("Failed to parse pid: " + pid.error());
+    }
+
+    pids.insert(*pid);
+  }
+
+  return pids;
+}
+
+
+Try<Nothing> assign(const string& cgroup, pid_t pid)
+{
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup '" + cgroup + "' does not exist");
+  }
+
+  return cgroups2::write(cgroup, control::PROCESSES, stringify(pid));
+}
+
+
 string path(const string& cgroup)
 {
   return path::join(cgroups2::MOUNT_POINT, cgroup);

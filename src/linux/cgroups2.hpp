@@ -76,6 +76,15 @@ Try<Nothing> move_process(const std::string& cgroup, pid_t pid);
 Try<std::string> cgroup(pid_t pid);
 
 
+// Get the processes inside of a cgroup.
+Try<std::set<pid_t>> processes(const std::string& cgroup);
+
+
+// Assign a process to a cgroup, by PID. This removes the process from its
+// current cgroup.
+Try<Nothing> assign(const std::string& cgroup, pid_t pid);
+
+
 // Get the absolute of a cgroup. The cgroup provided should not start with '/'.
 std::string path(const std::string& cgroup);
 

@@ -123,6 +123,43 @@ TEST_F(Cgroups2Test, CGROUPS2_Path)
   EXPECT_EQ("/sys/fs/cgroup/foo/bar", cgroups2::path("foo/bar"));
 }
 
+
+TEST_F(Cgroups2Test, CGROUPS_Path)
+{
+  Try<set<pid_t>> pids = cgroups2::processes(cgroups2::ROOT_CGROUP);
+
+  EXPECT_SOME(pids);
+  EXPECT_TRUE(pids->size() > 0);
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process, wait for kill signal.
+    while (true) { sleep(1); }
+
+    SAFE_EXIT(
+        EXIT_FAILURE, "Error, child should be killed before reaching here");
+  }
+
+  pids = cgroups2::processes(TEST_CGROUP);
+  EXPECT_SOME(pids);
+  EXPECT_EQ(0u, pids->size());
+
+  EXPECT_SOME(cgroups2::assign(TEST_CGROUP, pid));
+  pids = cgroups2::processes(TEST_CGROUP);
+
+  EXPECT_SOME(pids);
+  EXPECT_EQ(1u, pids->size());
+  EXPECT_EQ(pid, *pids->begin());
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
+}
+
 } // namespace tests {
 
 } // namespace internal {
