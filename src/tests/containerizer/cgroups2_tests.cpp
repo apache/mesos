@@ -40,7 +40,7 @@ const string TEST_CGROUP = "test";
 class Cgroups2Test : public TemporaryDirectoryTest
 {
 protected:
-  void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 
@@ -51,7 +51,7 @@ protected:
     }
   }
 
-  void TearDown()
+  void TearDown() override
   {
     if (cgroups2::exists(TEST_CGROUP)) {
       ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
