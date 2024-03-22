@@ -25,9 +25,11 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include "linux/ebpf.hpp"
 #include "linux/fs.hpp"
 
 using std::ostream;
@@ -485,5 +487,193 @@ Try<uint64_t> weight(const string& cgroup)
 }
 
 } // namespace cpu {
+
+namespace devices {
+
+// Utility class to construct an eBPF program to whitelist or blacklist
+// select device accesses.
+class DeviceProgram
+{
+public:
+  DeviceProgram() : program{ebpf::Program(BPF_PROG_TYPE_CGROUP_DEVICE)}
+  {
+    // The BPF_PROG_TYPE_CGROUP_DEVICE program takes in
+    // `struct bpf_cgroup_dev_ctx*` as input. We extract the fields into
+    // registers r2-5.
+    //
+    // The device type is encoded in the first 16 bits of `access_type` and
+    // the access type is encoded in the last 16 bits of `access_type`.
+    program.append({
+      // r2: Type ('c', 'b', '?')
+      BPF_LDX_MEM(
+        BPF_W, BPF_REG_2, BPF_REG_1, offsetof(bpf_cgroup_dev_ctx, access_type)),
+      BPF_ALU32_IMM(BPF_AND, BPF_REG_2, 0xFFFF),
+      // r3: Access ('r', 'w', 'm')
+      BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+        offsetof(bpf_cgroup_dev_ctx, access_type)),
+      BPF_ALU32_IMM(BPF_RSH, BPF_REG_3, 16),
+      // r4: Major Version
+      BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_1,
+        offsetof(bpf_cgroup_dev_ctx, major)),
+      // r5: Minor Version
+      BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_1,
+        offsetof(bpf_cgroup_dev_ctx, minor)),
+    });
+  }
+
+  Try<Nothing> allow(const Entry entry) { return addDevice(entry, true);  }
+  Try<Nothing>  deny(const Entry entry) { return addDevice(entry, false); }
+
+  ebpf::Program build()
+  {
+    if (!hasCatchAll) {
+      // Exit instructions.
+      // If no entry granted access, then deny the access.
+      program.append({
+        BPF_MOV64_IMM (BPF_REG_0, DENY_ACCESS),
+        BPF_EXIT_INSN(),
+      });
+    }
+    return program;
+  }
+
+private:
+  Try<Nothing> addDevice(const Entry entry, bool allow)
+  {
+    if (hasCatchAll) {
+      return Nothing();
+    }
+
+    // We create a block of bytecode with the format:
+    // 1. Major Version Check
+    // 2. Minor Version Check
+    // 3. Type Check
+    // 4. Access Check
+    // 5. Allow/Deny Access
+    //
+    // 6. NEXT BLOCK
+    //
+    // Either:
+    // 1. The device access is matched by (1,2,3,4) and the Allow/Deny access
+    //    block (5) is executed.
+    // 2. One of (1,2,3,4) does not match the requested access and we skip
+    //    to the next block (6).
+
+    const Entry::Selector& selector = entry.selector;
+    const Entry::Access& access = entry.access;
+
+    bool check_major = selector.major.isSome();
+    bool check_minor = selector.minor.isSome();
+    bool check_type = selector.type != Entry::Selector::Type::ALL;
+    bool check_access = !access.mknod || !access.read || !access.write;
+
+    // Number of instructions to the [NEXT BLOCK]. This is used if a check
+    // fails (meaning this entry does not apply) and we want to skip the
+    // subsequent checks.
+    short jmp_size = 1 + (check_major ? 1 : 0) + (check_minor ? 1 : 0) +
+                     (check_access ? 3 : 0) + (check_type ? 1 : 0);
+
+    // Check major version (r4) against entry.
+    if (check_major) {
+      program.append({
+        BPF_JMP_IMM(BPF_JNE, BPF_REG_4, (int)selector.major.get(), jmp_size),
+      });
+      --jmp_size;
+    }
+
+    // Check minor version (r5) against entry.
+    if (check_minor) {
+      program.append({
+        BPF_JMP_IMM(BPF_JNE, BPF_REG_5, (int)selector.minor.get(), jmp_size),
+      });
+      --jmp_size;
+    }
+
+    // Check type (r2) against entry.
+    if (check_type) {
+      int bpf_type = [selector]() {
+        switch (selector.type) {
+          case Entry::Selector::Type::BLOCK:     return BPF_DEVCG_DEV_BLOCK;
+          case Entry::Selector::Type::CHARACTER: return BPF_DEVCG_DEV_CHAR;
+          case Entry::Selector::Type::ALL:       UNREACHABLE();
+        }
+      }();
+
+      program.append({
+        BPF_JMP_IMM(BPF_JNE, BPF_REG_2, bpf_type, jmp_size),
+      });
+      --jmp_size;
+    }
+
+    // Check access (r3) against entry.
+    if (check_access) {
+      int bpf_access = 0;
+      bpf_access |= access.read ? BPF_DEVCG_ACC_READ : 0;
+      bpf_access |= access.write ? BPF_DEVCG_ACC_WRITE : 0;
+      bpf_access |= access.mknod ? BPF_DEVCG_ACC_MKNOD : 0;
+
+      program.append({
+        BPF_MOV32_REG(BPF_REG_1, BPF_REG_3),
+        BPF_ALU32_IMM(BPF_AND, BPF_REG_1, bpf_access),
+        BPF_JMP_REG(
+          BPF_JNE, BPF_REG_1, BPF_REG_3, static_cast<short>(jmp_size - 2)),
+      });
+      jmp_size -= 3;
+    }
+
+    if (!check_major && !check_minor && !check_type && !check_access) {
+      // The exit instructions as well as any additional device entries would
+      // generate unreachable blocks.
+      hasCatchAll = true;
+    }
+
+    // Allow/Deny access block.
+    program.append({
+      BPF_MOV64_IMM(BPF_REG_0, allow ? ALLOW_ACCESS : DENY_ACCESS),
+      BPF_EXIT_INSN(),
+    });
+
+    return Nothing();
+  }
+
+  ebpf::Program program;
+
+  // Whether the program has a device entry that allows or denies ALL accesses.
+  // Such cases need to be specially handled because any instructions added
+  // after it will be unreachable, and thus will cause the eBPF verifier to
+  // reject the program.
+  bool hasCatchAll = false;
+
+  static const int ALLOW_ACCESS = 1;
+  static const int DENY_ACCESS = 0;
+};
+
+
+Try<Nothing> configure(
+    const string& cgroup,
+    const vector<Entry>& allow,
+    const vector<Entry>& deny)
+{
+  DeviceProgram program = DeviceProgram();
+  foreach (const Entry entry, allow) {
+    program.allow(entry);
+  }
+  foreach (const Entry entry, deny) {
+    program.deny(entry);
+  }
+
+  Try<Nothing> attach = ebpf::cgroups2::attach(
+      cgroups2::path(cgroup),
+      program.build());
+
+  if (attach.isError()) {
+    return Error("Failed to attach BPF_PROG_TYPE_CGROUP_DEVICE program: " +
+                 attach.error());
+  }
+
+  return Nothing();
+}
+
+} // namespace devices {
 
 } // namespace cgroups2 {
