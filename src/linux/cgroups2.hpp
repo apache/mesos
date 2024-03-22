@@ -66,9 +66,9 @@ Try<Nothing> create(const std::string& cgroup, bool recursive = false);
 Try<Nothing> destroy(const std::string& cgroup);
 
 
-// Moves a process into a cgroup, by PID. Errors if the cgroup does not exist.
-// If the process is already in the cgroup, this operation is a NOP.
-Try<Nothing> move_process(const std::string& cgroup, pid_t pid);
+// Assign a process to a cgroup, by PID, removing the process from its
+// current cgroup. Returns an error if the cgroup does not exist.
+Try<Nothing> assign(const std::string& cgroup, pid_t pid);
 
 
 // Get the cgroup that a process is part of, returns a relative path off of
@@ -78,11 +78,6 @@ Try<std::string> cgroup(pid_t pid);
 
 // Get the processes inside of a cgroup.
 Try<std::set<pid_t>> processes(const std::string& cgroup);
-
-
-// Assign a process to a cgroup, by PID. This removes the process from its
-// current cgroup.
-Try<Nothing> assign(const std::string& cgroup, pid_t pid);
 
 
 // Get the absolute of a cgroup. The cgroup provided should not start with '/'.
