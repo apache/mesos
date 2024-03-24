@@ -24,7 +24,7 @@ DOCKER_CONTEXT_DIR="${SOURCE_DIR}/centos${CENTOS_DISTRO}/rpmbuild/RPMS/x86_64"
 
 cat <<EOF > "${DOCKER_CONTEXT_DIR}/Dockerfile"
 FROM centos:${CENTOS_DISTRO}
-ADD mesos-?.?.?-*.rpm /
+ADD mesos-*.rpm /
 RUN yum --nogpgcheck -y localinstall /mesos-*.rpm
 EOF
 
