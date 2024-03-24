@@ -53,9 +53,15 @@ Try<Nothing> initialize();
 // NVML wrapper functions. May be called after initializing
 // the library.
 Try<std::string> systemGetDriverVersion();
+Try<unsigned int> systemGetCapsMajor();
 Try<unsigned int> deviceGetCount();
 Try<nvmlDevice_t> deviceGetHandleByIndex(unsigned int index);
 Try<unsigned int> deviceGetMinorNumber(nvmlDevice_t handle);
+Try<bool> deviceGetMigMode(nvmlDevice_t handle);
+Try<unsigned int> deviceGetMigDeviceCount(nvmlDevice_t handle);
+Try<nvmlDevice_t> deviceGetMigDeviceHandleByIndex(nvmlDevice_t handle, unsigned int migindex);
+Try<unsigned int> deviceGetGpuInstanceMinor(nvmlDevice_t handle);
+Try<unsigned int> deviceGetComputeInstanceMinor(nvmlDevice_t handle);
 
 } // namespace nvml {
 
