@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
+#include "slave/containerizer/mesos/isolators/network/cni/utils.hpp"
 
 #include <iostream>
 #include <list>
@@ -1270,6 +1271,9 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
 
   CHECK_SOME(containerNetwork.networkInfo);
   mesos::NetworkInfo networkInfo = containerNetwork.networkInfo.get();
+
+  // Ensure that labels are no longer than 63 characters
+  compressLongLabels(network_info.mutable_labels());
 
   JSON::Object mesos;
   mesos.values["network_info"] = JSON::protobuf(networkInfo);
