@@ -1494,7 +1494,9 @@ MESOS_LINUX_FILES +=							\
   linux/cgroups2.cpp      \
   linux/cgroups2.hpp      \
   linux/ebpf.cpp      \
-  linux/ebpf.hpp
+  linux/ebpf.hpp      \
+  slave/containerizer/mesos/isolators/cgroups2/cgroups2.cpp     \
+  slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp
 endif
 
 if ENABLE_SECCOMP_ISOLATOR
