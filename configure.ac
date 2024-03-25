@@ -396,6 +396,13 @@ AC_ARG_ENABLE([xfs-disk-isolator],
                              [builds the XFS disk isolator]),
               [], [enable_xfs_disk_isolator=no])
 
+# TODO(dleamy): This flag should flipped to --disable-cgroups-v2 so using
+#               cgroups v2 is the default.
+AC_ARG_ENABLE([cgroups-v2],
+              AS_HELP_STRING([--enable-cgroups-v2],
+                             [builds the cgroups2 and ebpf modules]),
+              [], [enable_cgroups_v2=no])
+
 ###############################################################################
 # Optional packages.
 ###############################################################################
@@ -2286,6 +2293,36 @@ Please install the libblkid package for XFS disk isolator support.
 ])
 
 AM_CONDITIONAL([ENABLE_XFS_DISK_ISOLATOR], [test "x$enable_xfs_disk_isolator" = "xyes"])
+
+
+AC_MSG_CHECKING([whether to enable the cgroups v2])
+AS_IF([test "x$enable_cgroups_v2" = "xyes"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no])])
+
+AS_IF([test "x$enable_cgroups_v2" = "xyes"], [
+  # We only support cgroups v2 on Linux.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([no cgroups v2 support on $OS_NAME
+-------------------------------------------------------------------
+cgroups v2 is only supported on Linux.
+-------------------------------------------------------------------
+  ])])
+
+  # Check for build dependencies for cgroups v2. We only
+  # enable this if all the needed headers and libraries are present.
+  AC_CHECK_HEADERS([linux/bpf.h],
+                   [], [AC_MSG_ERROR([missing eBPF headers
+-------------------------------------------------------------------
+Please install the bpf Linux kernel headers for cgroups v2 support.
+-------------------------------------------------------------------
+  ])])
+
+  AC_DEFINE([ENABLE_CGROUPS_V2])
+])
+
+AM_CONDITIONAL([ENABLE_CGROUPS_V2], [test "x$enable_cgroups_v2" = "xyes"])
 
 
 # Check if zlib prefix path was provided, and if so, add it to

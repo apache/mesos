@@ -1388,8 +1388,6 @@ MESOS_LINUX_FILES =									\
   linux/capabilities.hpp								\
   linux/cgroups.cpp									\
   linux/cgroups.hpp									\
-  linux/cgroups2.cpp									\
-  linux/cgroups2.hpp              \
   linux/fs.cpp										\
   linux/fs.hpp										\
   linux/ldcache.cpp									\
@@ -1403,8 +1401,6 @@ MESOS_LINUX_FILES =									\
   linux/sched.hpp									\
   linux/systemd.cpp									\
   linux/systemd.hpp									\
-  linux/ebpf.cpp              \
-  linux/ebpf.hpp              \
   slave/containerizer/mesos/linux_launcher.cpp						\
   slave/containerizer/mesos/linux_launcher.hpp						\
   slave/containerizer/mesos/isolators/appc/runtime.cpp					\
@@ -1491,6 +1487,14 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/utils.hpp			\
   slave/containerizer/mesos/isolators/xfs/disk.cpp			\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
+endif
+
+if ENABLE_CGROUPS_V2
+MESOS_LINUX_FILES +=							\
+  linux/cgroups2.cpp      \
+  linux/cgroups2.hpp      \
+  linux/ebpf.cpp      \
+  linux/ebpf.hpp
 endif
 
 if ENABLE_SECCOMP_ISOLATOR
@@ -2820,6 +2824,11 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/xfs_quota_tests.cpp
 endif
 
+if ENABLE_CGROUPS_V2
+mesos_tests_SOURCES +=						\
+  tests/containerizer/cgroups2_tests.cpp
+endif
+
 if ENABLE_SECCOMP_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/linux_seccomp_parser_tests.cpp		\
@@ -2862,7 +2871,6 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/capabilities_test_helper.cpp		\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
-  tests/containerizer/cgroups2_tests.cpp			\
   tests/containerizer/cni_isolator_tests.cpp			\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_devices_isolator_tests.cpp		\

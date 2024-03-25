@@ -299,14 +299,12 @@ set(INTERNAL_SRC
 set(LINUX_SRC
   linux/capabilities.cpp
   linux/cgroups.cpp
-  linux/cgroups2.cpp
   linux/fs.cpp
   linux/ldcache.cpp
   linux/ldd.cpp
   linux/ns.cpp
   linux/perf.cpp
   linux/systemd.cpp
-  linux/ebpf.cpp
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/appc/runtime.cpp
   slave/containerizer/mesos/isolators/cgroups/cgroups.cpp
@@ -349,6 +347,12 @@ if (ENABLE_XFS_DISK_ISOLATOR)
   list(APPEND LINUX_SRC
     slave/containerizer/mesos/isolators/xfs/disk.cpp
     slave/containerizer/mesos/isolators/xfs/utils.cpp)
+endif ()
+
+if (ENABLE_CGROUPS_v2)
+  list(APPEND LINUX_SRC
+    linux/cgroups2.cpp
+    linux/ebpf.cpp)
 endif ()
 
 if (ENABLE_LAUNCHER_SEALING)
@@ -613,6 +617,7 @@ target_compile_definitions(
   mesos PUBLIC
   USE_CMAKE_BUILD_CONFIG
   $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>
+  $<$<BOOL:${ENABLE_CGROUPS_V2}>:ENABLE_CGROUPS_V2>
   $<$<BOOL:${ENABLE_LAUNCHER_SEALING}>:ENABLE_LAUNCHER_SEALING>
   $<$<BOOL:${ENABLE_NVML}>:ENABLE_NVML>
   $<$<BOOL:${ENABLE_PORT_MAPPING_ISOLATOR}>:ENABLE_PORT_MAPPING_ISOLATOR>
