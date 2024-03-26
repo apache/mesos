@@ -22,6 +22,7 @@
 #include <process/gtest.hpp>
 
 #include <stout/exit.hpp>
+#include <stout/foreach.hpp>
 #include <stout/set.hpp>
 #include <stout/tests/utils.hpp>
 #include <stout/try.hpp>
@@ -83,7 +84,8 @@ protected:
       ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
     }
 
-    // TODO(bmahler): disable the enabled_controllers.
+    ASSERT_SOME(cgroups2::controllers::disable(
+        cgroups2::ROOT_CGROUP, enabled_controllers));
 
     TemporaryDirectoryTest::TearDown();
   }
@@ -175,6 +177,37 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_CpuStats)
   ASSERT_SOME(cgroups2::create(TEST_CGROUP));
   ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"}));
   ASSERT_SOME(cgroups2::cpu::stats(TEST_CGROUP));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_EnableAndDisable)
+{
+  ASSERT_SOME(enable_controllers({"cpu"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+
+  // Check that "cpu" not enabled.
+  Try<set<string>> enabled = cgroups2::controllers::enabled(TEST_CGROUP);
+  EXPECT_SOME(enabled);
+  EXPECT_EQ(0u, enabled->count("cpu"));
+
+  // Enable "cpu".
+  EXPECT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"}));
+  EXPECT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"})); // NOP
+
+  // Check that "cpu" is enabled.
+  enabled = cgroups2::controllers::enabled(TEST_CGROUP);
+  EXPECT_SOME(enabled);
+  EXPECT_EQ(1u, enabled->count("cpu"));
+
+  // Disable "cpu".
+  EXPECT_SOME(cgroups2::controllers::disable(TEST_CGROUP, {"cpu"}));
+  EXPECT_SOME(cgroups2::controllers::disable(TEST_CGROUP, {"cpu"})); // NOP
+
+  // Check that "cpu" not enabled.
+  enabled = cgroups2::controllers::enabled(TEST_CGROUP);
+  EXPECT_SOME(enabled);
+  EXPECT_EQ(0u, enabled->count("cpu"));
 }
 
 } // namespace tests {

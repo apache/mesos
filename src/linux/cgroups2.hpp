@@ -102,6 +102,12 @@ Try<Nothing> enable(
     const std::vector<std::string>& controllers);
 
 
+// Disables controllers in the cgroup. No-op if the controller is not enabled.
+Try<Nothing> disable(
+    const std::string& cgroup,
+    const std::set<std::string>& controllers);
+
+
 // Get all the controllers that are enabled for a cgroup.
 Try<std::set<std::string>> enabled(const std::string& cgroup);
 
