@@ -16,11 +16,13 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include <process/reap.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/exit.hpp>
+#include <stout/set.hpp>
 #include <stout/tests/utils.hpp>
 #include <stout/try.hpp>
 
@@ -28,6 +30,7 @@
 
 using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -40,6 +43,29 @@ const string TEST_CGROUP = "test";
 class Cgroups2Test : public TemporaryDirectoryTest
 {
 protected:
+  Try<Nothing> enable_controllers(const vector<string>& controllers)
+  {
+    Try<set<string>> enabled = cgroups2::controllers::enabled(
+        cgroups2::ROOT_CGROUP);
+
+    if (enabled.isError()) {
+      return Error("Failed to check enabled controllers: " + enabled.error());
+    }
+
+    set<string> to_enable(controllers.begin(), controllers.end());
+    to_enable = to_enable - *enabled;
+
+    Try<Nothing> result = cgroups2::controllers::enable(
+        cgroups2::ROOT_CGROUP,
+        vector<string>(to_enable.begin(), to_enable.end()));
+
+    if (result.isSome()) {
+      enabled_controllers = enabled_controllers | to_enable;
+    }
+
+    return result;
+  }
+
   void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
@@ -57,8 +83,15 @@ protected:
       ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
     }
 
+    // TODO(bmahler): disable the enabled_controllers.
+
     TemporaryDirectoryTest::TearDown();
   }
+
+  // These are controllers that *we* enabled, and therefore we need to
+  // disable on test cleanup. Note that if the tests are killed, then
+  // we'll still of course leak these side effects, unfortunately.
+  set<string> enabled_controllers;
 };
 
 
@@ -132,6 +165,16 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcesses)
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_CpuStats)
+{
+  ASSERT_SOME(enable_controllers({"cpu"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"}));
+  ASSERT_SOME(cgroups2::cpu::stats(TEST_CGROUP));
 }
 
 } // namespace tests {

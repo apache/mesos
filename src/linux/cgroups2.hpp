@@ -21,7 +21,9 @@
 #include <string>
 #include <vector>
 
+#include <stout/duration.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
@@ -115,6 +117,53 @@ Try<Nothing> weight(const std::string& cgroup, uint64_t weight);
 // Retrieve the cpu weight for a cgroup, weight will be in the [1, 10000] range.
 // Cannot be used for the root cgroup.
 Try<uint64_t> weight(const std::string& cgroup);
+
+
+// CPU usage statistics for a cgroup.
+// Represents a snapshot of the "cpu.stat" control.
+struct Stats
+{
+  // Number of scheduling periods that have elapsed.
+  // "nr_periods" key in "cpu.stat"
+  // Only available if the "cpu" controller is enabled.
+  Option<uint64_t> periods;
+
+  // Number of tasks that have been throttled.
+  // "nr_throttled" key in "cpu.stat"
+  // Only available if the "cpu" controller is enabled.
+  Option<uint64_t> throttled;
+
+  // Total time that tasks have been throttled.
+  // "throttled_usec" key in "cpu.stat"
+  // Only available if the "cpu" controller is enabled.
+  Option<Duration> throttle_time;
+
+  // Number of times tasks have exceeded their burst limit.
+  // "nr_burst" key in "cpu.stat"
+  // Only available if the "cpu" controller is enabled.
+  Option<uint64_t> bursts;
+
+  // Total time tasks have spent while exceeding their burst limit.
+  // "burst_usec" key in "cpu.stat"
+  // Only available if the "cpu" controller is enabled.
+  Option<Duration> bursts_time;
+
+  // Combined time spent in user and kernel space.
+  // "usage_usec" key in "cpu.stat"
+  Duration usage;
+
+  // Time spent in user space.
+  // "user_usec key" in "cpu.stat"
+  Duration user_time;
+
+  // Time spent in kernel space.
+  // "system_usec" key in "cpu.stat"
+  Duration system_time;
+};
+
+
+// Get the CPU usage statistics for a cgroup.
+Try<Stats> stats(const std::string& cgroup);
 
 } // namespace cpu {
 

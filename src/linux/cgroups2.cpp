@@ -465,6 +465,48 @@ const std::string UCLAMP_MIN = "cpu.uclamp.min";
 const std::string WEIGHT = "cpu.weight";
 const std::string WEIGHT_NICE = "cpu.weight.nice";
 
+namespace stat {
+
+Try<Stats> parse(const string& content)
+{
+  const vector<string> lines = strings::split(content, "\n");
+  cpu::Stats stats;
+
+  foreach (const string& line, lines) {
+    if (line.empty()) {
+      continue;
+    }
+
+    vector<string> tokens = strings::split(line, " ");
+    if (tokens.size() != 2) {
+      return Error("Invalid line format in 'cpu.stat' expected "
+                   "<key> <value> received: '" + line + "'");
+    }
+
+    const string& field = tokens[0];
+    const string& value = tokens[1];
+
+    Try<uint64_t> number = numify<uint64_t>(value);
+    if (number.isError()) {
+      return Error("Failed to parse '" + field + "': " + number.error());
+    }
+    Duration duration = Microseconds(static_cast<int64_t>(*number));
+
+    if      (field == "usage_usec")     { stats.usage = duration; }
+    else if (field == "user_usec")      { stats.user_time = duration; }
+    else if (field == "system_usec")    { stats.system_time = duration; }
+    else if (field == "nr_periods")     { stats.periods = *number; }
+    else if (field == "nr_throttled")   { stats.throttled = *number; }
+    else if (field == "throttled_usec") { stats.throttle_time = duration; }
+    else if (field == "nr_burst")       { stats.bursts = *number; }
+    else if (field == "burst_usec")     { stats.bursts_time = duration; }
+  }
+
+  return stats;
+}
+
+} // namespace stat {
+
 } // namespace control {
 
 Try<Nothing> weight(const string& cgroup, uint64_t weight)
@@ -484,6 +526,20 @@ Try<uint64_t> weight(const string& cgroup)
   }
 
   return cgroups2::read<uint64_t>(cgroup, cpu::control::WEIGHT);
+}
+
+
+Try<cpu::Stats> stats(const string& cgroup)
+{
+  Try<string> content = cgroups2::read<string>(
+      cgroup, cgroups2::cpu::control::STATS);
+
+  if (content.isError()) {
+    return Error("Failed to read 'cpu.stat' for the cgroup '" + cgroup + "': "
+                 + content.error());
+  }
+
+  return cpu::control::stat::parse(*content);
 }
 
 } // namespace cpu {
