@@ -58,6 +58,44 @@ Try<Nothing> write(
     const T& value);
 
 
+template <>
+Try<string> read(const string& cgroup, const string& control)
+{
+  return os::read(path::join(cgroups2::path(cgroup), control));
+}
+
+
+template <>
+Try<uint64_t> read(const string& cgroup, const string& control)
+{
+  Try<string> content = read<string>(cgroup, control);
+  if (content.isError()) {
+    return Error(content.error());
+  }
+
+  return numify<uint64_t>(strings::trim(*content));
+}
+
+
+template <>
+Try<Nothing> write(
+    const string& cgroup,
+    const string& control,
+    const string& value)
+{
+  return os::write(path::join(cgroups2::path(cgroup), control), value);
+}
+
+
+template <>
+Try<Nothing> write(
+    const string& cgroup,
+    const string& control,
+    const uint64_t& value)
+{
+  return write(cgroup, control, stringify(value));
+}
+
 namespace control {
 
 // Interface files found in all cgroups.
@@ -106,6 +144,13 @@ struct State
     _disabled.insert(controller);
   }
 
+  void disable(const set<string>& controllers)
+  {
+    foreach (const string& controller, controllers) {
+      disable(controller);
+    }
+  }
+
   set<string> enabled()  const { return _enabled; }
   set<string> disabled() const { return _disabled; }
 
@@ -148,48 +193,31 @@ std::ostream& operator<<(std::ostream& stream, const State& state)
   return stream;
 }
 
+
+Try<State> read(const string& cgroup)
+{
+  Try<string> contents =
+    cgroups2::read<string>(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
+
+  if (contents.isError()) {
+    return Error(
+        "Failed to read 'cgroup.subtree_control' for cgroup '" + cgroup + "': "
+        + contents.error());
+  }
+
+  return State::parse(*contents);
+}
+
+
+Try<Nothing> write(const string& cgroup, const State& state)
+{
+  return cgroups2::write(
+      cgroup, control::SUBTREE_CONTROLLERS, stringify(state));
+}
+
 } // namespace subtree_control {
 
 } // namespace control {
-
-
-template <>
-Try<string> read(const string& cgroup, const string& control)
-{
-  return os::read(path::join(cgroups2::path(cgroup), control));
-}
-
-
-template <>
-Try<uint64_t> read(const string& cgroup, const string& control)
-{
-  Try<string> content = read<string>(cgroup, control);
-  if (content.isError()) {
-    return Error(content.error());
-  }
-
-  return numify<uint64_t>(strings::trim(*content));
-}
-
-
-template <>
-Try<Nothing> write(
-    const string& cgroup,
-    const string& control,
-    const string& value)
-{
-  return os::write(path::join(cgroups2::path(cgroup), control), value);
-}
-
-
-template <>
-Try<Nothing> write(
-    const string& cgroup,
-    const string& control,
-    const uint64_t& value)
-{
-  return write(cgroup, control, stringify(value));
-}
 
 
 bool enabled()
@@ -418,20 +446,29 @@ Try<set<string>> available(const string& cgroup)
 
 Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
 {
-  Try<string> contents =
-    cgroups2::read<string>(cgroup, cgroups2::control::SUBTREE_CONTROLLERS);
+  using State = control::subtree_control::State;
+  Try<State> control = cgroups2::control::subtree_control::read(cgroup);
 
-  if (contents.isError()) {
-    return Error(contents.error());
+  if (control.isError()) {
+    return Error(control.error());
   }
 
+  control->enable(controllers);
+  return cgroups2::control::subtree_control::write(cgroup, *control);
+}
+
+
+Try<Nothing> disable(const string& cgroup, const set<string>& controllers)
+{
   using State = control::subtree_control::State;
-  State control = State::parse(*contents);
-  control.enable(controllers);
-  return cgroups2::write(
-      cgroup,
-      control::SUBTREE_CONTROLLERS,
-      stringify(control));
+  Try<State> control = cgroups2::control::subtree_control::read(cgroup);
+
+  if (control.isError()) {
+    return Error(control.error());
+  }
+
+  control->disable(controllers);
+  return cgroups2::control::subtree_control::write(cgroup, *control);
 }
 
 
