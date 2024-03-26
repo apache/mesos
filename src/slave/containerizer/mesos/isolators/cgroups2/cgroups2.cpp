@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include <linux/cgroups2.hpp>
+
 #include <process/id.hpp>
 
 using mesos::slave::Isolator;
@@ -29,6 +31,31 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace slave {
+
+namespace cgroups2_isolator {
+
+Try<bool> supported()
+{
+  #ifndef ENABLE_CGROUPS_V2
+    return false;
+  #endif
+  if (!::cgroups2::enabled()) {
+    return false;
+  }
+
+  Try<bool> mounted = ::cgroups2::mounted();
+  if (mounted.isError()) {
+    return Error(
+        "Failed to check if cgroups v2 was mounted: " + mounted.error());
+  }
+  if (!*mounted) {
+    return false;
+  }
+
+  return true;
+}
+
+} // namespace cgroups2_isolator {
 
 Cgroups2IsolatorProcess::Cgroups2IsolatorProcess(
   const hashmap<string, Owned<Subsystem>>& _subsystems)

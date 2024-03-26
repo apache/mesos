@@ -76,6 +76,13 @@
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #include "linux/systemd.hpp"
+
+#ifdef ENABLE_CGROUPS_V2
+#include "linux/cgroups2.hpp"
+#endif // ENABLE_CGROUPS_V2
+
+#include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
+
 #endif // __linux__
 
 #include "logging/logging.hpp"
@@ -85,6 +92,7 @@
 
 #include "module/manager.hpp"
 
+#include "slave/containerizer/mesos/paths.hpp"
 #include "slave/constants.hpp"
 #include "slave/csi_server.hpp"
 #include "slave/gc.hpp"
@@ -147,6 +155,133 @@ const char* malloc_conf = "narenas:4";
 
 
 #ifdef __linux__
+
+#ifdef ENABLE_CGROUPS_V2
+// Check if a cgroup has processes and return an error if there are any.
+static Try<Nothing> checkForProcesses(const string& cgroup)
+{
+  Try<set<pid_t>> processes = cgroups2::processes(cgroup);
+  if (processes.isError()) {
+    return Error(
+        "Failed to check for existing processes in cgroup '" + cgroup + "': "
+        + processes.error());
+  }
+
+  if (!processes->empty()) {
+    return Error("Found existing processes in cgroup '" + cgroup + "'");
+  }
+
+  return Nothing();
+}
+// Initialize Mesos cgroups for cgroups v2.
+//
+// Ensures that cgroups v2 is available, correctly mounted, and all of the
+// requested controllers are available. If correctly setup, the requested
+// controllers are enabled in the root cgroup, and the Mesos Agent is moved
+// into its own cgroup.
+//
+// If there are any processes in the cgroups that are created, we assume there
+// was an error in cleaning up a previous run and an error is returned.
+//
+// Creates cgroups:
+// /<root>              Top-level cgroup for the Mesos agent. Has all of the
+//                      requested subsystems enabled.
+// /<root>/agent/leaf   Cgroup for the Mesos agent. The `/leaf` suffix is not
+//                      strictly necessary but is consistent with keeping all
+//                      processes inside of `/leaf` folders.
+static Try<Nothing> initializeCgroups2(const slave::Flags& flags)
+{
+  namespace containerizer = mesos::internal::slave::containerizer;
+  CHECK_SOME(flags.agent_subsystems);
+
+  if (!cgroups2::enabled()) {
+    return Error("cgroups v2 is not available on this system");
+  }
+
+  Try<bool> mounted = cgroups2::mounted();
+  if (mounted.isError()) {
+    return Error(
+        "Failed to check if cgroups v2 was mounted: " + mounted.error());
+  }
+  if (!*mounted) {
+    return Error("The cgroup2 file system is not mounted at '/sys/fs/cgroup'");
+  }
+
+  const string& root = flags.cgroups_root;
+  if (!cgroups2::exists(root)) {
+    Try<Nothing> create = cgroups2::create(root);
+    if (create.isError()) {
+      return Error("Failed to create cgroup '" + root + "': " + create.error());
+    }
+  }
+
+  const string& agent = containerizer::paths::cgroups2::agent(root);
+  if (!cgroups2::exists(agent)) {
+    Try<Nothing> create = cgroups2::create(agent);
+    if (create.isError()) {
+      return Error(
+          "Failed to create cgroup '" + agent + "': " + create.error());
+    }
+  }
+
+  const string& agentLeaf = containerizer::paths::cgroups2::agent(root, true);
+  if (!cgroups2::exists(agentLeaf)) {
+    Try<Nothing> create = cgroups2::create(agentLeaf);
+    if (create.isError()) {
+      return Error(
+          "Failed to create cgroup '" + agentLeaf + "': " + create.error());
+    }
+  }
+
+  Try<Nothing> processes = checkForProcesses(root);
+  if (processes.isError()) { return Error(processes.error()); }
+
+  processes = checkForProcesses(agent);
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  processes = checkForProcesses(agentLeaf);
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  // `cgroups2::ROOT_CGROUP` is the default cgroup all processes belong to when
+  // the cgroup2 hierarchy is mounted. `root`, conversely, is the root cgroup
+  // for Mesos. Here we make all the requested controllers available to the
+  // Mesos root cgroup by enabling them in the `cgroups2::ROOT_CGROUP`, its
+  // parent.
+  Try<set<string>> availableControllers = cgroups2::controllers::available(
+      cgroups2::ROOT_CGROUP);
+  if (availableControllers.isError()) {
+    return Error(
+        "Failed to determine all available controllers: "
+        + availableControllers.error());
+  }
+
+  const vector<string>& requestedControllers = strings::tokenize(
+      *flags.agent_subsystems, ",");
+
+  Try<Nothing> enable = cgroups2::controllers::enable(
+      cgroups2::ROOT_CGROUP, requestedControllers);
+  if (enable.isError()) {
+    return Error(
+        "Failed to enable the requested cgroup v2 controllers: "
+        + enable.error());
+  }
+
+  // Move the agent process into its own cgroup.
+  Try<Nothing> assign = cgroups2::assign(agentLeaf, getpid());
+  if (assign.isError()) {
+    return Error(
+        "Failed to move the Mesos Agent into cgroup '" + agentLeaf + "': "
+        + assign.error());
+  }
+
+  return Nothing();
+}
+#endif // ENABLE_CGROUPS_V2
+
 // Move the slave into its own cgroup for each of the specified
 // subsystems.
 //
@@ -251,6 +386,7 @@ static Try<Nothing> assignCgroups(const slave::Flags& flags)
 
   return Nothing();
 }
+
 #endif // __linux__
 
 
@@ -406,13 +542,29 @@ int main(int argc, char** argv)
   }
 
 #ifdef __linux__
-  // Move the agent process into its own cgroup for each of the specified
-  // subsystems if necessary before the process is initialized.
   if (flags.agent_subsystems.isSome()) {
-    Try<Nothing> assign = assignCgroups(flags);
-    if (assign.isError()) {
-      EXIT(EXIT_FAILURE) << assign.error();
-    }
+    // Use the cgroups v2 isolator if it is supported. Otherwise, use 
+    // the cgroups v1 isolator.
+    do {
+    #ifdef ENABLE_CGROUPS_V2
+      Try<bool> supported = slave::cgroups2_isolator::supported();
+
+      if (supported.isSome() && *supported) {
+        Try<Nothing> initCgroups2 = initializeCgroups2(flags);
+        if (initCgroups2.isError()) {
+          EXIT(EXIT_FAILURE) << initCgroups2.error();
+        }
+
+        break;
+      }
+    #endif // ENABLE_CGROUPS_V2
+      // Move the agent process into its own cgroup for each of the specified
+      // subsystems if necessary before the process is initialized.
+      Try<Nothing> assign = assignCgroups(flags);
+      if (assign.isError()) {
+        EXIT(EXIT_FAILURE) << assign.error();
+      }
+    } while (false);
   }
 #endif // __linux__
 
