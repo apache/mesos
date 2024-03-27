@@ -95,6 +95,43 @@ TEST(MesosContainerizerPathsTest, BuildPathJoinMode)
       path::join(parent.value(), separator, child.value()));
 }
 
+
+TEST(MesosContainerizerPathsTest, CGROUPS2_Cgroups2Paths)
+{
+  namespace cgroups2 = mesos::internal::slave::containerizer::paths::cgroups2;
+
+  ContainerID parent;
+  parent.set_value("parent");
+
+  ContainerID child1;
+  child1.set_value("child1");
+  child1.mutable_parent()->CopyFrom(parent);
+
+  ContainerID child2;
+  child2.set_value("child2");
+  child2.mutable_parent()->CopyFrom(child1);
+
+  EXPECT_EQ("mesos/agent",
+            cgroups2::agent("mesos"));
+  EXPECT_EQ("mesos/agent/leaf",
+            cgroups2::agent("mesos", true));
+
+  EXPECT_EQ("mesos/parent",
+            cgroups2::container("mesos", parent));
+  EXPECT_EQ("mesos/parent/leaf",
+            cgroups2::container("mesos", parent, true));
+
+  EXPECT_EQ("mesos/parent/mesos/child1",
+            cgroups2::container("mesos", child1));
+  EXPECT_EQ("mesos/parent/mesos/child1/leaf",
+            cgroups2::container("mesos", child1, true));
+
+  EXPECT_EQ("mesos/parent/mesos/child1/mesos/child2",
+            cgroups2::container("mesos", child2));
+  EXPECT_EQ("mesos/parent/mesos/child1/mesos/child2/leaf",
+            cgroups2::container("mesos", child2, true));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

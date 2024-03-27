@@ -654,6 +654,30 @@ Option<ContainerID> parseCgroupPath(
   return current;
 }
 
+namespace cgroups2 {
+
+string agent(const string& root, bool leaf)
+{
+  if (leaf) { return path::join(root, "agent", "leaf"); }
+  else      { return path::join(root, "agent"); }
+}
+
+
+string container(
+    const string& root,
+    const ContainerID& containerId,
+    bool leaf)
+{
+  const string& container = containerizer::paths::buildPath(
+      containerId,
+      CGROUP_SEPARATOR,
+      containerizer::paths::JOIN);
+
+  if (leaf) { return path::join(root, container, "leaf"); }
+  else      { return path::join(root, container);}
+}
+
+} // namespace cgroups2 {
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {

@@ -286,6 +286,41 @@ Option<ContainerID> parseCgroupPath(
     const std::string& cgroupsRoot,
     const std::string& cgroup);
 
+// All cgroups v2 paths are either leaf or non-leaf paths. Leaf paths end
+// in `/leaf`, contain processes, and may impose resource constraints. Non-leaf
+// paths do not contain processes and may impose resource constraints.
+// This is done to avoid the restrictions of the "Internal Process Contraint".
+// More information: https://docs.kernel.org/admin-guide/cgroup-v2.html#no-internal-process-constraint
+//
+// The cgroup2 file system has the structure:
+// <MOUNT>/<root>/agent                    Mesos Agent constraints
+// <MOUNT>/<root>/agent/leaf               Mesos Agent process
+//
+// <MOUNT>/<root>/<id>                     Container constraints
+// <MOUNT>/<root>/<id>/leaf                Container process
+//
+// <MOUNT>/<root>/<id>/mesos/<id2>         Nested container constraints
+// <MOUNT>/<root>/<id>/mesos/<id2>/leaf    Nested container process
+//
+// For every new level of nesting, `/mesos/<idN>` is added to the path.
+//
+// <root>        Value of the `cgroups_root` flag.
+// <MOUNT>       /sys/fs/cgroup, where the cgroup2 hierarchy is mounted.
+namespace cgroups2 {
+
+// Path to the Mesos Agent's cgroup.
+// `root` is the value of the `cgroups_root` flag.
+std::string agent(const std::string& root, bool leaf = false);
+
+
+// Path to a container's cgroup.
+// `root` is the value of the `cgroups_root` flag.
+std::string container(
+    const std::string& root,
+    const ContainerID& containerId,
+    bool leaf = false);
+
+} // namespace cgroups2 {
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
