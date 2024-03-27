@@ -1495,6 +1495,8 @@ MESOS_LINUX_FILES +=							\
   linux/cgroups2.hpp      \
   linux/ebpf.cpp      \
   linux/ebpf.hpp      \
+  slave/containerizer/mesos/isolators/cgroups2/controller.cpp     \
+  slave/containerizer/mesos/isolators/cgroups2/controller.hpp     \
   slave/containerizer/mesos/isolators/cgroups2/cgroups2.cpp     \
   slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp
 endif
