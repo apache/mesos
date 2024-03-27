@@ -31,9 +31,9 @@ namespace internal {
 namespace slave {
 
 Cgroups2IsolatorProcess::Cgroups2IsolatorProcess(
-  const hashmap<string, Owned<Subsystem>>& _subsystems)
-  : ProcessBase(process::ID::generate("cgroups2-isolator")),
-    subsystems(_subsystems) {}
+    const hashmap<string, Owned<Controller>>& _controllers)
+    : ProcessBase(process::ID::generate("cgroups2-isolator")),
+    controllers(_controllers) {}
 
 
 Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
@@ -41,9 +41,9 @@ Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
 
 Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
 {
-  hashmap<string, Owned<Subsystem>> subsystems;
+  hashmap<string, Owned<Controller>> controllers;
 
-  Owned<MesosIsolatorProcess> process(new Cgroups2IsolatorProcess(subsystems));
+  Owned<MesosIsolatorProcess> process(new Cgroups2IsolatorProcess(controllers));
   return new MesosIsolator(process);
 }
 
