@@ -22,11 +22,10 @@
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
-#include <stout/hashset.hpp>
 #include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/isolator.hpp"
-#include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
 #include "slave/flags.hpp"
 
 namespace mesos {
@@ -46,10 +45,10 @@ public:
 
 private:
   Cgroups2IsolatorProcess(
-      const hashmap<std::string, process::Owned<Subsystem>>& _subsystems);
+      const hashmap<std::string, process::Owned<Controller>>& controllers);
 
-  // Maps each subsystems to the `Subsystem` isolator that manages it.
-  const hashmap<std::string, process::Owned<Subsystem>> subsystems;
+  // Maps each controller to the `Controller` isolator that manages it.
+  const hashmap<std::string, process::Owned<Controller>> controllers;
 };
 
 } // namespace slave {
