@@ -33,6 +33,16 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+namespace cgroups2_isolator {
+
+// Check if the cgroups v2 isolator is supported.
+//
+// To be supported, Mesos must be compiled with the `--enable-cgroups-v2` 
+// flag and the host must have a cgroup2 filesystem mounted at `/sys/fs/cgroup`.
+Try<bool> supported();
+
+} // namespace cgroups2_isolator {
+
 class Cgroups2IsolatorProcess : public MesosIsolatorProcess
 {
 public:

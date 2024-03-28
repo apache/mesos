@@ -173,8 +173,9 @@ mesos::internal::slave::Flags::Flags()
       "flag. if `cgroups/all` is specified, any other cgroups related\n"
       "isolation options (e.g., `cgroups/cpu`) will be ignored, and all\n"
       "the local enabled cgroups subsystems on the agent host will be\n"
-      "automatically loaded by the cgroups isolator. Note that this flag\n"
-      "is only relevant for the Mesos Containerizer.",
+      "automatically loaded by the cgroups isolator. The same applies for\n"
+      "`cgroups2/all`. Note that this flag is only relevant for the Mesos\n"
+      "Containerizer.",
 #ifndef __WINDOWS__
       "posix/cpu,posix/mem"
 #else
