@@ -16,22 +16,32 @@
 
 #include <set>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <process/reap.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/gtest.hpp>
+#include <stout/os.hpp>
 #include <stout/set.hpp>
 #include <stout/tests/utils.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups2.hpp"
+#include "linux/ebpf.hpp"
 
+using std::pair;
 using std::set;
 using std::string;
+using std::tuple;
 using std::vector;
+
+namespace devices = cgroups2::devices;
 
 namespace mesos {
 namespace internal {
@@ -209,6 +219,149 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_EnableAndDisable)
   EXPECT_SOME(enabled);
   EXPECT_EQ(0u, enabled->count("cpu"));
 }
+
+// Arguments for os::open(). Combination of a path and an access type.
+typedef pair<string, int> OpenArgs;
+
+using DeviceControllerTestParams = tuple<
+    vector<devices::Entry>,
+    vector<devices::Entry>,
+    vector<OpenArgs>,
+    vector<OpenArgs>>;
+
+class DeviceControllerTestFixture :
+    public Cgroups2Test,
+    public ::testing::WithParamInterface<DeviceControllerTestParams> {};
+
+
+TEST_P(DeviceControllerTestFixture, ROOT_CGROUPS2_DeviceController)
+{
+  const string& cgroup = TEST_CGROUP;
+
+  auto params = GetParam();
+  const vector<devices::Entry>& allow = std::get<0>(params);
+  const vector<devices::Entry>& deny = std::get<1>(params);
+  const vector<OpenArgs>& allowed_accesses = std::get<2>(params);
+  const vector<OpenArgs>& blocked_accesses = std::get<3>(params);
+
+  ASSERT_SOME(cgroups2::create(cgroup));
+  string path = cgroups2::path(cgroup);
+
+  Try<vector<uint32_t>> attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(0u, attached->size());
+
+  ASSERT_SOME(devices::configure(cgroup, allow, deny));
+  attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(1u, attached->size());
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // Move the child process into the newly created cgroup.
+    Try<Nothing> assign = cgroups2::assign(cgroup, ::getpid());
+    if (assign.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to assign child process to cgroup");
+    }
+
+    // Check that we can only do the "allowed_accesses".
+    foreach(const OpenArgs& args, allowed_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected allowed read to succeed");
+      }
+    }
+    foreach(const OpenArgs& args, blocked_accesses) {
+      if (os::open(args.first, args.second).isSome()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected blocked read to fail");
+      }
+    }
+
+    ASSERT_SOME(ebpf::cgroups2::detach(path, attached->at(0)));
+
+    // Check that we can do both the "allowed_accesses" and "blocked_accesses".
+    foreach(const OpenArgs& args, allowed_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected successful read after detaching"
+          " device controller program");
+      }
+    }
+    foreach(const OpenArgs& args, blocked_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected successful read after detaching"
+          " device controller program");
+      }
+    }
+
+    ::_exit(EXIT_SUCCESS);
+  }
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(EXIT_SUCCESS, process::reap(pid));
+}
+
+
+INSTANTIATE_TEST_CASE_P(
+    DeviceControllerTestParams,
+    DeviceControllerTestFixture,
+    ::testing::Values<DeviceControllerTestParams>(
+        // Acceses are blocked by default if no entries are configured.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{},
+          vector<devices::Entry>{},
+          vector<OpenArgs>{},
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDWR}}
+        },
+        // Deny access to /dev/null.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{},
+          vector<devices::Entry>{*devices::Entry::parse("c 1:3 rwm")},
+          vector<OpenArgs>{},
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
+        },
+        // Allow access to /dev/null.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{*devices::Entry::parse("c 1:3 rwm")},
+          vector<devices::Entry>{},
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}},
+          vector<OpenArgs>{}
+        },
+        // Allow read-only access to /dev/null.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{*devices::Entry::parse("c 1:3 r")},
+          vector<devices::Entry>{},
+          vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
+        },
+        // Allow write-only access to /dev/null.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{*devices::Entry::parse("c 1:3 w")},
+          vector<devices::Entry>{},
+            // write-only allowed
+          vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}},
+            // read is blocked
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
+        },
+        // Access to /dev/null is denied because the allowed access is to
+        // a different device type with the same major:minor numbers.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{*devices::Entry::parse("b 1:3 rwm")},
+          vector<devices::Entry>{},
+          vector<OpenArgs>{},
+            // /dev/null is blocked
+          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
+        },
+        // Allow access to all devices.
+        DeviceControllerTestParams{
+          vector<devices::Entry>{*devices::Entry::parse("a *:* rwm")},
+          vector<devices::Entry>{},
+          vector<OpenArgs>{
+            {os::DEV_NULL, O_WRONLY},
+            {os::DEV_NULL, O_RDWR},
+            {os::DEV_NULL, O_RDONLY}},
+          vector<OpenArgs>{},
+        }
+      ));
 
 } // namespace tests {
 
