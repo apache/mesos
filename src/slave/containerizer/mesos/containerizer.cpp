@@ -116,6 +116,13 @@
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 #include "slave/containerizer/mesos/isolators/volume/csi/isolator.hpp"
+
+#ifdef ENABLE_CGROUPS_V2
+#include "linux/cgroups2.hpp"
+
+#include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
+#endif // ENABLE_CGROUPS_V2
+
 #endif // __linux__
 
 #if ENABLE_SECCOMP_ISOLATOR
@@ -363,6 +370,23 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   Shared<Provisioner> provisioner = _provisioner->share();
 
+#ifdef __linux__
+  // Initialize either the cgroups v2 or cgroups v1 isolator, based on what
+  // is available on the host machine.
+  auto cgroupsIsolatorSelector = [] (const Flags& flags) -> Try<Isolator*> {
+#ifdef ENABLE_CGROUPS_V2
+    Try<bool> mounted = cgroups2::mounted();
+    if (mounted.isError()) {
+      return Error("Failed to determine if the cgroup2 filesystem is mounted: "
+                   + mounted.error());
+    }
+    if (*mounted) {
+      return Cgroups2IsolatorProcess::create(flags);
+    }
+#endif // ENABLE_CGROUPS_V2
+    return CgroupsIsolatorProcess::create(flags);
+  };
+#endif // __linux__
   // Built-in isolator definitions.
   //
   // The order of the entries in this table specifies the ordering of the
@@ -424,17 +448,17 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __WINDOWS__
 
 #ifdef __linux__
-    {"cgroups/all", &CgroupsIsolatorProcess::create},
-    {"cgroups/blkio", &CgroupsIsolatorProcess::create},
-    {"cgroups/cpu", &CgroupsIsolatorProcess::create},
-    {"cgroups/cpuset", &CgroupsIsolatorProcess::create},
-    {"cgroups/devices", &CgroupsIsolatorProcess::create},
-    {"cgroups/hugetlb", &CgroupsIsolatorProcess::create},
-    {"cgroups/mem", &CgroupsIsolatorProcess::create},
-    {"cgroups/net_cls", &CgroupsIsolatorProcess::create},
-    {"cgroups/net_prio", &CgroupsIsolatorProcess::create},
-    {"cgroups/perf_event", &CgroupsIsolatorProcess::create},
-    {"cgroups/pids", &CgroupsIsolatorProcess::create},
+    {"cgroups/all", cgroupsIsolatorSelector},
+    {"cgroups/blkio", cgroupsIsolatorSelector},
+    {"cgroups/cpu", cgroupsIsolatorSelector},
+    {"cgroups/cpuset", cgroupsIsolatorSelector},
+    {"cgroups/devices", cgroupsIsolatorSelector},
+    {"cgroups/hugetlb", cgroupsIsolatorSelector},
+    {"cgroups/mem", cgroupsIsolatorSelector},
+    {"cgroups/net_cls", cgroupsIsolatorSelector},
+    {"cgroups/net_prio", cgroupsIsolatorSelector},
+    {"cgroups/perf_event", cgroupsIsolatorSelector},
+    {"cgroups/pids", cgroupsIsolatorSelector},
 
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
@@ -535,9 +559,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   vector<Owned<Isolator>> isolators;
 
-  // Note: For cgroups, we only create `CgroupsIsolatorProcess` once.
-  // We use this flag to identify whether `CgroupsIsolatorProcess` has
-  // been created or not.
+  // Note: For cgroups, we only create `CgroupsIsolatorProcess` or
+  // `Cgroups2IsolatorProcess` once. We use this flag to identify whether
+  // either has been created.
   bool cgroupsIsolatorCreated = false;
 
   // First, apply the built-in isolators, in dependency order.
@@ -548,7 +572,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
     if (strings::startsWith(creator.first, "cgroups/")) {
       if (cgroupsIsolatorCreated) {
-        // Skip when `CgroupsIsolatorProcess` have already been created.
+        // Skip when `Cgroups(2)IsolatorProcess` have already been created.
         continue;
       }
 
