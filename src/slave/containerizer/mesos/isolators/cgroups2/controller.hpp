@@ -37,9 +37,7 @@ class ControllerProcess;
 class Controller
 {
 public:
-  static Try<process::Owned<Controller>> create(
-      const Flags& flags,
-      const std::string& name);
+  explicit Controller(process::Owned<ControllerProcess> process);
 
   // Copied from: src/slave/containerizer/mesos/isolators/cgroups/subsystem.hpp
   // We have unique ownership of the wrapped process and
@@ -92,8 +90,6 @@ public:
       const std::string& cgroup);
 
 private:
-  explicit Controller(process::Owned<ControllerProcess> process);
-
   process::Owned<ControllerProcess> process;
 };
 

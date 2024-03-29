@@ -14,16 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
+#include "linux/cgroups2.hpp"
 
+#include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp"
+
+#include <set>
 #include <string>
 
 #include <process/id.hpp>
+
+#include <stout/foreach.hpp>
 
 using mesos::slave::Isolator;
 
 using process::Owned;
 
+using std::set;
 using std::string;
 
 namespace mesos {
@@ -41,7 +48,58 @@ Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
 
 Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
 {
+  hashmap<string, Try<Owned<ControllerProcess>>(*)(const Flags&)>
+    creators = {
+    {"cpu", &CpuControllerProcess::create}
+  };
+
   hashmap<string, Owned<Controller>> controllers;
+  set<string> controllersToCreate;
+
+  if (strings::contains(flags.isolation, "cgroups/all")) {
+    Try<set<string>> availableControllers =
+      ::cgroups2::controllers::available(::cgroups2::path(flags.cgroups_root));
+    if (availableControllers.isError()) {
+      return Error(
+          "Failed to determine the available cgroups v2 controllers: "
+          + availableControllers.error());
+    }
+
+    controllersToCreate = *availableControllers;
+  } else {
+    foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
+      if (!strings::startsWith(isolator, "cgroups/")) {
+        // Skip when the isolator is not related to cgroups.
+        continue;
+      }
+
+      isolator = strings::remove(isolator, "cgroups/", strings::Mode::PREFIX);
+      if (!creators.contains(isolator)) {
+        return Error(
+            "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
+      }
+
+      controllersToCreate.insert(isolator);
+    }
+  }
+
+  foreach (const string& controllerName, controllersToCreate) {
+    if (creators.count(controllerName) == 0) {
+      return Error(
+          "Cgroups v2 controller '" + controllerName + "' is not supported.");
+    }
+
+    Try<Owned<ControllerProcess>> process = creators.at(controllerName)(flags);
+    if (process.isError()) {
+      return Error(
+          "Failed to create controller '" + controllerName + "': "
+          + process.error());
+    }
+
+    Owned<Controller> controller = Owned<Controller>(new Controller(*process));
+    controllers.put(controllerName, controller);
+  }
+
 
   Owned<MesosIsolatorProcess> process(new Cgroups2IsolatorProcess(controllers));
   return new MesosIsolator(process);
