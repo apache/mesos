@@ -51,12 +51,6 @@ const string MOUNT_POINT = "/sys/fs/cgroup";
 template <typename T>
 Try<T> read(const string& cgroup, const string& control);
 
-template <typename T>
-Try<Nothing> write(
-    const string& cgroup,
-    const string& control,
-    const T& value);
-
 
 template <>
 Try<string> read(const string& cgroup, const string& control)
@@ -77,7 +71,6 @@ Try<uint64_t> read(const string& cgroup, const string& control)
 }
 
 
-template <>
 Try<Nothing> write(
     const string& cgroup,
     const string& control,
@@ -87,7 +80,6 @@ Try<Nothing> write(
 }
 
 
-template <>
 Try<Nothing> write(
     const string& cgroup,
     const string& control,
