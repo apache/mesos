@@ -17,4 +17,45 @@
 #ifndef __CPU_HPP__
 #define __CPU_HPP__
 
+#include <string>
+
+#include <process/future.hpp>
+
+#include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
+
+#include "slave/flags.hpp"
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
+class CpuControllerProcess : public ControllerProcess
+{
+public:
+  static Try<process::Owned<ControllerProcess>> create(
+      const Flags& flags);
+
+  ~CpuControllerProcess() override = default;
+
+  std::string name() const override;
+
+  process::Future<Nothing> update(
+    const ContainerID& containerId,
+    const std::string& cgroup,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<
+        std::string, Value::Scalar>& resourceLimits = {}) override;
+
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+private:
+  CpuControllerProcess(const Flags& flags);
+};
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
+
 #endif // __CPU_HPP__
