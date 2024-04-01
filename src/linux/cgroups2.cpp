@@ -499,7 +499,7 @@ Try<BandwidthLimit> parse_bandwidth(const string& content)
   //             is no limit.
   //
   // $PERIOD     Length of one period, in microseconds.
-  vector<string> split = strings::split(content, " ");
+  vector<string> split = strings::split(strings::trim(content), " ");
   if (split.size() != 2) {
     return Error("Expected format '$MAX $PERIOD'"
                  " but received '" + content + "'");
