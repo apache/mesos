@@ -41,6 +41,7 @@ using std::string;
 using std::tuple;
 using std::vector;
 
+namespace cpu = cgroups2::cpu;
 namespace devices = cgroups2::devices;
 
 namespace mesos {
@@ -219,6 +220,37 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_EnableAndDisable)
   EXPECT_SOME(enabled);
   EXPECT_EQ(0u, enabled->count("cpu"));
 }
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_CpuBandwidthLimit)
+{
+  ASSERT_SOME(enable_controllers({"cpu"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"cpu"}));
+
+  Try<cpu::BandwidthLimit> limit = cgroups2::cpu::max(TEST_CGROUP);
+  ASSERT_SOME(limit);
+  EXPECT_NONE(limit->limit); // the default limit is limitless
+
+  cpu::BandwidthLimit new_limit =
+    cpu::BandwidthLimit(Microseconds(10000), Microseconds(20000));
+  EXPECT_SOME(cgroups2::cpu::set_max(TEST_CGROUP, new_limit));
+
+  limit = cgroups2::cpu::max(TEST_CGROUP);
+  ASSERT_SOME(limit);
+  EXPECT_EQ(new_limit.limit, limit->limit);
+  EXPECT_EQ(new_limit.period, limit->period);
+
+  new_limit = cpu::BandwidthLimit();
+  EXPECT_SOME(cgroups2::cpu::set_max(TEST_CGROUP, new_limit));
+
+  limit = cgroups2::cpu::max(TEST_CGROUP);
+  ASSERT_SOME(limit);
+  EXPECT_EQ(new_limit.limit, limit->limit);
+  EXPECT_EQ(new_limit.period, limit->period);
+}
+
 
 // Arguments for os::open(). Combination of a path and an access type.
 typedef pair<string, int> OpenArgs;
