@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -482,6 +483,47 @@ Try<set<string>> enabled(const string& cgroup)
 
 namespace cpu {
 
+BandwidthLimit::BandwidthLimit(Duration _limit, Duration _period)
+  : limit{_limit},
+    period{_period} {}
+
+
+Try<BandwidthLimit> parse_bandwidth(const string& content)
+{
+  // Format
+  // -----------------------------
+  // $MAX $PERIOD
+  // -----------------------------
+  // $MAX        Maximum CPU time, in microseconds, processes in the cgroup can
+  //             collectively use during one $PERIOD. If set to "max" then there
+  //             is no limit.
+  //
+  // $PERIOD     Length of one period, in microseconds.
+  vector<string> split = strings::split(content, " ");
+  if (split.size() != 2) {
+    return Error("Expected format '$MAX $PERIOD'"
+                 " but received '" + content + "'");
+  }
+
+  if (split[0] == "max") {
+    return cpu::BandwidthLimit();
+  }
+
+  Try<Duration> limit = Duration::parse(split[0] + "us");
+  if (limit.isError()) {
+    return Error("Failed to parse cpu.max's limit of '" + split[0] + "': "
+                 + limit.error());
+  }
+
+  Try<Duration> period = Duration::parse(split[1] + "us");
+  if (period.isError()) {
+    return Error("Failed to parse cpu.max's period of '" + split[1] + "': "
+                 + period.error());
+  }
+
+  return BandwidthLimit(*limit, *period);
+}
+
 namespace control {
 
 const std::string IDLE = "cpu.idle";
@@ -538,6 +580,7 @@ Try<Stats> parse(const string& content)
 
 } // namespace control {
 
+
 Try<Nothing> weight(const string& cgroup, uint64_t weight)
 {
   if (cgroup == ROOT_CGROUP) {
@@ -569,6 +612,60 @@ Try<cpu::Stats> stats(const string& cgroup)
   }
 
   return cpu::control::stat::parse(*content);
+}
+
+
+Try<Nothing> set_max(const string& cgroup, const cpu::BandwidthLimit& limit)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation not supported for the root cgroup");
+  }
+
+  if (limit.limit.isNone()) {
+    return cgroups2::write(cgroup, cpu::control::MAX, "max");
+  }
+
+  if (limit.period.isNone()) {
+    return Error("Invalid bandwidth limit: period can only be None"
+                 " for a limitless bandwidth limit");
+  }
+
+  if (limit.period->ns() < 0 || limit.limit->ns() < 0
+      || limit.period->ns() % 1000 > 0 || limit.limit->ns() % 1000 > 0) {
+    return Error("Invalid bandwidth limit: period and limit must be"
+                 " positive and microsecond level granularity, received"
+                 " period=" + stringify(*limit.period)
+                 + " limit=" + stringify(*limit.limit));
+  }
+
+  return cgroups2::write(
+      cgroup,
+      cpu::control::MAX,
+      stringify(static_cast<uint64_t>(limit.limit->us()))
+        + " "
+        + stringify(static_cast<uint64_t>(limit.period->us())));
+}
+
+
+Try<cpu::BandwidthLimit> max(const string& cgroup)
+{
+  if (cgroup == ROOT_CGROUP) {
+    return Error("Operation not supported for the root cgroup");
+  }
+
+  Try<string> content = cgroups2::read<string>(cgroup, cpu::control::MAX);
+  if (content.isError()) {
+    return Error("Failed the read 'cpu.max' for cgroup '" + cgroup + "': "
+                 + content.error());
+  }
+
+  Try<BandwidthLimit> limit = parse_bandwidth(*content);
+  if (limit.isError()) {
+    return Error("Failed to parse '" + *content + "' as a bandwidth limit: "
+                 + limit.error());
+  }
+
+  return *limit;
 }
 
 } // namespace cpu {

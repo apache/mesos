@@ -168,8 +168,36 @@ struct Stats
 };
 
 
+// Specifies the maximum CPU bandwidth available over a given period.
+// Represents a snapshot of the 'cpu.max' control file.
+struct BandwidthLimit
+{
+  // Constructs a limitless bandwidth limit.
+  BandwidthLimit() = default;
+
+  // Create a bandwidth limit of `limit` every time `period`.
+  BandwidthLimit(Duration limit, Duration period);
+
+  // Maximum CPU time quota (AKA bandwidth) per period.
+  Option<Duration> limit;
+
+  // Period where the limit can be used. Can only be None if `limit`
+  // is also None, implying that there is no bandwidth limit.
+  Option<Duration> period;
+};
+
 // Get the CPU usage statistics for a cgroup.
 Try<Stats> stats(const std::string& cgroup);
+
+
+// Set the bandwidth limit for a cgroup.
+// Cannot be used for the root cgroup.
+Try<Nothing> set_max(const std::string& cgroup, const BandwidthLimit& limit);
+
+
+// Determine the bandwidth limit for a cgroup.
+// Cannot be used for the root cgroup.
+Try<BandwidthLimit> max(const std::string& cgroup);
 
 } // namespace cpu {
 
