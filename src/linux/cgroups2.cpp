@@ -407,6 +407,31 @@ Try<set<pid_t>> processes(const string& cgroup)
 }
 
 
+Try<set<pid_t>> threads(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read<string>(cgroup, control::THREADS);
+  if (contents.isError()) {
+    return Error("Failed to read 'cgroup.threads' in "
+                 "'" + cgroup + "': " + contents.error());
+  }
+
+  set<pid_t> tids;
+  foreach (const string& line, strings::split(*contents, "\n")) {
+    if (line.empty()) continue;
+
+    Try<pid_t> tid = numify<pid_t>(line);
+    if (tid.isError()) {
+      return Error(
+          "Failed to parse line '" + line + "' as a tid: " + tid.error());
+    }
+
+    tids.insert(*tid);
+  }
+
+  return tids;
+}
+
+
 string path(const string& cgroup)
 {
   return path::join(cgroups2::MOUNT_POINT, cgroup);
