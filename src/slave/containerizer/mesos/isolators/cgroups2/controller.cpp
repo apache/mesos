@@ -52,14 +52,6 @@ string Controller::name() const
 }
 
 
-Try<Owned<Controller>> Controller::create(
-    const Flags& flags,
-    const string& name)
-{
-  return Error("Controller '" + name + "' is not yet supported in cgroups v2");
-}
-
-
 Future<Nothing> Controller::recover(
     const ContainerID& containerId,
     const string& cgroup)
