@@ -17,14 +17,39 @@
 #ifndef __CORE_HPP__
 #define __CORE_HPP__
 
+#include <string>
+
+#include <process/future.hpp>
+
+#include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
+#include "slave/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
+// Controller to interface with the cgroups core control files. That is,
+// control files "cgroup.*", which exist in all cgroups.
+class CoreControllerProcess : public ControllerProcess
+{
+public:
+  static Try<process::Owned<ControllerProcess>> create(
+      const Flags& flags);
 
+  ~CoreControllerProcess() override = default;
+
+  std::string name() const override;
+
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+private:
+  CoreControllerProcess(const Flags& flags);
+};
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif ___CORE_HPP__
+#endif // __CORE_HPP__

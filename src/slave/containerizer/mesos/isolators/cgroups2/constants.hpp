@@ -32,7 +32,8 @@ const uint64_t MIN_CPU_SHARES = 2; // Linux constant.
 const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
 const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
-// Controller names.
+const std::string CGROUPS_V2_CONTROLLER_CORE_NAME =
+  "core"; // Interfaces with "cgroup.*" control files
 const std::string CGROUPS_V2_CONTROLLER_CPU_NAME = "cpu";
 
 } // namespace slave {
