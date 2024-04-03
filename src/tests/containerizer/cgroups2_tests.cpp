@@ -14,8 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <set>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -38,7 +40,9 @@
 using std::pair;
 using std::set;
 using std::string;
+using std::thread;
 using std::tuple;
+using std::unique_ptr;
 using std::vector;
 
 namespace cpu = cgroups2::cpu;
@@ -178,6 +182,61 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcesses)
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_Threads)
+{
+  const size_t NUM_THREADS = 5;
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    vector<unique_ptr<std::thread>> runningThreads(NUM_THREADS);
+
+    for (size_t i = 0; i < NUM_THREADS; ++i) {
+      runningThreads[i] = unique_ptr<std::thread>(new std::thread([]() {
+        os::sleep(Seconds(10));
+      }));
+    }
+
+    // Check the test cgroup is initially empty.
+    Try<set<pid_t>> cgroupThreads = cgroups2::threads(TEST_CGROUP);
+    if (cgroupThreads.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to read threads in the cgroup");
+    }
+    if (!cgroupThreads->empty()) {
+      SAFE_EXIT(EXIT_FAILURE, "Expected no threads in the cgroup");
+    }
+
+    // Assign ourselves to the test cgroup.
+    if (cgroups2::assign(TEST_CGROUP, ::getpid()).isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to assign to the test cgroup");
+    }
+
+    Try<set<pid_t>> threads = proc::threads(::getpid());
+    if (threads.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to read threads");
+    }
+
+    // Check that the test cgroup now only contains all child threads.
+    cgroupThreads = cgroups2::threads(TEST_CGROUP);
+    if (cgroupThreads.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to read threads in the cgroup");
+    }
+    if (*threads != *cgroupThreads) {
+      SAFE_EXIT(
+          EXIT_FAILURE,
+          "The threads in the cgroup did not match the processes's threads");
+    }
+
+    ::_exit(EXIT_SUCCESS);
+  }
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(EXIT_SUCCESS, process::reap(pid));
 }
 
 
