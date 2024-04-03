@@ -17,6 +17,7 @@
 #include "linux/cgroups2.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/core.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp"
 
 #include <set>
@@ -49,11 +50,15 @@ Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
 Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
 {
   hashmap<string, Try<Owned<ControllerProcess>>(*)(const Flags&)> creators = {
+    {"core", &CoreControllerProcess::create},
     {"cpu", &CpuControllerProcess::create}
   };
 
   hashmap<string, Owned<Controller>> controllers;
-  set<string> controllersToCreate;
+
+  // The "core" controller is always enabled because the "cgroup.*" control
+  // files which it interfaces with exist and are updated for all cgroups.
+  set<string> controllersToCreate = { "core" };
 
   if (strings::contains(flags.isolation, "cgroups/all")) {
     Try<set<string>> available =

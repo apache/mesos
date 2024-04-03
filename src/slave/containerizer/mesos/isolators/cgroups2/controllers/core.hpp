@@ -14,29 +14,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __CGROUPS_V2_ISOLATOR_CONSTANTS_HPP__
-#define __CGROUPS_V2_ISOLATOR_CONSTANTS_HPP__
+#ifndef __CORE_HPP__
+#define __CORE_HPP__
 
 #include <string>
 
-#include <stout/duration.hpp>
+#include <process/future.hpp>
+
+#include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-// CPU controller constants.
-const uint64_t CPU_SHARES_PER_CPU = 1024;
-const uint64_t CPU_SHARES_PER_CPU_REVOCABLE = 10;
-const uint64_t MIN_CPU_SHARES = 2; // Linux constant.
-const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
-const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
+// Controller to interface with the cgroups core control files. That is,
+// control files "cgroup.*", which exist in all cgroups.
+class CoreControllerProcess : public ControllerProcess
+{
+public:
+  static Try<process::Owned<ControllerProcess>> create(
+      const Flags& flags);
 
-const std::string CGROUPS_V2_CONTROLLER_CORE_NAME = "core";
-const std::string CGROUPS_V2_CONTROLLER_CPU_NAME = "cpu";
+  ~CoreControllerProcess() override = default;
+
+  std::string name() const override;
+
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+private:
+  CoreControllerProcess(const Flags& flags);
+};
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __CGROUPS_V2_ISOLATOR_CONSTANTS_HPP__
+#endif // __CORE_HPP__
