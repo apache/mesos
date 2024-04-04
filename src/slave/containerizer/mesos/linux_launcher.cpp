@@ -104,7 +104,6 @@ private:
 
   Future<Nothing> _destroy(const ContainerID& containerId);
 
-  static const string subsystem;
   const Flags flags;
   const string freezerHierarchy;
   const Option<string> systemdHierarchy;
