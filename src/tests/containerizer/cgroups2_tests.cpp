@@ -311,6 +311,64 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_CpuBandwidthLimit)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetCgroups)
+{
+  vector<string> cgroups = {
+    path::join(TEST_CGROUP, "test1"),
+    path::join(TEST_CGROUP, "test1/a"),
+    path::join(TEST_CGROUP, "test1/b"),
+    path::join(TEST_CGROUP, "test1/b/c"),
+    path::join(TEST_CGROUP, "test2"),
+    path::join(TEST_CGROUP, "test2/a"),
+    path::join(TEST_CGROUP, "test2/a/b"),
+    path::join(TEST_CGROUP, "test3"),
+  };
+
+  foreach (const string& cgroup, cgroups) {
+    ASSERT_SOME(cgroups2::create(cgroup, true));
+  }
+
+  EXPECT_SOME_EQ(
+      set<string>({
+        path::join(TEST_CGROUP, "test1"),
+        path::join(TEST_CGROUP, "test1/a"),
+        path::join(TEST_CGROUP, "test1/b"),
+        path::join(TEST_CGROUP, "test1/b/c"),
+        path::join(TEST_CGROUP, "test2"),
+        path::join(TEST_CGROUP, "test2/a"),
+        path::join(TEST_CGROUP, "test2/a/b"),
+        path::join(TEST_CGROUP, "test3"),
+      }),
+      cgroups2::get(TEST_CGROUP));
+
+  EXPECT_SOME_EQ(
+      set<string>({
+        path::join(TEST_CGROUP, "test1/a"),
+        path::join(TEST_CGROUP, "test1/b"),
+        path::join(TEST_CGROUP, "test1/b/c"),
+      }),
+      cgroups2::get(path::join(TEST_CGROUP, "test1")));
+
+  EXPECT_SOME_EQ(set<string>({
+        path::join(TEST_CGROUP, "test2/a"),
+        path::join(TEST_CGROUP, "test2/a/b"),
+      }),
+      cgroups2::get(path::join(TEST_CGROUP, "test2")));
+
+  EXPECT_SOME_EQ(
+      set<string>({
+        path::join(TEST_CGROUP, "test1/b/c")
+      }),
+      cgroups2::get(path::join(TEST_CGROUP, "test1/b")));
+
+  // Destroy the cgroups in reverse order so the most deeply-nested cgroups
+  // are removed first.
+  for (int i = cgroups.size() - 1; i >= 0; --i) {
+    ASSERT_SOME(cgroups2::destroy(cgroups[i]));
+  }
+}
+
+
 // Arguments for os::open(). Combination of a path and an access type.
 typedef pair<string, int> OpenArgs;
 

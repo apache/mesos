@@ -58,6 +58,10 @@ Try<Nothing> unmount();
 bool exists(const std::string& cgroup);
 
 
+// Get all of the cgroups under a given cgroup.
+Try<std::set<std::string>> get(const std::string& cgroup = ROOT_CGROUP);
+
+
 // Creates a cgroup off of the base hierarchy, i.e. /sys/fs/cgroup/<cgroup>.
 // cgroup can be a nested cgroup (e.g. foo/bar/baz). If cgroup is a nested
 // cgroup and the parent cgroups do not exist, an error will be returned unless
