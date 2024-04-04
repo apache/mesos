@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fts.h>
+
 #include "linux/cgroups2.hpp"
 
 #include <iterator>
@@ -303,6 +305,45 @@ Try<Nothing> unmount()
 bool exists(const string& cgroup)
 {
   return os::exists(cgroups2::path(cgroup));
+}
+
+
+Try<set<string>> get(const string& cgroup)
+{
+  const string& path = cgroups2::path(cgroup);
+  char* paths[] = {const_cast<char*>(path.c_str()), nullptr};
+
+  FTS* tree = fts_open(paths, FTS_NOCHDIR, nullptr);
+  if (tree == nullptr) {
+    return ErrnoError("Failed to start traversing filesystem");
+  }
+
+  FTSENT* node;
+  set<string> cgroups;
+  while ((node = fts_read(tree)) != nullptr) {
+    // Use post-order walk here. fts_level is the depth of the traversal,
+    // numbered from -1 to N, where the file/dir was found. The traversal root
+    // itself is numbered 0. fts_info includes flags for the current node.
+    // FTS_DP indicates a directory being visited in postorder.
+    if (node->fts_level > 0 && node->fts_info & FTS_DP) {
+      string _cgroup = strings::trim(
+          node->fts_path + MOUNT_POINT.length(), "/");
+      cgroups.insert(_cgroup);
+    }
+  }
+
+  if (errno != 0) {
+    Error error =
+      ErrnoError("Failed to read a node while traversing the filesystem");
+    fts_close(tree);
+    return error;
+  }
+
+  if (fts_close(tree) != 0) {
+    return ErrnoError("Failed to stop traversing file system");
+  }
+
+  return cgroups;
 }
 
 
