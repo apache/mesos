@@ -677,6 +677,47 @@ string container(
   else      { return path::join(root, container);}
 }
 
+
+Option<ContainerID> containerId(
+    const string& root,
+    const string& cgroup)
+{
+  // Remove the trailing `/leaf`, if present.
+  string path = strings::remove(cgroup, "/leaf", strings::SUFFIX);
+  // Remove leading or trailing slashes.
+  path = strings::trim(path, "/");
+
+  vector<string> tokens =
+    strings::tokenize(path, stringify(os::PATH_SEPARATOR));
+
+  if (tokens.size() == 0) {
+    // Root.
+    return None();
+  }
+  if (tokens.back() == "agent") {
+    // Mesos Agent.
+    return None();
+  }
+
+  Option<ContainerID> current;
+  foreach (const string& token, tokens) {
+    if (token == CGROUP_SEPARATOR) {
+      continue;
+    }
+
+    ContainerID id;
+    id.set_value(token);
+
+    if (current.isSome()) {
+      id.mutable_parent()->CopyFrom(*current);
+    }
+
+    current = id;
+  }
+
+  return current;
+}
+
 } // namespace cgroups2 {
 } // namespace paths {
 } // namespace containerizer {

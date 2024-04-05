@@ -18,7 +18,10 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/gtest.hpp>
 #include <stout/path.hpp>
+
+#include "linux/cgroups2.hpp"
 
 #include "slave/containerizer/mesos/paths.hpp"
 
@@ -130,6 +133,69 @@ TEST(MesosContainerizerPathsTest, CGROUPS2_Cgroups2Paths)
             cgroups2::container("mesos", child2));
   EXPECT_EQ("mesos/parent/mesos/child1/mesos/child2/leaf",
             cgroups2::container("mesos", child2, true));
+}
+
+
+TEST(MesosContainerizerPathsTest, CGROUPS2_Cgroups2ParsePaths)
+{
+  namespace cgroups2 = mesos::internal::slave::containerizer::paths::cgroups2;
+
+  EXPECT_NONE(cgroups2::containerId("mesos", ""));
+  EXPECT_NONE(cgroups2::containerId("mesos", "/"));
+  EXPECT_NONE(cgroups2::containerId("mesos", cgroups2::agent("mesos")));
+  EXPECT_NONE(cgroups2::containerId("mesos", cgroups2::agent("mesos", true)));
+
+  // Setup the container chain: id1 -> id2 -> id3
+  ContainerID id1;
+  id1.set_value("id1");
+
+  ContainerID id2;
+  id2.set_value("id2");
+  id2.mutable_parent()->CopyFrom(id1);
+
+  ContainerID id3;
+  id3.set_value("id3");
+  id3.mutable_parent()->CopyFrom(id2);
+
+  auto EXPECT_SOME_ID_EQ =
+    [](ContainerID expected, Option<ContainerID> _actual) {
+    EXPECT_SOME(_actual);
+
+    ContainerID actual = *_actual;
+    while (expected.has_parent() && actual.has_parent()) {
+      EXPECT_EQ(expected.value(), actual.value());
+      expected = expected.parent();
+      actual = actual.parent();
+    }
+
+    EXPECT_EQ(expected.has_parent(), actual.has_parent());
+    EXPECT_EQ(expected.value(), actual.value());
+  };
+
+  EXPECT_SOME_ID_EQ(
+      id3,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id3)));
+
+  EXPECT_SOME_ID_EQ(
+      id2,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id2)));
+
+  EXPECT_SOME_ID_EQ(
+      id1,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id1)));
+
+  // Test leaf cgroups.
+  EXPECT_SOME_ID_EQ(
+      id3,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id3, true)));
+
+  EXPECT_SOME_ID_EQ(
+      id2,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id2, true)));
+
+  EXPECT_SOME_ID_EQ(
+      id1,
+      cgroups2::containerId("mesos", cgroups2::container("mesos", id1, true)));
 }
 
 } // namespace tests {

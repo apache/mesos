@@ -381,7 +381,7 @@ Try<Nothing> destroy(const string& cgroup)
   // the most deeply nested directories first.
   Try<Nothing> kill = cgroups2::kill(cgroup);
   if (kill.isError()) {
-    return Error("Failed to kill processes in cgroup");
+    return Error("Failed to kill processes in cgroup: " + kill.error());
   }
 
   Try<set<string>> cgroups = cgroups2::get(cgroup);
@@ -389,12 +389,14 @@ Try<Nothing> destroy(const string& cgroup)
     return Error("Failed to get nested cgroups: " + cgroups.error());
   }
 
-  vector<string> sorted(cgroups->begin(), cgroups->end());
+  vector<string> sorted(
+      std::make_move_iterator(cgroups->begin()),
+      std::make_move_iterator(cgroups->end()));
   sorted.push_back(cgroup);
   std::sort(sorted.rbegin(), sorted.rend());
 
   foreach (const string& cgroup, sorted) {
-    const string& path = cgroups2::path(cgroup);
+    const string path = cgroups2::path(cgroup);
     Try<Nothing> rmdir = os::rmdir(path, false);
     if (rmdir.isError()) {
       return Error(
