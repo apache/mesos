@@ -320,6 +320,17 @@ std::string container(
     const ContainerID& containerId,
     bool leaf = false);
 
+
+// Get a containerId from a container's cgroup.
+// Inverse of `cgroups2::container(root, id)`.
+//
+// The provided cgroup can be an absolute path or a relative path.
+// Leaf paths (which end in `/leaf`) and non-leaf paths will resolve to the
+// same container id.
+Option<ContainerID> containerId(
+    const std::string& root,
+    const std::string& cgroup);
+
 } // namespace cgroups2 {
 } // namespace paths {
 } // namespace containerizer {
