@@ -360,16 +360,46 @@ Try<Nothing> create(const string& cgroup, bool recursive)
 }
 
 
+Try<Nothing> kill(const std::string& cgroup)
+{
+  if (!cgroups2::exists(cgroup)) {
+    return Error("Cgroup does not exist");
+  }
+
+  return cgroups2::write(cgroup, cgroups2::control::KILL, "1");
+}
+
+
 Try<Nothing> destroy(const string& cgroup)
 {
   if (!cgroups2::exists(cgroup)) {
     return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
-  const string path = cgroups2::path(cgroup);
-  Try<Nothing> rmdir = os::rmdir(path, false);
-  if (rmdir.isError()) {
-    return Error("Failed to remove directory '" + path + "': " + rmdir.error());
+  // To destroy a subtree of cgroups we first kill all of the processes inside
+  // of the cgroup and then remove all of the cgroup directories, removing
+  // the most deeply nested directories first.
+  Try<Nothing> kill = cgroups2::kill(cgroup);
+  if (kill.isError()) {
+    return Error("Failed to kill processes in cgroup");
+  }
+
+  Try<set<string>> cgroups = cgroups2::get(cgroup);
+  if (cgroups.isError()) {
+    return Error("Failed to get nested cgroups: " + cgroups.error());
+  }
+
+  vector<string> sorted(cgroups->begin(), cgroups->end());
+  sorted.push_back(cgroup);
+  std::sort(sorted.rbegin(), sorted.rend());
+
+  foreach (const string& cgroup, sorted) {
+    const string& path = cgroups2::path(cgroup);
+    Try<Nothing> rmdir = os::rmdir(path, false);
+    if (rmdir.isError()) {
+      return Error(
+          "Failed to remove directory '" + path + "': " + rmdir.error());
+    }
   }
 
   return Nothing();

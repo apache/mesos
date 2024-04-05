@@ -360,12 +360,6 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetCgroups)
         path::join(TEST_CGROUP, "test1/b/c")
       }),
       cgroups2::get(path::join(TEST_CGROUP, "test1/b")));
-
-  // Destroy the cgroups in reverse order so the most deeply-nested cgroups
-  // are removed first.
-  for (int i = cgroups.size() - 1; i >= 0; --i) {
-    ASSERT_SOME(cgroups2::destroy(cgroups[i]));
-  }
 }
 
 

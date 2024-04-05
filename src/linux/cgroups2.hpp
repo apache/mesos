@@ -69,8 +69,13 @@ Try<std::set<std::string>> get(const std::string& cgroup = ROOT_CGROUP);
 Try<Nothing> create(const std::string& cgroup, bool recursive = false);
 
 
-// Destroy a cgroup. If the cgroup does not exist or cannot be destroyed,
-// e.g. because it contains processes, an error is returned.
+// Recursively kill all of the processes inside of a cgroup and all child
+// cgroups with SIGKILL.
+Try<Nothing> kill(const std::string& cgroup);
+
+
+// Recursively destroy a cgroup and all nested cgroups. Processes inside of
+// destroyed cgroups are killed with SIGKILL.
 Try<Nothing> destroy(const std::string& cgroup);
 
 
