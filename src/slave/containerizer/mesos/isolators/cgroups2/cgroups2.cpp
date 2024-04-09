@@ -14,33 +14,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "linux/cgroups2.hpp"
+#include "common/protobuf_utils.hpp"
 
+#include "slave/containerizer/mesos/paths.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/core.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp"
 
 #include <set>
 #include <string>
+#include <vector>
 
+#include <process/collect.hpp>
+#include <process/defer.hpp>
 #include <process/id.hpp>
+#include <process/pid.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/strings.hpp>
 
+#include "linux/cgroups2.hpp"
+#include "linux/fs.hpp"
+#include "linux/ns.hpp"
+#include "linux/systemd.hpp"
+
+using mesos::slave::ContainerClass;
+using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
+using process::Failure;
+using process::Future;
 using process::Owned;
+using process::PID;
 
 using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
+namespace cgroups2_paths = containerizer::paths::cgroups2;
+
 Cgroups2IsolatorProcess::Cgroups2IsolatorProcess(
+    const Flags& _flags,
     const hashmap<string, Owned<Controller>>& _controllers)
     : ProcessBase(process::ID::generate("cgroups2-isolator")),
+    flags(_flags),
     controllers(_controllers) {}
 
 
@@ -103,7 +126,8 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
   }
 
 
-  Owned<MesosIsolatorProcess> process(new Cgroups2IsolatorProcess(controllers));
+  Owned<MesosIsolatorProcess> process(
+      new Cgroups2IsolatorProcess(flags, controllers));
   return new MesosIsolator(process);
 }
 
@@ -118,6 +142,570 @@ bool Cgroups2IsolatorProcess::supportsNesting()
 bool Cgroups2IsolatorProcess::supportsStandalone()
 {
   return true;
+}
+
+
+Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig)
+{
+  if (containerId.has_parent()) {
+    return Failure("cgroups v2 does not support nested containers");
+  }
+
+  if (infos.contains(containerId)) {
+    return Failure(
+        "Container with id '" + stringify(containerId) + "' "
+        "has already been prepared");
+  }
+
+  CHECK(containerConfig.container_class() != ContainerClass::DEBUG);
+
+  // Create the domain and leaf cgroup for the container, enable the
+  // controllers in the domain cgroup, and `prepare` each of the controllers.
+  const string& cgroup = cgroups2_paths::container(
+      flags.cgroups_root, containerId);
+  if (cgroups2::exists(cgroup)) {
+    return Failure("Cgroup '" + cgroup + "' already exists");
+  }
+
+  Try<Nothing> createCgroup = cgroups2::create(cgroup);
+  if (createCgroup.isError()) {
+    return Failure("Failed to create cgroup '" + cgroup + "': "
+                   + createCgroup.error());
+  }
+
+  const string& leafCgroup = cgroups2_paths::container(
+      flags.cgroups_root, containerId, true);
+  if (cgroups2::exists(leafCgroup)) {
+    return Failure("Cgroup '" + leafCgroup + "' already exists");
+  }
+
+  Try<Nothing> createLeafCgroup = cgroups2::create(leafCgroup);
+  if (createLeafCgroup.isError()) {
+    return Failure("Failed to create cgroup '" + leafCgroup + "': "
+                   + createLeafCgroup.error());
+  }
+
+  LOG(INFO) << "Created cgroups '" << cgroup << "' and '" << leafCgroup << "'";
+
+  infos[containerId] = Owned<Info>(new Info(containerId, cgroup));
+  vector<Future<Nothing>> prepares;
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    // Enable controllers in the (domain) cgroup where cgroup controls
+    // (e.g. 'cpu.weight') are updated.
+    Try<Nothing> enable =
+      cgroups2::controllers::enable(cgroup, {controller->name()});
+
+    infos[containerId]->controllers.insert(controller->name());
+    prepares.push_back(
+        controller->prepare(containerId, cgroup, containerConfig));
+  }
+
+  return await(prepares)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::_prepare,
+        containerId,
+        containerConfig,
+        lambda::_1));
+}
+
+
+Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::_prepare(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig,
+    const vector<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!errors.empty()) {
+    return Failure(
+        "Failed to prepare controllers: " + strings::join(": ", errors));
+  }
+
+  return update(
+      containerId,
+      containerConfig.resources(),
+      containerConfig.limits())
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::__prepare,
+        containerId,
+        containerConfig));
+}
+
+
+Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::__prepare(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig)
+{
+  // Only create cgroup mounts for containers with rootfs.
+  if (!containerConfig.has_rootfs()) {
+    return None();
+  }
+
+  Owned<Info> info = cgroupInfo(containerId);
+  if (!info.get()) {
+    return Failure(
+        "Failed to get cgroup for container "
+        "'" + stringify(containerId) + "'");
+  }
+
+  ContainerLaunchInfo launchInfo;
+  // Create a new cgroup namespace. The child process will only be able to
+  // see the cgroups that are in its cgroup subtree.
+  launchInfo.add_clone_namespaces(CLONE_NEWCGROUP);
+
+  // Create a new mount namespace and mount the root cgroup at /sys/fs/cgroup.
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
+  *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+      cgroups2::path(info->cgroup),
+      path::join(containerConfig.rootfs(), "/sys/fs/cgroup"),
+      MS_BIND | MS_REC);
+
+  return launchInfo;
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::recover(
+    const vector<ContainerState>& states,
+    const hashset<ContainerID>& orphans)
+{
+  vector<Future<Nothing>> recovers;
+  foreach (const ContainerState& state, states) {
+    recovers.push_back(___recover(state.container_id()));
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::_recover,
+        orphans,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::_recover(
+  const hashset<ContainerID>& orphans,
+  const vector<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure("Failed to recover active containers: " +
+                   strings::join(": ", errors));
+  }
+
+  hashset<ContainerID> knownOrphans;
+  hashset<ContainerID> unknownOrphans;
+
+  Try<set<string>> cgroups = cgroups2::get(flags.cgroups_root);
+  if (cgroups.isError()) {
+    return Failure("Failed to get cgroups under '" + flags.cgroups_root + "': "
+                   + cgroups.error());
+  }
+
+  foreach (const string& cgroup, *cgroups) {
+    if (cgroup == cgroups2_paths::agent(flags.cgroups_root)) {
+      continue;
+    }
+
+    Option<ContainerID> containerId = cgroups2_paths::containerId(
+        flags.cgroups_root, cgroup);
+    if (containerId.isNone()) {
+        LOG(INFO) << "Cgroup '" << cgroup << "' does not correspond to a "
+                  << "container id and will not be recovered";
+        continue;
+    }
+
+    if (infos.contains(*containerId)) {
+      // Container has already been recovered.
+      continue;
+    }
+
+    orphans.contains(*containerId) ?
+        knownOrphans.insert(*containerId) :
+        unknownOrphans.insert(*containerId);
+  }
+
+  vector<Future<Nothing>> recovers;
+  foreach (const ContainerID& containerId, knownOrphans) {
+    recovers.push_back(___recover(containerId));
+  }
+
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    recovers.push_back(___recover(containerId));
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::__recover,
+        unknownOrphans,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::__recover(
+    const hashset<ContainerID>& unknownOrphans,
+    const vector<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to recover orphan containers: " +
+        strings::join(": ", errors));
+  }
+
+  // Known orphan cgroups will be destroyed by the containerizer using
+  // the normal cleanup path.
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    LOG(INFO) << "Cleaning up unknown orphaned container " << containerId;
+    cleanup(containerId);
+  }
+
+  return Nothing();
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::___recover(
+    const ContainerID& containerId)
+{
+  // Check if:
+  // 1. The domain cgroup exists                      => Fail is not found.
+  // 2. The leaf cgroup exists                        => Fail is not found.
+  // 3. Each of the requested controllers are enabled => Log and continue.
+  //
+  // Failure modes:
+  // 1. Container fails during launch.
+  //    This can happen if the launcher fails to `fork`, 'this' isolator fails
+  //    to `prepare` or `isolate`, among other reasons. Cgroups may be
+  //    improperly configured meaning there may be missing cgroups or cgroup
+  //    control files that have the wrong values.
+  // 2. Container fails on destroy.
+  //    The container fails to be destroyed so cgroups may not have been
+  //    correctly cleaned up. This can result in orphan cgroups.
+  // 3. Mesos agent is restarted with different flags.
+  //    If the agent is started with new isolators the cgroups for the existing
+  //    containers, from a previous run, won't have all the requested
+  //    controllers enabled.
+
+  const string domainCgroup = cgroups2_paths::container(
+      flags.cgroups_root, containerId);
+  if (!cgroups2::exists(domainCgroup)) {
+    return Failure("Cgroup '" + domainCgroup + "' does not exist");
+  }
+
+  const string leafCgroup = cgroups2_paths::container(
+      flags.cgroups_root, containerId, true);
+  if (!cgroups2::exists(leafCgroup)) {
+    return Failure("Cgroup '" + leafCgroup + "' does not exist");
+  }
+
+  const Try<set<string>> enabledControllers = cgroups2::controllers::enabled(
+      domainCgroup);
+
+  vector<Future<Nothing>> recovers;
+  hashset<string> recoveredControllers;
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (enabledControllers->count(controller->name()) == 0) {
+      // Controller is expected to be enabled but isn't.
+      LOG(WARNING) << "Controller '" << controller->name() << "' "
+                   << "is not enabled for container "
+                   << "'" << stringify(containerId) << "'";
+
+      continue;
+    }
+
+    recovers.push_back(controller->recover(containerId, domainCgroup));
+    recoveredControllers.insert(controller->name());
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::____recover,
+        containerId,
+        recoveredControllers,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::____recover(
+    const ContainerID& containerId,
+    const hashset<string>& recoveredControllers,
+    const vector<Future<Nothing>>& futures)
+{
+  CHECK(!infos.contains(containerId));
+
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure("Failed to recover controllers: " +
+                   strings::join(": ", errors));
+  }
+
+  infos[containerId] = Owned<Info>(new Info(
+      containerId, cgroups2_paths::container(flags.cgroups_root, containerId)));
+  infos[containerId]->controllers = recoveredControllers;
+
+  return Nothing();
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::isolate(
+    const ContainerID& containerId,
+    pid_t pid)
+{
+  vector<Future<Nothing>> isolates;
+
+  // Move the process into the container's cgroup.
+  if (infos.contains(containerId)) {
+    foreachvalue (const Owned<Controller> controller, controllers) {
+      isolates.push_back(controller->isolate(
+          containerId,
+          infos[containerId]->cgroup,
+          pid));
+    }
+  }
+
+  return await(isolates)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::_isolate,
+        lambda::_1,
+        containerId,
+        pid));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::_isolate(
+    const vector<Future<Nothing>>& futures,
+    const ContainerID& containerId,
+    pid_t pid)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!errors.empty()) {
+    return Failure(
+        "Failed to prepare controllers: " + strings::join(": ", errors));
+  }
+
+  Owned<Info> info = cgroupInfo(containerId);
+  if (!info.get()) {
+    return Failure(
+        "Failed to find cgroup for container '" + stringify(containerId) + "'");
+  }
+
+  // Move the process into it's leaf cgroup. Since info->cgroup is the domain
+  // cgroup, we get the corresponding leaf cgroup by adding /leaf. It's
+  // necessary to move into the leaf cgroup because of the internal process
+  // constraint.
+  Try<Nothing> assign = cgroups2::assign(path::join(info->cgroup, "leaf"), pid);
+  if (assign.isError()) {
+    return Failure(
+        "Failed to assign container '" + stringify(containerId) + "' "
+        "to cgroup '" + info->cgroup + "': " + assign.error());
+  }
+
+  return Nothing();
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::update(
+    const ContainerID& containerId,
+    const Resources& resourceRequests,
+    const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
+{
+  if (!infos.contains(containerId)) {
+    return Failure(
+        "Container with id '" + stringify(containerId) + "' is unknown");
+  }
+
+  vector<Future<Nothing>> updates;
+
+  LOG(INFO) << "Updating controllers for cgroup '"
+          << infos[containerId]->cgroup << "'";
+
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+      updates.push_back(controller->update(
+          containerId,
+          infos[containerId]->cgroup,
+          resourceRequests,
+          resourceLimits));
+    }
+  }
+
+  return await(updates)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::_update,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::_update(
+    const vector<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!errors.empty()) {
+    return Failure(
+        "Failed to update controllers: " + strings::join(": ", errors));
+  }
+
+  return Nothing();
+}
+
+
+Future<ContainerStatus> Cgroups2IsolatorProcess::status(
+    const ContainerID& containerId)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<Future<ContainerStatus>> statuses;
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+      statuses.push_back(controller->status(
+          containerId,
+          infos[containerId]->cgroup));
+    }
+  }
+
+  return await(statuses)
+    .then([containerId](const vector<Future<ContainerStatus>>& _statuses) {
+      ContainerStatus result;
+
+      foreach (const Future<ContainerStatus>& status, _statuses) {
+        if (status.isReady()) {
+          result.MergeFrom(status.get());
+        } else {
+          LOG(WARNING) << "Skipping status for container " << containerId
+                       << " because: "
+                       << (status.isFailed() ? status.failure() : "discarded");
+        }
+      }
+
+      return result;
+    });
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::cleanup(
+    const ContainerID& containerId)
+{
+  if (!infos.contains(containerId)) {
+    VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
+    return Nothing();
+  }
+
+  vector<Future<Nothing>> cleanups;
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+      cleanups.push_back(controller->cleanup(
+          containerId,
+          infos[containerId]->cgroup));
+    }
+  }
+
+  return await(cleanups)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::_cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const vector<Future<Nothing>>& futures)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to cleanup subsystems: " +
+        strings::join(";", errors));
+  }
+
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+        Try<Nothing> destroy = cgroups2::destroy(infos[containerId]->cgroup);
+        if (destroy.isError()) {
+          return Failure(
+              "Failed to destroy cgroup '" + infos[containerId]->cgroup + "': "
+              + destroy.error());
+        }
+      }
+  }
+
+  infos.erase(containerId);
+
+  return Nothing();
+}
+
+
+Owned<Cgroups2IsolatorProcess::Info> Cgroups2IsolatorProcess::cgroupInfo(
+    const ContainerID& containerId) const
+{
+  // `ContainerID`s are hierarchical, where each container id potentially has a
+  // parent container id. Here we walk up the hierarchy until we find a
+  // container id that has a corresponding info.
+
+  Option<ContainerID> current = containerId;
+  while (current.isSome()) {
+    Option<Owned<Info>> info = infos.get(*current);
+    if (info.isSome()) {
+      return *info;
+    }
+
+    if (!current->has_parent()) {
+      break;
+    }
+    current = current->parent();
+  }
+
+  return nullptr;
 }
 
 } // namespace slave {
