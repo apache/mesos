@@ -18,9 +18,12 @@
 #define __CGROUPS_V2_ISOLATOR_HPP__
 
 #include <string>
+#include <vector>
 
+#include <process/future.hpp>
 #include <process/owned.hpp>
 
+#include <stout/nothing.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
@@ -32,6 +35,23 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Cgroups v2 Mesos isolator.
+//
+// Manages the cgroup v2 controllers that are used by containers. Each
+// container is associated with two cgroups: a non-leaf cgroup whose control
+// files are updated and a leaf cgroup where the container process lives.
+// The container pid cannot live in the non-leaf cgroup because of the cgroups
+// v2 internal process constraint.
+// Learn more here: https://docs.kernel.org/admin-guide/cgroup-v2.html#no-internal-process-constraint // NOLINT
+//
+// Example:
+//     containerA                       non-leaf cgroup
+//     /      \                         /            \
+// processes  containerB           leaf cgroup   non-leaf child cgroup
+//             |                                      |
+//            processes                          leaf-cgroup
+//
+// Note: Nested containers are not yet supported.
 class Cgroups2IsolatorProcess : public MesosIsolatorProcess
 {
 public:
@@ -43,12 +63,100 @@ public:
 
   bool supportsStandalone() override;
 
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig) override;
+
+  process::Future<Nothing> recover(
+      const std::vector<mesos::slave::ContainerState>& states,
+      const hashset<ContainerID>& orphans) override;
+
+  process::Future<Nothing> isolate(
+      const ContainerID& containerId,
+      pid_t pid) override;
+
+  process::Future<Nothing> update(
+      const ContainerID& containerId,
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) override;
+
+  process::Future<ContainerStatus> status(
+      const ContainerID& containerId) override;
+
+  process::Future<Nothing> cleanup(const ContainerID& containerId) override;
 private:
+  struct Info
+  {
+    Info(const ContainerID& _containerId, const std::string& _cgroup)
+      : containerId(_containerId), cgroup(_cgroup) {}
+
+    const ContainerID containerId;
+
+    // Non-leaf cgroup for the container. Control files in this cgroup are
+    // updated to set resource constraints on this and descendant
+    // containers. Processes should not be assigned to this cgroup.
+    const std::string cgroup;
+
+    // Names of the controllers which are prepared for the container.
+    hashset<std::string> controllers;
+  };
+
   Cgroups2IsolatorProcess(
+      const Flags& flags,
       const hashmap<std::string, process::Owned<Controller>>& controllers);
 
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+    const ContainerID& containerId,
+    const mesos::slave::ContainerConfig& containerConfig,
+    const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> __prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig);
+
+  process::Future<Nothing> _recover(
+    const hashset<ContainerID>& orphans,
+    const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> __recover(
+      const hashset<ContainerID>& unknownOrphans,
+      const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> ___recover(
+      const ContainerID& containerId);
+
+  process::Future<Nothing> ____recover(
+      const ContainerID& containerId,
+      const hashset<std::string>& recoveredSubsystems,
+      const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> _isolate(
+      const std::vector<process::Future<Nothing>>& futures,
+      const ContainerID& containerId,
+      pid_t pid);
+
+  process::Future<Nothing> _update(
+      const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> __cleanup(
+      const ContainerID& containerId,
+      const std::vector<process::Future<Nothing>>& futures);
+
+  process::Owned<Cgroups2IsolatorProcess::Info> cgroupInfo(
+      const ContainerID& containerId) const;
+
+  Flags flags;
+
   // Maps each controller to the `Controller` isolator that manages it.
-  const hashmap<std::string, process::Owned<Controller>> controllers;
+  hashmap<std::string, process::Owned<Controller>> controllers;
+
+  // Associates a container with the information to access its controllers.
+  hashmap<ContainerID, process::Owned<Info>> infos;
 };
 
 } // namespace slave {
