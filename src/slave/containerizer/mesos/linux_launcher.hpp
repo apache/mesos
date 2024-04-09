@@ -25,6 +25,8 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+struct CgroupsInfo;
+
 class LinuxLauncherProcess;
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
@@ -59,10 +61,11 @@ public:
       const ContainerID& containerId) override;
 
 private:
-  LinuxLauncher(
-      const Flags& flags,
-      const std::string& freezerHierarchy,
-      const Option<std::string>& systemdHierarchy);
+  LinuxLauncher(const Flags& flags, const CgroupsInfo& cgroupsInfo);
+
+  static Try<Launcher*> createCgroupsLauncher(const Flags& flags);
+
+  static Try<Launcher*> createCgroups2Launcher(const Flags& flags);
 
   process::Owned<LinuxLauncherProcess> process;
 };
