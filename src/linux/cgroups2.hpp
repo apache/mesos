@@ -215,10 +215,42 @@ Try<BandwidthLimit> max(const std::string& cgroup);
 
 } // namespace cpu {
 
+// [HIERARCHICAL RESTRICTIONS]
+// If the cgroup2 filesystem is mounted with the 'memory_recursiveprot' option,
+// then the memory protections 'memory.min' and 'memory.low' are recursively
+// applied to children. For example, if a parent has a 'memory.min' of 1GB then
+// the child cgroup cannot reserve more than 1GB of memory. If a child cgroup
+// requests more resources than are available to its parent than the child's
+// request is capped by their parent's constraints. This aligns with the
+// top-down constraint whereby children cannot request more resources than
+// their parents. This mount option is enabled by default on most systems,
+// including those using systemd.
+// [BYTE ALIGNMENT]
+// Byte amounts written to the memory controller that are not aligned with the
+// system page size, `os::page_size()`, will be rounded down to the nearest
+// page size.
+// Note: This contradicts the official documentation which says that the byte
+//       amounts will be rounded up.
+// See:
+// https://docs.kernel.org/admin-guide/cgroup-v2.html#memory-interface-files
 namespace memory {
 
 // Current memory usage of a cgroup and its descendants in bytes.
 Try<Bytes> usage(const std::string& cgroup);
+
+
+// Set the minimum memory that is guaranteed to not be reclaimed under any
+// conditions.
+// Note: See the top-level `cgroups2::memory` comment about byte alignment and
+//       hierarchical restrictions.
+// Cannot be used for the root cgroup.
+Try<Nothing> set_min(const std::string& cgroup, const Bytes& bytes);
+
+
+// Get the minimum memory that is guaranteed to not be reclaimed under any
+// conditions.
+// Cannot be used for the root cgroup.
+Try<Bytes> min(const std::string& cgroup);
 
 } // namespace memory {
 

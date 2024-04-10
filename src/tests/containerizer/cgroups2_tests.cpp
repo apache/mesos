@@ -26,6 +26,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
@@ -322,6 +323,52 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryUsage)
   EXPECT_ERROR(cgroups2::memory::usage(cgroups2::ROOT_CGROUP));
 
   EXPECT_SOME(cgroups2::memory::usage(TEST_CGROUP));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryMinimum)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const Bytes bytes = Bytes(os::pagesize()) * 5;
+
+  // Does not exist for the root cgroup.
+  EXPECT_ERROR(cgroups2::memory::min(cgroups2::ROOT_CGROUP));
+  EXPECT_ERROR(cgroups2::memory::set_min(cgroups2::ROOT_CGROUP, bytes));
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes));
+  EXPECT_SOME_EQ(bytes, cgroups2::memory::min(TEST_CGROUP));
+}
+
+
+// Check that byte amounts written to the memory controller are rounded
+// down to the nearest page size.
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryBytesRounding)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const Bytes bytes = Bytes(os::pagesize());
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes - 1));
+  EXPECT_SOME_EQ(Bytes(0), cgroups2::memory::min(TEST_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes + 1));
+  EXPECT_SOME_EQ(bytes, cgroups2::memory::min(TEST_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes * 5 - 1));
+  EXPECT_SOME_EQ(bytes * 4, cgroups2::memory::min(TEST_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes * 5));
+  EXPECT_SOME_EQ(bytes * 5, cgroups2::memory::min(TEST_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::set_min(TEST_CGROUP, bytes * 5 + 1));
+  EXPECT_SOME_EQ(bytes * 5, cgroups2::memory::min(TEST_CGROUP));
 }
 
 
