@@ -769,9 +769,33 @@ Try<cpu::BandwidthLimit> max(const string& cgroup)
 
 namespace memory {
 
+namespace internal {
+
+// Parse a byte limit from a string.
+//
+// Format: "max" OR <u32 bytes>
+Result<Bytes> parse_bytelimit(const string& value)
+{
+  const string& trimmed = strings::trim(value);
+  if (trimmed == "max") {
+    return None();
+  }
+
+  Try<Bytes> bytes = Bytes::parse(trimmed + "B");
+  if (bytes.isError()) {
+    return Error("Invalid byte format '" + trimmed + "': " + bytes.error());
+  }
+
+  return Bytes(*bytes);
+}
+
+} // namespace internal {
+
+
 namespace control {
 
 const string CURRENT = "memory.current";
+const string MAX = "memory.max";
 const string MIN = "memory.min";
 
 } // namespace control {
@@ -802,6 +826,26 @@ Try<Bytes> min(const string& cgroup)
   }
 
   return Bytes(*contents);
+}
+
+
+Try<Nothing> set_max(const string& cgroup, const Option<Bytes>& limit)
+{
+  return cgroups2::write(
+    cgroup,
+    control::MAX,
+    limit.isNone() ?  "max" : stringify(limit->bytes()));
+}
+
+
+Result<Bytes> max(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read<string>(cgroup, control::MAX);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.max': " + contents.error());
+  }
+
+  return internal::parse_bytelimit(*contents);
 }
 
 } // namespace memory {
