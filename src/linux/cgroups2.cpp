@@ -767,6 +767,27 @@ Try<cpu::BandwidthLimit> max(const string& cgroup)
 
 } // namespace cpu {
 
+namespace memory {
+
+namespace control {
+
+const string CURRENT = "memory.current";
+
+} // namespace control {
+
+Try<Bytes> usage(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read<string>(
+      cgroup, memory::control::CURRENT);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.current': " + contents.error());
+  }
+
+  return Bytes::parse(strings::trim(*contents) + "B");
+}
+
+} // namespace memory {
+
 namespace devices {
 
 // Utility class to construct an eBPF program to whitelist or blacklist
