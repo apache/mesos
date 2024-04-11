@@ -311,6 +311,20 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_CpuBandwidthLimit)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryUsage)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  // Does not exist for the root cgroup.
+  EXPECT_ERROR(cgroups2::memory::usage(cgroups2::ROOT_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::usage(TEST_CGROUP));
+}
+
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetCgroups)
 {
   vector<string> cgroups = {

@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -213,6 +214,13 @@ Try<Nothing> set_max(const std::string& cgroup, const BandwidthLimit& limit);
 Try<BandwidthLimit> max(const std::string& cgroup);
 
 } // namespace cpu {
+
+namespace memory {
+
+// Current memory usage of a cgroup and its descendants in bytes.
+Try<Bytes> usage(const std::string& cgroup);
+
+} // namespace memory {
 
 namespace devices {
 
