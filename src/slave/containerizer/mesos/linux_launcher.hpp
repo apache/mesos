@@ -61,8 +61,12 @@ public:
 private:
   LinuxLauncher(
       const Flags& flags,
-      const std::string& freezerHierarchy,
+      bool cgroupsV2,
+      const Option<std::string>& freezerHierarchy,
       const Option<std::string>& systemdHierarchy);
+
+  static Try<Launcher*> createCgroupsLauncher(const Flags& flags);
+  static Try<Launcher*> createCgroups2Launcher(const Flags& flags);
 
   process::Owned<LinuxLauncherProcess> process;
 };
