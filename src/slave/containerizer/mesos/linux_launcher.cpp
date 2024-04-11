@@ -42,6 +42,7 @@
 
 using namespace process;
 
+using lambda::function;
 using std::map;
 using std::set;
 using std::string;
@@ -102,7 +103,7 @@ private:
     Option<pid_t> pid = None();
   };
 
-  Future<Nothing> _destroy(const ContainerID& containerId);
+  Future<Nothing> _destroy(const Container& container);
 
   const Flags flags;
   const string freezerHierarchy;
@@ -124,18 +125,18 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   }
 
   // Ensure that no other subsystem is attached to the freezer hierarchy.
-  Try<set<string>> subsystems = cgroups::subsystems(freezerHierarchy.get());
+  Try<set<string>> subsystems = cgroups::subsystems(*freezerHierarchy);
   if (subsystems.isError()) {
     return Error(
         "Failed to get the list of attached subsystems for hierarchy " +
-        freezerHierarchy.get());
+        *freezerHierarchy);
   } else if (subsystems->size() != 1) {
     return Error(
         "Unexpected subsystems found attached to the hierarchy " +
-        freezerHierarchy.get());
+        *freezerHierarchy);
   }
 
-  LOG(INFO) << "Using " << freezerHierarchy.get()
+  LOG(INFO) << "Using " << *freezerHierarchy
             << " as the freezer hierarchy for the Linux launcher";
 
   // On systemd environments, we currently do the following:
@@ -155,9 +156,9 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     systemdHierarchy = systemd::hierarchy();
 
     // Create the root cgroup if does not exist.
-    if (!cgroups::exists(systemdHierarchy.get(), flags.cgroups_root)) {
+    if (!cgroups::exists(*systemdHierarchy, flags.cgroups_root)) {
       Try<Nothing> create = cgroups::create(
-          systemdHierarchy.get(),
+          *systemdHierarchy,
           flags.cgroups_root);
 
       if (create.isError()) {
@@ -167,13 +168,13 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
       }
     }
 
-    LOG(INFO) << "Using " << systemdHierarchy.get()
+    LOG(INFO) << "Using " << *systemdHierarchy
               << " as the systemd hierarchy for the Linux launcher";
   }
 
   return new LinuxLauncher(
       flags,
-      freezerHierarchy.get(),
+      *freezerHierarchy,
       systemdHierarchy);
 }
 
@@ -287,12 +288,12 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
 
   if (systemdHierarchy.isSome()) {
     Try<vector<string>> systemdCgroups =
-      cgroups::get(systemdHierarchy.get(), flags.cgroups_root);
+      cgroups::get(*systemdHierarchy, flags.cgroups_root);
 
     if (systemdCgroups.isError()) {
       return Failure(
           "Failed to get cgroups from " +
-          path::join(systemdHierarchy.get(), flags.cgroups_root) +
+          path::join(*systemdHierarchy, flags.cgroups_root) +
           ": " + systemdCgroups.error());
     }
 
@@ -442,16 +443,16 @@ Try<pid_t> LinuxLauncherProcess::fork(
     return Error("Container '" + stringify(containerId) + "' already exists");
   }
 
-  Option<pid_t> target = None();
+  Option<pid_t> parentPid = None();
 
   // Ensure nested containers have known parents.
   if (containerId.has_parent()) {
-    Option<Container> container = containers.get(containerId.parent());
-    if (container.isNone()) {
+    Option<Container> parent = containers.get(containerId.parent());
+    if (parent.isNone()) {
       return Error("Unknown parent container");
     }
 
-    if (container->pid.isNone()) {
+    if (parent->pid.isNone()) {
       // TODO(benh): Could also look up a pid in the container and use
       // that in order to enter the namespaces? This would be best
       // effort because we don't know the namespaces that had been
@@ -459,7 +460,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
       return Error("Unknown parent container pid, can not enter namespaces");
     }
 
-    target = container->pid.get();
+    parentPid = parent->pid.get();
   }
 
   // Ensure we didn't pass `enterNamespaces`
@@ -468,11 +469,10 @@ Try<pid_t> LinuxLauncherProcess::fork(
     return Error("Cannot enter parent namespaces for non-nested container");
   }
 
-  int enterFlags = enterNamespaces.isSome() ? enterNamespaces.get() : 0;
+  int enterFlags = enterNamespaces.getOrElse(0);
+  int cloneFlags = cloneNamespaces.getOrElse(0);
 
-  int cloneFlags = cloneNamespaces.isSome() ? cloneNamespaces.get() : 0;
-
-  LOG(INFO) << "Launching " << (target.isSome() ? "nested " : "")
+  LOG(INFO) << "Launching " << (parentPid.isSome() ? "nested " : "")
             << "container " << containerId << " and cloning with namespaces "
             << ns::stringify(cloneFlags);
 
@@ -503,7 +503,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
   if (systemdHierarchy.isSome()) {
     parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
       return cgroups::isolate(
-          systemdHierarchy.get(),
+          *systemdHierarchy,
           containerizer::paths::getCgroupPath(
               this->flags.cgroups_root,
               containerId),
@@ -513,6 +513,8 @@ Try<pid_t> LinuxLauncherProcess::fork(
 
   vector<Subprocess::ChildHook> childHooks;
 
+  // Create a new session id so termination signals from the parent process
+  // to not terminate the child.
   childHooks.push_back(Subprocess::ChildHook::SETSID());
 
   Try<Subprocess> child = subprocess(
@@ -523,10 +525,10 @@ Try<pid_t> LinuxLauncherProcess::fork(
       containerIO.err,
       flags,
       environment,
-      [target, enterFlags, cloneFlags](const lambda::function<int()>& child) {
-        if (target.isSome()) {
+      [parentPid, enterFlags, cloneFlags](const function<int()>& child) {
+        if (parentPid.isSome()) {
           Try<pid_t> pid = ns::clone(
-              target.get(),
+              *parentPid,
               enterFlags,
               child,
               cloneFlags);
@@ -599,7 +601,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
     LOG(WARNING) << "Couldn't find freezer cgroup for container "
                  << container->id << " so assuming partially destroyed";
 
-    return _destroy(containerId);
+    return _destroy(*container);
   }
 
   LOG(INFO) << "Destroying cgroup '"
@@ -614,31 +616,28 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
       freezerHierarchy,
       cgroup,
       flags.cgroups_destroy_timeout)
-    .then(defer(
-        self(),
-        &LinuxLauncherProcess::_destroy,
-        containerId));
+    .then(defer(self(), &LinuxLauncherProcess::_destroy, *container));
 }
 
 
-Future<Nothing> LinuxLauncherProcess::_destroy(const ContainerID& containerId)
+Future<Nothing> LinuxLauncherProcess::_destroy(const Container& container)
 {
   if (systemdHierarchy.isNone()) {
     return Nothing();
   }
 
   const string cgroup =
-    containerizer::paths::getCgroupPath(flags.cgroups_root, containerId);
+    containerizer::paths::getCgroupPath(flags.cgroups_root, container.id);
 
-  if (!cgroups::exists(systemdHierarchy.get(), cgroup)) {
+  if (!cgroups::exists(*systemdHierarchy, cgroup)) {
     return Nothing();
   }
 
   LOG(INFO) << "Destroying cgroup '"
-            << path::join(systemdHierarchy.get(), cgroup) << "'";
+            << path::join(*systemdHierarchy, cgroup) << "'";
 
   return cgroups::destroy(
-      systemdHierarchy.get(),
+      *systemdHierarchy,
       cgroup,
       flags.cgroups_destroy_timeout);
 }
