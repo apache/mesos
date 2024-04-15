@@ -772,6 +772,7 @@ namespace memory {
 namespace control {
 
 const string CURRENT = "memory.current";
+const string MIN = "memory.min";
 
 } // namespace control {
 
@@ -781,6 +782,23 @@ Try<Bytes> usage(const string& cgroup)
       cgroup, memory::control::CURRENT);
   if (contents.isError()) {
     return Error("Failed to read 'memory.current': " + contents.error());
+  }
+
+  return Bytes(*contents);
+}
+
+
+Try<Nothing> set_min(const string& cgroup, const Bytes& bytes)
+{
+  return cgroups2::write(cgroup, control::MIN, bytes.bytes());
+}
+
+
+Try<Bytes> min(const string& cgroup)
+{
+  Try<uint64_t> contents = cgroups2::read<uint64_t>(cgroup, control::MIN);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.min': " + contents.error());
   }
 
   return Bytes(*contents);
