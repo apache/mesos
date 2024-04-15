@@ -7746,6 +7746,22 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     // providers as well.
   }
 
+  // We don't expect the agent's resource version to change, but above we
+  // do have a check to see if it's changed and therefore set `updated`
+  // to true, so we might as well assign the new value here rather than
+  // ignore it.
+  //
+  // Now that we have resource versions in the agent, the lack of the
+  // update to the version here was causing MESOS-7187 to be triggered
+  // when the master receives a re-registration message from the old run
+  // of an agent and then ignores the new re-registration message from a
+  // new run of the agent. When the new agent sends the update message,
+  // the master was seeing the different resource uuid and setting
+  // `updated`, but wasn't actually setting the new version.
+  if (message.has_resource_version_uuid()) {
+    slave->resourceVersion = message.resource_version_uuid();
+  }
+
   ReconcileOperationsMessage reconcile;
 
   // Reconcile operations on agent-default resources.
