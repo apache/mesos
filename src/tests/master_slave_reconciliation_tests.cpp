@@ -32,6 +32,8 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/uuid.hpp>
+
 #include "common/protobuf_utils.hpp"
 
 #include "master/master.hpp"
@@ -1160,6 +1162,91 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTaskExecutorIds)
   driver.stop();
   driver.join();
 }
+
+
+// This tests one particular issue that's caused by MESOS-7187 whereby the
+// following occurred:
+//
+// 1. ZK session expired
+// 2. Master failover
+// 3. Agent run 1 sends re-registration message to new master with
+//    resource UUID 1.
+// 4. Agent fails over (for upgrade)
+// 5. Agent run 2 sends re-registration message to new master with
+//    resource UUID 2.
+// 6. Master receives run 1 re-registration message.
+// 7. Master ignores run 2 re-registration message
+//    (as agent is already re-registering).
+// 8. Master completes re-registration and stores resource UUID 1 and notifies agent.
+// 9. Agent receives re-registration completion, sends resource update with UUID 2.
+// 10. Master does not update the agent's resource UUID
+//    (not because it ignores the update message, but because the logic simply
+//    wasn't making any update to it), so it remains UUID 1.
+//
+// Now with the fix we expect the master to have updated the UUID, although
+// note that the fix isn't a complete fix for MESOS-7187, rather just fixes
+// the resource UUID mismatch.
+TEST_F(MasterSlaveReconciliationTest, SlaveReregistrationRace_MESOS_7187)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start an agent, but intercept the resource update message so that
+  // we can inject a new resource UUID and ensure the master stores it.
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags flags = CreateSlaveFlags();
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Now send the update with a tweaked resource UUID.
+  id::UUID uuid = id::UUID::random();
+  UpdateSlaveMessage updateCopy = updateSlaveMessage.get();
+  updateCopy.mutable_resource_version_uuid()->set_value(uuid.toBytes());
+  process::post(slave.get()->pid, master.get()->pid, updateCopy);
+
+  // Now launch a task and check that the resource version is our
+  // mutated version.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  Future<RunTaskMessage> runTaskMessage =
+    DROP_PROTOBUF(RunTaskMessage(), _, _);
+
+  const Offer& offer = offers->front();
+  TaskInfo task = createTask(offer, "echo hi");
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(runTaskMessage);
+
+  ASSERT_EQ(1, runTaskMessage->resource_version_uuids_size());
+  EXPECT_FALSE(
+      runTaskMessage->resource_version_uuids(0).has_resource_provider_id());
+  EXPECT_EQ(
+      uuid.toBytes(), runTaskMessage->resource_version_uuids(0).uuid().value());
+}
+
 
 } // namespace tests {
 } // namespace internal {
