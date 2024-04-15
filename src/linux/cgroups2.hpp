@@ -261,6 +261,20 @@ Try<Nothing> set_min(const std::string& cgroup, const Bytes& bytes);
 // Cannot be used for the root cgroup.
 Try<Bytes> min(const std::string& cgroup);
 
+
+// Set the maximum memory that can be used by a cgroup and its descendants.
+// If the limit is reached and memory cannot be reclaimed, then the OOM
+// killer will be invoked on the container.
+// If limit is None, then there is no maximum memory limit.
+// Cannot be used for the root cgroup.
+Try<Nothing> set_max(const std::string& cgroup, const Option<Bytes>& limit);
+
+
+// Get the maximum memory that can be used by a cgroup and its descendants.
+// If the returned limit is None, then there is no maximum memory limit.
+// Cannot be used for the root cgroup.
+Result<Bytes> max(const std::string& cgroup);
+
 } // namespace memory {
 
 namespace devices {

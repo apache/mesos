@@ -344,6 +344,27 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryMinimum)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryMaximum)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  Bytes limit = Bytes(os::pagesize()) * 5;
+
+  // Does not exist for the root cgroup.
+  EXPECT_ERROR(cgroups2::memory::max(cgroups2::ROOT_CGROUP));
+  EXPECT_ERROR(cgroups2::memory::set_max(cgroups2::ROOT_CGROUP, limit));
+
+  EXPECT_SOME(cgroups2::memory::set_max(TEST_CGROUP, limit));
+  EXPECT_SOME_EQ(limit, cgroups2::memory::max(TEST_CGROUP));
+
+  EXPECT_SOME(cgroups2::memory::set_max(TEST_CGROUP, None()));
+  EXPECT_NONE(cgroups2::memory::max(TEST_CGROUP));
+}
+
+
 // Check that byte amounts written to the memory controller are rounded
 // down to the nearest page size.
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryBytesRounding)
