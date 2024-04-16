@@ -326,6 +326,24 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryUsage)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryLow)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const Bytes bytes = Bytes(os::pagesize()) * 5;
+
+  // Does not exist for the root cgroup.
+  EXPECT_ERROR(cgroups2::memory::low(cgroups2::ROOT_CGROUP));
+  EXPECT_ERROR(cgroups2::memory::set_low(cgroups2::ROOT_CGROUP, bytes));
+
+  EXPECT_SOME(cgroups2::memory::set_low(TEST_CGROUP, bytes));
+  EXPECT_SOME_EQ(bytes, cgroups2::memory::low(TEST_CGROUP));
+}
+
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryMinimum)
 {
   ASSERT_SOME(enable_controllers({"memory"}));
