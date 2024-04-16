@@ -796,6 +796,7 @@ namespace control {
 
 const string CURRENT = "memory.current";
 const string LOW = "memory.low";
+const string HIGH = "memory.high";
 const string MAX = "memory.max";
 const string MIN = "memory.min";
 
@@ -861,6 +862,26 @@ Result<Bytes> max(const string& cgroup)
   Try<string> contents = cgroups2::read<string>(cgroup, control::MAX);
   if (contents.isError()) {
     return Error("Failed to read 'memory.max': " + contents.error());
+  }
+
+  return internal::parse_bytelimit(*contents);
+}
+
+
+Try<Nothing> set_high(const string& cgroup, const Option<Bytes>& limit)
+{
+  return cgroups2::write(
+      cgroup,
+      control::HIGH,
+      limit.isNone() ?  "max" : stringify(limit->bytes()));
+}
+
+
+Result<Bytes> high(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read<string>(cgroup, control::HIGH);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.high': " + contents.error());
   }
 
   return internal::parse_bytelimit(*contents);

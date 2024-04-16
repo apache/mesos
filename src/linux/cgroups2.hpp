@@ -296,6 +296,24 @@ Try<Nothing> set_max(const std::string& cgroup, const Option<Bytes>& limit);
 // Cannot be used for the root cgroup.
 Result<Bytes> max(const std::string& cgroup);
 
+
+// Set the soft memory limit for a cgroup and its descendants. Exceeding the
+// soft limit will cause processes in the cgroup to be throttled and put under
+// heavy reclaim pressure.
+// If limit is None, then there is no soft memory limit.
+// Note: See the top-level `cgroups2::memory` comment about byte alignment.
+//
+// Cannot be used for the root cgroup.
+Try<Nothing> set_high(
+    const std::string& cgroup, const Option<Bytes>& limit);
+
+
+// Get the soft memory limit for a cgroup and its descendants.
+// If the returned limit is None, then there is no soft memory limit.
+//
+// Cannot be used for the root cgroup.
+Result<Bytes> high(const std::string& cgroup);
+
 } // namespace memory {
 
 namespace devices {
