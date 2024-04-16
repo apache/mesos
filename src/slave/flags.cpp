@@ -37,6 +37,11 @@
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/linux_launcher.hpp"
+
+#ifdef ENABLE_CGROUPS_V2
+#include "linux/cgroups2.hpp"
+#endif // ENABLE_CGROUPS_V2
+
 #endif // __linux__
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
@@ -652,8 +657,25 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::cgroups_limit_swap,
       "cgroups_limit_swap",
       "Cgroups feature flag to enable memory limits on both memory and\n"
-      "swap instead of just memory.\n",
-      false);
+      "swap instead of just memory. Not supported if cgroups v2 is used.\n",
+      false,
+      [](const bool& limit_swap) -> Option<Error> {
+#ifdef ENABLE_CGROUPS_V2
+        Try<bool> mounted = cgroups2::mounted();
+        if (mounted.isError()) {
+            return Error("Failed to check if cgroup2 filesystem is mounted: "
+                         + mounted.error());
+        }
+
+        // Error if cgroups v2 is being used and a swap limit is requested
+        // as the cgroup v2 isolator does not support limiting swap memory.
+        if (*mounted && limit_swap) {
+            return Error("The cgroups v2 isolator does not support limiting "
+                         "swap memory but `--cgroups_limit_swap` was provided");
+        }
+#endif // ENABLE_CGROUPS_V2
+        return None();
+      });
 
   add(&Flags::cgroups_cpu_enable_pids_and_tids_count,
       "cgroups_cpu_enable_pids_and_tids_count",
