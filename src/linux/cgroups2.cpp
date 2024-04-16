@@ -795,6 +795,7 @@ Result<Bytes> parse_bytelimit(const string& value)
 namespace control {
 
 const string CURRENT = "memory.current";
+const string LOW = "memory.low";
 const string MAX = "memory.max";
 const string MIN = "memory.min";
 
@@ -806,6 +807,23 @@ Try<Bytes> usage(const string& cgroup)
       cgroup, memory::control::CURRENT);
   if (contents.isError()) {
     return Error("Failed to read 'memory.current': " + contents.error());
+  }
+
+  return Bytes(*contents);
+}
+
+
+Try<Nothing> set_low(const string& cgroup, const Bytes& bytes)
+{
+  return cgroups2::write(cgroup, control::LOW, bytes.bytes());
+}
+
+
+Try<Bytes> low(const string& cgroup)
+{
+  Try<uint64_t> contents = cgroups2::read<uint64_t>(cgroup, control::LOW);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.low': " + contents.error());
   }
 
   return Bytes(*contents);

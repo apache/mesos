@@ -245,6 +245,27 @@ namespace memory {
 Try<Bytes> usage(const std::string& cgroup);
 
 
+// Set the best-effort memory protection for a cgroup and its descendants. If
+// there is memory contention and this cgroup is within the 'low' threshold,
+// then memory will be reclaimed from other cgroups (without memory protection)
+// before reclaiming from this cgroup.
+//
+// Note: See the top-level `cgroups2::memory` comment about byte alignment and
+//       hierarchical restrictions.
+//
+// Cannot be used for the root cgroup.
+Try<Nothing> set_low(const std::string& cgroup, const Bytes& bytes);
+
+
+// Get the best-effort memory protection for a cgroup and its descendants. If
+// there is memory contention and this cgroup is within the 'low' threshold,
+// then memory will be reclaimed from other cgroups (without memory protection)
+// before reclaiming from this cgroup.
+//
+// Cannot be used for the root cgroup.
+Try<Bytes> low(const std::string& cgroup);
+
+
 // Set the minimum memory that is guaranteed to not be reclaimed under any
 // conditions.
 //
