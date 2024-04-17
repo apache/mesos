@@ -463,6 +463,25 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetCgroups)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_CgroupTypes)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+
+  // Does not exist for the root cgroup.
+  EXPECT_ERROR(cgroups2::type::get(cgroups2::ROOT_CGROUP));
+
+  // Check that the test cgroup is a domain cgroup by default.
+  EXPECT_SOME_EQ(cgroups2::type::DOMAIN, cgroups2::type::get(TEST_CGROUP));
+
+  // Make the test cgroup threaded and check that it can't enable the memory
+  // controller.
+  EXPECT_SOME(cgroups2::type::set_threaded(TEST_CGROUP));
+  EXPECT_SOME_EQ(cgroups2::type::THREADED, cgroups2::type::get(TEST_CGROUP));
+  EXPECT_ERROR(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+}
+
+
 // Arguments for os::open(). Combination of a path and an access type.
 typedef pair<string, int> OpenArgs;
 

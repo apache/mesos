@@ -365,6 +365,14 @@ Try<Nothing> kill(const std::string& cgroup)
   if (!cgroups2::exists(cgroup)) {
     return Error("Cgroup does not exist");
   }
+  Try<string> type = cgroups2::type::get(cgroup);
+  if (type.isError()) {
+    return Error("Failed to get the cgroup type: " + type.error());
+  }
+
+  if (*type == cgroups2::type::THREADED) {
+    return Error("Cannot write to 'cgroup.kill' in threaded cgroups");
+  }
 
   return cgroups2::write(cgroup, cgroups2::control::KILL, "1");
 }
@@ -379,9 +387,19 @@ Try<Nothing> destroy(const string& cgroup)
   // To destroy a subtree of cgroups we first kill all of the processes inside
   // of the cgroup and then remove all of the cgroup directories, removing
   // the most deeply nested directories first.
-  Try<Nothing> kill = cgroups2::kill(cgroup);
-  if (kill.isError()) {
-    return Error("Failed to kill processes in cgroup: " + kill.error());
+  //
+  // If the cgroup is threaded, we cannot write to 'cgroup.kill' and thus
+  // skip the kill step.
+  Try<string> type = cgroups2::type::get(cgroup);
+  if (type.isError()) {
+    return Error("Failed to get the cgroup type: " + type.error());
+  }
+
+  if (*type != cgroups2::type::THREADED) {
+    Try<Nothing> kill = cgroups2::kill(cgroup);
+    if (kill.isError()) {
+      return Error("Failed to kill processes in cgroup: " + kill.error());
+    }
   }
 
   Try<set<string>> cgroups = cgroups2::get(cgroup);
@@ -457,6 +475,20 @@ Try<set<pid_t>> processes(const string& cgroup)
     return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
+  // We cannot read 'cgroup.procs' in threaded cgroups. Therefore, we first
+  // check if the cgroup is threaded. Since the root cgroup doesn't have
+  // a 'cgroup.type' file we skip this check for the root cgroup.
+  if (cgroup != ROOT_CGROUP) {
+    Try<string> type = cgroups2::type::get(cgroup);
+    if (type.isError()) {
+      return Error("Failed to get the cgroup type: " + type.error());
+    }
+
+    if (*type == cgroups2::type::THREADED) {
+      return Error("Cannot read 'cgroup.procs' in threaded cgroups");
+    }
+  }
+
   Try<string> contents = cgroups2::read<string>(cgroup, control::PROCESSES);
   if (contents.isError()) {
     return Error(
@@ -508,6 +540,32 @@ string path(const string& cgroup)
 {
   return path::join(cgroups2::MOUNT_POINT, cgroup);
 }
+
+namespace type {
+
+Try<Nothing> set_threaded(const std::string& cgroup)
+{
+  Try<Nothing> write = cgroups2::write(
+      cgroup, cgroups2::control::TYPE, cgroups2::type::THREADED);
+  if (write.isError()) {
+    return Error("Failed to write to 'cgroup.type': " + write.error());
+  }
+
+  return Nothing();
+}
+
+
+Try<std::string> get(const std::string& cgroup)
+{
+  Try<string> read = cgroups2::read<string>(cgroup, cgroups2::control::TYPE);
+  if (read.isError()) {
+    return Error("Failed to read 'cgroup.type': " + read.error());
+  }
+
+  return strings::trim(*read);
+}
+
+} // namespace type {
 
 namespace controllers {
 

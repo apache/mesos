@@ -101,6 +101,41 @@ Try<std::set<pid_t>> threads(const std::string& cgroup);
 // Get the absolute of a cgroup. The cgroup provided should not start with '/'.
 std::string path(const std::string& cgroup);
 
+// Cgroup types.
+// "domain": Allows the cgroup to manage resources.
+//
+// "threaded": Allows threads to live in internal nodes but can only enable
+//             the "cpu", "cpuset", "perf_event", and "pids" controllers.
+namespace type {
+
+// Domain cgroup.
+const std::string DOMAIN = "domain";
+
+// Threaded cgroup.
+const std::string THREADED = "threaded";
+
+// Domain cgroup that serves as the root of a threaded subtree.
+const std::string THREADED_DOMAIN = "domain threaded";
+
+// Cgroup in an invalid state. Can't be assigned processes or have controllers
+// enabled.
+const std::string INVALID = "domain invalid";
+
+// Convert a cgroup into a threaded cgroup. Once a cgroup is made threaded
+// it cannot be made into a domain cgroup again.
+//
+// Cannot be used for the root cgroup.
+Try<Nothing> set_threaded(const std::string& cgroup);
+
+
+// Get the type of a cgroup.
+// Note: See the top-level `cgroups2::type` comment about types.
+//
+// Cannot be used for the root cgroup.
+Try<std::string> get(const std::string& cgroup);
+
+} // namespace type {
+
 namespace controllers {
 
 // Gets the controllers that can be controlled by the provided cgroup.
