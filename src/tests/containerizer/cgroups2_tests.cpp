@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include <process/future.hpp>
 #include <process/reap.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -37,6 +38,10 @@
 
 #include "linux/cgroups2.hpp"
 #include "linux/ebpf.hpp"
+
+#include "tests/containerizer/memory_test_helper.hpp"
+
+using process::Future;
 
 using std::pair;
 using std::set;
@@ -481,6 +486,43 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetCgroups)
         path::join(TEST_CGROUP, "test1/b/c")
       }),
       cgroups2::get(path::join(TEST_CGROUP, "test1/b")));
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_OomDetection)
+{
+  // Check that exceeding the hard memory limit will trigger an OOM event.
+  //
+  // We set a hard memory limit on the test cgroup, move a process inside of
+  // the test cgroup subtree, listen for an OOM event, deliberately trigger an
+  // OOM event by exceeding the hard limit, and then check that an event was
+  // triggered.
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const string leaf_cgroup = TEST_CGROUP + "/leaf";
+  ASSERT_SOME(cgroups2::create(leaf_cgroup));
+
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
+
+  Bytes limit = Megabytes(64);
+
+  ASSERT_SOME(cgroups2::assign(leaf_cgroup, *helper.pid()));
+  ASSERT_SOME(cgroups2::memory::set_max(TEST_CGROUP, limit));
+
+  Future<Nothing> oomEvent = cgroups2::memory::oom(TEST_CGROUP);
+
+  // Assert that the OOM event has not been triggered.
+  EXPECT_FALSE(oomEvent.isReady());
+
+  // Increase memory usage beyond the limit.
+  ASSERT_ERROR(helper.increaseRSS(limit * 2));
+
+  AWAIT_EXPECT_READY(oomEvent);
 }
 
 

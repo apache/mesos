@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <process/future.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
@@ -240,6 +242,48 @@ Try<BandwidthLimit> max(const std::string& cgroup);
 //
 // See: https://docs.kernel.org/admin-guide/cgroup-v2.html
 namespace memory {
+
+// Cgroup memory controller events.
+//
+// Snapshot of the 'memory.events' or 'memory.local.events' control files.
+struct Events
+{
+  // The number of times the cgroup is reclaimed due to high memory pressure
+  // even though its usage is under the low boundary. This usually indicates
+  // that the low boundary is over-committed.
+  uint64_t low;
+
+  // The number of times processes of the cgroup are throttled and routed to
+  // perform direct memory reclaim because the high memory boundary was
+  // exceeded. For a cgroup whose memory usage is capped by the high limit
+  // rather than global memory pressure, this event’s occurrences are expected.
+  uint64_t high;
+
+  // The number of times the cgroup’s memory usage was about to go over the
+  // max boundary. If direct reclaim fails to bring it down, the cgroup goes
+  // to OOM state.
+  uint64_t max;
+
+  // The number of times the cgroup’s memory usage was reached the limit and
+  // allocation was about to fail. This event is not raised if the OOM killer
+  // is not considered as an option, e.g. for failed high-order allocations
+  // or if caller asked to not retry attempts.
+  uint64_t oom;
+
+  // The number of processes belonging to this cgroup killed by any kind of
+  // OOM killer.
+  uint64_t oom_kill;
+
+  // The number of times a group OOM has occurred.
+  uint64_t oom_group_kill;
+};
+
+
+// Listen for an OOM event for the cgroup or any descendants.
+//
+// Cannot be used for the root cgroup.
+process::Future<Nothing> oom(const std::string& cgroup);
+
 
 // Current memory usage of a cgroup and its descendants in bytes.
 Try<Bytes> usage(const std::string& cgroup);
