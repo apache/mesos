@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <process/future.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
@@ -240,6 +242,48 @@ Try<BandwidthLimit> max(const std::string& cgroup);
 //
 // See: https://docs.kernel.org/admin-guide/cgroup-v2.html
 namespace memory {
+
+// Cgroup memory controller events.
+//
+// Snapshot of the 'memory.events' or 'memory.local.events' control files.
+struct Events
+{
+  // Number of times memory is reclaimed from the cgroup despite being under
+  // the low memory threshold. Usually indicates that the low threshold is too
+  // high.
+  uint64_t low;
+
+  // Number of times processes inside of the cgroup were throttled and were
+  // forced to reclaim memory because the their high memory boundary was
+  // exceeded.
+  uint64_t high;
+
+  // Number of times processes inside of a cgroup requested more memory than
+  // their hard max. This event is followed by an OOM event if the access
+  // memory cannot be reclaimed.
+  uint64_t max;
+
+  // Number of times the cgroup reached the memory limit.
+  uint64_t oom;
+
+  // Number of processes inside of the cgroup subtree that were killed by any
+  // kind of OOM killer.
+  uint64_t oom_kill;
+
+  // Number of group OOM events, where all of the processes inside of a cgroup
+  // subtree were killed.
+  uint64_t oom_group_kill;
+};
+
+namespace event {
+
+// Listen for an OOM event. Returns a `Future` that resolves when the cgroup
+// has reached its memory limit and is about to fail with an OOM.
+//
+// Cannot be used for the root cgroup.
+process::Future<Nothing> oom(const std::string& cgroup);
+
+} // namespace event {
 
 // Current memory usage of a cgroup and its descendants in bytes.
 Try<Bytes> usage(const std::string& cgroup);

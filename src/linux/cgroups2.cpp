@@ -24,6 +24,10 @@
 #include <string>
 #include <vector>
 
+#include <process/after.hpp>
+#include <process/loop.hpp>
+#include <process/pid.hpp>
+
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -39,6 +43,13 @@ using std::ostream;
 using std::set;
 using std::string;
 using std::vector;
+
+using process::Break;
+using process::Continue;
+using process::ControlFlow;
+using process::Failure;
+using process::Future;
+using process::loop;
 
 using mesos::internal::fs::MountTable;
 
@@ -795,12 +806,84 @@ Result<Bytes> parse_bytelimit(const string& value)
 namespace control {
 
 const string CURRENT = "memory.current";
+const string EVENTS = "memory.events";
 const string LOW = "memory.low";
 const string HIGH = "memory.high";
 const string MAX = "memory.max";
 const string MIN = "memory.min";
 
+namespace events {
+
+Try<Events> parse(const string& content)
+{
+  const vector<string> lines = strings::split(content, "\n");
+  Events events;
+
+  foreach (const string& line, lines) {
+    if (line.empty()) {
+      continue;
+    }
+
+    vector<string> tokens = strings::split(line, " ");
+    if (tokens.size() != 2) {
+      return Error("Invalid line format in 'memory.events' expected "
+                   "<key> <value> received: '" + line + "'");
+    }
+
+    const string& field = tokens[0];
+    const string& value = tokens[1];
+
+    Try<uint64_t> count = numify<uint64_t>(value);
+    if (count.isError()) {
+      return Error("Failed to parse '" + field + "': " + count.error());
+    }
+
+    if      (field == "low")            { events.low            = *count; }
+    else if (field == "high")           { events.high           = *count; }
+    else if (field == "max")            { events.max            = *count; }
+    else if (field == "oom")            { events.oom            = *count; }
+    else if (field == "oom_kill")       { events.oom_kill       = *count; }
+    else if (field == "oom_group_kill") { events.oom_group_kill = *count; }
+  }
+
+  return events;
+}
+
+} // namespace stat {
+
 } // namespace control {
+
+namespace event {
+
+Future<Nothing> oom(const string& cgroup)
+{
+  // Watch for changes to the 'memory.events' control file. Resolve the future
+  // when the number of OOM events is non-zero.
+
+  // TODO(dleamy): Update this to use a better file-watching mechanism, rather
+  //               than polling.
+  return loop(
+    []() { return process::after(Milliseconds(100)); },
+    [cgroup](const Nothing&) -> Future<ControlFlow<Nothing>> {
+      Try<string> content =
+        cgroups2::read<string>(cgroup, memory::control::EVENTS);
+      if (content.isError()) {
+        return Failure("Failed to read 'memory.events': " + content.error());
+      }
+
+      Try<Events> events = memory::control::events::parse(strings::trim(*content));
+      if (events.isError()) {
+        return Failure("Failed to parse 'memory.events': " + events.error());
+      }
+
+      if (events->oom > 0) {
+        return Break(Nothing());
+      }
+      return Continue();
+    });
+}
+
+} // namespace event {
 
 Try<Bytes> usage(const string& cgroup)
 {
