@@ -811,6 +811,48 @@ const string LOW = "memory.low";
 const string HIGH = "memory.high";
 const string MAX = "memory.max";
 const string MIN = "memory.min";
+const string STAT = "memory.stat";
+
+namespace stat {
+
+Try<Stats> parse(const string& content)
+{
+  Stats stats;
+
+  foreach (const string& line, strings::split(content, "\n")) {
+    if (line.empty()) {
+      continue;
+    }
+
+    vector<string> tokens = strings::split(line, " ");
+    if (tokens.size() != 2) {
+      return Error("Invalid line format in 'memory.stat'; expected "
+                   "<key> <value> received: '" + line + "'");
+    }
+
+    const string& key = tokens[0];
+    const string& value = tokens[1];
+
+    Try<uint64_t> byte_count = numify<uint64_t>(value);
+    if (byte_count.isError()) {
+      return Error("Failed to numify '" + value + "': " + byte_count.error());
+    }
+    const Bytes bytes(*byte_count);
+
+    if      (key == "anon")           { stats.anon                    = bytes; }
+    else if (key == "file")           { stats.filesystem_cache        = bytes; }
+    else if (key == "kernel")         { stats.kernel                  = bytes; }
+    else if (key == "kernel_stack")   { stats.kernel_stack            = bytes; }
+    else if (key == "pagetables")     { stats.pagetables              = bytes; }
+    else if (key == "sock")           { stats.socket                  = bytes; }
+    else if (key == "vmalloc")        { stats.vmap_backed             = bytes; }
+    else if (key == "file_mapped")    { stats.mapped_filesystem_cache = bytes; }
+  }
+
+  return stats;
+}
+
+} // namespace stat {
 
 } // namespace control {
 
@@ -851,7 +893,6 @@ Try<Events> parse(const string& content)
 }
 
 } // namespace events {
-
 
 Future<Nothing> oom(const string& cgroup)
 {
@@ -962,6 +1003,17 @@ Result<Bytes> high(const string& cgroup)
   }
 
   return internal::parse_bytelimit(*contents);
+}
+
+
+Try<Stats> stats(const string& cgroup)
+{
+  Try<string> contents = cgroups2::read<string>(cgroup, control::STAT);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.stat': " + contents.error());
+  }
+
+  return control::stat::parse(strings::trim(*contents));
 }
 
 } // namespace memory {
