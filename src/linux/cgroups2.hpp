@@ -243,6 +243,45 @@ Try<BandwidthLimit> max(const std::string& cgroup);
 // See: https://docs.kernel.org/admin-guide/cgroup-v2.html
 namespace memory {
 
+// Memory usage statistics.
+//
+// Snapshot of the 'memory.stat' control file.
+//
+// Note:
+// We only record a subset of the memory statistics; a complete list can be
+// found in the kernel documentation.
+// https://docs.kernel.org/admin-guide/cgroup-v2.html#memory-interface-files
+struct Stats
+{
+  // Amount of memory used in anonymous mappings such as brk(), sbrk(),
+  // and mmap(MAP_ANONYMOUS)
+  Bytes anon;
+
+  // Amount of memory used to cache filesystem data, including tmpfs and
+  // shared memory.
+  Bytes file;
+
+  // Amount of total kernel memory, including (kernel_stack, pagetables,
+  // percpu, vmalloc, slab) in addition to other kernel memory use cases.
+  Bytes kernel;
+
+  // Amount of memory allocated to kernel stacks.
+  Bytes kernel_stack;
+
+  // Amount of memory allocated for page tables.
+  Bytes pagetables;
+
+  // Amount of memory used in network transmission buffers.
+  Bytes sock;
+
+  // Amount of memory used for vmap backed memory.
+  Bytes vmalloc;
+
+  // Amount of cached filesystem data mapped with mmap().
+  Bytes file_mapped;
+};
+
+
 // Cgroup memory controller events.
 //
 // Snapshot of the 'memory.events' or 'memory.local.events' control files.
@@ -357,6 +396,12 @@ Try<Nothing> set_high(
 //
 // Cannot be used for the root cgroup.
 Result<Bytes> high(const std::string& cgroup);
+
+
+// Get the memory usage statistics for a cgroup.
+//
+// Cannot be used for the root cgroup.
+Try<Stats> stats(const std::string& cgroup);
 
 } // namespace memory {
 

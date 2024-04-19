@@ -331,6 +331,16 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryUsage)
 }
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryStats)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+  ASSERT_SOME(cgroups2::memory::stats(TEST_CGROUP));
+}
+
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryLow)
 {
   ASSERT_SOME(enable_controllers({"memory"}));
