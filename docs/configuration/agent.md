@@ -330,7 +330,8 @@ The path to the cgroups hierarchy root. (default: /sys/fs/cgroup)
   </td>
   <td>
 Cgroups feature flag to enable memory limits on both memory and
-swap instead of just memory. (default: false)
+swap instead of just memory. Not supported if cgroups v2 is used.
+(default: false)
   </td>
 </tr>
 
