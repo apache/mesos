@@ -326,8 +326,10 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_MemoryUsage)
 
   // Does not exist for the root cgroup.
   EXPECT_ERROR(cgroups2::memory::usage(cgroups2::ROOT_CGROUP));
+  EXPECT_ERROR(cgroups2::memory::peak_usage(cgroups2::ROOT_CGROUP));
 
   EXPECT_SOME(cgroups2::memory::usage(TEST_CGROUP));
+  EXPECT_SOME(cgroups2::memory::peak_usage(TEST_CGROUP));
 }
 
 

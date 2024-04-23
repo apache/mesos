@@ -328,6 +328,12 @@ process::Future<Nothing> oom(const std::string& cgroup);
 Try<Bytes> usage(const std::string& cgroup);
 
 
+// Maximum memory usage for the cgroup and its descendants since creation.
+//
+// Cannot be used for the root cgroup.
+Try<Bytes> peak_usage(const std::string& cgroup);
+
+
 // Set the best-effort memory protection for a cgroup and its descendants. If
 // there is memory contention and this cgroup is within the 'low' threshold,
 // then memory will be reclaimed from other cgroups (without memory protection)

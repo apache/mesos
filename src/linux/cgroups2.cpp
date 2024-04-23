@@ -811,6 +811,7 @@ const string LOW = "memory.low";
 const string HIGH = "memory.high";
 const string MAX = "memory.max";
 const string MIN = "memory.min";
+const string PEAK = "memory.peak";
 const string STAT = "memory.stat";
 
 namespace stat {
@@ -926,6 +927,18 @@ Try<Bytes> usage(const string& cgroup)
       cgroup, memory::control::CURRENT);
   if (contents.isError()) {
     return Error("Failed to read 'memory.current': " + contents.error());
+  }
+
+  return Bytes(*contents);
+}
+
+
+Try<Bytes> peak_usage(const std::string& cgroup)
+{
+  Try<uint64_t> contents = cgroups2::read<uint64_t>(
+      cgroup, memory::control::PEAK);
+  if (contents.isError()) {
+    return Error("Failed to read 'memory.peak': " + contents.error());
   }
 
   return Bytes(*contents);
