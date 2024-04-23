@@ -609,7 +609,7 @@ Future<Nothing> Cgroups2IsolatorProcess::_isolate(
   Try<Nothing> assign = cgroups2::assign(info->cgroup_leaf, pid);
   if (assign.isError()) {
     return Failure("Failed to assign container '" + stringify(containerId) + "'"
-                   " to cgroup '" + info->cgroup + "': " + assign.error());
+                   " to cgroup '" + info->cgroup_leaf + "': " + assign.error());
   }
 
   return Nothing();
