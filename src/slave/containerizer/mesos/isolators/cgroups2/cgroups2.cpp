@@ -212,13 +212,20 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
                      " in cgroup '" + nonLeafCgroup + "': " + enable.error());
     }
 
-    // We enable controllers in the leaf cgroup to allow the container process
-    // to manage their own cgroups, if they choose.
-    enable = cgroups2::controllers::enable(leafCgroup, {controller->name()});
-    if (enable.isError()) {
-      return Failure("Failed to enable controllers in cgroup"
-                     " '" + nonLeafCgroup + "': " + enable.error());
-    }
+    // We don't enable the controllers in the leaf cgroup because of the
+    // no internal process constraint. For instance, enabling the "memory"
+    // controller in the leaf cgroup will prevent us from putting the container
+    // process inside of the leaf cgroup; writing to 'cgroup.procs' will fail.
+    //
+    // If a container wants to self-manage its cgroups, the container will
+    // have to create a new cgroup off of the leaf cgroup and move itself into
+    // the new cgroup, before it can enable controllers in the leaf.
+    //
+    // Example:
+    // 1. Create /leaf/mycgroup.
+    // 2. Write ::getpid() to /leaf/mycgroup/cgroup.procs.
+    // 3. Enable controllers in /leaf, which will apply constraints to
+    //    /leaf/mycgroup.
 
     infos[containerId]->controllers.insert(controller->name());
     prepares.push_back(
