@@ -411,6 +411,9 @@ protected:
   void SetUp() override;
   void TearDown() override;
 
+  void SetupCgroups();
+
+  void TearDownCgroups();
 private:
   // Base hierarchy for separately mounted cgroup controllers, e.g., if the
   // base hierarchy is /sys/fs/cgroup then each controller will be mounted to
