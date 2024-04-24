@@ -751,13 +751,28 @@ Future<Nothing> Cgroups2IsolatorProcess::_cleanup(
                    + strings::join(", ", errors));
   }
 
-  if (cgroups2::exists(infos[containerId]->cgroup)) {
-    Try<Nothing> destroy = cgroups2::destroy(infos[containerId]->cgroup);
-    if (destroy.isError()) {
-      return Failure(
-          "Failed to destroy cgroup '" + infos[containerId]->cgroup + "': "
-          + destroy.error());
-    }
+  if (!cgroups2::exists(infos[containerId]->cgroup)) {
+    infos.erase(containerId);
+    return Nothing();
+  }
+
+  return cgroups2::destroy(infos[containerId]->cgroup)
+    .then(defer(
+        PID<Cgroups2IsolatorProcess>(this),
+        &Cgroups2IsolatorProcess::__cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> Cgroups2IsolatorProcess::__cleanup(
+    const ContainerID& containerId,
+    const Future<Nothing>& future)
+{
+  if (future.isFailed()) {
+    return Failure(
+        "Failed to destroy cgroup '" + infos[containerId]->cgroup + "': "
+        + (future.isFailed() ? future.failure() : "discarded"));
   }
 
   infos.erase(containerId);

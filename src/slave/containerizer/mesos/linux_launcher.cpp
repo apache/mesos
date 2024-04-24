@@ -112,7 +112,7 @@ private:
 
   Future<Nothing> destroyCgroups(const Container& container);
   Future<Nothing> _destroyCgroups(const Container& container);
-  Try<Nothing> destroyCgroups2(const Container& container);
+  Future<Nothing> destroyCgroups2(const Container& container);
 
   const Flags flags;
 
@@ -773,7 +773,7 @@ Future<Nothing> LinuxLauncherProcess::_destroyCgroups(
 }
 
 
-Try<Nothing> LinuxLauncherProcess::destroyCgroups2(
+Future<Nothing> LinuxLauncherProcess::destroyCgroups2(
   const Container& container)
 {
 #ifdef ENABLE_CGROUPS_V2
@@ -784,15 +784,7 @@ Try<Nothing> LinuxLauncherProcess::destroyCgroups2(
 
   LOG(INFO) << "Destroying cgroup '" << cgroup << "'";
 
-  Try<Nothing> destroy = cgroups2::destroy(cgroup);
-  if (destroy.isError()) {
-    return Error("Failed to destory cgroup '" + cgroup + "': "
-                 + destroy.error());
-  }
-
-  LOG(INFO) << "Destroyed container " << container.id;
-
-  return Nothing();
+  return cgroups2::destroy(cgroup);
 #else
   return Error("cgroups2 is not enabled");
 #endif // ENABLE_CGROUPS_V2

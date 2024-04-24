@@ -28,6 +28,7 @@
 #include <process/loop.hpp>
 #include <process/pid.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -381,41 +382,69 @@ Try<Nothing> kill(const std::string& cgroup)
 }
 
 
-Try<Nothing> destroy(const string& cgroup)
+Future<Nothing> destroy(const string& cgroup)
 {
   if (!cgroups2::exists(cgroup)) {
-    return Error("Cgroup '" + cgroup + "' does not exist");
+    return Failure("Cgroup '" + cgroup + "' does not exist");
   }
 
   // To destroy a subtree of cgroups we first kill all of the processes inside
   // of the cgroup and then remove all of the cgroup directories, removing
   // the most deeply nested directories first.
+
   Try<Nothing> kill = cgroups2::kill(cgroup);
   if (kill.isError()) {
-    return Error("Failed to kill processes in cgroup: " + kill.error());
+    return Failure("Failed to kill processes in cgroup: " + kill.error());
   }
 
-  Try<set<string>> cgroups = cgroups2::get(cgroup);
-  if (cgroups.isError()) {
-    return Error("Failed to get nested cgroups: " + cgroups.error());
-  }
+  // Wait until all of the processes have been killed.
+  int retries = 50;
+  Future<Nothing> emptied = loop(
+    []() { return process::after(Milliseconds(1)); },
+    [=](const Nothing&) mutable -> Future<ControlFlow<Nothing>> {
+      Try<set<pid_t>> pids = cgroups2::processes(cgroup, true);
+      if (pids.isError()) {
+        return Failure("Failed to fetch pids in cgroup: " + pids.error());
+      }
 
-  vector<string> sorted(
-      std::make_move_iterator(cgroups->begin()),
-      std::make_move_iterator(cgroups->end()));
-  sorted.push_back(cgroup);
-  std::sort(sorted.rbegin(), sorted.rend());
+      if (pids->empty()) {
+        return Break();
+      }
 
-  foreach (const string& cgroup, sorted) {
-    const string path = cgroups2::path(cgroup);
-    Try<Nothing> rmdir = os::rmdir(path, false);
-    if (rmdir.isError()) {
-      return Error(
-          "Failed to remove directory '" + path + "': " + rmdir.error());
-    }
-  }
+      --retries;
+      if (retries == 0) {
+        return Failure("Processes were still found: " + stringify(*pids));
+      }
 
-  return Nothing();
+      return Continue();
+    });
+
+  return emptied
+    .then([=]() -> Future<Nothing> {
+      Try<set<string>> cgroups = cgroups2::get(cgroup);
+      if (cgroups.isError()) {
+        return Failure("Failed to get nested cgroups: " + cgroups.error());
+      }
+
+      cgroups->insert(cgroup);
+
+      // Remove the cgroups in bottom-up order.
+      foreach (const string& cgroup, adaptor::reverse(*cgroups)) {
+        const string path = cgroups2::path(cgroup);
+
+        // Remove the cgroup's directory. If the directory does not exist,
+        // ignore the error to protect against races.
+        if (::rmdir(path.c_str()) < 0) {
+          ErrnoError error = ErrnoError();
+          if (error.code != ENOENT) {
+            return Failure(
+                "Failed to remove directory '" + path + "': " + error.message);
+          }
+        }
+      }
+
+      return Nothing();
+  });
 }
 
 

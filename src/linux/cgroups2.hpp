@@ -79,7 +79,7 @@ Try<Nothing> kill(const std::string& cgroup);
 
 // Recursively destroy a cgroup and all nested cgroups. Processes inside of
 // destroyed cgroups are killed with SIGKILL.
-Try<Nothing> destroy(const std::string& cgroup);
+process::Future<Nothing> destroy(const std::string& cgroup);
 
 
 // Assign a process to a cgroup, by PID, removing the process from its
