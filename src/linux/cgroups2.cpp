@@ -462,29 +462,46 @@ Try<string> cgroup(pid_t pid)
 }
 
 
-Try<set<pid_t>> processes(const string& cgroup)
+Try<set<pid_t>> processes(const string& cgroup, bool recursive)
 {
   if (!cgroups2::exists(cgroup)) {
     return Error("Cgroup '" + cgroup + "' does not exist");
   }
 
-  Try<string> contents = cgroups2::read<string>(cgroup, control::PROCESSES);
-  if (contents.isError()) {
-    return Error(
-        "Failed to read cgroup.procs in '" + cgroup + "': " + contents.error());
+  set<string> cgroups = {cgroup};
+
+  if (recursive) {
+    Try<set<string>> descendants = cgroups2::get(cgroup);
+    if (descendants.isError()) {
+      return Error("Failed to list cgroups: " + descendants.error());
+    }
+    cgroups.insert(descendants->begin(), descendants->end());
   }
 
   set<pid_t> pids;
-  foreach (const string& line, strings::split(*contents, "\n")) {
-    if (line.empty()) continue;
 
-    Try<pid_t> pid = numify<pid_t>(line);
-    if (pid.isError()) {
-      return Error(
-          "Failed to parse line '" + line + "' as a pid: " + pid.error());
+  foreach (const string& cgroup, cgroups) {
+    Try<string> contents = cgroups2::read<string>(cgroup, control::PROCESSES);
+
+    if (contents.isError() && !exists(cgroup)) {
+      continue; // Ignore missing cgroups due to races.
     }
 
-    pids.insert(*pid);
+    if (contents.isError()) {
+      return Error("Failed to read cgroup.procs in '" + cgroup + "': "
+                   + contents.error());
+    }
+
+    foreach (const string& line, strings::split(*contents, "\n")) {
+      if (line.empty()) continue;
+
+      Try<pid_t> pid = numify<pid_t>(line);
+      if (pid.isError()) {
+        return Error("Failed to parse '" + line + "' as a pid: " + pid.error());
+      }
+
+      pids.insert(*pid);
+    }
   }
 
   return pids;

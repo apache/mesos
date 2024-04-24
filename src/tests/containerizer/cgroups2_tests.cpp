@@ -185,6 +185,11 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AssignProcesses)
   EXPECT_EQ(1u, pids->size());
   EXPECT_EQ(pid, *pids->begin());
 
+  // Should fetch the `pid` from the nested `TEST_CGROUP` if `recursive=true`.
+  Try<set<pid_t>> root_pids = cgroups2::processes(cgroups2::ROOT_CGROUP, true);
+  EXPECT_SOME(pids);
+  EXPECT_EQ(1u, root_pids->count(pid));
+
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
   AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
