@@ -93,7 +93,11 @@ Try<std::string> cgroup(pid_t pid);
 
 
 // Get the processes inside of a cgroup.
-Try<std::set<pid_t>> processes(const std::string& cgroup);
+//
+// Optionally fetch all of the processes in the cgroup subtree by setting
+// recursive=true. This will include all processes in nested cgroups.
+Try<std::set<pid_t>> processes(
+    const std::string& cgroup, bool recursive = false);
 
 
 // Get the threads inside of a cgroup.

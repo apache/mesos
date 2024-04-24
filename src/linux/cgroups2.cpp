@@ -462,7 +462,7 @@ Try<string> cgroup(pid_t pid)
 }
 
 
-Try<set<pid_t>> processes(const string& cgroup)
+Try<set<pid_t>> processes(const string& cgroup, bool recursive)
 {
   if (!cgroups2::exists(cgroup)) {
     return Error("Cgroup '" + cgroup + "' does not exist");
@@ -485,6 +485,27 @@ Try<set<pid_t>> processes(const string& cgroup)
     }
 
     pids.insert(*pid);
+  }
+
+  if (!recursive) {
+    return pids;
+  }
+
+  Try<set<string>> cgroups = cgroups2::get(cgroup);
+  foreach (const string& cgroup, *cgroups) {
+    Try<set<pid_t>> _pids = cgroups2::processes(cgroup);
+    if (_pids.isError() && cgroups2::exists(cgroup)) {
+      return Error(
+          "Failed to get processes in '" + cgroup + "': " + _pids.error());
+    } else if (_pids.isError()) {
+      // The cgroup was just removed. Ignore the error and treat it as if
+      // the cgroup had no processes.
+      continue;
+    }
+
+    pids.insert(
+        std::make_move_iterator(_pids->begin()),
+        std::make_move_iterator(_pids->end()));
   }
 
   return pids;
