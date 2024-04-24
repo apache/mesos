@@ -82,6 +82,9 @@ public:
       const google::protobuf::Map<
           std::string, Value::Scalar>& resourceLimits = {}) override;
 
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId) override;
+
   process::Future<ContainerStatus> status(
       const ContainerID& containerId) override;
 
