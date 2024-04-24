@@ -674,6 +674,42 @@ Future<Nothing> Cgroups2IsolatorProcess::_update(
 }
 
 
+Future<ResourceStatistics> Cgroups2IsolatorProcess::usage(
+    const ContainerID& containerId)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  vector<Future<ResourceStatistics>> usages;
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+      usages.push_back(controller->usage(
+          containerId,
+          infos[containerId]->cgroup));
+    }
+  }
+
+  return await(usages)
+    .then([containerId](const vector<Future<ResourceStatistics>>& _usages) {
+      ResourceStatistics result;
+
+      foreach (const Future<ResourceStatistics>& statistics, _usages) {
+        if (statistics.isReady()) {
+          result.MergeFrom(statistics.get());
+        } else {
+          LOG(WARNING) << "Skipping resource statistic for container "
+                       << containerId << " because: "
+                       << (statistics.isFailed() ? statistics.failure()
+                                                 : "discarded");
+        }
+      }
+
+      return result;
+    });
+}
+
+
 Future<ContainerStatus> Cgroups2IsolatorProcess::status(
     const ContainerID& containerId)
 {
