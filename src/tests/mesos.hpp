@@ -410,7 +410,8 @@ protected:
   slave::Flags CreateSlaveFlags() override;
   void SetUp() override;
   void TearDown() override;
-
+  void SetUpCgroups();
+  void TearDownCgroups();
 private:
   // Base hierarchy for separately mounted cgroup controllers, e.g., if the
   // base hierarchy is /sys/fs/cgroup then each controller will be mounted to
