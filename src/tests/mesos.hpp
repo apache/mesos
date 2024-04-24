@@ -411,7 +411,14 @@ protected:
   void SetUp() override;
   void TearDown() override;
   void SetUpCgroups();
+  void SetUpCgroupsV2();
   void TearDownCgroups();
+  void TearDownCgroupsV2();
+
+  // Returns true if cgroups v2 is being used. Returns false if there was
+  // an error while determining if cgroups v2 is configured correctly or the
+  // `--enable-cgroups-v2` flag was not provided.
+  static bool cgroupsV2();
 private:
   // Base hierarchy for separately mounted cgroup controllers, e.g., if the
   // base hierarchy is /sys/fs/cgroup then each controller will be mounted to
