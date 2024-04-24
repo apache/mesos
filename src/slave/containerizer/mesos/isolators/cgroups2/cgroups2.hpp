@@ -149,7 +149,7 @@ private:
 
   process::Future<Nothing> __cleanup(
       const ContainerID& containerId,
-      const std::vector<process::Future<Nothing>>& futures);
+      const process::Future<Nothing>& future);
 
   process::Owned<Cgroups2IsolatorProcess::Info> cgroupInfo(
       const ContainerID& containerId) const;

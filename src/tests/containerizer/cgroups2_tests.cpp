@@ -95,14 +95,14 @@ protected:
     // Cleanup the test cgroup, in case a previous test run didn't clean it
     // up properly.
     if (cgroups2::exists(TEST_CGROUP)) {
-      ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
+      AWAIT_READY(cgroups2::destroy(TEST_CGROUP));
     }
   }
 
   void TearDown() override
   {
     if (cgroups2::exists(TEST_CGROUP)) {
-      ASSERT_SOME(cgroups2::destroy(TEST_CGROUP));
+      AWAIT_READY(cgroups2::destroy(TEST_CGROUP));
     }
 
     ASSERT_SOME(cgroups2::controllers::disable(
