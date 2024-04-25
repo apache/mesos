@@ -786,7 +786,7 @@ Future<Nothing> LinuxLauncherProcess::destroyCgroups2(
 
   return cgroups2::destroy(cgroup);
 #else
-  return Error("cgroups2 is not enabled");
+  return Failure("cgroups2 is not enabled");
 #endif // ENABLE_CGROUPS_V2
 }
 
