@@ -865,6 +865,7 @@ Try<Stats> parse(const string& content)
 {
   Stats stats;
 
+  bool kernel_found = false;
   foreach (const string& line, strings::split(content, "\n")) {
     if (line.empty()) {
       continue;
@@ -893,6 +894,19 @@ Try<Stats> parse(const string& content)
     else if (key == "sock")         { stats.sock          = bytes; }
     else if (key == "vmalloc")      { stats.vmalloc       = bytes; }
     else if (key == "file_mapped")  { stats.file_mapped   = bytes; }
+    else if (key == "slab")         { stats.slab          = bytes; }
+
+    kernel_found |= key == "kernel";
+  }
+
+  // See Stats::kernel for an explanation of why this can be missing
+  // and why we fill it in using these sub-metrics:
+  if (!kernel_found) {
+    stats.kernel = stats.kernel_stack
+      + stats.pagetables
+      + stats.sock
+      + stats.vmalloc
+      + stats.slab;
   }
 
   return stats;

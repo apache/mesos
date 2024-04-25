@@ -267,6 +267,17 @@ struct Stats
 
   // Amount of total kernel memory, including (kernel_stack, pagetables,
   // percpu, vmalloc, slab) in addition to other kernel memory use cases.
+  //
+  // If this field is missing (linux < 5.18), it's calculated as
+  // the sum of: kernel_stack, pagetables, sock, vmalloc, and slab. This
+  // is an under-accounting since it doesn't include:
+  //   - various kvm allocations (e.g. allocated pages to create vcpus)
+  //   - io_uring
+  //   - tmp_page in pipes during pipe_write()
+  //   - bpf ringbuffers
+  //   - unix sockets
+  // But it's the best measurement we can provide on linux < 5.18.
+  // See: https://github.com/torvalds/linux/commit/a8c49af3be5f0b4e105ef6
   Bytes kernel;
 
   // Amount of memory allocated to kernel stacks.
@@ -283,6 +294,9 @@ struct Stats
 
   // Amount of cached filesystem data mapped with mmap().
   Bytes file_mapped;
+
+  // Amount of memory used for storing in-kernel data structures.
+  Bytes slab;
 };
 
 
