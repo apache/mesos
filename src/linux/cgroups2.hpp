@@ -267,6 +267,9 @@ struct Stats
 
   // Amount of total kernel memory, including (kernel_stack, pagetables,
   // percpu, vmalloc, slab) in addition to other kernel memory use cases.
+  //
+  // If this field is missing (Kernel version < 5.18), it's calculated as
+  // the sum of: kernel_stack, pagetables, sock, vmalloc, and slab.
   Bytes kernel;
 
   // Amount of memory allocated to kernel stacks.
@@ -283,6 +286,9 @@ struct Stats
 
   // Amount of cached filesystem data mapped with mmap().
   Bytes file_mapped;
+
+  // Amount of memory used for storing in-kernel data structures.
+  Bytes slab;
 };
 
 

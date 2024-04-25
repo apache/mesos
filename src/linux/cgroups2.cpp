@@ -865,6 +865,12 @@ Try<Stats> parse(const string& content)
 {
   Stats stats;
 
+  // The 'kernel' key was introduces in Kernel 5.18 and therefore may be
+  // missing. If it is missing, we set 'kernel' to be the sum of the other
+  // kernel usage fields provided in 'memory.stat'.
+  //
+  // Kernel patch: https://github.com/torvalds/linux/commit/a8c49af3be5f0b4e105ef678bcf14ef102c270be // NOLINT
+  bool kernel_found = false;
   foreach (const string& line, strings::split(content, "\n")) {
     if (line.empty()) {
       continue;
@@ -887,12 +893,23 @@ Try<Stats> parse(const string& content)
 
     if      (key == "anon")         { stats.anon          = bytes; }
     else if (key == "file")         { stats.file          = bytes; }
-    else if (key == "kernel")       { stats.kernel        = bytes; }
+    else if (key == "kernel")       { stats.kernel        = bytes;
+      kernel_found = true;
+    }
     else if (key == "kernel_stack") { stats.kernel_stack  = bytes; }
     else if (key == "pagetables")   { stats.pagetables    = bytes; }
     else if (key == "sock")         { stats.sock          = bytes; }
     else if (key == "vmalloc")      { stats.vmalloc       = bytes; }
     else if (key == "file_mapped")  { stats.file_mapped   = bytes; }
+    else if (key == "slab")         { stats.slab          = bytes; }
+  }
+
+  if (!kernel_found) {
+    stats.kernel = stats.kernel_stack
+      + stats.pagetables
+      + stats.sock
+      + stats.vmalloc
+      + stats.slab;
   }
 
   return stats;
