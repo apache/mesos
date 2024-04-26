@@ -17,4 +17,69 @@
 #ifndef __MEMORY_HPP__
 #define __MEMORY_HPP__
 
+#include <string>
+
+#include <process/future.hpp>
+
+#include <stout/hashmap.hpp>
+
+#include "slave/flags.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
+class MemoryControllerProcess : public ControllerProcess
+{
+public:
+  static Try<process::Owned<ControllerProcess>> create(
+      const Flags& flags);
+
+  ~MemoryControllerProcess() override = default;
+
+  std::string name() const override;
+
+  process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      const mesos::slave::ContainerConfig& containerConfig) override;
+
+  process::Future<Nothing> isolate(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      pid_t pid) override;
+
+  process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+  process::Future<Nothing> update(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      const Resources& resourceRequests,
+      const google::protobuf::Map<
+          std::string, Value::Scalar>& resourceLimits = {}) override;
+
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+private:
+  struct Info
+  {
+    // Check if the hard memory limit has been updated for the container.
+    // Also true if the container was recovered.
+    bool hardLimitUpdated = false;
+  };
+
+  MemoryControllerProcess(const Flags& flags);
+
+  hashmap<ContainerID, Info> infos;
+};
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
+
 #endif // __MEMORY_HPP__
