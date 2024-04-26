@@ -586,9 +586,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   // Use cgroup isolators if they're available and we're root.
   // TODO(idownes): Refactor the cgroups/non-cgroups code.
   if (cgroupsV2() && *user == "root") {
-    // TODO(dleamy): Add the memory isolator once it's supported by the cgroups
-    //               v2 isolator.
-    flags.isolation = "cgroups/cpu";
+    flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = "/sys/fs/cgroup";
     flags.cgroups_root = TEST_CGROUPS_ROOT;
   } else if (cgroups::enabled() && *user == "root") {

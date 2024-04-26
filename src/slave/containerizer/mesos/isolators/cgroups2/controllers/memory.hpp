@@ -65,6 +65,10 @@ public:
       const google::protobuf::Map<
           std::string, Value::Scalar>& resourceLimits = {}) override;
 
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
   process::Future<Nothing> cleanup(
       const ContainerID& containerId,
       const std::string& cgroup) override;

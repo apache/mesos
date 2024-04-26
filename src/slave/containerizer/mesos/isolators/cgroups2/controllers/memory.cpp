@@ -197,6 +197,64 @@ Future<Nothing> MemoryControllerProcess::update(
 }
 
 
+Future<ResourceStatistics> MemoryControllerProcess::usage(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Cannot report resource usage for unknown container "
+                   "'" + stringify(containerId) + "'");
+  }
+
+  LOG(INFO) << "Collecting 'memory' usage statistics for container "
+            << containerId;
+
+  ResourceStatistics stats;
+
+  // User memory usage.
+  Try<Bytes> usage = cgroups2::memory::usage(cgroup);
+  if (usage.isError()) {
+    return Failure("Failed to get user memory usage: " + usage.error());
+  }
+
+  stats.set_mem_total_bytes(usage->bytes());
+  stats.set_mem_rss_bytes(usage->bytes());
+
+  // Kernel memory usage.
+  Try<Stats> memoryStats = cgroups2::memory::stats(cgroup);
+  if (memoryStats.isError()) {
+    return Failure("Failed to get cgroup memory stats: " + memoryStats.error());
+  }
+
+  stats.set_mem_kmem_usage_bytes(memoryStats->kernel.bytes());
+
+  // Kernel TCP buffers usage.
+  stats.set_mem_kmem_tcp_usage_bytes(memoryStats->sock.bytes());
+
+  // Page cache usage.
+  stats.set_mem_file_bytes(memoryStats->file.bytes());
+  stats.set_mem_cache_bytes(memoryStats->file.bytes());
+
+  // Anonymous memory usage.
+  stats.set_mem_anon_bytes(memoryStats->anon.bytes());
+
+  // File mapped memory usage.
+  stats.set_mem_mapped_file_bytes(memoryStats->file_mapped.bytes());
+
+  // Total unevictable memory.
+  // Equivalent to 'memory.min', the minimum amount of memory that will never
+  // be reclaimed by the kernel.
+  Try<Bytes> min = cgroups2::memory::min(cgroup);
+  if (min.isError()) {
+    return Failure("Failed to get unrevocable memory size: " + min.error());
+  }
+
+  stats.set_mem_unevictable_bytes(min->bytes());
+
+  return stats;
+}
+
+
 Future<Nothing> MemoryControllerProcess::cleanup(
     const ContainerID& containerId,
     const string& cgroup)
