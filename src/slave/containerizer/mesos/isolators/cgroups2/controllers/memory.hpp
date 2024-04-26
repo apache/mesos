@@ -61,6 +61,13 @@ public:
       const google::protobuf::Map<
           std::string, Value::Scalar>& resourceLimits = {}) override;
 
+<<<<<<< HEAD
+=======
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
+>>>>>>> 1a92a6a2c ([cgroups2] Introduces the MemoryControllerProcess.)
   process::Future<Nothing> cleanup(
       const ContainerID& containerId,
       const std::string& cgroup) override;
