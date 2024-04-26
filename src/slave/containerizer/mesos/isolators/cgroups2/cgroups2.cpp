@@ -20,6 +20,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/core.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/memory.hpp"
 
 #include <set>
 #include <string>
@@ -74,7 +75,8 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
 {
   hashmap<string, Try<Owned<ControllerProcess>>(*)(const Flags&)> creators = {
     {"core", &CoreControllerProcess::create},
-    {"cpu", &CpuControllerProcess::create}
+    {"cpu", &CpuControllerProcess::create},
+    {"mem", &MemoryControllerProcess::create}
   };
 
   hashmap<string, Owned<Controller>> controllers;
