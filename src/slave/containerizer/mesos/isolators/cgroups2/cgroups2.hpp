@@ -76,6 +76,9 @@ public:
       const ContainerID& containerId,
       pid_t pid) override;
 
+  process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId) override;
+
   process::Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resourceRequests,
@@ -107,6 +110,10 @@ private:
 
     // Names of the controllers which are prepared for the container.
     hashset<std::string> controllers;
+
+    // Promise that will complete when a container is impacted by a resource
+    // limitation and should be terminated.
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
   Cgroups2IsolatorProcess(
@@ -142,6 +149,10 @@ private:
       const std::vector<process::Future<Nothing>>& futures,
       const ContainerID& containerId,
       pid_t pid);
+
+  void _watch(
+    const ContainerID& containerId,
+    const process::Future<mesos::slave::ContainerLimitation>& future);
 
   process::Future<Nothing> _update(
       const std::vector<process::Future<Nothing>>& futures);

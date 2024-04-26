@@ -41,6 +41,7 @@
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -620,6 +621,45 @@ Future<Nothing> Cgroups2IsolatorProcess::_isolate(
   }
 
   return Nothing();
+}
+
+
+Future<ContainerLimitation> Cgroups2IsolatorProcess::watch(
+    const ContainerID& containerId)
+{
+  // TODO(dleamy): Revisit this once nested containers are implemented. We
+  // may want to do what is done in cgroups v2 where we return a pending future
+  // for child containers that share cgroups with their ancestor.
+
+  foreachvalue (const Owned<Controller>& controller, controllers) {
+    if (infos[containerId]->controllers.contains(controller->name())) {
+      controller->watch(containerId, infos[containerId]->cgroup)
+        .onAny(defer(
+            PID<Cgroups2IsolatorProcess>(this),
+            &Cgroups2IsolatorProcess::_watch,
+            containerId,
+            lambda::_1));
+    }
+  }
+
+  return infos[containerId]->limitation.future();
+}
+
+
+void Cgroups2IsolatorProcess::_watch(
+    const ContainerID& containerId,
+    const Future<ContainerLimitation>& future)
+{
+  if (!infos.contains(containerId)) {
+    return;
+  }
+
+  if (future.isPending()) {
+    LOG(ERROR) << "Limitation future should be ready or failed";
+    return;
+  }
+
+  infos[containerId]->limitation.set(future);
 }
 
 
