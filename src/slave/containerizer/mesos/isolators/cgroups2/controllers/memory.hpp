@@ -54,6 +54,10 @@ public:
       const ContainerID& containerId,
       const std::string& cgroup) override;
 
+  process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId,
+      const std::string& cgroup) override;
+
   process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
@@ -61,13 +65,6 @@ public:
       const google::protobuf::Map<
           std::string, Value::Scalar>& resourceLimits = {}) override;
 
-<<<<<<< HEAD
-=======
-  process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId,
-      const std::string& cgroup) override;
-
->>>>>>> 1a92a6a2c ([cgroups2] Introduces the MemoryControllerProcess.)
   process::Future<Nothing> cleanup(
       const ContainerID& containerId,
       const std::string& cgroup) override;
@@ -75,12 +72,25 @@ public:
 private:
   struct Info
   {
+    process::Future<Nothing> oom;
+
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
+
     // Check if the hard memory limit has been updated for the container.
     // Also true if the container was recovered.
     bool hardLimitUpdated = false;
   };
 
   MemoryControllerProcess(const Flags& flags);
+
+  void oomListen(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  void oomed(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      const process::Future<Nothing>& oomFuture);
 
   hashmap<ContainerID, Info> infos;
 };
