@@ -1503,7 +1503,9 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/cgroups2/controllers/core.cpp     \
   slave/containerizer/mesos/isolators/cgroups2/controllers/core.hpp     \
   slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.cpp    \
-  slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp
+  slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/memory.cpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/memory.hpp
 endif
 
 if ENABLE_SECCOMP_ISOLATOR

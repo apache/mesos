@@ -355,7 +355,8 @@ if (ENABLE_CGROUPS_v2)
     linux/ebpf.cpp
     slave/containerizer/mesos/isolators/cgroups2/controller.cpp
     slave/containerizer/mesos/isolators/cgroups2/controllers/core.cpp
-    slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.cpp)
+    slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.cpp
+    slave/containerizer/mesos/isolators/cgroups2/controllers/memory.cpp)
 
 endif ()
 
