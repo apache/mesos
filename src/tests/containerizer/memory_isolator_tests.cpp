@@ -45,7 +45,7 @@ namespace internal {
 namespace tests {
 
 class MemoryIsolatorTest
-  : public MesosTest,
+  : public ContainerizerTest<MesosContainerizer>,
     public WithParamInterface<string> {};
 
 
@@ -152,6 +152,11 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
 
   // Metrics for kmem are only enabled with memory isolation.
   if (GetParam() == "cgroups/mem") {
+    // Check that at least one page of kernel memory is used. Each page is
+    // 4096 bytes so we expect at least that much memory to be used.
+#ifdef ENABLE_CGROUPS_V2
+    ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
+#else
     Result<std::string> hierarchy = cgroups::hierarchy("memory");
     ASSERT_SOME(hierarchy);
 
@@ -160,11 +165,10 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
     ASSERT_SOME(kmemExists);
 
     if (kmemExists.get()) {
-      // We can assume more than 4096 bytes here, since a kernel page size is
-      // 4kB and we are allocating at least one.
       ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
     }
-  }
+#endif // ENABLE_CGROUPS_V2
+ }
 
   driver.stop();
   driver.join();
