@@ -416,7 +416,7 @@ Try<Nothing> set_high(
 Result<Bytes> high(const std::string& cgroup);
 
 
-// Get the memory usage statistics for a cgroup.
+// Get the total memory usage statistics for a cgroup and its descendents.
 //
 // Cannot be used for the root cgroup.
 Try<Stats> stats(const std::string& cgroup);
