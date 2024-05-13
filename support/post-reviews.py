@@ -48,7 +48,7 @@ import re
 import sys
 import urllib.parse
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 from subprocess import check_output, Popen, PIPE, STDOUT
 
@@ -102,7 +102,7 @@ def main():
 
     rbt_version = execute([rbt_command, '--version'], ignore_errors=True)
     if rbt_version:
-        rbt_version = LooseVersion(rbt_version)
+        rbt_version = Version(rbt_version.split(' ')[1])
         post_review = [rbt_command, 'post']
     elif execute(['post-review', '--version'], ignore_errors=True):
         post_review = ['post-review']
@@ -348,11 +348,11 @@ def main():
 
         # Determine how to specify the revision range.
         if rbt_command in post_review and \
-           rbt_version >= LooseVersion('RBTools 0.6'):
+           rbt_version >= Version('0.6'):
             # rbt >= 0.6.1 supports '--depends-on' argument.
             # Only set the "depends on" if this
             # is not  the first review in the chain.
-            if rbt_version >= LooseVersion('RBTools 0.6.1') and \
+            if rbt_version >= Version('0.6.1') and \
                parent_review_request_id:
                 command = command + ['--depends-on=' + parent_review_request_id]
 
