@@ -74,6 +74,8 @@ Future<Nothing> MemoryControllerProcess::prepare(
 
   infos.put(containerId, Info());
 
+  oomListen(containerId, cgroup);
+
   return Nothing();
 }
 
@@ -105,7 +107,21 @@ Future<Nothing> MemoryControllerProcess::recover(
   infos.put(containerId, Info());
   infos[containerId].hardLimitUpdated = true;
 
+  oomListen(containerId, cgroup);
+
   return Nothing();
+}
+
+
+Future<ContainerLimitation> MemoryControllerProcess::watch(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  return infos[containerId].limitation.future();
 }
 
 
@@ -192,11 +208,115 @@ Future<Nothing> MemoryControllerProcess::cleanup(
     return Nothing();
   }
 
+  if (infos[containerId].oom.isPending()) {
+    infos[containerId].oom.discard();
+  }
+
   infos.erase(containerId);
 
   return Nothing();
 }
 
+
+void MemoryControllerProcess::oomListen(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  if (!infos.contains(containerId)) {
+    LOG(ERROR) << "Cannot listen for OOM events for unknown container "
+               << containerId;
+    return;
+  }
+
+  infos[containerId].oom = cgroups2::memory::oom(cgroup);
+
+  LOG(INFO) << "Listening for OOM events for container "
+            << containerId;
+
+  infos[containerId].oom.onAny(
+      defer(PID<MemoryControllerProcess>(this),
+            &MemoryControllerProcess::oomed,
+            containerId,
+            cgroup,
+            lambda::_1));
+}
+
+
+void MemoryControllerProcess::oomed(
+    const ContainerID& containerId,
+    const string& cgroup,
+    const Future<Nothing>& oom)
+{
+  if (oom.isDiscarded()) {
+    LOG(INFO) << "OOM event listener discarded";
+    return;
+  }
+
+  if (oom.isFailed()) {
+    LOG(ERROR) << "OOM event listener failed: " << oom.failure();
+    return;
+  }
+
+  if (!infos.contains(containerId)) {
+    // It is likely that process exited is executed before this
+    // function (e.g. The kill and OOM events happen at the same time,
+    // and the process exit event arrives first). Therefore, we should
+    // not report a fatal error here.
+    LOG(INFO) << "OOM event received for terminated container";
+    return;
+  }
+
+  LOG(INFO) << "OOM detected for container" << containerId;
+
+  // Construct a message for the limitation to help with debugging the OOM.
+  ostringstream limitMessage;
+  limitMessage << "Memory limit exceeded: ";
+
+  // TODO(dleamy): Report the peak memory usage of the container. The
+  // 'memory.peak' control is only available on newer Linux kernels.
+
+  // Report memory statistics if successfully retrieved.
+  Try<Stats> stats = cgroups2::memory::stats(cgroup);
+  if (stats.isError()) {
+    LOG(ERROR) << "Failed to get cgroup memory stats for container "
+               << containerId << ": " << stats.error();
+  } else {
+    limitMessage << "\nMEMORY STATISTICS post-OOM: \n";
+    limitMessage << "anon: " << stats->anon << "\n";
+    limitMessage << "file: " << stats->file << "\n";
+    limitMessage << "kernel: " << stats->kernel << "\n";
+  }
+
+  LOG(INFO) << limitMessage.str();
+
+  Result<Bytes> hardLimit = cgroups2::memory::max(cgroup);
+  if (hardLimit.isError()) {
+    LOG(ERROR) << "Failed to get hard memory limit for container "
+               << containerId << ": " << hardLimit.error();
+  } else if (hardLimit.isNone()) {
+    LOG(ERROR) << "Unexpected OOM for container " << containerId
+               << ": no memory hard limit set";
+  }
+
+  // Complete the container limitation promise with a memory resource
+  // limitation.
+  //
+  // TODO(jieyu): This is not accurate if the memory resource is from
+  // a non-star role or spans roles (e.g., "*" and "role"). Ideally,
+  // we should save the resources passed in and report it here.
+  //
+  // TODO(dleamy): We report the hard limit because not all machines have
+  // access to 'memory.peak', the peak memory usage of the cgroup.
+  double megabytes = hardLimit.isSome()
+                      ? (double)hardLimit->bytes() / Bytes::MEGABYTES : 0;
+  Resources memory = *Resources::parse( "mem", stringify(megabytes), "*");
+
+  infos[containerId].limitation.set(
+    protobuf::slave::createContainerLimitation(
+      memory,
+      limitMessage.str(),
+      TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY));
+}
 
 } // namespace slave {
 } // namespace internal {
