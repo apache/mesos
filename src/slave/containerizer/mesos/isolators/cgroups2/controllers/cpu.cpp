@@ -79,9 +79,9 @@ Future<Nothing> CpuControllerProcess::update(
   double cpuRequest = *resourceRequests.cpus();
   bool revocable = resourceRequests.revocable().cpus().isSome();
   uint64_t weightPerCpu = (revocable && flags.revocable_cpu_low_priority) ?
-      CPU_SHARES_PER_CPU_REVOCABLE : CPU_SHARES_PER_CPU;
+      CPU_WEIGHT_PER_CPU_REVOCABLE : CPU_WEIGHT_PER_CPU;
   uint64_t weight = std::max(
-      static_cast<uint64_t>(weightPerCpu * cpuRequest), MIN_CPU_SHARES);
+      static_cast<uint64_t>(weightPerCpu * cpuRequest), MIN_CPU_WEIGHT);
 
   Try<Nothing> update = cgroups2::cpu::weight(cgroup, weight);
   if (update.isError()) {

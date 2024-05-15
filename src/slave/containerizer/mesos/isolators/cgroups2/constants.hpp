@@ -26,9 +26,9 @@ namespace internal {
 namespace slave {
 
 // CPU controller constants.
-const uint64_t CPU_SHARES_PER_CPU = 1024;
-const uint64_t CPU_SHARES_PER_CPU_REVOCABLE = 10;
-const uint64_t MIN_CPU_SHARES = 2; // Linux constant.
+const uint64_t CPU_WEIGHT_PER_CPU = 100;
+const uint64_t CPU_WEIGHT_PER_CPU_REVOCABLE = 1;
+const uint64_t MIN_CPU_WEIGHT = 1; // Linux constant.
 const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
 const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
