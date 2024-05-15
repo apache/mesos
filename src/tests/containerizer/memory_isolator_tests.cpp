@@ -45,7 +45,7 @@ namespace internal {
 namespace tests {
 
 class MemoryIsolatorTest
-  : public MesosTest,
+  : public ContainerizerTest<MesosContainerizer>,
     public WithParamInterface<string> {};
 
 
