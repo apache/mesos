@@ -197,6 +197,55 @@ Future<Nothing> MemoryControllerProcess::update(
 }
 
 
+Future<ResourceStatistics> MemoryControllerProcess::usage(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  // TODO (jasonzhou): Report a greater variety of stats which are available in
+  // cgroups2 memory.stat file.
+  ResourceStatistics stats;
+
+  // Current memory usage.
+  Try<Bytes> usage = cgroups2::memory::usage(cgroup);
+  if (usage.isError()) {
+    return Failure("Failed to get current memory usage: " + usage.error());
+  }
+
+  stats.set_mem_total_bytes(usage->bytes());
+
+  Try<Stats> memoryStats = cgroups2::memory::stats(cgroup);
+  if (memoryStats.isError()) {
+    return Failure("Failed to get cgroup memory stats: " + memoryStats.error());
+  }
+
+  // Kernel memory usage.
+  stats.set_mem_kmem_usage_bytes(memoryStats->kernel.bytes());
+
+  // Kernel TCP buffers usage.
+  stats.set_mem_kmem_tcp_usage_bytes(memoryStats->sock.bytes());
+
+  // Page cache usage.
+  stats.set_mem_file_bytes(memoryStats->file.bytes());
+  stats.set_mem_cache_bytes(memoryStats->file.bytes());
+
+  // Anonymous memory usage.
+  stats.set_mem_anon_bytes(memoryStats->anon.bytes());
+  stats.set_mem_rss_bytes(memoryStats->anon.bytes());
+
+  // File mapped memory usage.
+  stats.set_mem_mapped_file_bytes(memoryStats->file_mapped.bytes());
+
+  // Total unevictable memory.
+  stats.set_mem_unevictable_bytes(memoryStats->unevictable.bytes());
+
+  return stats;
+}
+
+
 Future<Nothing> MemoryControllerProcess::cleanup(
     const ContainerID& containerId,
     const string& cgroup)

@@ -1800,20 +1800,29 @@ message ResourceStatistics {
 
   // TODO(chzhcn) mem_file_bytes and mem_anon_bytes are deprecated in
   // 0.23.0 and will be removed in 0.24.0.
+  // Amount of memory used to cache filesystem data, including tmpfs and shared
+  // memory, in bytes.
   optional uint64 mem_file_bytes = 10;
+  // Amount of memory used in anonymous mappings in bytes.
   optional uint64 mem_anon_bytes = 11;
 
   // mem_cache_bytes is added in 0.23.0 to represent page cache usage.
+  // Amount of memory used to cache filesystem data, including tmpfs and shared
+  // memory, in bytes.
   optional uint64 mem_cache_bytes = 39;
 
   // Since 0.23.0, mem_rss_bytes is changed to represent only
   // anonymous memory usage. Note that neither its requiredness, type,
   // name nor numeric tag has been changed.
+  // Amount of memory used in anonymous mappings in bytes.
   optional uint64 mem_rss_bytes = 5;
 
+  // Amount of cached filesystem data mapped with mmap() in bytes.
   optional uint64 mem_mapped_file_bytes = 12;
   // This is only set if swap is enabled.
+  // Amount of swap usage in bytes.
   optional uint64 mem_swap_bytes = 40;
+  // Amount of unevictable usage in bytes.
   optional uint64 mem_unevictable_bytes = 41;
 
   // Number of occurrences of different levels of memory pressure
