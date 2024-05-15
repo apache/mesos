@@ -297,6 +297,9 @@ struct Stats
 
   // Amount of memory used for storing in-kernel data structures.
   Bytes slab;
+
+  // Amount of memory that cannot be reclaimed.
+  Bytes unevictable;
 };
 
 

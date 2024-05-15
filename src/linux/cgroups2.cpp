@@ -895,6 +895,7 @@ Try<Stats> parse(const string& content)
     else if (key == "vmalloc")      { stats.vmalloc       = bytes; }
     else if (key == "file_mapped")  { stats.file_mapped   = bytes; }
     else if (key == "slab")         { stats.slab          = bytes; }
+    else if (key == "unevictable")  { stats.unevictable   = bytes; }
 
     kernel_found |= key == "kernel";
   }
