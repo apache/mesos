@@ -32,6 +32,9 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
 
+#include "linux/cgroups2.hpp"
+
+#include "slave/containerizer/mesos/isolators/cgroups2/constants.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp"
 
@@ -60,6 +63,7 @@ using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::CPU_CFS_PERIOD;
 using mesos::internal::slave::DEFAULT_EXECUTOR_CPUS;
 using mesos::internal::slave::DEFAULT_EXECUTOR_MEM;
+using mesos::internal::slave::CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -371,15 +375,21 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   ContainerID containerId = *(containers->begin());
 
-  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
-  ASSERT_SOME(cpuHierarchy);
-
   string cpuCgroup = path::join(flags.cgroups_root, containerId.value());
 
   double totalCpus = cpus.cpus().get() + DEFAULT_EXECUTOR_CPUS;
+#ifdef ENABLE_CGROUPS_V2
+  EXPECT_SOME_EQ(
+      static_cast<uint64_t>(CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE * totalCpus),
+      cgroups2::cpu::weight(cpuCgroup));
+#else
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
+
   EXPECT_SOME_EQ(
       CPU_SHARES_PER_CPU_REVOCABLE * totalCpus,
       cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup));
+#endif // ENABLE_CGROUPS_V2
 
   driver.stop();
   driver.join();
