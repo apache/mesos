@@ -59,7 +59,7 @@ MemoryControllerProcess::MemoryControllerProcess(const Flags& _flags)
 
 string MemoryControllerProcess::name() const
 {
-  return CGROUPS_V2_CONTROLLER_MEMORY_NAME;
+  return CGROUPS2_CONTROLLER_MEMORY_NAME;
 }
 
 
@@ -140,7 +140,7 @@ Future<Nothing> MemoryControllerProcess::update(
   }
 
   Bytes memory = *resourceRequests.mem();
-  Bytes softLimit = std::max(memory, MIN_MEMORY);
+  Bytes softLimit = std::max(memory, CGROUPS2_MIN_MEMORY);
 
   // Set the soft memory limit.
   Try<Nothing> low = cgroups2::memory::set_low(cgroup, softLimit);
@@ -161,7 +161,7 @@ Future<Nothing> MemoryControllerProcess::update(
       }
 
       return std::max(
-          Megabytes(static_cast<uint64_t>(requestedLimit)), MIN_MEMORY);
+          Megabytes(static_cast<uint64_t>(requestedLimit)), CGROUPS2_MIN_MEMORY);
     }
 
     return softLimit;

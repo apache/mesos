@@ -57,7 +57,7 @@ CpuControllerProcess::CpuControllerProcess(const Flags& _flags)
 
 string CpuControllerProcess::name() const
 {
-  return CGROUPS_V2_CONTROLLER_CPU_NAME;
+  return CGROUPS2_CONTROLLER_CPU_NAME;
 }
 
 
@@ -79,9 +79,9 @@ Future<Nothing> CpuControllerProcess::update(
   double cpuRequest = *resourceRequests.cpus();
   bool revocable = resourceRequests.revocable().cpus().isSome();
   uint64_t weightPerCpu = (revocable && flags.revocable_cpu_low_priority) ?
-      CPU_WEIGHT_PER_CPU_REVOCABLE : CPU_WEIGHT_PER_CPU;
+      CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE : CGROUPS2_CPU_WEIGHT_PER_CPU;
   uint64_t weight = std::max(
-      static_cast<uint64_t>(weightPerCpu * cpuRequest), MIN_CPU_WEIGHT);
+      static_cast<uint64_t>(weightPerCpu * cpuRequest), CGROUPS2_MIN_CPU_WEIGHT);
 
   Try<Nothing> update = cgroups2::cpu::weight(cgroup, weight);
   if (update.isError()) {
@@ -98,23 +98,23 @@ Future<Nothing> CpuControllerProcess::update(
     cpuLimit = resourceLimits.at("cpus").value();
   }
   BandwidthLimit limit = [&] () {
-    uint64_t min_quota = static_cast<uint64_t>(MIN_CPU_CFS_QUOTA.us());
+    uint64_t min_quota = static_cast<uint64_t>(CGROUPS2_MIN_CPU_CFS_QUOTA.us());
     if (cpuLimit.isSome()) {
       if (std::isinf(*cpuLimit)) {
         return BandwidthLimit(); // (1)
       }
 
-      uint64_t quota = static_cast<uint64_t>(*cpuLimit * CPU_CFS_PERIOD.us());
+      uint64_t quota = static_cast<uint64_t>(*cpuLimit * CGROUPS2_CPU_CFS_PERIOD.us());
       return BandwidthLimit(
           Microseconds(std::max(quota, min_quota)),
-          CPU_CFS_PERIOD); // (1)
+          CGROUPS2_CPU_CFS_PERIOD); // (1)
     }
 
     if (flags.cgroups_enable_cfs) {
-      uint64_t quota = static_cast<uint64_t>(cpuRequest * CPU_CFS_PERIOD.us());
+      uint64_t quota = static_cast<uint64_t>(cpuRequest * CGROUPS2_CPU_CFS_PERIOD.us());
       return BandwidthLimit(
           Microseconds(std::max(quota, min_quota)),
-          CPU_CFS_PERIOD); // (2)
+          CGROUPS2_CPU_CFS_PERIOD); // (2)
     }
 
     return BandwidthLimit(); // (3)

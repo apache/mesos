@@ -26,18 +26,18 @@ namespace internal {
 namespace slave {
 
 // CPU controller constants.
-const uint64_t CPU_WEIGHT_PER_CPU = 100;
-const uint64_t CPU_WEIGHT_PER_CPU_REVOCABLE = 1;
-const uint64_t MIN_CPU_WEIGHT = 1; // Linux constant.
-const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
-const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
+const uint64_t CGROUPS2_CPU_WEIGHT_PER_CPU = 100;
+const uint64_t CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE = 1;
+const uint64_t CGROUPS2_MIN_CPU_WEIGHT = 1; // Linux constant.
+const Duration CGROUPS2_CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
+const Duration CGROUPS2_MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
 // Memory controller constants.
-const Bytes MIN_MEMORY = Megabytes(32);
+const Bytes CGROUPS2_MIN_MEMORY = Megabytes(32);
 
-const std::string CGROUPS_V2_CONTROLLER_CORE_NAME = "core";
-const std::string CGROUPS_V2_CONTROLLER_CPU_NAME = "cpu";
-const std::string CGROUPS_V2_CONTROLLER_MEMORY_NAME = "memory";
+const std::string CGROUPS2_CONTROLLER_CORE_NAME = "core";
+const std::string CGROUPS2_CONTROLLER_CPU_NAME = "cpu";
+const std::string CGROUPS2_CONTROLLER_MEMORY_NAME = "memory";
 
 } // namespace slave {
 } // namespace internal {

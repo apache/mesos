@@ -49,7 +49,7 @@ CoreControllerProcess::CoreControllerProcess(const Flags& _flags)
 
 string CoreControllerProcess::name() const
 {
-  return CGROUPS_V2_CONTROLLER_CORE_NAME;
+  return CGROUPS2_CONTROLLER_CORE_NAME;
 }
 
 
