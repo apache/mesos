@@ -163,6 +163,14 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
 
   CHECK(containerConfig.container_class() != ContainerClass::DEBUG);
 
+  // Based on MESOS-9305, there seems to be a possibility that the root
+  // folder may be deleted underneath us. Since we make use of subtree_control
+  // to determine a cgroup and its descendents' access to controllers, we
+  // we can't just recursively create the folders. Hence, we crash if the root
+  // folder is not found, as it will allow us to restart and go through agent's
+  // main logic which sets up the root cgroup and its subtree control.
+  CHECK(cgroups2::exists(flags.cgroups_root));
+
   // Create the non-leaf and leaf cgroups for the container, enable
   // controllers in the non-leaf cgroup, and `prepare` each of the controllers.
   const string nonLeafCgroup = cgroups2_paths::container(
