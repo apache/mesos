@@ -128,7 +128,7 @@ struct State
 
   // We don't return errors here because enabling something
   // unknown will fail when writing it back out.
-  void enable(const vector<string>& controllers)
+  void enable(const set<string>& controllers)
   {
     foreach (const string& controller, controllers) {
       enable(controller);
@@ -591,7 +591,7 @@ Try<set<string>> available(const string& cgroup)
 }
 
 
-Try<Nothing> enable(const string& cgroup, const vector<string>& controllers)
+Try<Nothing> enable(const string& cgroup, const set<string>& controllers)
 {
   using State = control::subtree_control::State;
   Try<State> control = cgroups2::control::subtree_control::read(cgroup);

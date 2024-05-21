@@ -276,8 +276,12 @@ static Try<Nothing> initializeCgroups2(const slave::Flags& flags)
   const vector<string> requestedControllers = strings::tokenize(
       *flags.agent_subsystems, ",");
 
+  const set<string> requestedControllersSet(
+      requestedControllers.begin(), requestedControllers.end());
+
+
   Try<Nothing> enable = cgroups2::controllers::enable(
-      cgroups2::ROOT_CGROUP, requestedControllers);
+      cgroups2::ROOT_CGROUP, requestedControllersSet);
   if (enable.isError()) {
     return Error("Failed to enable the requested cgroup v2 controllers: "
                  + enable.error());

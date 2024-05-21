@@ -119,7 +119,7 @@ Try<std::set<std::string>> available(const std::string& cgroup);
 // controllers. Errors if a requested controller is not available.
 Try<Nothing> enable(
     const std::string& cgroup,
-    const std::vector<std::string>& controllers);
+    const std::set<std::string>& controllers);
 
 
 // Disables controllers in the cgroup. No-op if the controller is not enabled.

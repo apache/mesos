@@ -79,7 +79,7 @@ protected:
 
     Try<Nothing> result = cgroups2::controllers::enable(
         cgroups2::ROOT_CGROUP,
-        vector<string>(to_enable.begin(), to_enable.end()));
+        to_enable);
 
     if (result.isSome()) {
       enabled_controllers = enabled_controllers | to_enable;
