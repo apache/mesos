@@ -356,7 +356,9 @@ if (ENABLE_CGROUPS_v2)
     slave/containerizer/mesos/isolators/cgroups2/controller.cpp
     slave/containerizer/mesos/isolators/cgroups2/controllers/core.cpp
     slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.cpp
-    slave/containerizer/mesos/isolators/cgroups2/controllers/memory.cpp)
+    slave/containerizer/mesos/isolators/cgroups2/controllers/memory.cpp
+    slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.cpp)
+
 
 endif ()
 

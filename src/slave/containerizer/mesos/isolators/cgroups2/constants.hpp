@@ -38,6 +38,7 @@ const Bytes CGROUPS2_MIN_MEMORY = Megabytes(32);
 const std::string CGROUPS2_CONTROLLER_CORE_NAME = "core";
 const std::string CGROUPS2_CONTROLLER_CPU_NAME = "cpu";
 const std::string CGROUPS2_CONTROLLER_MEMORY_NAME = "memory";
+const std::string CGROUPS2_CONTROLLER_PERF_EVENT_NAME = "perf_event";
 
 } // namespace slave {
 } // namespace internal {
