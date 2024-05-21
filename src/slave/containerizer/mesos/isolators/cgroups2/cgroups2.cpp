@@ -209,20 +209,29 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
   foreachvalue (const Owned<Controller>& controller, controllers) {
     if (controller->name() == "core") {
       // The "core" controller is always enabled because the "cgroup.*" control
-      // files exist for all cgroups. Additionally, since "core" isn't a
-      // valid controller name (i.e. it doesn't exist in "cgroup.controllers"),
-      // calling `cgroups2::controllers::enable` with the "core" cgroup will
-      // fail with "Invalid argument".
+      // files exist for all cgroups.
       //
-      // For that reason, we skip enabling the "core" controller here.
+      // Additionally, since "core" and "perf_event" aren't valid controller
+      // names (i.e. they don't exist in "cgroup.controllers"), calling
+      // `cgroups2::controllers::enable` with these cgroups will fail with
+      // "Invalid argument".
+      //
+      // Therefore, we skip enabling the "core" and "perf_event" controller here.
       continue;
     }
 
-    Try<Nothing> enable =
-      cgroups2::controllers::enable(nonLeafCgroup, {controller->name()});
-    if (enable.isError()) {
-      return Failure("Failed to enable controller '" + controller->name() + "'"
-                     " in cgroup '" + nonLeafCgroup + "': " + enable.error());
+    // Similar to "core", "perf_event" does not exist in cgroup.controllers,
+    // and therefore we cannot call cgroups2::controllers::enable with it
+    // as it cannot be written into cgroup.subtree_control, but we still 
+    // need to push it into the controllers of the containers, so we will
+    // only skip the call for cgroups2::controllers::enable
+    if (controller->name() != "perf_event") {
+      Try<Nothing> enable =
+        cgroups2::controllers::enable(nonLeafCgroup, {controller->name()});
+      if (enable.isError()) {
+        return Failure("Failed to enable controller '" + controller->name() + "'"
+                       " in cgroup '" + nonLeafCgroup + "': " + enable.error());
+      }
     }
 
     // We don't enable the controllers in the leaf cgroup because of the
