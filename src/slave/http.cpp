@@ -2838,6 +2838,8 @@ Future<Response> Http::getContainers(
           return __containers(
               approvers,
               None(),
+              None(),
+              None(),
               call.get_containers().show_nested(),
               call.get_containers().show_standalone());
         }))
@@ -2856,6 +2858,14 @@ Future<Response> Http::_containers(
     const Option<Principal>& principal) const
 {
   Option<string> containerId = request.url.query.get("container_id");
+  Option<string> frameworkId = request.url.query.get("framework_id");
+  Option<string> executorId = request.url.query.get("executor_id");
+
+  if ((containerId.isSome() && !(executorId.isNone() && frameworkId.isNone()))
+      || (containerId.isNone() && executorId.isSome() && frameworkId.isNone())) {
+    return BadRequest("Supported query parameters are container_id only,"
+                      " framework_id only, or executor_id and framework_id only");
+  }
 
   return ObjectApprovers::create(
       slave->authorizer,
@@ -2863,12 +2873,16 @@ Future<Response> Http::_containers(
       {VIEW_CONTAINER, VIEW_STANDALONE_CONTAINER})
     .then(defer(
         slave->self(),
-        [this, containerId](const Owned<ObjectApprovers>& approvers) {
+        [this, containerId, executorId, frameworkId](const Owned<ObjectApprovers>& approvers) {
           IDAcceptor<ContainerID> selectContainerId(containerId);
+          IDAcceptor<FrameworkID> selectFrameworkId(frameworkId);
+          IDAcceptor<ExecutorID> selectExecutorId(executorId);
 
           return __containers(
               approvers,
               selectContainerId,
+              selectFrameworkId,
+              selectExecutorId,
               false,
               false);
         }))
@@ -2881,6 +2895,8 @@ Future<Response> Http::_containers(
 Future<JSON::Array> Http::__containers(
     const Owned<ObjectApprovers>& approvers,
     Option<IDAcceptor<ContainerID>> selectContainerId,
+    Option<IDAcceptor<FrameworkID>> selectFrameworkId,
+    Option<IDAcceptor<ExecutorID>> selectExecutorId,
     bool showNestedContainers,
     bool showStandaloneContainers) const
 {
@@ -2894,6 +2910,10 @@ Future<JSON::Array> Http::__containers(
       hashset<ContainerID> authorizedExecutorContainerIds;
 
       foreachvalue (const Framework* framework, slave->frameworks) {
+        if (selectFrameworkId.isSome() && !selectFrameworkId->accept(framework->id())) {
+          continue;
+        }
+
         foreachvalue (const Executor* executor, framework->executors) {
           // No need to get statistics and status if we know that the
           // executor has already terminated.
@@ -2902,13 +2922,14 @@ Future<JSON::Array> Http::__containers(
           }
 
           const ExecutorInfo& info = executor->info;
+          const ExecutorID& executorId = executor->id;
           const ContainerID& containerId = executor->containerId;
 
           executorContainerIds.insert(containerId);
 
-          if ((selectContainerId.isSome() &&
-               !selectContainerId->accept(containerId)) ||
-              !approvers->approved<VIEW_CONTAINER>(info, framework->info)) {
+          if ((selectContainerId.isSome() && !selectContainerId->accept(containerId))
+              || (selectExecutorId.isSome() && !selectExecutorId->accept(executorId))
+              || !approvers->approved<VIEW_CONTAINER>(info, framework->info)) {
             continue;
           }
 
