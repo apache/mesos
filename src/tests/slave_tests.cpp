@@ -134,6 +134,7 @@ using process::UPID;
 
 using process::filter;
 
+using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::OK;
 using process::http::Response;
@@ -2512,7 +2513,8 @@ TEST_F(SlaveTest, ContainersEndpointNoExecutor)
 // This is an end-to-end test that verifies that the slave returns the
 // correct container status and resource statistics based on the currently
 // running executors, and ensures that '/containers' endpoint returns the
-// correct container when it is provided a container ID query parameter.
+// correct container when it is provided a container ID, framework ID, or
+// executor ID query parameters.
 TEST_F(SlaveTest, ContainersEndpoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2540,7 +2542,9 @@ TEST_F(SlaveTest, ContainersEndpoint)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2549,6 +2553,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
 
   driver.start();
 
+  AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
@@ -2784,6 +2789,169 @@ TEST_F(SlaveTest, ContainersEndpoint)
 
     ASSERT_SOME(expected);
     EXPECT_TRUE(value->contains(expected.get()));
+  }
+
+  // Will be called once during the third request.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(statistics2));
+
+  // Will be called once during the third request and might be called if
+  // the `TASK_FAILED` update reaches the agent before the test finishes.
+  EXPECT_CALL(containerizer, status(_))
+    .WillOnce(Return(containerStatus2))
+    .WillRepeatedly(Return(containerStatus2));
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?executor_id=" + executor2.executor_id().value() +
+        "&framework_id=" + frameworkId->value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Array array = value->as<JSON::Array>();
+    EXPECT_TRUE(array.values.size() == 1);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "[{"
+            "\"executor_id\":\"" + executor2.executor_id().value() + "\","
+            "\"framework_id\":\"" + frameworkId->value() + "\","
+            "\"statistics\":{"
+            "},"
+            "\"status\":{"
+                "\"container_id\":{"
+                  "\"parent\":{\"value\":\"parent\"},"
+                  "\"value\":\"child2\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.21\"}]"
+                "}]"
+            "}"
+        "}]");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
+
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(DoAll(FutureArg<0>(&containerId1), Return(statistics1)))
+    .WillOnce(DoAll(FutureArg<0>(&containerId2), Return(statistics2)));
+
+  EXPECT_CALL(containerizer, status(_))
+    .WillOnce(Return(containerStatus1))
+    .WillOnce(Return(containerStatus2));
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?framework_id=" + frameworkId->value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Array array = value->as<JSON::Array>();
+
+    EXPECT_TRUE(array.values.size() == 2);
+
+    Try<JSON::Value> containerJson1 = JSON::parse(
+        "{"
+            "\"framework_id\":\"" + frameworkId->value() + "\","
+            "\"executor_name\":\"\","
+            "\"source\":\"\","
+            "\"statistics\":{"
+                "\"mem_limit_bytes\":2048"
+            "},"
+            "\"status\":{"
+                "\"container_id\":{"
+                  "\"parent\":{\"value\":\"parent\"},"
+                  "\"value\":\"child1\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.20\"}]"
+                "}]"
+            "}"
+          "}");
+
+    Try<JSON::Value> containerJson2 = JSON::parse(
+        "{"
+            "\"framework_id\":\"" + frameworkId->value() + "\","
+            "\"executor_name\":\"\","
+            "\"source\":\"\","
+            "\"statistics\":{"
+                "\"mem_limit_bytes\":2048"
+            "},"
+            "\"status\":{"
+                "\"container_id\":{"
+                  "\"parent\":{\"value\":\"parent\"},"
+                  "\"value\":\"child2\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.21\"}]"
+                "}]"
+            "}"
+          "}");
+
+    // Since containers are stored in a hashmap, there is no strict guarantee of
+    // their ordering when listed. For this reason, we test both possibilities.
+    if (array.values[0].contains(containerJson1.get())) {
+      ASSERT_TRUE(array.values[1].contains(containerJson2.get()));
+    } else {
+      ASSERT_TRUE(array.values[0].contains(containerJson2.get()));
+      ASSERT_TRUE(array.values[1].contains(containerJson1.get()));
+    }
+  }
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?executor_id=" + executor2.executor_id().value() +
+        "&container_id=" + containerId1->value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?framework_id=" + frameworkId->value() +
+        "&container_id=" + containerId1->value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?executor_id=" + executor2.executor_id().value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  {
+    Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "containers?executor_id=" + executor2.executor_id().value() +
+        "&container_id=" + containerId1->value() +
+        "&framework_id=" + frameworkId->value(),
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
   }
 
   EXPECT_CALL(exec1, shutdown(_))
