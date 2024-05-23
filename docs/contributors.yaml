@@ -969,3 +969,12 @@
     - bluezhudong@gmail.com
   jira_user: dzhu
   reviewboard_user: dzhu
+
+- name: Jason Zhou
+  affiliations:
+    - {organization: X}
+  emails:
+    - jasonzhou@twitter.com
+    - j434zhou@uwaterloo.ca
+    - jasonzhou460@gmail.com
+  reviewboard_user: zhoujas
