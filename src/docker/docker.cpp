@@ -947,18 +947,26 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   options.name = name;
 
   bool dnsSpecified = false;
+  bool networkSpecified = false;
   foreach (const Parameter& parameter, dockerInfo.parameters()) {
-    options.additionalOptions.push_back(
-        "--" + parameter.key() + "=" + parameter.value());
-
-    // In Docker 1.13.0, `--dns-option` was added and `--dns-opt` was hidden
-    // (but it can still be used), so here we need to check both of them.
-    if (!dnsSpecified &&
-        (parameter.key() == "dns" ||
-         parameter.key() == "dns-search" ||
-         parameter.key() == "dns-opt" ||
-         parameter.key() == "dns-option")) {
-      dnsSpecified = true;
+    if (!networkSpecified && 
+        (parameter.key() == "net" || 
+         parameter.key() == "network")) {
+      options.network = parameter.value();
+      networkSpecified = true;
+    } else {
+      options.additionalOptions.push_back(
+          "--" + parameter.key() + "=" + parameter.value());
+  
+      // In Docker 1.13.0, `--dns-option` was added and `--dns-opt` was hidden
+      // (but it can still be used), so here we need to check both of them.
+      if (!dnsSpecified &&
+          (parameter.key() == "dns" ||
+           parameter.key() == "dns-search" ||
+           parameter.key() == "dns-opt" ||
+           parameter.key() == "dns-option")) {
+        dnsSpecified = true;
+      }
     }
   }
 
