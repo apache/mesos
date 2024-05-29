@@ -50,21 +50,22 @@ RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh \
     rm -f /tmp/install-cmake.sh
 
 # Install Python 3.6.
-RUN add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -qy \
-      python3.6 \
-      python3.6-dev \
-      python3.6-venv && \
-    add-apt-repository --remove -y ppa:deadsnakes/ppa && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists
+ENV PYTHON_VERSION=3.6.15
+
+# Download and install Python from source
+RUN curl https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz -o /tmp/Python-$PYTHON_VERSION.tgz && \
+    cd /tmp && \
+    tar xzf Python-$PYTHON_VERSION.tgz && \
+    cd Python-$PYTHON_VERSION && \
+    ./configure --enable-optimizations && \
+    make altinstall && \
+    rm -rf /tmp/Python-$PYTHON_VERSION.tgz /tmp/Python-$PYTHON_VERSION
 
 # Use update-alternatives to set python3.6 as python3.
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.6 1
 
 # Install pip for Python 3.6.
-RUN curl https://bootstrap.pypa.io/get-pip.py | python3
+RUN curl https://bootstrap.pypa.io/pip/3.6/get-pip.py | python3
 
 # Add an unprivileged user.
 RUN adduser --disabled-password --gecos '' mesos

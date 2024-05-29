@@ -44,18 +44,22 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists
 
 # Install Python 3.6.
-RUN add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -qy \
-      python3.6 \
-      python3.6-dev \
-      python3.6-venv && \
-    add-apt-repository --remove -y ppa:deadsnakes/ppa && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists
+ENV PYTHON_VERSION=3.6.15
+
+# Download and install Python from source
+RUN curl https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz -o /tmp/Python-$PYTHON_VERSION.tgz && \
+    cd /tmp && \
+    tar xzf Python-$PYTHON_VERSION.tgz && \
+    cd Python-$PYTHON_VERSION && \
+    ./configure --enable-optimizations && \
+    make altinstall && \
+    rm -rf /tmp/Python-$PYTHON_VERSION.tgz /tmp/Python-$PYTHON_VERSION
+
+# Use update-alternatives to set python3.6 as python3.
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.6 1
 
 # Install newer Clang.
-RUN curl http://releases.llvm.org/8.0.0/clang+llvm-8.0.0-aarch64-linux-gnu.tar.xz -o /tmp/clang.tar.xz && \
+RUN curl -L http://releases.llvm.org/8.0.0/clang+llvm-8.0.0-aarch64-linux-gnu.tar.xz -o /tmp/clang.tar.xz && \
     tar -xf /tmp/clang.tar.xz && \
     rm /tmp/clang.tar.xz && \
     cp -R clang+llvm-8.0.0-aarch64-linux-gnu/* /usr/ && \
