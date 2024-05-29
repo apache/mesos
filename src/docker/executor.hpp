@@ -90,6 +90,20 @@ struct Flags : public virtual mesos::internal::logging::Flags
         "Cgroups feature flag to enable hard limits on CPU resources\n"
         "via the CFS bandwidth limiting subfeature.\n",
         false);
+
+    add(&Flags::network_cni_plugins_dir,
+        "network_cni_plugins_dir",
+        "A search path for CNI plugin binaries. The docker executer\n"
+        "will find CNI plugins under these set of directories so that\n"
+        "it can execute the plugins to add/delete container from the CNI\n"
+        "networks.");
+  
+    add(&Flags::network_cni_config_dir,
+      "network_cni_config_dir",
+      "Directory path of the CNI network configuration files. For each\n"
+      "network that containers launched in Mesos agent can connect to,\n"
+      "the operator should install a network configuration file in JSON\n"
+      "format in the specified directory.");        
   }
 
   Option<std::string> container;
@@ -100,6 +114,8 @@ struct Flags : public virtual mesos::internal::logging::Flags
   Option<std::string> launcher_dir;
   Option<std::string> task_environment;
   Option<std::string> default_container_dns;
+  Option<std::string> network_cni_plugins_dir;
+  Option<std::string> network_cni_config_dir;  
 
   bool cgroups_enable_cfs;
 
@@ -123,7 +139,9 @@ public:
       const std::string& launcherDir,
       const std::map<std::string, std::string>& taskEnvironment,
       const Option<ContainerDNSInfo>& defaultContainerDNS,
-      bool cgroupsEnableCfs);
+      bool cgroupsEnableCfs,
+      const std::string& network_cni_plugins_dir,
+      const std::string& network_cni_config_dir);      
 
   ~DockerExecutor() override;
 
@@ -158,6 +176,12 @@ public:
 
 private:
   process::Owned<DockerExecutorProcess> process;
+
+  void attachCNI(const TaskInfo& task);
+  void attachCNISuccess(const Try<process::Subprocess> sub);
+
+  Try<JSON::Object> getNetworkConfigJSON(const std::string& fname, NetworkInfo* netInfo);
+  Try<std::string> getNetworkConfigFile(const std::string& network, const std::string& path, NetworkInfo* netInfo);  
 };
 
 } // namespace docker {

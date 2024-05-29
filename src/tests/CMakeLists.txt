@@ -167,6 +167,7 @@ list(APPEND MESOS_TESTS_SRC
   containerizer/containerizer_tests.cpp
   containerizer/cpu_isolator_tests.cpp
   containerizer/docker_containerizer_tests.cpp
+  containerizer/docker_cni_tests.cpp
   containerizer/docker_tests.cpp
   containerizer/memory_isolator_tests.cpp)
 

@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <stdio.h>
+#include <dirent.h>
 
 #include <map>
 #include <string>
@@ -22,6 +23,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 
+#include <process/io.hpp>
 #include <process/collect.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -37,6 +39,7 @@
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
+#include <stout/os/which.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 #ifdef __WINDOWS__
@@ -65,6 +68,9 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
+
+namespace io = process::io;
+namespace spec = mesos::internal::slave::cni::spec;
 
 using namespace mesos;
 using namespace process;
@@ -101,7 +107,9 @@ public:
       const string& launcherDir,
       const map<string, string>& taskEnvironment,
       const Option<ContainerDNSInfo>& defaultContainerDNS,
-      bool cgroupsEnableCfs)
+      bool cgroupsEnableCfs,
+      const string& network_cni_plugins_dir,
+      const string& network_cni_config_dir)      
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
       terminated(false),
@@ -116,6 +124,8 @@ public:
       taskEnvironment(taskEnvironment),
       defaultContainerDNS(defaultContainerDNS),
       cgroupsEnableCfs(cgroupsEnableCfs),
+      network_cni_plugins_dir(network_cni_plugins_dir),
+      network_cni_config_dir(network_cni_config_dir),      
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -285,6 +295,7 @@ public:
       inspectLoop.then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
           containerPid = container.pid;
+          containerId = container.id;
 
           // TODO(alexr): Use `protobuf::createTaskStatus()`
           // instead of manually setting fields.
@@ -318,7 +329,26 @@ public:
               }
             };
 
-            if (container.ipAddress.isSome()) {
+            bool useCNI = false;
+#ifdef __linux__  
+            if (network_cni_config_dir.size() > 0 && network_cni_plugins_dir.size() > 0) {
+              Try<std::tuple<Subprocess, std::string>> cni = attachCNI(task);
+              if (!cni.isError()) {
+                Subprocess cniSub = std::get<0>(cni.get());
+                std::string cniNetworkName = std::get<1>(cni.get());
+            
+                WIFEXITED(cniSub.status().get().get());
+                Try<std::string> cniIP = attachCNISuccess(cniSub);
+                if (cniIP.isError()) {
+                  LOG(ERROR) << cniIP.error();
+                } else {
+                  useCNI = true;
+                  setIPAddresses(cniIP.get(), false);
+                }
+              }
+            }
+#endif
+            if (container.ipAddress.isSome() && !useCNI) {            
               setIPAddresses(container.ipAddress.get(), false);
             }
 
@@ -593,6 +623,11 @@ private:
       if (!killed) {
         killed = true;
 
+#ifdef __linux__  
+        // detach container network
+        detachCNI();
+#endif        
+
         // Send TASK_KILLING if task is not killed by completion timeout and
         // the framework can handle it.
         if (!killedByTaskCompletionTimeout &&
@@ -751,6 +786,11 @@ private:
       message = "Container " + WSTRINGIFY(status);
     }
 
+#ifdef __linux__  
+    // detach container network
+    detachCNI();
+#endif    
+
     LOG(INFO) << message;
 
     CHECK_SOME(taskId);
@@ -783,6 +823,261 @@ private:
   void _stop()
   {
     driver.get()->stop();
+  }
+
+    // Return the content of the CNI plugin config file and return it as json object
+  Try<JSON::Object> getNetworkConfigJSON(const string& fname) 
+  { 
+    Try<string> read = os::read(fname);
+    if (read.isError()) {
+      return Error("Cannot read CNI plugin file: " + read.error());
+    }
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
+    if (parse.isError()) {
+      return Error("Cannot parse CNI plugin file." + parse.error());
+    }
+
+    return parse;
+  }
+
+  // Search the config file of the network in the path
+  Try<std::string> getNetworkConfigFile(const string& network, const string& path) 
+  { 
+    struct dirent *ent;    
+    DIR *dir;
+    JSON::Object parse;
+
+    // path can include mutiple path's seperated by ":".
+    char *sPath = strtok(const_cast<char*>(path.c_str()), ":"); 
+    while (sPath != NULL) {
+      if ((dir = opendir(sPath)) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+          if (ent->d_type != DT_REG || !strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
+            continue;
+          }
+
+          std::string fname = string(sPath) + "/" + string(ent->d_name);
+          Try<string> read = os::read(fname);
+          if (read.isError()) {
+            LOG(ERROR) << "Cannot read CNI network config file: " <<  fname;
+            continue;
+          }
+
+          Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
+          if (parse.isError()) {
+            LOG(ERROR) << "Cannot parse CNI network config file.";
+            continue;
+          }
+
+          Result<JSON::String> name = parse->at<JSON::String>("name");
+          if (!name.isSome()) {
+            return Error(
+                "Cannot determine the 'name' of the CNI network for this "
+                "configuration " +
+                (name.isNone() ? "'" : ("': " + name.error())));
+          }
+
+          // Verify the configuration is for this network
+          if (network == name->value) {
+            return fname;
+          }
+        }
+        closedir(dir);
+      }
+      sPath = strtok(NULL, ":");
+    }
+    return Error("Cannot find a CNI plugin config for this network name: " + network);
+  }
+
+  // attach CNI at the container
+  Try<std::tuple<Subprocess, std::string>> attachCNI(const TaskInfo& task) 
+  {
+    container = task.container();
+    return commandCNI(container, "ADD");
+  }
+
+  // detach CNI from the container
+  Try<std::tuple<Subprocess, std::string>> detachCNI() 
+  {
+    return commandCNI(container, "DEL");
+  }
+
+  // function to attach or detach CNI from/to the container
+  Try<std::tuple<Subprocess, std::string>> commandCNI(
+    const mesos::ContainerInfo& container, 
+    const string command) 
+  {
+    // Loop over all network objects
+    int ifIndex = 1;
+    foreach (const mesos::NetworkInfo& networkInfo, container.network_infos()) {
+      if (!networkInfo.has_name()) {
+        continue;
+      }
+
+      const string networkName = networkInfo.name();
+      const string ifName = "eth" + stringify(ifIndex++);
+
+      // Find the right plugin config file of the networkname
+      Try<std::string> networkConfigFile = getNetworkConfigFile(networkName, network_cni_config_dir);
+      if (networkConfigFile.isError()) {
+        LOG(ERROR) << "Could not find the CNI plugin to use for network " 
+                   <<  networkName 
+                   << ". Deactivate CNI.";
+        continue;
+      }  
+
+      Try<JSON::Object> networkConfigJSON = getNetworkConfigJSON(networkConfigFile.get());
+      if (networkConfigJSON.isError()) {
+        LOG(ERROR) << "Could not get valid CNI configuration for network '" 
+                   << networkName  << "': " << networkConfigJSON.error();
+        continue;
+      }    
+
+      // Invoke CNI plugin to get the plugin type
+      Result<JSON::String> cniPluginType = networkConfigJSON->at<JSON::String>("type");
+      if (cniPluginType.isError()) {
+        LOG(ERROR) << cniPluginType.error();
+        continue;
+      }
+
+      if (!cniPluginType.isSome()) {
+        LOG(ERROR) << "Could not find CNI plugin type to use for network '" <<  networkName;
+        continue;
+      }
+
+      map<string, string> environment;
+      environment["CNI_COMMAND"] = command;
+      environment["CNI_CONTAINERID"] = stringify(containerId);
+      environment["CNI_PATH"] = network_cni_plugins_dir;
+      environment["CNI_NETNS"] = "/proc/" + std::to_string(containerPid.get()) + "/ns/net";
+      environment["CNI_IFNAME"] = ifName;
+
+      // set the PATH in case the plugin need to use iptables
+      Option<string> value = os::getenv("PATH");
+      if (value.isSome()) {
+        environment["PATH"] = value.get();
+      } else {
+        environment["PATH"] = os::host_default_path();
+      }    
+
+      // Invoke the CNI plugin.
+      Option<string> plugin = os::which(
+          cniPluginType->value,
+          network_cni_plugins_dir);
+
+      if (plugin.isNone()) {
+        LOG(ERROR) << "Cannot load CNI plugin: " << cniPluginType->value;
+        continue;
+      }
+
+      // attach cni plugin
+      if (command.compare("ADD") == 0) {
+        LOG(INFO) << "Invoking CNI plugin '" << plugin.get()
+                  << "' to attach container " << containerId
+                  << " to network '" << networkName << "'";
+      } else {
+        // detach cni plugin
+        LOG(INFO) << "Invoking CNI plugin '" << plugin.get()
+                  << "' to dettach container " << containerId
+                  << " from network '" << networkName << "'";
+      }
+      LOG(INFO) << "CNI_COMMAND: " << environment["CNI_COMMAND"];
+      LOG(INFO) << "CNI_CONTAINERID: " << environment["CNI_CONTAINERID"];
+      LOG(INFO) << "CNI_NETNS: " << environment["CNI_NETNS"];
+      LOG(INFO) << "CNI_PATH: " << environment["CNI_PATH"];
+      LOG(INFO) << "CNI_IFNAME: " << environment["CNI_IFNAME"];
+
+      if (command.compare("ADD") == 0) {
+        LOG(INFO) << "Using network configuration '"
+            << stringify(networkConfigJSON.get())
+            << "' for container " << containerId;
+      }
+
+      Try<Subprocess> s = subprocess(
+          plugin.get(),
+          {plugin.get()},
+          Subprocess::PATH(networkConfigFile.get()),
+          Subprocess::PIPE(),
+          Subprocess::PIPE(),
+          nullptr,
+          environment);
+
+      if (s.isError()) {
+        LOG(ERROR) << "Cannot invoke CNI plugin: " << s.error();
+        continue;
+      }
+
+      return std::make_tuple(s.get(), networkName);
+    }
+    return ::Error("Could not match networkinfo to any CNI");
+  }
+
+  Try<std::string> attachCNISuccess(
+    const Try<Subprocess> sub)
+  {
+
+    const Future<Option<int>>& subStat = sub->status();
+    const Future<string>& output = io::read(sub->out().get());
+    const Future<string>& error = io::read(sub->err().get());     
+
+    if (!subStat.isReady()) {
+      return ::Error("Failed to get the exit status of the CNI plugin subprocess.");
+    }
+
+    // CNI plugin will print result (in case of success) or error (in
+    // case of failure) to stdout.
+    if (!output.isReady()) {
+      return ::Error("Failed to read stdout from the CNI plugin subprocess."); 
+    }
+
+    if (subStat.get() != 0) {
+      if (!error.isReady()) {
+        return ::Error("Failed to read stderr from the CNI plugin subprocess.");
+      }
+
+      return ::Error("The CNI plugin failed to attach container " + stringify(containerId) +
+                     " to CNI network '" + "': stdout='" + output.get() + "', stderr='" 
+                     + error.get() + "'");
+    }
+
+    Try<NetworkInfo> network = parseNetworkInfo(output.get());
+    if (network.isError()) {
+      return ::Error("Failed to parse the output of the CNI plugin:" + network.error());
+    }
+
+    LOG(INFO) << output.get();
+
+    return network->ip_addresses(0).ip_address().c_str();
+  }
+
+  Try<NetworkInfo> parseNetworkInfo(const string& s) 
+  {
+    NetworkInfo ni;
+    Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
+    if (json.isError()) {
+      return ::Error("JSON parse CNI network info failed: " + json.error());
+    }
+
+    Result<JSON::Object> ip4 = json->at<JSON::Object>("ip4");
+    if (ip4.isError()) {
+      return ::Error("JSON parse CNI network info failed: " + ip4.error());
+    }
+
+    Result<JSON::String> ipAddress = ip4->at<JSON::String>("ip");
+    if (ip4.isError()) {
+      return ::Error("JSON parse CNI network info failed: " + ipAddress.error());
+    }
+
+    // remove netmask from the IP string
+    std::size_t pos = ipAddress->value.find("/"); 
+    if (pos != std::string::npos) {
+        ipAddress->value.erase(pos);
+    }
+
+    ni.add_ip_addresses()->set_ip_address(ipAddress->value);
+
+    return ni;
   }
 
   void launchCheck(const TaskInfo& task)
@@ -856,6 +1151,10 @@ private:
   map<string, string> taskEnvironment;
   Option<ContainerDNSInfo> defaultContainerDNS;
   bool cgroupsEnableCfs;
+  string network_cni_plugins_dir;
+  string network_cni_config_dir;
+  string containerId;
+  mesos::ContainerInfo container;  
 
   Option<KillPolicy> killPolicy;
   Option<Future<Option<int>>> run;
@@ -879,7 +1178,9 @@ DockerExecutor::DockerExecutor(
     const string& launcherDir,
     const map<string, string>& taskEnvironment,
     const Option<ContainerDNSInfo>& defaultContainerDNS,
-    bool cgroupsEnableCfs)
+    bool cgroupsEnableCfs,
+    const string& network_cni_plugins_dir,
+    const string& network_cni_config_dir)    
 {
   process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
       docker,
@@ -890,7 +1191,9 @@ DockerExecutor::DockerExecutor(
       launcherDir,
       taskEnvironment,
       defaultContainerDNS,
-      cgroupsEnableCfs));
+      cgroupsEnableCfs,
+      network_cni_plugins_dir,
+      network_cni_config_dir));      
 
   spawn(process.get());
 }
