@@ -833,12 +833,12 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   ContainerInfo::DockerInfo::Network network;
   if (dockerInfo.has_network()) {
     network = dockerInfo.network();
-  } else if (!options.network.isSome()) {
-    // If no network and no docker network options was given, then use the OS specific default.    
+  } else {
+    // If no network was given, then use the OS specific default.
 #ifdef __WINDOWS__
-      network = ContainerInfo::DockerInfo::BRIDGE;
+    network = ContainerInfo::DockerInfo::BRIDGE;
 #else
-      network = ContainerInfo::DockerInfo::HOST;
+    network = ContainerInfo::DockerInfo::HOST;
 #endif // __WINDOWS__
   }
 
