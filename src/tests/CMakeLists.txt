@@ -250,16 +250,12 @@ if (LINUX)
     containerizer/volume_csi_isolator_tests.cpp
     containerizer/volume_host_path_isolator_tests.cpp
     containerizer/volume_image_isolator_tests.cpp
-    containerizer/volume_secret_isolator_tests.cpp)
+    containerizer/volume_secret_isolator_tests.cpp
+    containerizer/cgroups2_tests.cpp)
 
   if (ENABLE_XFS_DISK_ISOLATOR)
     list(APPEND MESOS_TESTS_SRC
       containerizer/xfs_quota_tests.cpp)
-  endif()
-
-  if (ENABLE_CGROUPS_V2)
-    list(APPEND MESOS_TESTS_SRC
-      containerizer/cgroups2_tests.cpp)
   endif()
 
   if (ENABLE_SECCOMP_ISOLATOR)

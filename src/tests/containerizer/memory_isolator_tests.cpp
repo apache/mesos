@@ -154,20 +154,20 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   if (GetParam() == "cgroups/mem") {
     // Check that at least one page of kernel memory is used. Each page is
     // 4096 bytes so we expect at least that much memory to be used.
-#ifdef ENABLE_CGROUPS_V2
-    ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
-#else
-    Result<std::string> hierarchy = cgroups::hierarchy("memory");
-    ASSERT_SOME(hierarchy);
-
-    Try<bool> kmemExists = cgroups::exists(
-        hierarchy.get(), "memory.kmem.usage_in_bytes");
-    ASSERT_SOME(kmemExists);
-
-    if (kmemExists.get()) {
+    if (cgroupsV2()) {
       ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
+    } else {
+      Result<std::string> hierarchy = cgroups::hierarchy("memory");
+      ASSERT_SOME(hierarchy);
+
+      Try<bool> kmemExists =
+        cgroups::exists(hierarchy.get(), "memory.kmem.usage_in_bytes");
+      ASSERT_SOME(kmemExists);
+
+      if (kmemExists.get()) {
+        ASSERT_LT(4096u, usage->mem_kmem_usage_bytes());
+      }
     }
-#endif // ENABLE_CGROUPS_V2
  }
 
   driver.stop();

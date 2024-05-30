@@ -37,9 +37,7 @@
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
 
-#ifdef ENABLE_CGROUPS_V2
 #include "linux/cgroups2.hpp"
-#endif // ENABLE_CGROUPS_V2
 
 #endif
 
@@ -636,12 +634,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
   EXPECT_SOME(user);
 
   if (cgroupsV2() && *user == "root") {
-#ifdef ENABLE_CGROUPS_V2
     // Clean up test cgroups.
     if (cgroups2::exists(TEST_CGROUPS_ROOT)) {
       AWAIT_ASSERT_READY(cgroups2::destroy(TEST_CGROUPS_ROOT));
     }
-#endif // ENABLE_CGROUPS_V2
   } else if (cgroups::enabled() && *user == "root") {
     // Clean up any testing hierarchies.
     Try<set<string>> hierarchies = cgroups::hierarchies();
@@ -663,12 +659,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
   EXPECT_SOME(user);
 
   if (cgroupsV2() && *user == "root") {
-#ifdef ENABLE_CGROUPS_V2
     // Clean up test cgroups.
     if (cgroups2::exists(TEST_CGROUPS_ROOT)) {
       AWAIT_ASSERT_READY(cgroups2::destroy(TEST_CGROUPS_ROOT));
     }
-#endif // ENABLE_CGROUPS_V2
   } else if (cgroups::enabled() && *user == "root") {
     // Clean up any testing hierarchies.
     Try<set<string>> hierarchies = cgroups::hierarchies();
@@ -794,7 +788,6 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpCgroups()
 
 void ContainerizerTest<slave::MesosContainerizer>::SetUpCgroupsV2()
 {
-#ifdef ENABLE_CGROUPS_V2
   // When the agent binary is run, cgroups are initialized inside
   // `slave/main.cpp`. This cgroups setup is done to in place of that
   // initialization.
@@ -816,7 +809,6 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpCgroupsV2()
   ASSERT_SOME(
       cgroups2::controllers::enable(cgroups2::ROOT_CGROUP, controllers));
   ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUPS_ROOT, controllers));
-#endif // ENABLE_CGROUPS_V2
 }
 
 
@@ -856,25 +848,19 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDownCgroups()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownCgroupsV2()
 {
-#ifdef ENABLE_CGROUPS_V2
   // Destroy all cgroups that were created under the test root cgroup.
   AWAIT_ASSERT_READY(cgroups2::destroy(TEST_CGROUPS_ROOT));
-#endif // ENABLE_CGROUPS_V2
 }
 #endif // __linux__
 
 
 bool ContainerizerTest<slave::MesosContainerizer>::cgroupsV2()
 {
-#ifdef ENABLE_CGROUPS_V2
   Try<bool> mounted = cgroups2::mounted();
   if (mounted.isError()) {
     return false;
   }
   return *mounted;
-#else
-  return false;
-#endif // ENABLE_CGROUPS_V2
 }
 
 

@@ -77,10 +77,8 @@
 #include "linux/cgroups.hpp"
 #include "linux/systemd.hpp"
 
-#ifdef ENABLE_CGROUPS_V2
 #include "linux/cgroups2.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
-#endif // ENABLE_CGROUPS_V2
 
 #endif // __linux__
 
@@ -155,7 +153,6 @@ const char* malloc_conf = "narenas:4";
 
 #ifdef __linux__
 
-#ifdef ENABLE_CGROUPS_V2
 // Log any processes inside of a cgroup.
 static Try<Nothing> logProcesses(const string& cgroup)
 {
@@ -296,7 +293,6 @@ static Try<Nothing> initializeCgroups2(const slave::Flags& flags)
 
   return Nothing();
 }
-#endif // ENABLE_CGROUPS_V2
 
 
 // Move the slave into its own cgroup for each of the specified
@@ -562,7 +558,6 @@ int main(int argc, char** argv)
     // Use the cgroups v2 isolator if it is supported. Otherwise, use
     // the cgroups v1 isolator.
     [&flags] () {
-#ifdef ENABLE_CGROUPS_V2
       Try<bool> mounted = cgroups2::mounted();
       if (mounted.isError()) {
         EXIT(EXIT_FAILURE) << mounted.error();
@@ -577,7 +572,6 @@ int main(int argc, char** argv)
         }
         return;
       }
-#endif // ENABLE_CGROUPS_V2
 
       // Initialize a cgroups hierarchy for each of the controllers that
       // are requested, create the root Mesos Agent's cgroup, and move the

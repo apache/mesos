@@ -1479,18 +1479,7 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/provisioner/backends/bind.cpp				\
   slave/containerizer/mesos/provisioner/backends/bind.hpp				\
   slave/containerizer/mesos/provisioner/backends/overlay.cpp				\
-  slave/containerizer/mesos/provisioner/backends/overlay.hpp
-
-if ENABLE_XFS_DISK_ISOLATOR
-MESOS_LINUX_FILES +=							\
-  slave/containerizer/mesos/isolators/xfs/utils.cpp			\
-  slave/containerizer/mesos/isolators/xfs/utils.hpp			\
-  slave/containerizer/mesos/isolators/xfs/disk.cpp			\
-  slave/containerizer/mesos/isolators/xfs/disk.hpp
-endif
-
-if ENABLE_CGROUPS_V2
-MESOS_LINUX_FILES +=							\
+  slave/containerizer/mesos/provisioner/backends/overlay.hpp        \
   linux/cgroups2.cpp      \
   linux/cgroups2.hpp      \
   linux/ebpf.cpp      \
@@ -1509,6 +1498,12 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.cpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp
 
+if ENABLE_XFS_DISK_ISOLATOR
+MESOS_LINUX_FILES +=							\
+  slave/containerizer/mesos/isolators/xfs/utils.cpp			\
+  slave/containerizer/mesos/isolators/xfs/utils.hpp			\
+  slave/containerizer/mesos/isolators/xfs/disk.cpp			\
+  slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
 if ENABLE_SECCOMP_ISOLATOR
@@ -2831,16 +2826,12 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_paths_tests.cpp		\
   tests/containerizer/rootfs.hpp				\
   tests/containerizer/setns_test_helper.hpp			\
-  tests/containerizer/volume_sandbox_path_isolator_tests.cpp
+  tests/containerizer/volume_sandbox_path_isolator_tests.cpp    \
+  tests/containerizer/cgroups2_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/xfs_quota_tests.cpp
-endif
-
-if ENABLE_CGROUPS_V2
-mesos_tests_SOURCES +=						\
-  tests/containerizer/cgroups2_tests.cpp
 endif
 
 if ENABLE_SECCOMP_ISOLATOR

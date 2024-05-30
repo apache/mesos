@@ -32,9 +32,7 @@
 #include <stout/stringify.hpp>
 
 #include "linux/cgroups.hpp"
-#ifdef ENABLE_CGROUPS_V2
 #include "linux/cgroups2.hpp"
-#endif // ENABLE_CGROUPS_V2
 #include "linux/ns.hpp"
 #include "linux/systemd.hpp"
 
@@ -137,7 +135,6 @@ private:
 
 Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 {
-#ifdef ENABLE_CGROUPS_V2
   Try<bool> mounted = cgroups2::mounted();
   if (mounted.isError()) {
     return Error("Failed to check if cgroups2 is mounted: " + mounted.error());
@@ -145,7 +142,6 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   if (*mounted) {
     return createCgroups2Launcher(flags);
   }
-#endif // ENABLE_CGROUPS_V2
   return createCgroupsLauncher(flags);
 }
 
@@ -224,11 +220,9 @@ bool LinuxLauncher::available()
 {
   bool available = false;
 
-#ifdef ENABLE_CGROUPS_V2
   // Check if cgroups v2 is available.
   Try<bool> mounted = cgroups2::mounted();
   available |= mounted.isSome() && *mounted;
-#endif // ENABLE_CGROUPS_V2
 
   // Check if cgroups v1 is available.
   // Make sure:
@@ -522,7 +516,6 @@ Try<Nothing> LinuxLauncherProcess::recoverContainersFromCgroups()
 
 Try<Nothing> LinuxLauncherProcess::recoverContainersFromCgroups2()
 {
-#ifdef ENABLE_CGROUPS_V2
   Try<set<string>> cgroups = cgroups2::get(flags.cgroups_root);
   if (cgroups.isError()) {
     return Error("Failed to get cgroups: " + cgroups.error());
@@ -546,9 +539,6 @@ Try<Nothing> LinuxLauncherProcess::recoverContainersFromCgroups2()
     LOG(INFO) << "Recovered container " << container.id;
   }
   return Nothing();
-#else
-  return Error("cgroups2 is not enabled");
-#endif // ENABLE_CGROUPS_V2
 }
 
 
@@ -776,7 +766,6 @@ Future<Nothing> LinuxLauncherProcess::_destroyCgroups(
 Future<Nothing> LinuxLauncherProcess::destroyCgroups2(
   const Container& container)
 {
-#ifdef ENABLE_CGROUPS_V2
   const string& cgroup =
     containerizer::paths::cgroups2::container(flags.cgroups_root, container.id);
 
@@ -785,9 +774,6 @@ Future<Nothing> LinuxLauncherProcess::destroyCgroups2(
   LOG(INFO) << "Destroying cgroup '" << cgroup << "'";
 
   return cgroups2::destroy(cgroup);
-#else
-  return Failure("cgroups2 is not enabled");
-#endif // ENABLE_CGROUPS_V2
 }
 
 

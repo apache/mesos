@@ -38,9 +38,7 @@
 #ifdef __linux__
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
-#ifdef ENABLE_CGROUPS_V2
 #include "linux/cgroups2.hpp"
-#endif // ENABLE_CGROUPS_V2
 
 #endif // __linux__
 
@@ -660,7 +658,6 @@ mesos::internal::slave::Flags::Flags()
       "swap instead of just memory. Not supported if cgroups v2 is used.\n",
       false,
       [](const bool& limit_swap) -> Option<Error> {
-#ifdef ENABLE_CGROUPS_V2
         Try<bool> mounted = cgroups2::mounted();
         if (mounted.isError()) {
           return Error("Failed to check if cgroup2 filesystem is mounted: "
@@ -673,7 +670,6 @@ mesos::internal::slave::Flags::Flags()
           return Error("The cgroups v2 isolator does not support limiting "
                        "swap memory but `--cgroups_limit_swap` was provided");
         }
-#endif // ENABLE_CGROUPS_V2
         return None();
       });
 

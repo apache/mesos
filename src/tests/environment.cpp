@@ -232,7 +232,7 @@ public:
   {
 
     if (matches(test, "CGROUPS2_") || matches(test, "Cgroups2")) {
-#if defined(__linux__) && defined(ENABLE_CGROUPS_V2)
+#ifdef __linux__
       Result<string> user = os::user();
       CHECK_SOME(user);
       return *user != "root" || !cgroups2::enabled();

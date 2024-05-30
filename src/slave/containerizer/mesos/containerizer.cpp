@@ -117,11 +117,9 @@
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 #include "slave/containerizer/mesos/isolators/volume/csi/isolator.hpp"
 
-#ifdef ENABLE_CGROUPS_V2
 #include "linux/cgroups2.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups2/cgroups2.hpp"
-#endif // ENABLE_CGROUPS_V2
 
 #endif // __linux__
 
@@ -374,7 +372,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // Initialize either the cgroups v2 or cgroups v1 isolator, based on what
   // is available on the host machine.
   auto cgroupsIsolatorSelector = [] (const Flags& flags) -> Try<Isolator*> {
-#ifdef ENABLE_CGROUPS_V2
     Try<bool> mounted = cgroups2::mounted();
     if (mounted.isError()) {
       return Error("Failed to determine if the cgroup2 filesystem is mounted: "
@@ -383,7 +380,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     if (*mounted) {
       return Cgroups2IsolatorProcess::create(flags);
     }
-#endif // ENABLE_CGROUPS_V2
     return CgroupsIsolatorProcess::create(flags);
   };
 #endif // __linux__

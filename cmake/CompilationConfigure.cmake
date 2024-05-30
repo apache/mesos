@@ -505,9 +505,6 @@ if (LINUX)
       "The XFS disk isolator is not yet supported, see MESOS-9117.")
   endif ()
 
-  option(ENABLE_CGROUPS_V2
-    "Whether to enable cgroups v2."
-    FALSE)
 
   option(ENABLE_LAUNCHER_SEALING
     "Whether to enable containerizer launcher sealing via memfd."

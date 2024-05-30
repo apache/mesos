@@ -378,18 +378,19 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   string cpuCgroup = path::join(flags.cgroups_root, containerId.value());
 
   double totalCpus = cpus.cpus().get() + DEFAULT_EXECUTOR_CPUS;
-#ifdef ENABLE_CGROUPS_V2
-  EXPECT_SOME_EQ(
-      static_cast<uint64_t>(CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE * totalCpus),
-      cgroups2::cpu::weight(cpuCgroup));
-#else
-  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
-  ASSERT_SOME(cpuHierarchy);
+  if (cgroupsV2()) {
+    EXPECT_SOME_EQ(
+        static_cast<uint64_t>(
+            CGROUPS2_CPU_WEIGHT_PER_CPU_REVOCABLE * totalCpus),
+        cgroups2::cpu::weight(cpuCgroup));
+  } else {
+    Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+    ASSERT_SOME(cpuHierarchy);
 
-  EXPECT_SOME_EQ(
-      CPU_SHARES_PER_CPU_REVOCABLE * totalCpus,
-      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup));
-#endif // ENABLE_CGROUPS_V2
+    EXPECT_SOME_EQ(
+        CPU_SHARES_PER_CPU_REVOCABLE * totalCpus,
+        cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup));
+  }
 
   driver.stop();
   driver.join();
