@@ -14,14 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:16.04
+FROM arm64v8/ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies.
 RUN apt-get update && \
     apt-get install -qy \
       autoconf \
       build-essential \
-      clang \
       curl \
       git \
       iputils-ping \
@@ -29,6 +30,7 @@ RUN apt-get update && \
       libcurl4-nss-dev \
       libev-dev \
       libevent-dev \
+      libncurses5 \
       libsasl2-dev \
       libssl-dev \
       libsvn-dev \
@@ -38,16 +40,10 @@ RUN apt-get update && \
       python-dev \
       python-six \
       sed \
-      software-properties-common \
-      zlib1g-dev && \
+      zlib1g-dev \
+      software-properties-common && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists
-
-# Install newer CMake.
-RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh \
-         -o /tmp/install-cmake.sh && \
-    sh /tmp/install-cmake.sh --skip-license --prefix=/usr/local && \
-    rm -f /tmp/install-cmake.sh
 
 # Install Python 3.6.
 ENV PYTHON_VERSION=3.6.15
@@ -64,8 +60,25 @@ RUN curl https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSIO
 # Use update-alternatives to set python3.6 as python3.
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.6 1
 
-# Install pip for Python 3.6.
-RUN curl https://bootstrap.pypa.io/pip/3.6/get-pip.py | python3
+# Install newer Clang.
+RUN curl -L http://releases.llvm.org/8.0.0/clang+llvm-8.0.0-aarch64-linux-gnu.tar.xz -o /tmp/clang.tar.xz && \
+    tar -xf /tmp/clang.tar.xz && \
+    rm /tmp/clang.tar.xz && \
+    cp -R clang+llvm-8.0.0-aarch64-linux-gnu/* /usr/ && \
+    rm -rf clang+llvm-8.0.0-aarch64-linux-gnu && \
+    clang++ --version
+
+
+# Install newer CMake.
+RUN curl https://cmake.org/files/v3.15/cmake-3.15.0.tar.gz -o /tmp/cmake-3.15.0.tar.gz && \
+    tar xvzf /tmp/cmake-3.15.0.tar.gz -C /tmp && \
+    cd /tmp/cmake-3.15.0 && \
+    export CC=/usr/bin/clang && \
+    export CXX=/usr/bin/clang++ && \
+    ./configure && \
+    make && \
+    make install && \
+    cmake --version
 
 # Add an unprivileged user.
 RUN adduser --disabled-password --gecos '' mesos
