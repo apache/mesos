@@ -84,11 +84,17 @@ case $OS in
         append_dockerfile "RUN apt-get install -y iputils-ping"
 
         # Install Python 3.6.
-        append_dockerfile "RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -qy python3.6 python3.6-dev python3.6-venv"
+        append_dockerfile "RUN curl https://www.python.org/ftp/python/3.6.15/Python-3.6.15.tgz -o /tmp/Python-3.6.15.tgz && \
+            cd /tmp && \
+            tar xzf Python-3.6.15.tgz && \
+            cd Python-3.6.15 && \
+            ./configure --enable-optimizations && \
+            make altinstall && \
+            rm -rf /tmp/Python-3.6.15.tgz /tmp/Python-3.6.15"
         # Use update-alternatives to set python3.6 as python3.
-        append_dockerfile "RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1"
+        append_dockerfile "RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.6 1"
         # Install pip for Python 3.6.
-        append_dockerfile "RUN curl https://bootstrap.pypa.io/get-pip.py | python3"
+        append_dockerfile "RUN curl https://bootstrap.pypa.io/pip/3.6/get-pip.py | python3"
        ;;
       *)
         append_dockerfile "RUN apt-get install -y openjdk-7-jdk"
