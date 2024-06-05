@@ -5,16 +5,21 @@ which our workflows, like the buildbot, pulls from.
 
 # Building images
 
-To build a dockerfile inside this directory, run the following command:
+To build the dockerfiles inside this directory, run the following command:
+
 ```bash
-$ docker build -t <tag_name> -f <path_to_file> .
+docker build -t mesos/mesos-build:centos-7 -f centos-7.dockerfile --platform=linux/amd64 .
+docker build -t mesos-build:ubuntu-20.04 -f ubuntu-20.04.dockerfile --platform=linux/amd64 .
+docker build -t mesos-build:ubuntu-20.04-arm -f ubuntu-20.04-arm.dockerfile --platform=linux/arm64 .
 ```
 
-If you intend on uploading this image to dockerhub mesos/mesos-build:
-For Ubuntu 20.04, and CentOS 7 please run docker build with the
-`--platform linux/amd64` flag, especially if you are using an Apple Silicon Mac.
-
 # Pushing images
-Ensure you have your tag for the image as `mesos/mesos-build:<OS version>`
-Run: `docker push mesos/mesos-build:<OS version>`
+Ensure you have your tag for the image as `mesos/mesos-build:<OS version>` as shown above.
+
+```bash
+docker push mesos/mesos-build:centos-7
+docker push mesos/mesos-build:ubuntu-20.04
+docker push mesos/mesos-build:ubuntu-20.04-arm
+```
+
 You need to be an authenticated user who is authorized in order to perform docker push successfully
