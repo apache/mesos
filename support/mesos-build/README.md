@@ -11,7 +11,8 @@ $ docker build -t <tag_name> -f <path_to_file> .
 ```
 
 If you intend on uploading this image to dockerhub mesos/mesos-build:
-For Ubuntu 20.04, please run docker build with the `--platform linux/amd64` flag.
+For Ubuntu 20.04, and CentOS 7 please run docker build with the
+`--platform linux/amd64` flag, especially if you are using an Apple Silicon Mac.
 
 # Pushing images
 Ensure you have your tag for the image as `mesos/mesos-build:<OS version>`
