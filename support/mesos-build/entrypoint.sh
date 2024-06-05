@@ -21,9 +21,13 @@ set -o pipefail
 
 SRCDIR=/tmp/SRC
 
+# NOTE: Higher ubuntu versions seem to give the following warning: 
+# "detected dubious ownership in repository at '/SRC/.git'"
+# we will add an exception for this directory.
+git config --global --add safe.directory /SRC
+
 # Prepare sources
 git clone --depth 1 file:///SRC "${SRCDIR}"
-git config --global --add safe.directory /SRC/.git
 
 cd "${SRCDIR}"
 
