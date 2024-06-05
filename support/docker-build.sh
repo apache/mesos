@@ -64,6 +64,12 @@ case $OS in
 
     append_dockerfile "FROM $OS"
 
+    case $OS in
+    *20.04*)
+    append_dockerfile "ARG DEBIAN_FRONTEND=noninteractive"
+    ;;
+    esac
+
     # NOTE: We need to do this to fix some flakiness while fetching packages.
     # See https://bugs.launchpad.net/ubuntu/+source/apt/+bug/972077
     append_dockerfile "RUN rm -rf /var/lib/apt/lists/*"
@@ -96,6 +102,28 @@ case $OS in
         # Install pip for Python 3.6.
         append_dockerfile "RUN curl https://bootstrap.pypa.io/pip/3.6/get-pip.py | python3"
        ;;
+      *20.04*)
+        echo "Install Ubuntu 20.04 LTS (Focal Fossa) specific packages"
+        append_dockerfile "RUN apt-get install -y openjdk-8-jdk zlib1g-dev"
+        # Install ping required by OsTest.Which
+        append_dockerfile "RUN apt-get install -y iputils-ping"
+
+        append_dockerfile "RUN add-apt-repository -y ppa:deadsnakes/ppa && \
+            apt-get update && \
+            apt-get install -qy \
+              python3.6 \
+              python3.6-dev \
+              python3.6-distutils \
+              python3.6-venv && \
+            add-apt-repository --remove -y ppa:deadsnakes/ppa && \
+            apt-get clean && \
+            rm -rf /var/lib/apt/lists"
+
+        # Use update-alternatives to set python3.6 as python3.
+        append_dockerfile "RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1"
+        # Install pip for Python 3.6.
+        append_dockerfile "RUN curl https://bootstrap.pypa.io/pip/3.6/get-pip.py | python3"
+      ;;
       *)
         append_dockerfile "RUN apt-get install -y openjdk-7-jdk"
        ;;

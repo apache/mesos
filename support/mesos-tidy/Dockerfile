@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:xenial
+FROM ubuntu:20.04
 MAINTAINER The Apache Mesos Developers <dev@mesos.apache.org>
 
 WORKDIR /tmp/build

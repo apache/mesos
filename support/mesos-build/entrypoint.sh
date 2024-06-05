@@ -23,6 +23,7 @@ SRCDIR=/tmp/SRC
 
 # Prepare sources
 git clone --depth 1 file:///SRC "${SRCDIR}"
+git config --global --add safe.directory /SRC/.git
 
 cd "${SRCDIR}"
 

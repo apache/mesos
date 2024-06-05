@@ -44,7 +44,7 @@ fi
 
 # Build the HEAD first to ensure that there are no errors prior to applying
 # the review chain. We do not run tests at this stage.
-export OS='ubuntu:16.04'
+export OS='ubuntu:20.04'
 export BUILDTOOL='autotools'
 export COMPILER='gcc'
 export CONFIGURATION='--verbose --disable-libtool-wrappers --disable-parallel-test-execution'
