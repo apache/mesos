@@ -22,7 +22,12 @@ $ docker build -t mesos-tidy .
 On an M1 Mac, you may need to pass `--platform` to avoid an error with
 `qemu-x86_64: Could not open '/lib64/ld-linux-x86-64.so.2': No such file or directory`:
 ```bash
-$ docker build -t mesos-tidy --platform linux/amd64 .
+$ docker build -t mesos/mesos-tidy --platform linux/amd64 .
+```
+
+To push this image to docker hub (you need permissions), run:
+```bash
+$ docker push mesos/mesos-tidy
 ```
 
 A pre-built image is available via Docker Hub as `mesos/mesos-tidy`.
