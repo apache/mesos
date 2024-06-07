@@ -36,7 +36,7 @@ RUN apt-get update && \
       libsvn-dev \
       libtool \
       maven \
-      openjdk-8-jdk \
+      openjdk-11-jdk \
       python-dev \
       python-six \
       sed \

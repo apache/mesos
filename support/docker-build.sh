@@ -43,6 +43,8 @@ case $OS in
     append_dockerfile "RUN yum install -y which"
     append_dockerfile "RUN yum groupinstall -y 'Development Tools'"
     append_dockerfile "RUN yum install -y epel-release" # Needed for clang.
+    append_dockerfile "RUN yum install -y https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm"
+    append_dockerfile "RUN yum install -y --enablerepo=elrepo-kernel kernel-ml-headers"
     append_dockerfile "RUN yum install -y clang git maven"
     append_dockerfile "RUN yum install -y java-1.8.0-openjdk-devel python-devel python-six zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel libevent-devel libev-devel"
 

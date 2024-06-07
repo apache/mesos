@@ -22,6 +22,13 @@ FROM centos:7
 RUN curl -sSL https://copr.fedorainfracloud.org/coprs/alonid/llvm-3.9.0/repo/epel-7/alonid-llvm-3.9.0-epel-7.repo \
          -o /etc/yum.repos.d/llvm-3.9.0.repo
 
+# Install epel-release and elrepo to get access to kernel-ml headers
+RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+    yum install -y https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
+
+# Install specific kernel headers
+RUN yum install -y --enablerepo=elrepo-kernel kernel-ml-headers
+
 # Install dependencies.
 RUN yum groupinstall -y 'Development Tools' && \
     yum install -y centos-release-scl && \
@@ -48,11 +55,7 @@ RUN yum groupinstall -y 'Development Tools' && \
     rm -rf /var/cache/yum
 
 # Install Python 3.6 and pip.
-# We need two separate `yum install` in order for
-# the python packages to be installed correctly.
 RUN yum install -y \
-      https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
-    yum install -y \
       python36 \
       python36-devel && \
     yum clean all && \
