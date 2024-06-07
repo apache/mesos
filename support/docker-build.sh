@@ -104,7 +104,7 @@ case $OS in
        ;;
       *20.04*)
         echo "Install Ubuntu 20.04 LTS (Focal Fossa) specific packages"
-        append_dockerfile "RUN apt-get install -y openjdk-8-jdk zlib1g-dev"
+        append_dockerfile "RUN apt-get install -y openjdk-11-jdk zlib1g-dev"
         # Install ping required by OsTest.Which
         append_dockerfile "RUN apt-get install -y iputils-ping"
 
