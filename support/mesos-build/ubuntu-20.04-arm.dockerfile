@@ -46,16 +46,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists
 
 # Install Python 3.6.
-ENV PYTHON_VERSION=3.6.15
+ARG PYTHON_TARGET_VERSION=3.6.15
 
 # Download and install Python from source
-RUN curl https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz -o /tmp/Python-$PYTHON_VERSION.tgz && \
+RUN curl https://www.python.org/ftp/python/$PYTHON_TARGET_VERSION/Python-$PYTHON_TARGET_VERSION.tgz -o /tmp/Python-$PYTHON_TARGET_VERSION.tgz && \
     cd /tmp && \
-    tar xzf Python-$PYTHON_VERSION.tgz && \
-    cd Python-$PYTHON_VERSION && \
+    tar xzf Python-$PYTHON_TARGET_VERSION.tgz && \
+    cd Python-$PYTHON_TARGET_VERSION && \
     ./configure --enable-optimizations && \
     make altinstall && \
-    rm -rf /tmp/Python-$PYTHON_VERSION.tgz /tmp/Python-$PYTHON_VERSION
+    rm -rf /tmp/Python-$PYTHON_TARGET_VERSION.tgz /tmp/Python-$PYTHON_TARGET_VERSION
 
 # Use update-alternatives to set python3.6 as python3.
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.6 1
