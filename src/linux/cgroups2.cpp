@@ -1186,8 +1186,9 @@ private:
         switch (selector.type) {
           case Entry::Selector::Type::BLOCK:     return BPF_DEVCG_DEV_BLOCK;
           case Entry::Selector::Type::CHARACTER: return BPF_DEVCG_DEV_CHAR;
-          case Entry::Selector::Type::ALL:       UNREACHABLE();
+          case Entry::Selector::Type::ALL:       break;
         }
+        UNREACHABLE();
       }();
 
       program.append({
