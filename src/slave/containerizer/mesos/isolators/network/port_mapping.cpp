@@ -5194,7 +5194,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " > /proc/sys/net/ipv4/ip_local_port_range\n";
 
   // Verify that the port range has been updated correctly
-  script << "cat /proc/sys/net/ipv4/ip_local_port_range\n"
+  script << "cat /proc/sys/net/ipv4/ip_local_port_range\n";
 
   // Allow eth0 and lo in the container to accept local packets. We
   // need this because we will set up filters to redirect packets from
