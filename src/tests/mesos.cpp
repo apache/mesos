@@ -795,20 +795,17 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpCgroupsV2()
     ASSERT_SOME(cgroups2::create(TEST_CGROUPS_ROOT));
   }
 
-  Try<set<string>> _controllers = cgroups2::controllers::available(
+  Try<set<string>> controllers = cgroups2::controllers::available(
       cgroups2::ROOT_CGROUP);
-  ASSERT_SOME(_controllers);
-  subsystems = *_controllers;
-  set<string> controllers(
-      std::make_move_iterator(_controllers->begin()),
-      std::make_move_iterator(_controllers->end()));
+  ASSERT_SOME(controllers);
+  subsystems = *controllers;
 
   // Enable all of the controllers inside of the test root cgroup so they
   // are accessible from the child container cgroups.
   ASSERT_TRUE(cgroups2::exists(TEST_CGROUPS_ROOT));
   ASSERT_SOME(
-      cgroups2::controllers::enable(cgroups2::ROOT_CGROUP, controllers));
-  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUPS_ROOT, controllers));
+      cgroups2::controllers::enable(cgroups2::ROOT_CGROUP, *controllers));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUPS_ROOT, *controllers));
 }
 
 
