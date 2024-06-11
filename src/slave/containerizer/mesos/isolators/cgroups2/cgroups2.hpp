@@ -46,11 +46,12 @@ namespace slave {
 // https://docs.kernel.org/admin-guide/cgroup-v2.html#no-internal-process-constraint // NOLINT
 //
 // Example cgroups:
-//     containerA                       non-leaf cgroup
-//     /      \                         /            \
-// processes  containerB           leaf cgroup   non-leaf child cgroup
-//             |                                      |
-//            processes                          leaf-cgroup
+//
+//       containerA                       non-leaf cgroup
+//       /      \                         /             |
+//   processes  containerB           leaf cgroup   non-leaf child cgroup
+//               |                                      |
+//              processes                          leaf-cgroup
 //
 // TODO(dleamy): Nested containers are not yet supported.
 class Cgroups2IsolatorProcess : public MesosIsolatorProcess
