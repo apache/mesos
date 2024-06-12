@@ -77,7 +77,7 @@ Try<vector<Rule>> table()
       // Get the destination IP network if exists.
       Option<net::IP::Network> destination;
       struct nl_addr* dst = rtnl_route_get_dst(route);
-      if (dst != nullptr && nl_addr_get_len(dst) != 0) {
+      if (dst != nullptr && !nl_addr_iszero(dst)) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(dst);
         Try<net::IP::Network> network = net::IP::Network::create(
             net::IP(*addr),
@@ -96,7 +96,7 @@ Try<vector<Rule>> table()
       Option<net::IP> gateway;
       struct rtnl_nexthop* hop = rtnl_route_nexthop_n(route, 0);
       struct nl_addr* gw = rtnl_route_nh_get_gateway(CHECK_NOTNULL(hop));
-      if (gw != nullptr && nl_addr_get_len(gw) != 0) {
+      if (gw != nullptr && !nl_addr_iszero(gw)) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(gw);
         gateway = net::IP(*addr);
       }

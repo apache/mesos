@@ -41,7 +41,7 @@ namespace socket {
 
 static Option<net::IP> IP(nl_addr* _ip)
 {
-  if (_ip != nullptr && nl_addr_get_len(_ip) != 0) {
+  if (_ip != nullptr && !nl_addr_iszero(_ip)) {
     if (nl_addr_get_family(_ip) == AF_INET) {
       struct in_addr* addr = (struct in_addr*)nl_addr_get_binary_addr(_ip);
       return net::IP(*addr);
