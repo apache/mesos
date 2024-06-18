@@ -2504,7 +2504,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // recent kernel patch is needed for this operation to succeed:
   // https://git.kernel.org/cgit/linux/kernel/git/davem/net.git/:
   // 25f929fbff0d1bcebf2e92656d33025cd330cbf8
-  Try<bool> setHostLoMAC = link::setMAC(lo.get(), hostMAC.get());
+  Try<Nothing> setHostLoMAC = link::setMAC(lo.get(), hostMAC.get());
   if (setHostLoMAC.isError()) {
     return Error(
         "Failed to set the MAC address of " + lo.get() +
@@ -3625,7 +3625,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 
   // Sets the MAC address of veth to match the MAC address of the host
   // public interface (eth0).
-  Try<bool> setVethMAC = link::setMAC(veth(pid), hostMAC);
+  Try<Nothing> setVethMAC = link::setMAC(veth(pid), hostMAC);
   if (setVethMAC.isError()) {
     return Failure(
         "Failed to set the MAC address of " + veth(pid) +

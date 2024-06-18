@@ -246,7 +246,7 @@ Try<bool> setUp(const string& link)
 }
 
 
-Try<bool> setMAC(const string& link, const net::MAC& mac)
+Try<Nothing> setMAC(const string& link, const net::MAC& mac)
 {
   // TODO(jieyu): We use ioctl to set the MAC address because the
   // interfaces in libnl have some issues with virtual devices.
@@ -264,15 +264,10 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
   // to get the MAC address of the link first to decide what value the
   // sa_family should be.
   if (ioctl(fd, SIOCGIFHWADDR, &ifr) == -1) {
-    if (errno == ENODEV) {
-      os::close(fd);
-      return false;
-    } else {
-      // Save the error string as os::close may overwrite errno.
-      const string message = os::strerror(errno);
-      os::close(fd);
-      return Error(message);
-    }
+    // Save the error string as os::close may overwrite errno.
+    const string message = os::strerror(errno);
+    os::close(fd);
+    return Error(message);
   }
 
   ifr.ifr_hwaddr.sa_data[0] = mac[0];
@@ -283,19 +278,14 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
   ifr.ifr_hwaddr.sa_data[5] = mac[5];
 
   if (ioctl(fd, SIOCSIFHWADDR, &ifr) == -1) {
-    if (errno == ENODEV) {
-      os::close(fd);
-      return false;
-    } else {
-      // Save the error string as os::close may overwrite errno.
-      const string message = os::strerror(errno);
-      os::close(fd);
-      return Error(message);
-    }
+    // Save the error string as os::close may overwrite errno.
+    const string message = os::strerror(errno);
+    os::close(fd);
+    return Error(message);
   }
 
   os::close(fd);
-  return true;
+  return Nothing();
 }
 
 

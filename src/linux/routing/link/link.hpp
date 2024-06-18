@@ -82,7 +82,7 @@ Try<bool> setUp(const std::string& link);
 
 // Sets the MAC address of the link. Returns false if the link is not
 // found.
-Try<bool> setMAC(const std::string& link, const net::MAC& mac);
+Try<Nothing> setMAC(const std::string& link, const net::MAC& mac);
 
 
 // Returns the Maximum Transmission Unit (MTU) of the link. Returns

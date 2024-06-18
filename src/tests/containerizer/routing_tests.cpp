@@ -376,8 +376,8 @@ TEST_F(RoutingVethTest, ROOT_LinkSetMAC)
 
   uint8_t bytes[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 
-  EXPECT_SOME_TRUE(link::setMAC(TEST_VETH_LINK, net::MAC(bytes)));
-  EXPECT_SOME_TRUE(link::setMAC(TEST_PEER_LINK, net::MAC(bytes)));
+  EXPECT_SOME(link::setMAC(TEST_VETH_LINK, net::MAC(bytes)));
+  EXPECT_SOME(link::setMAC(TEST_PEER_LINK, net::MAC(bytes)));
 
   Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
 
@@ -389,7 +389,7 @@ TEST_F(RoutingVethTest, ROOT_LinkSetMAC)
   ASSERT_SOME(mac);
   EXPECT_EQ(mac.get(), net::MAC(bytes));
 
-  EXPECT_SOME_FALSE(link::setMAC("non-exist", net::MAC(bytes)));
+  EXPECT_ERROR(link::setMAC("non-exist", net::MAC(bytes)));
 
   // Kernel will reject a multicast MAC address.
   uint8_t multicast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
