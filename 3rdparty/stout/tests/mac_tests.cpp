@@ -65,6 +65,13 @@ TEST(NetTest, ConstructMAC)
   uint8_t bytes[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 
   EXPECT_EQ("12:34:56:78:9a:bc", stringify(net::MAC(bytes)));
+
+  // Mimicking a sockaddr.sa_data field which contains a MAC address,
+  // this is how ioctl exposes mac addresses.
+  char sa_data[14] = {0x12, 0x34, 0x56, 0x78, 0x0a, 0x14, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  EXPECT_EQ("12:34:56:78:0a:14", stringify(net::MAC(sa_data)));
 }
 
 

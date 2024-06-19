@@ -45,6 +45,7 @@
 #include <string>
 
 #include <stout/abort.hpp>
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 #include <stout/result.hpp>
@@ -115,6 +116,17 @@ public:
   // Constructs a MAC address from a byte array.
   explicit MAC(const uint8_t (&_bytes)[6])
   {
+    for (size_t i = 0; i < 6; i++) {
+      bytes[i] = _bytes[i];
+    }
+  }
+
+  // Template-based constructor for constructing from character array.
+  // This is useful for sockaddr.sa_data (char[14]).
+  template <size_t N>
+  explicit MAC(const char (&_bytes)[N])
+  {
+    CHECK_GE(N, 6u);
     for (size_t i = 0; i < 6; i++) {
       bytes[i] = _bytes[i];
     }
