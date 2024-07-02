@@ -78,7 +78,17 @@ case $OS in
 
     # Install dependencies.
     # IBM Power only supports Ubuntu 14.04 and gcc compiler.
-    [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang-3.5 || CLANG_PKG=
+    if [ "$(uname -m)" = "x86_64" ]; then
+      # We install clang-10 on non-ubuntu-16.04 systems because newer OS
+      # no longer support clang 3.5
+      if [[ "$OS" = "ubuntu:16.04" ]]; then
+        CLANG_PKG=clang-3.5
+      else
+        CLANG_PKG=clang-10
+      fi
+    else
+      CLANG_PKG=
+    fi
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get install -y build-essential $CLANG_PKG git maven autoconf libtool software-properties-common"
     append_dockerfile "RUN apt-get install -y python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev libssl-dev"
