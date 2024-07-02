@@ -2211,6 +2211,8 @@ if HAS_JAVAH
 	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
 	   $(subst _,.,$(*F))
 else
+	@chmod u+w $(srcdir)/java/src/$(subst _,/,$(*D)) && \
+	  find $(srcdir)/java/src/$(subst _,/,$(*D)) -type d -exec chmod u+w {} +
 	$(JAVA_HOME)/bin/javac -h java/jni				\
 	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
 	   $(srcdir)/java/src/$(subst _,/,$(*F)).java

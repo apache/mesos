@@ -578,6 +578,8 @@ $(CSI_V1)-build-stamp: $(CSI_V1)-stamp
 	mv $(CSI_V1)/spec-$(CSI_V1_VERSION)/csi.proto $(CSI_V1)/csi/v1
 	touch $@
 
+BUILT_SOURCES += $(CSI_V0)-build-stamp $(CSI_V1)-build-stamp
+
 # Mesos depends on CSI. Install the CSI proto file into $PREFIX/include but
 # don't add it to the source tarball.
 csi_v0dir = $(includedir)/csi/v0
