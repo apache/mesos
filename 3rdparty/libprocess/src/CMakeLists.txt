@@ -114,10 +114,21 @@ target_link_libraries(
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::SSL>
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::Crypto>)
 
+  # We need openssl and pthreads if we have ENABLE_LIBEVENT
+  # Otherwise libprocess will not link properly and we get undefined reference
+if (ENABLE_LIBEVENT)
+  set(LIBEVENT_DEPENDENCIES libevent libevent_openssl libevent_pthreads)
+else ()
+  if (NOT PLATFORM_ID STREQUAL "Windows")
+    set(LIBEVENT_DEPENDENCIES libev)
+  endif ()
+endif ()
+
+# Link libraries
 target_link_libraries(
   process PRIVATE
   concurrentqueue
-  $<IF:$<BOOL:${ENABLE_LIBEVENT}>,libevent,$<$<NOT:$<PLATFORM_ID:Windows>>:libev>>)
+  ${LIBEVENT_DEPENDENCIES})
 
 target_compile_definitions(
   process PRIVATE
