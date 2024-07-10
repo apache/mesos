@@ -23,6 +23,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <process/after.hpp>
 #include <process/loop.hpp>
@@ -1086,7 +1087,85 @@ namespace devices {
 class DeviceProgram
 {
 public:
-  DeviceProgram() : program{ebpf::Program(BPF_PROG_TYPE_CGROUP_DEVICE)}
+  // We will generate one allow block for each entry in the allow list
+  // and one deny block for each entry in the deny list.
+  //
+  // There are special cases for catch-all values or empty allow lists
+  // Which are done to avoid generating unreachable code which are prohibited
+  // by the verifier:
+  // 1. If we have a catch-all in the allow entries, we will not generate any
+  //    code for allow section, since there is no need to check if any entries
+  //    match anything in allow.
+  // 2. If we have a catch-all in the deny entries, we will immediately return
+  //    with the deny value still in R0 to indicate that access is denied.
+  // 3. If we have an empty allow list, we will immediately return with the deny
+  //    value still in R0 to indicate that access is denied.
+  //
+  // ---------------------------------------------------------------------------
+  // Normal code flow
+  // +-------------------------------------------------------------+
+  // |Initialize R0 to deny value                                  |
+  // +-------------------------------------------------------------+-----------+
+  // |Allow Block                                                  |           |
+  // |Check each register, jump to next block if there is no match |           |
+  // |                                                             |           |
+  // |If each register has matched, jump over the exit instruction |           |
+  // |at the end of allow blocks and go to start of deny blocks    |           |
+  // +-------------------------------------------------------------+ Allow     |
+  // |                                                             | Section   |
+  // |Other allow blocks...                                        |           |
+  // |                                                             |           |
+  // +-------------------------------------------------------------+           |
+  // |Exit instruction and deny access, a match in any             |           |
+  // |allow block will jump over this instruction                  |           |
+  // +-------------------------------------------------------------+-----------+
+  // |Deny Block                                                   |           |
+  // |                                                             |           |
+  // |Check each register, jump to next block if there is no match |           |
+  // |                                                             |           |
+  // |If each register is matched, exit immediately as we have     |           |
+  // |the deny value stored in result register R0                  |           |
+  // +-------------------------------------------------------------+ Deny      |
+  // |                                                             | Section   |
+  // |Other deny blocks...                                         |           |
+  // |                                                             |           |
+  // +-------------------------------------------------------------+           |
+  // |Exit instruction to allow access because to reach this       |           |
+  // |point, there must have been a match in allow, and no         |           |
+  // |matches in deny                                              |           |
+  // +-------------------------------------------------------------+-----------+
+  // ----------------------------------END--------------------------------------
+  //
+  // The code in special case 1 (allow catch-all):
+  // +-------------------------------------------------------------+
+  // |Initialize R0 to deny value                                  |
+  // +-------------------------------------------------------------+-----------+
+  // |Deny Block                                                   |           |
+  // |                                                             |           |
+  // |Check each register, jump to next block if there is no match |           |
+  // |                                                             |           |
+  // |If each register is matched, exit immediately as we have     |           |
+  // |the deny value stored in result register R0                  |           |
+  // +-------------------------------------------------------------+ Deny      |
+  // |                                                             | Section   |
+  // |Other deny blocks...                                         |           |
+  // |                                                             |           |
+  // +-------------------------------------------------------------+           |
+  // |Exit instruction to allow access because to reach this       |           |
+  // |point, there must have been a match in allow, and no         |           |
+  // |matches in deny                                              |           |
+  // +-------------------------------------------------------------+-----------+
+  // ----------------------------------END--------------------------------------
+  //
+  // The code in special cases 2 (deny catch-all) and 3 (empty allow):
+  // +-------------------------------------------------------------+
+  // |Initialize R0 to deny value                                  |
+  // +-------------------------------------------------------------+
+  // |Exit instruction to deny access                              |
+  // +-------------------------------------------------------------+
+  static Try<ebpf::Program> build(
+      const vector<Entry>& allow,
+	  const vector<Entry>& deny)
   {
     // The BPF_PROG_TYPE_CGROUP_DEVICE program takes in
     // `struct bpf_cgroup_dev_ctx*` as input. We extract the fields into
@@ -1094,6 +1173,7 @@ public:
     //
     // The device type is encoded in the first 16 bits of `access_type` and
     // the access type is encoded in the last 16 bits of `access_type`.
+    ebpf::Program program = ebpf::Program(BPF_PROG_TYPE_CGROUP_DEVICE);
     program.append({
       // r2: Type ('c', 'b', '?')
       BPF_LDX_MEM(
@@ -1110,78 +1190,160 @@ public:
       BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_1,
         offsetof(bpf_cgroup_dev_ctx, minor)),
     });
-  }
 
-  Try<Nothing> allow(const Entry entry) { return addDevice(entry, true);  }
-  Try<Nothing>  deny(const Entry entry) { return addDevice(entry, false); }
+    // Initialize result register R0 to deny access so we can immediately
+    // exit if there is a match in a deny entry, or if there is no match
+    // in the allow entries.
+    program.append({BPF_MOV64_IMM(BPF_REG_0, DENY_ACCESS)});
 
-  ebpf::Program build()
-  {
-    if (!hasCatchAll) {
-      // Exit instructions.
-      // If no entry granted access, then deny the access.
-      program.append({
-        BPF_MOV64_IMM (BPF_REG_0, DENY_ACCESS),
+    // Special case 2. We deny access and exit if there's a catch-all in deny.
+    foreach (const Entry& entry, deny) {
+      if (entry.is_catch_all()) {
+        program.append({BPF_EXIT_INSN()});
+        return program;
+      }
+    }
+
+    // Special case 3. We deny access and exit if we see nothing in allow.
+    if (allow.empty()) {
+      program.append({BPF_EXIT_INSN()});
+      return program;
+    }
+
+    auto allow_block_trailer = [](short jmp_size_to_deny_section) {
+      return vector<bpf_insn>({BPF_JMP_A(jmp_size_to_deny_section)});
+    };
+    auto allow_section_trailer = []() {
+      return vector<bpf_insn>({BPF_EXIT_INSN()});
+    };
+    auto deny_block_trailer = []() {
+      return vector<bpf_insn>({BPF_EXIT_INSN()});
+    };
+    auto deny_section_trailer = []() {
+      return vector<bpf_insn>({
+        BPF_MOV64_IMM(BPF_REG_0, ALLOW_ACCESS),
         BPF_EXIT_INSN(),
       });
+    };
+
+    bool allow_catch_all = [&allow]() {
+      foreach (const Entry& entry, allow) {
+        if (entry.is_catch_all()) {
+          return true;
+        }
+      }
+      return false;
+    }();
+
+    // We will only add the code for the allow section if there is no catch-all
+    // allow entry present. If there is a catch-all, we will skip everything
+    // in the allow section, including exit instruction at the end,
+    // since we just need to check if the device is explicitly denied.
+    if (!allow_catch_all) {
+      // We calculate the total jump distance to skip over trailer instructions
+      // at the end of the allow section, we initialize jump size to length of
+      // said instructions, then add the lengths of individual allow blocks.
+      short start_of_deny_jmp_size = allow_section_trailer().size();
+      vector<vector<bpf_insn>> allow_device_check_blocks = {};
+      short allow_block_trailer_size = allow_block_trailer(0).size();
+
+      foreach (const Entry& entry, allow) {
+        vector<bpf_insn> allow_block =
+          add_device_checks(entry, allow_block_trailer_size);
+        allow_device_check_blocks.push_back(allow_block);
+
+        start_of_deny_jmp_size += allow_block.size() + allow_block_trailer_size;
+      }
+
+      foreach (vector<bpf_insn>& allow_block, allow_device_check_blocks) {
+        start_of_deny_jmp_size -=
+          (allow_block.size() + allow_block_trailer_size);
+        program.append(std::move(allow_block));
+        program.append(allow_block_trailer(start_of_deny_jmp_size));
+      }
+
+      // If this instruction is executed, then there is no match in allow
+      // so we can deny access.
+      program.append(allow_section_trailer());
     }
+
+    // Get the deny block device check code.
+    // We are either following the normal code flow or special case 1 (see
+    // diagram above) if we reached this section.
+    foreach (const Entry& entry, deny) {
+      program.append(add_device_checks(entry, deny_block_trailer().size()));
+      program.append(deny_block_trailer());
+    }
+
+    // To reach this block, we must have matched with an entry in allow
+    // to jump over the exit instruction at the end of allow blocks,
+    // or there is a catch-all in allow. We will also have to have not
+    // matched with any of the deny entries to avoid their exit instructions.
+    // Meaning that the device is on the allow list, and not on the deny list.
+    // Hence, we grant them access.
+    program.append(deny_section_trailer());
+
     return program;
   }
 
 private:
-  Try<Nothing> addDevice(const Entry entry, bool allow)
+  static vector<bpf_insn> add_device_checks(
+      const Entry& entry,
+	  short trailer_length)
   {
-    if (hasCatchAll) {
-      return Nothing();
-    }
-
     // We create a block of bytecode with the format:
     // 1. Major Version Check
     // 2. Minor Version Check
     // 3. Type Check
     // 4. Access Check
-    // 5. Allow/Deny Access
-    //
-    // 6. NEXT BLOCK
+    // 5. Trailer (caller-generated)
+    //  5a. If block is an allow block, we jump to the start of deny blocks
+    //  5b. If block is a deny block, we exit immediately
     //
     // Either:
-    // 1. The device access is matched by (1,2,3,4) and the Allow/Deny access
-    //    block (5) is executed.
+    // 1. The device access is matched by (1,2,3,4) and the Allow/Deny trailer
+    //    code is executed.
     // 2. One of (1,2,3,4) does not match the requested access and we skip
-    //    to the next block (6).
+    //    the rest of the current block
 
-    const Entry::Selector& selector = entry.selector;
-    const Entry::Access& access = entry.access;
-
-    bool check_major = selector.major.isSome();
-    bool check_minor = selector.minor.isSome();
-    bool check_type = selector.type != Entry::Selector::Type::ALL;
-    bool check_access = !access.mknod || !access.read || !access.write;
-
-    // Number of instructions to the [NEXT BLOCK]. This is used if a check
-    // fails (meaning this entry does not apply) and we want to skip the
-    // subsequent checks.
-    short jmp_size = 1 + (check_major ? 1 : 0) + (check_minor ? 1 : 0) +
-                     (check_access ? 3 : 0) + (check_type ? 1 : 0);
-
-    // Check major version (r4) against entry.
-    if (check_major) {
-      program.append({
-        BPF_JMP_IMM(BPF_JNE, BPF_REG_4, (int)selector.major.get(), jmp_size),
-      });
-      --jmp_size;
+    if (entry.is_catch_all()) {
+      return {};
     }
 
-    // Check minor version (r5) against entry.
-    if (check_minor) {
-      program.append({
-        BPF_JMP_IMM(BPF_JNE, BPF_REG_5, (int)selector.minor.get(), jmp_size),
-      });
-      --jmp_size;
-    }
+    auto check_major_instructions = [](short jmp_size, int major) {
+      return vector<bpf_insn>({
+          BPF_JMP_IMM(
+            BPF_JNE, BPF_REG_4, major, jmp_size),
+        });
+    };
 
-    // Check type (r2) against entry.
-    if (check_type) {
+    auto check_minor_instructions = [](short jmp_size, int minor) {
+      return vector<bpf_insn>({
+          BPF_JMP_IMM(
+            BPF_JNE, BPF_REG_5, minor, jmp_size),
+        });
+    };
+
+    auto check_access_instructions =
+      [](short jmp_size, const Entry::Access& access)
+	{
+      int bpf_access = 0;
+      bpf_access |= access.read ? BPF_DEVCG_ACC_READ : 0;
+      bpf_access |= access.write ? BPF_DEVCG_ACC_WRITE : 0;
+      bpf_access |= access.mknod ? BPF_DEVCG_ACC_MKNOD : 0;
+      return vector<bpf_insn>({
+          BPF_MOV32_REG(BPF_REG_1, BPF_REG_3),
+          BPF_ALU32_IMM(BPF_AND, BPF_REG_1, bpf_access),
+          BPF_JMP_REG(
+            BPF_JNE,
+            BPF_REG_1,
+            BPF_REG_3,
+            static_cast<short>(jmp_size - 2)),
+        });
+    };
+
+    auto check_type_instructions =
+      [](short jmp_size, const Entry::Selector& selector) -> vector<bpf_insn> {
       int bpf_type = [selector]() {
         switch (selector.type) {
           case Entry::Selector::Type::BLOCK:     return BPF_DEVCG_DEV_BLOCK;
@@ -1190,51 +1352,77 @@ private:
         }
         UNREACHABLE();
       }();
+      return {
+          BPF_JMP_IMM(BPF_JNE, BPF_REG_2, bpf_type, jmp_size),
+        };
+    };
+    const Entry::Selector& selector = entry.selector;
+    const Entry::Access& access = entry.access;
 
-      program.append({
-        BPF_JMP_IMM(BPF_JNE, BPF_REG_2, bpf_type, jmp_size),
-      });
-      --jmp_size;
+    bool check_major = selector.major.isSome();
+    bool check_minor = selector.minor.isSome();
+    bool check_type = selector.type != Entry::Selector::Type::ALL;
+    bool check_access = !access.mknod || !access.read || !access.write;
+
+    // The jump sizes here correspond to the size of the bpf instructions
+    // that each check adds to the program
+    // the total size of the block is the trailer length plus the total length
+    // of all checks.
+    short nxt_blk_jmp_size =
+      trailer_length +
+      (check_major ? check_major_instructions(0, 0).size() : 0) +
+      (check_minor ? check_minor_instructions(0, 0).size() : 0) +
+      (check_access ? check_access_instructions(0, access).size() : 0) +
+      (check_type ? check_type_instructions(0, selector).size() : 0);
+
+    // We subtract one because the program counter will be one ahead when it
+    // is executing the code in this code block, so we need to jump one less
+    // instruction to land at the beginning of the next entry-block
+    nxt_blk_jmp_size -= 1;
+
+    vector<bpf_insn> device_check_block = {};
+
+    // 1. Check major version (r4) against entry.
+    if (check_major) {
+      vector<bpf_insn> insert_instructions =
+        check_major_instructions(nxt_blk_jmp_size, (int)selector.major.get());
+      foreach (const bpf_insn& insn, insert_instructions) {
+        device_check_block.push_back(insn);
+      }
+      nxt_blk_jmp_size -= insert_instructions.size();
     }
 
-    // Check access (r3) against entry.
+    // 2. Check minor version (r5) against entry.
+    if (check_minor) {
+      vector<bpf_insn> insert_instructions =
+        check_minor_instructions(nxt_blk_jmp_size, (int)selector.minor.get());
+      foreach (const bpf_insn& insn, insert_instructions) {
+        device_check_block.push_back(insn);
+      }
+      nxt_blk_jmp_size -= insert_instructions.size();
+    }
+
+    // 3. Check type (r2) against entry.
+    if (check_type) {
+      vector<bpf_insn> insert_instructions =
+        check_type_instructions(nxt_blk_jmp_size, selector);
+      foreach (const bpf_insn& insn, insert_instructions) {
+        device_check_block.push_back(insn);
+      }
+      nxt_blk_jmp_size -= insert_instructions.size();
+    }
+
+    // 4. Check access (r3) against entry.
     if (check_access) {
-      int bpf_access = 0;
-      bpf_access |= access.read ? BPF_DEVCG_ACC_READ : 0;
-      bpf_access |= access.write ? BPF_DEVCG_ACC_WRITE : 0;
-      bpf_access |= access.mknod ? BPF_DEVCG_ACC_MKNOD : 0;
-
-      program.append({
-        BPF_MOV32_REG(BPF_REG_1, BPF_REG_3),
-        BPF_ALU32_IMM(BPF_AND, BPF_REG_1, bpf_access),
-        BPF_JMP_REG(
-          BPF_JNE, BPF_REG_1, BPF_REG_3, static_cast<short>(jmp_size - 2)),
-      });
-      jmp_size -= 3;
+      vector<bpf_insn> insert_instructions =
+        check_access_instructions(nxt_blk_jmp_size, access);
+      foreach (const bpf_insn& insn, insert_instructions) {
+        device_check_block.push_back(insn);
+      }
     }
 
-    if (!check_major && !check_minor && !check_type && !check_access) {
-      // The exit instructions as well as any additional device entries would
-      // generate unreachable blocks.
-      hasCatchAll = true;
-    }
-
-    // Allow/Deny access block.
-    program.append({
-      BPF_MOV64_IMM(BPF_REG_0, allow ? ALLOW_ACCESS : DENY_ACCESS),
-      BPF_EXIT_INSN(),
-    });
-
-    return Nothing();
+    return device_check_block;
   }
-
-  ebpf::Program program;
-
-  // Whether the program has a device entry that allows or denies ALL accesses.
-  // Such cases need to be specially handled because any instructions added
-  // after it will be unreachable, and thus will cause the eBPF verifier to
-  // reject the program.
-  bool hasCatchAll = false;
 
   static const int ALLOW_ACCESS = 1;
   static const int DENY_ACCESS = 0;
@@ -1246,17 +1434,15 @@ Try<Nothing> configure(
     const vector<Entry>& allow,
     const vector<Entry>& deny)
 {
-  DeviceProgram program = DeviceProgram();
-  foreach (const Entry entry, allow) {
-    program.allow(entry);
-  }
-  foreach (const Entry entry, deny) {
-    program.deny(entry);
+  Try<ebpf::Program> program = DeviceProgram::build(allow, deny);
+
+  if (program.isError()) {
+    return Error("Failed to generate device program: " + program.error());
   }
 
   Try<Nothing> attach = ebpf::cgroups2::attach(
       cgroups2::path(cgroup),
-      program.build());
+      *program);
 
   if (attach.isError()) {
     return Error("Failed to attach BPF_PROG_TYPE_CGROUP_DEVICE program: " +

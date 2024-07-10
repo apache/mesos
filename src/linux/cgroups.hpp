@@ -933,6 +933,7 @@ namespace devices {
 struct Entry
 {
   static Try<Entry> parse(const std::string& s);
+  bool is_catch_all() const;
 
   struct Selector
   {

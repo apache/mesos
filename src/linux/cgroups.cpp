@@ -2906,6 +2906,14 @@ Try<Entry> Entry::parse(const string& s)
 }
 
 
+bool Entry::is_catch_all() const
+{
+  return !selector.major.isSome() && !selector.minor.isSome()
+          && selector.type == Entry::Selector::Type::ALL
+          && access.mknod && access.read && access.write;
+}
+
+
 Try<vector<Entry>> list(
     const string& hierarchy,
     const string& cgroup)
