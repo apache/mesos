@@ -1312,16 +1312,14 @@ private:
 
     auto check_major_instructions = [](short jmp_size, int major) {
       return vector<bpf_insn>({
-          BPF_JMP_IMM(
-            BPF_JNE, BPF_REG_4, major, jmp_size),
+          BPF_JMP_IMM(BPF_JNE, BPF_REG_4, major, jmp_size),
         });
     };
 
     auto check_minor_instructions = [](short jmp_size, int minor) {
       return vector<bpf_insn>({
-          BPF_JMP_IMM(
-            BPF_JNE, BPF_REG_5, minor, jmp_size),
-        });
+        BPF_JMP_IMM(BPF_JNE, BPF_REG_5, minor, jmp_size)
+      });
     };
 
     auto check_access_instructions =
@@ -1354,8 +1352,9 @@ private:
       }();
       return {
           BPF_JMP_IMM(BPF_JNE, BPF_REG_2, bpf_type, jmp_size),
-        };
+      };
     };
+
     const Entry::Selector& selector = entry.selector;
     const Entry::Access& access = entry.access;
 
@@ -1365,15 +1364,13 @@ private:
     bool check_access = !access.mknod || !access.read || !access.write;
 
     // The jump sizes here correspond to the size of the bpf instructions
-    // that each check adds to the program
-    // the total size of the block is the trailer length plus the total length
-    // of all checks.
-    short nxt_blk_jmp_size =
-      trailer_length +
-      (check_major ? check_major_instructions(0, 0).size() : 0) +
-      (check_minor ? check_minor_instructions(0, 0).size() : 0) +
-      (check_access ? check_access_instructions(0, access).size() : 0) +
-      (check_type ? check_type_instructions(0, selector).size() : 0);
+    // that each check adds to the program. The total size of the block is
+    // the trailer length plus the total length of all checks.
+    short nxt_blk_jmp_size = trailer_length
+      + (check_major ? check_major_instructions(0, 0).size() : 0)
+      + (check_minor ? check_minor_instructions(0, 0).size() : 0)
+      + (check_access ? check_access_instructions(0, access).size() : 0)
+      + (check_type ? check_type_instructions(0, selector).size() : 0);
 
     // We subtract one because the program counter will be one ahead when it
     // is executing the code in this code block, so we need to jump one less
