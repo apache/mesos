@@ -1167,7 +1167,7 @@ public:
   // +-------------------------------------------------------------+
   static Try<ebpf::Program> build(
       const vector<Entry>& allow,
-	  const vector<Entry>& deny)
+      const vector<Entry>& deny)
   {
     // The BPF_PROG_TYPE_CGROUP_DEVICE program takes in
     // `struct bpf_cgroup_dev_ctx*` as input. We extract the fields into
@@ -1291,7 +1291,7 @@ public:
 private:
   static vector<bpf_insn> add_device_checks(
       const Entry& entry,
-	  short trailer_length)
+      short trailer_length)
   {
     // We create a block of bytecode with the format:
     // 1. Major Version Check
@@ -1326,7 +1326,7 @@ private:
 
     auto check_access_instructions =
       [](short jmp_size, const Entry::Access& access)
-	{
+    {
       int bpf_access = 0;
       bpf_access |= access.read ? BPF_DEVCG_ACC_READ : 0;
       bpf_access |= access.write ? BPF_DEVCG_ACC_WRITE : 0;
