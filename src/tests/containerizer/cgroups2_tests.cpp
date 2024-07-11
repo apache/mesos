@@ -129,6 +129,7 @@ TEST_F(Cgroups2Test, CGROUPS2_Path)
   EXPECT_EQ("/sys/fs/cgroup/", cgroups2::path(cgroups2::ROOT_CGROUP));
   EXPECT_EQ("/sys/fs/cgroup/foo", cgroups2::path("foo"));
   EXPECT_EQ("/sys/fs/cgroup/foo/bar", cgroups2::path("foo/bar"));
+  EXPECT_EQ("/mount/cgroup/foo/bar", cgroups2::path("/mount/cgroup/foo/bar"));
 }
 
 

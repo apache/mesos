@@ -564,7 +564,9 @@ Try<set<pid_t>> threads(const string& cgroup)
 
 string path(const string& cgroup)
 {
-  return path::join(cgroups2::MOUNT_POINT, cgroup);
+  return (!cgroup.empty() && cgroup.at(0) == '/')
+           ? cgroup
+           : path::join(cgroups2::MOUNT_POINT, cgroup);
 }
 
 namespace controllers {
