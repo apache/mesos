@@ -107,6 +107,23 @@ Try<int> load(const Program& program)
 
 namespace cgroups2 {
 
+Try<int> bpf_get_fd_by_id(uint32_t prog_id)
+{
+  bpf_attr attr;
+  memset(&attr, 0, sizeof(attr));
+  attr.prog_id = prog_id;
+
+  Try<int, ErrnoError> fd = bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
+
+  if (fd.isError()) {
+    return Error("bpf syscall to BPF_PROG_GET_FD_BY_ID failed: " +
+                 fd.error().message);
+  }
+
+  return *fd;
+}
+
+
 // Attaches the eBPF program identified by the provided fd to a cgroup.
 //
 // TODO(dleamy): This currently does not replace existing programs attached
@@ -226,18 +243,14 @@ Try<Nothing> detach(const string& cgroup, uint32_t program_id)
     return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
   }
 
-  bpf_attr attr;
-  memset(&attr, 0, sizeof(attr));
-  attr.prog_id = program_id;
-
-  Try<int, ErrnoError> program_fd =
-    bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
+  Try<int> program_fd = bpf_get_fd_by_id(program_id);
 
   if (program_fd.isError()) {
-    return Error("bpf syscall to BPF_PROG_GET_FD_BY_ID failed: " +
-                 program_fd.error().message);
+    return Error("Could not get bpf fd from program id: "+
+                 program_fd.error());
   }
 
+  bpf_attr attr;
   memset(&attr, 0, sizeof(attr));
   attr.attach_type = BPF_CGROUP_DEVICE;
   attr.target_fd = *cgroup_fd;

@@ -30,6 +30,9 @@
 
 namespace ebpf {
 
+Try<int, ErrnoError> bpf(int cmd, bpf_attr* attr, size_t size);
+
+
 // eBPF program.
 class Program
 {
@@ -48,6 +51,9 @@ public:
 
 
 namespace cgroups2 {
+
+// Get the file descriptor of a valid bpf program by its program id.
+Try<int> bpf_get_fd_by_id(uint32_t prog_id);
 
 // Load and attach a BPF_CGROUP_DEVICE eBPF program to a cgroup.
 Try<Nothing> attach(const std::string& cgroup, const Program& program);

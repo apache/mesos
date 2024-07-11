@@ -758,6 +758,43 @@ INSTANTIATE_TEST_CASE_P(
         }
       ));
 
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetBpfFdById)
+{
+  const string& cgroup = TEST_CGROUP;
+
+  ASSERT_SOME(cgroups2::create(cgroup));
+  string path = cgroups2::path(cgroup);
+
+  Try<vector<uint32_t>> attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(0u, attached->size());
+
+  ASSERT_SOME(devices::configure(cgroup, {}, {}));
+  attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(1u, attached->size());
+
+  Try<int> cgroup_fd = os::open(path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  ASSERT_SOME(cgroup_fd);
+
+  Try<int> program_fd = ebpf::cgroups2::bpf_get_fd_by_id(attached->at(0));
+  ASSERT_SOME(program_fd);
+
+  bpf_attr attr;
+  memset(&attr, 0, sizeof(attr));
+  attr.attach_type = BPF_CGROUP_DEVICE;
+  attr.target_fd = *cgroup_fd;
+  attr.attach_bpf_fd = *program_fd;
+
+  Try<int, ErrnoError> result = ebpf::bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
+
+  os::close(*cgroup_fd);
+  os::close(*program_fd);
+
+  ASSERT_SOME(result);
+}
+
 } // namespace tests {
 
 } // namespace internal {
