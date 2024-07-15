@@ -5181,6 +5181,18 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // checksum offloading ensures the TCP layer will checksum and drop
   // it.
   script << "ethtool -K " << eth0 << " rx off\n";
+  // TODO(jasonzhou): Set the link for the container eth0 in veth::create on
+  // creation to prevent race condition against udev
+  //
+  // Due to a systemd-induced race-condition related to the
+  // MacAddressPolicy being set to 'persistent' on versions >= 242,
+  // we will have to set the peer link MAC address of the peer link (eth0)
+  // when we create the eth0 peer link so that the udev will not try to
+  // overwrite it when it is notified that this device was created, which
+  // would lead to a race condition here where us and udev are racing to see
+  // who is the last one to write our MAC address to eth0.
+  //
+  // see: https://issues.apache.org/jira/browse/MESOS-10243
   script << "ip link set " << eth0 << " address " << hostMAC
          << " mtu " << hostEth0MTU << " up\n";
   script << "ip addr add " << hostIPNetwork << " dev " << eth0 << "\n";
