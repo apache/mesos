@@ -2310,8 +2310,15 @@ if test -n "`echo $with_zlib`" ; then
   LDFLAGS="$ZLIB_LINKERFLAGS $LDFLAGS"
 fi
 
+# We just check for one function here because in ubuntu 22.04, checking multiple
+# functions will generate incorrect code where the namespace for other functions
+# is not properly specified.
+#
+# Hence we just check for inflate here as an indicator of whether we have the
+# other functions available to us, rather than writing separate checks for
+# each function which will be very cumbersome.
 AC_CHECK_HEADERS([zlib.h],
-                 [AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
+                 [AC_CHECK_LIB([z], [inflate], [],
                                [AC_MSG_ERROR([cannot find libz
 -------------------------------------------------------------------
 libz is required for Mesos to build.

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 MAINTAINER The Apache Mesos Developers <dev@mesos.apache.org>
 
 WORKDIR /tmp/build
@@ -26,7 +26,7 @@ RUN apt-get update && \
   ca-certificates \
   curl \
   git \
-  python-dev && \
+  python2-dev && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 

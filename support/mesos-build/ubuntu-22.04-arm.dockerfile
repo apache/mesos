@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM arm64v8/ubuntu:20.04
+FROM arm64v8/ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -37,7 +37,7 @@ RUN apt-get update && \
       libtool \
       maven \
       openjdk-8-jdk \
-      python-dev \
+      python2-dev \
       python-six \
       sed \
       zlib1g-dev \
