@@ -123,7 +123,7 @@ static const vector<string> protocols = {
 #ifndef OPENSSL_NO_SSL3
   "LIBPROCESS_SSL_ENABLE_SSL_V3",
 #endif
-  // Removed TLS 1.0 and 1.1 as they're not supported by ubuntu 20.04
+  // Removed TLS 1.0 and 1.1 as they're not supported by ubuntu >= 20.04.
   // https://discourse.ubuntu.com/t/spec-tls-1-0-and-1-1-are-disabled-by-default/41868
   "LIBPROCESS_SSL_ENABLE_TLS_V1_2",
 // On some platforms, we need to build against OpenSSL versions that
