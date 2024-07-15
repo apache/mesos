@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "linux/ebpf.hpp"
+#include "linux/cgroups2.hpp"
 
 #include <linux/bpf.h>
 #include <sys/syscall.h>
@@ -25,9 +26,11 @@
 
 #include "stout/check.hpp"
 #include "stout/error.hpp"
+#include "stout/none.hpp"
 #include "stout/nothing.hpp"
 #include "stout/os/close.hpp"
 #include "stout/os/open.hpp"
+#include "stout/stringify.hpp"
 #include "stout/try.hpp"
 
 using std::string;
@@ -125,25 +128,44 @@ Try<int> bpf_get_fd_by_id(uint32_t prog_id)
 
 
 // Attaches the eBPF program identified by the provided fd to a cgroup.
-//
-// TODO(dleamy): This currently does not replace existing programs attached
-// to the cgroup, we will need to add replacement to support adding / removing
-// device access dynamically.
-Try<Nothing> attach(const string& cgroup, int fd)
+// If there is an existing ebpf program at the cgroup, we will replace
+// it atomically with the provided ebpf program.
+Try<Nothing> attach(const string& cgroup, int new_program_fd)
 {
-  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  string cgroup_path = ::cgroups2::path(cgroup);
+
+  Try<int> cgroup_fd =
+    os::open(cgroup_path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
   if (cgroup_fd.isError()) {
-    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+    return Error("Failed to open cgroup: " + cgroup_fd.error());
+  }
+
+  Try<vector<uint32_t>> attached = ebpf::cgroups2::attached(cgroup_path);
+  if (attached.isError()) {
+    return Error("Failed to retrieve attached bpf device programs: "
+                 + attached.error());
+  } else if (attached->size() > 1) {
+    return Error("Detected multiple (" + stringify(attached->size()) + ")"
+                 " BPF_CGROUP_DEVICE attached to cgroup");
+  }
+
+  Result<int> old_program_fd = None();
+
+  if (attached->size() == 1) {
+    uint32_t old_program_id = attached->at(0);
+    old_program_fd = bpf_get_fd_by_id(old_program_id);
+    if (old_program_fd.isError()) {
+      return Error("Failed to open existing program fd for id "
+                   + stringify(old_program_id) + ": " + old_program_fd.error());
+    }
   }
 
   bpf_attr attr;
   memset(&attr, 0, sizeof(attr));
   attr.attach_type = BPF_CGROUP_DEVICE;
   attr.target_fd = *cgroup_fd;
-  attr.attach_bpf_fd = fd;
+  attr.attach_bpf_fd = new_program_fd;
 
-  // TODO(dleamy): Replace any existing attached programs here!
-  //
   // BPF_F_ALLOW_MULTI allows multiple eBPF programs to be attached to a single
   // cgroup and determines how the programs up and down the hierarchy will run.
   //
@@ -163,13 +185,24 @@ Try<Nothing> attach(const string& cgroup, int fd)
   // cgroup4 run order: F, D, E, A, B
   // cgroup2 run order: C, A, B
   //
+  // If any program in the run order returns a non-successful code, the device
+  // access will be denied. Thus, we opt to atomically replace the existing
+  // ebpf device file so that we have exactly one file as our source of truth
+  // for device access.
   // For full details, see:
   // https://elixir.bootlin.com/linux/v6.7.9/source/include/uapi/linux/bpf.h#L1090
   attr.attach_flags = BPF_F_ALLOW_MULTI;
+  if (old_program_fd.isSome()) {
+    attr.attach_flags |= BPF_F_REPLACE;
+    attr.replace_bpf_fd = *old_program_fd;
+  }
 
   Try<int, ErrnoError> result = bpf(BPF_PROG_ATTACH, &attr, sizeof(attr));
 
   os::close(*cgroup_fd);
+  if (old_program_fd.isSome()) {
+    os::close(*old_program_fd);
+  }
 
   if (result.isError()) {
     return Error("BPF program attach syscall failed: "
@@ -199,9 +232,12 @@ Try<Nothing> attach(const string& cgroup, const Program& program)
 
 Try<vector<uint32_t>> attached(const string& cgroup)
 {
-  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  string cgroup_path = ::cgroups2::path(cgroup);
+
+  Try<int> cgroup_fd =
+    os::open(cgroup_path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
   if (cgroup_fd.isError()) {
-    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+    return Error("Failed to open '" + cgroup_path + "': " + cgroup_fd.error());
   }
 
   // Program ids are unsigned 32-bit integers. We assume that a maximum
@@ -238,9 +274,12 @@ Try<vector<uint32_t>> attached(const string& cgroup)
 // and program id. Returns Nothing() on success or if no program is found.
 Try<Nothing> detach(const string& cgroup, uint32_t program_id)
 {
-  Try<int> cgroup_fd = os::open(cgroup, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+  string cgroup_path = ::cgroups2::path(cgroup);
+
+  Try<int> cgroup_fd =
+    os::open(cgroup_path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
   if (cgroup_fd.isError()) {
-    return Error("Failed to open '" + cgroup + "': " + cgroup_fd.error());
+    return Error("Failed to open '" + cgroup_path + "': " + cgroup_fd.error());
   }
 
   Try<int> program_fd = bpf_get_fd_by_id(program_id);

@@ -760,6 +760,87 @@ INSTANTIATE_TEST_CASE_P(
       ));
 
 
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_AtomicReplace)
+{
+  const string& cgroup = TEST_CGROUP;
+  const vector<devices::Entry>& allow = {*devices::Entry::parse("c 1:3 w")};
+  const vector<devices::Entry>& deny = {};
+  const vector<OpenArgs>& allowed_accesses = {
+      {os::DEV_NULL, O_WRONLY}
+  };
+  const vector<OpenArgs>& blocked_accesses = {
+      {os::DEV_NULL, O_RDWR},
+      {os::DEV_NULL, O_RDONLY}
+  };
+  const vector<devices::Entry>& to_be_replaced_allow = {};
+  const vector<devices::Entry>& to_be_replaced_deny = {
+      *devices::Entry::parse("c 1:3 w")
+  };
+
+  ASSERT_SOME(cgroups2::create(cgroup));
+  string path = cgroups2::path(cgroup);
+
+  Try<vector<uint32_t>> attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(0u, attached->size());
+
+  ASSERT_SOME(
+    devices::configure(cgroup, to_be_replaced_allow, to_be_replaced_deny));
+  attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(1u, attached->size());
+
+  ASSERT_SOME(devices::configure(cgroup, allow, deny));
+  attached = ebpf::cgroups2::attached(path);
+  ASSERT_SOME(attached);
+  ASSERT_EQ(1u, attached->size());
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // Move the child process into the newly created cgroup.
+    Try<Nothing> assign = cgroups2::assign(cgroup, ::getpid());
+    if (assign.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to assign child process to cgroup");
+    }
+
+    // Check that we can only do the "allowed_accesses".
+    foreach(const OpenArgs& args, allowed_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected allowed read to succeed");
+      }
+    }
+    foreach(const OpenArgs& args, blocked_accesses) {
+      if (os::open(args.first, args.second).isSome()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected blocked read to fail");
+      }
+    }
+
+    ASSERT_SOME(ebpf::cgroups2::detach(path, attached->at(0)));
+
+    // Check that we can do both the "allowed_accesses" and "blocked_accesses".
+    foreach(const OpenArgs& args, allowed_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected successful read after detaching"
+                                " device controller program");
+      }
+    }
+    foreach(const OpenArgs& args, blocked_accesses) {
+      if (os::open(args.first, args.second).isError()) {
+        SAFE_EXIT(EXIT_FAILURE, "Expected successful read after detaching"
+                                " device controller program");
+      }
+    }
+
+    ::_exit(EXIT_SUCCESS);
+  }
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(EXIT_SUCCESS, process::reap(pid));
+}
+
+
+
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetBpfFdById)
 {
   const string& cgroup = TEST_CGROUP;

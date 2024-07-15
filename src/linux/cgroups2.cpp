@@ -1440,7 +1440,7 @@ Try<Nothing> configure(
   }
 
   Try<Nothing> attach = ebpf::cgroups2::attach(
-      cgroups2::path(cgroup),
+      cgroup,
       *program);
 
   if (attach.isError()) {
