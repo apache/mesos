@@ -23,6 +23,7 @@
 
 #include <stout/option.hpp>
 #include <stout/try.hpp>
+#include <stout/mac.hpp>
 
 namespace routing {
 namespace link {
@@ -33,10 +34,25 @@ namespace veth {
 // specified. If 'pid' is None, the peer link will be put into
 // caller's network namespace. Returns false if the virtual network
 // links (with the same name) already exist.
+//
+// We provide the ability to assign a specified MAC to the host network
+// namespace veth device on creation via veth_mac:
+//
+// In systems with systemd version above 242, there is a potential data race
+// where udev will try to update the MAC address of the device at the same
+// time as us if the systemd's MacAddressPolicy is set to 'persistent'.
+// To prevent udev from trying to set the veth device's MAC address by itself,
+// we *must* set the device MAC address on creation so that addr_assign_type
+// will be set to NET_ADDR_SET, which prevents udev from attempting to
+// change the MAC address of the veth device.
+// see: https://github.com/torvalds/linux/commit/2afb9b533423a9b97f84181e773cf9361d98fed6
+// see: https://lore.kernel.org/netdev/CAHXsExy8LKzocBdBzss_vjOpc_TQmyzM87KC192HpmuhMcqasg@mail.gmail.com/T/
+// see: https://issues.apache.org/jira/browse/MESOS-10243
 Try<bool> create(
     const std::string& veth,
     const std::string& peer,
-    const Option<pid_t>& pid);
+    const Option<pid_t>& pid,
+    const Option<net::MAC>& veth_mac);
 
 } // namespace veth {
 } // namespace link {

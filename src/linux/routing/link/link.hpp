@@ -82,6 +82,11 @@ Try<bool> setUp(const std::string& link);
 
 // Sets the MAC address of the link. Returns false if the link is not
 // found.
+// It should be noted that this function should NOT be used to set a veth
+// device's MAC address on creation. That should be done in veth::create to
+// avoid a race condtion with udev in systems with systemd version > 242.
+//
+// see: https://issues.apache.org/jira/browse/MESOS-10243
 Try<Nothing> setMAC(const std::string& link, const net::MAC& mac);
 
 

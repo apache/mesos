@@ -3595,8 +3595,13 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   LOG(INFO) << "Created network namespace handle symlink '"
             << linker << "' -> '" << target << "'";
 
-  // Create a virtual ethernet pair for this container.
-  Try<bool> createVethPair = link::veth::create(veth(pid), eth0, pid);
+  // Create a virtual ethernet pair for this container, also set the MAC
+  // address of the host network namespace veth<pid> interface to match
+  // that of the host network namespace eth0.
+  //
+  // TODO(jasonzhou): Also set the mac address of the container network
+  // namespace eth0 here on creation, to avoid the race with udev: MESOS-10243.
+  Try<bool> createVethPair = link::veth::create(veth(pid), eth0, pid, hostMAC);
   if (createVethPair.isError()) {
     return Failure(
         "Failed to create virtual ethernet pair: " +
@@ -3621,15 +3626,6 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
           "Failed to disable IPv6 for " + veth(pid) +
           ": " + write.error());
     }
-  }
-
-  // Sets the MAC address of veth to match the MAC address of the host
-  // public interface (eth0).
-  Try<Nothing> setVethMAC = link::setMAC(veth(pid), hostMAC);
-  if (setVethMAC.isError()) {
-    return Failure(
-        "Failed to set the MAC address of " + veth(pid) +
-        ": " + setVethMAC.error());
   }
 
   // Prepare the ingress queueing disciplines on veth.

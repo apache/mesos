@@ -19,6 +19,8 @@
 #include <netlink/errno.h>
 
 #include <netlink/route/link/veth.h>
+#include <netlink/route/link.h>
+#include <netlink/netlink.h>
 
 #include <stout/error.hpp>
 
@@ -35,18 +37,44 @@ namespace veth {
 Try<bool> create(
     const string& veth,
     const string& peer,
-    const Option<pid_t>& pid)
+    const Option<pid_t>& pid,
+    const Option<net::MAC>& veth_mac)
 {
   Try<Netlink<struct nl_sock>> socket = routing::socket();
   if (socket.isError()) {
     return Error(socket.error());
   }
 
-  int error = rtnl_link_veth_add(
-      socket->get(),
-      veth.c_str(),
-      peer.c_str(),
-      (pid.isNone() ? getpid() : pid.get()));
+  struct nl_sock *sock = socket->get();
+  struct rtnl_link *link, *peer_link;
+  int error = -NLE_NOMEM;
+
+  if (!(link = rtnl_link_veth_alloc())) {
+    return Error(nl_geterror(error));
+  }
+  peer_link = rtnl_link_veth_get_peer(link);
+
+  struct nl_addr *addr;
+
+  if (veth_mac.isSome()) {
+    unsigned char mac_addr_uchar[6];
+    for (int i = 0; i < 6; i++) {
+      mac_addr_uchar[i] = (unsigned char) (*veth_mac)[i];
+    }
+    addr = nl_addr_build(AF_LLC, mac_addr_uchar, 6);
+    rtnl_link_set_addr(link, addr);
+  }
+
+  rtnl_link_set_name(link, veth.c_str());
+  rtnl_link_set_name(peer_link, peer.c_str());
+
+  rtnl_link_set_ns_pid(peer_link, pid.getOrElse(getpid()));
+  error = rtnl_link_add(sock, link, NLM_F_CREATE | NLM_F_EXCL);
+
+  rtnl_link_put(link);
+  if (veth_mac.isSome()) {
+    nl_addr_put(addr);
+  }
 
   if (error != 0) {
     if (error == -NLE_EXIST) {
