@@ -38,42 +38,55 @@ Try<bool> create(
     const string& veth,
     const string& peer,
     const Option<pid_t>& pid,
-    const Option<net::MAC>& veth_mac)
+    const Option<net::MAC>& veth_mac,
+    const Option<net::MAC>& peer_mac)
 {
+  auto set_addr_from_mac = [](struct rtnl_link* link, const net::MAC& mac)
+  {
+    struct nl_addr* addr;
+    unsigned char mac_addr_uchar[6];
+    for (int i = 0; i < 6; i++) {
+      mac_addr_uchar[i] = (unsigned char) mac[i];
+    }
+    addr = nl_addr_build(AF_LLC, mac_addr_uchar, 6);
+    rtnl_link_set_addr(link, addr);
+    return addr;
+  };
+
   Try<Netlink<struct nl_sock>> socket = routing::socket();
   if (socket.isError()) {
     return Error(socket.error());
   }
 
   struct nl_sock *sock = socket->get();
-  struct rtnl_link *link, *peer_link;
+  struct rtnl_link *veth_link, *peer_link;
   int error = -NLE_NOMEM;
 
-  if (!(link = rtnl_link_veth_alloc())) {
+  if (!(veth_link = rtnl_link_veth_alloc())) {
     return Error(nl_geterror(error));
   }
-  peer_link = rtnl_link_veth_get_peer(link);
+  peer_link = rtnl_link_veth_get_peer(veth_link);
 
-  struct nl_addr *addr;
-
+  Option<struct nl_addr*> veth_addr, peer_addr;
   if (veth_mac.isSome()) {
-    unsigned char mac_addr_uchar[6];
-    for (int i = 0; i < 6; i++) {
-      mac_addr_uchar[i] = (unsigned char) (*veth_mac)[i];
-    }
-    addr = nl_addr_build(AF_LLC, mac_addr_uchar, 6);
-    rtnl_link_set_addr(link, addr);
+    veth_addr = set_addr_from_mac(veth_link, *veth_mac);
+  }
+  if (peer_mac.isSome()) {
+    peer_addr = set_addr_from_mac(peer_link, *peer_mac);
   }
 
-  rtnl_link_set_name(link, veth.c_str());
+  rtnl_link_set_name(veth_link, veth.c_str());
   rtnl_link_set_name(peer_link, peer.c_str());
 
   rtnl_link_set_ns_pid(peer_link, pid.getOrElse(getpid()));
-  error = rtnl_link_add(sock, link, NLM_F_CREATE | NLM_F_EXCL);
+  error = rtnl_link_add(sock, veth_link, NLM_F_CREATE | NLM_F_EXCL);
 
-  rtnl_link_put(link);
-  if (veth_mac.isSome()) {
-    nl_addr_put(addr);
+  rtnl_link_put(veth_link);
+  if (veth_addr.isSome()) {
+    nl_addr_put(*veth_addr);
+  }
+  if (peer_addr.isSome()) {
+    nl_addr_put(*peer_addr);
   }
 
   if (error != 0) {

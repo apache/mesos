@@ -3598,10 +3598,8 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   // Create a virtual ethernet pair for this container, also set the MAC
   // address of the host network namespace veth<pid> interface to match
   // that of the host network namespace eth0.
-  //
-  // TODO(jasonzhou): Also set the mac address of the container network
-  // namespace eth0 here on creation, to avoid the race with udev: MESOS-10243.
-  Try<bool> createVethPair = link::veth::create(veth(pid), eth0, pid, hostMAC);
+  Try<bool> createVethPair =
+    link::veth::create(veth(pid), eth0, pid, hostMAC, hostMAC);
   if (createVethPair.isError()) {
     return Failure(
         "Failed to create virtual ethernet pair: " +
@@ -5177,20 +5175,9 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // checksum offloading ensures the TCP layer will checksum and drop
   // it.
   script << "ethtool -K " << eth0 << " rx off\n";
-  // TODO(jasonzhou): Set the link for the container eth0 in veth::create on
-  // creation to prevent race condition against udev
-  //
-  // Due to a systemd-induced race-condition related to the
-  // MacAddressPolicy being set to 'persistent' on versions >= 242,
-  // we will have to set the peer link MAC address of the peer link (eth0)
-  // when we create the eth0 peer link so that the udev will not try to
-  // overwrite it when it is notified that this device was created, which
-  // would lead to a race condition here where us and udev are racing to see
-  // who is the last one to write our MAC address to eth0.
-  //
-  // see: https://issues.apache.org/jira/browse/MESOS-10243
-  script << "ip link set " << eth0 << " address " << hostMAC
-         << " mtu " << hostEth0MTU << " up\n";
+
+  // Only set the MTU and bring the interface up, MAC address was set on create.
+  script << "ip link set " << eth0 << " mtu " << hostEth0MTU << " up\n";
   script << "ip addr add " << hostIPNetwork << " dev " << eth0 << "\n";
 
   // Set up the default gateway to match that of eth0.

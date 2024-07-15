@@ -24,6 +24,7 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/mac.hpp>
+#include <stout/none.hpp>
 
 namespace routing {
 namespace link {
@@ -51,8 +52,9 @@ namespace veth {
 Try<bool> create(
     const std::string& veth,
     const std::string& peer,
-    const Option<pid_t>& pid,
-    const Option<net::MAC>& veth_mac);
+    const Option<pid_t>& pid = None(),
+    const Option<net::MAC>& veth_mac = None(),
+    const Option<net::MAC>& peer_mac = None());
 
 } // namespace veth {
 } // namespace link {
