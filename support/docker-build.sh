@@ -84,7 +84,7 @@ case $OS in
       if [[ "$OS" = "ubuntu:16.04" ]]; then
         CLANG_PKG=clang-3.5
       else
-        CLANG_PKG=clang-10
+        CLANG_PKG=clang-14
       fi
     else
       CLANG_PKG=
