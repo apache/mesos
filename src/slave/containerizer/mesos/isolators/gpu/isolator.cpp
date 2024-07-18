@@ -91,6 +91,91 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+namespace {
+
+Try<Nothing> allowDevice(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    unsigned int major,
+    unsigned int minor)
+{
+  cgroups::devices::Entry entry;
+  entry.selector.type = Entry::Selector::Type::CHARACTER;
+  entry.selector.major = major;
+  entry.selector.minor = minor;
+  entry.access.read = true;
+  entry.access.write = true;
+  entry.access.mknod = true;
+
+  Try<Nothing> allow = cgroups::devices::allow(
+      hierarchy, cgroup, entry);
+
+  if (allow.isError()) {
+    return Error("Failed to allow device '" + stringify(entry)
+		 + "': " + allow.error());
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> denyDevice(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    unsigned int major,
+    unsigned int minor)
+{
+  cgroups::devices::Entry entry;
+  entry.selector.type = Entry::Selector::Type::CHARACTER;
+  entry.selector.major = major;
+  entry.selector.minor = minor;
+  entry.access.read = true;
+  entry.access.write = true;
+  entry.access.mknod = true;
+
+  Try<Nothing> deny = cgroups::devices::deny(
+      hierarchy, cgroup, entry);
+
+  if (deny.isError()) {
+    return Error("Failed to deny device '" + stringify(entry)
+		 + "': " + deny.error());
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> addDeviceToContainer(
+    const string& device,
+    const string& devicesDir,
+    const string& rootfsDir,
+    ContainerLaunchInfo& launchInfo)
+{
+  const string devicePath = path::join(
+    devicesDir, strings::remove(device, "/dev/", strings::PREFIX), device);
+
+  Try<Nothing> mknod =
+    fs::chroot::copyDeviceNode(device, devicePath);
+  if (mknod.isError()) {
+    return Error("Failed to copy device: " + mknod.error());
+  }
+
+  // Since we are adding the GPU devices to the container, make
+  // them read/write to guarantee that they are accessible inside
+  // the container.
+  Try<Nothing> chmod = os::chmod(devicePath, 0666);
+  if (chmod.isError()) {
+    return Error("Failed to set permissions: " + chmod.error());
+  }
+
+  *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+      devicePath, path::join(rootfsDir, device), MS_BIND);
+
+  return Nothing();
+}
+
+} // namespace {
+
 NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
@@ -297,9 +382,24 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
       foreach (const Gpu& gpu, available) {
         if (entry.selector.major == gpu.major &&
             entry.selector.minor == gpu.minor) {
-          containerGpus.insert(gpu);
-          break;
-        }
+	  if (gpu.ismig) {
+	    // The GPU device itself; only a match with a GPU that
+	    // isn't a MIG instance, as MIG instances need access to
+	    // the GPU device and the MIG devices.
+	    continue;
+	  }
+
+	  containerGpus.insert(gpu);
+	  break;
+	}
+
+	// Match up MIG devices
+	if ((entry.selector.major == gpu.caps_major)
+	    && ((entry.selector.minor == gpu.gi_minor)
+		|| (entry.selector.minor == gpu.ci_minor))) {
+	  containerGpus.insert(gpu);
+	  break;
+	}
       }
     }
 
@@ -443,39 +543,23 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
   }
 
   foreach (const string& device, nvidia.get()) {
-    // The directory `/dev/nvidia-caps` was introduced in CUDA 11.0, just
-    // ignore it since we only care about the Nvidia GPU device files.
-    //
-    // TODO(qianzhang): Figure out how to handle the directory
-    // `/dev/nvidia-caps` more properly.
+    // Ignore /dev/nvidia-caps, we'll handle that directory later on
     if (device == "/dev/nvidia-caps") {
       continue;
     }
 
-    const string devicePath = path::join(
-        devicesDir, strings::remove(device, "/dev/", strings::PREFIX), device);
-
-    Try<Nothing> mknod =
-      fs::chroot::copyDeviceNode(device, devicePath);
-    if (mknod.isError()) {
-      return Failure(
-          "Failed to copy device '" + device + "': " + mknod.error());
+    Try<Nothing> added = addDeviceToContainer(device, devicesDir, containerConfig.rootfs(), launchInfo);
+    if (added.isError()) {
+      return Failure("Could not add device '" + device + "' to container: " + added.error());
     }
+  }
 
-    // Since we are adding the GPU devices to the container, make
-    // them read/write to guarantee that they are accessible inside
-    // the container.
-    Try<Nothing> chmod = os::chmod(devicePath, 0666);
-    if (chmod.isError()) {
-      return Failure(
-          "Failed to set permissions on device '" + device + "': " +
-          chmod.error());
+  Try<list<string>> caps = os::glob("/dev/nvidia-caps/*");
+  foreach (const string& device, caps.get()) {
+    Try<Nothing> added = addDeviceToContainer(device, devicesDir, containerConfig.rootfs(), launchInfo);
+    if (added.isError()) {
+      return Failure("Could not add device '" + device + "' to container: " + added.error());
     }
-
-    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
-        devicePath,
-        path::join(containerConfig.rootfs(), device),
-        MS_BIND);
   }
 
   return launchInfo;
@@ -520,29 +604,53 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
   } else if (requested < info->allocated.size()) {
     size_t fewer = info->allocated.size() - requested;
 
+    set<std::pair<unsigned int, unsigned int>> deallocated_devs;
     set<Gpu> deallocated;
 
     for (size_t i = 0; i < fewer; i++) {
       const auto gpu = info->allocated.begin();
 
-      cgroups::devices::Entry entry;
-      entry.selector.type = Entry::Selector::Type::CHARACTER;
-      entry.selector.major = gpu->major;
-      entry.selector.minor = gpu->minor;
-      entry.access.read = true;
-      entry.access.write = true;
-      entry.access.mknod = true;
+      // We can't blindly deny the main GPU device, as it is needed
+      // by other MIG devices on that same GPU.
+      deallocated_devs.insert(std::make_pair(gpu->major, gpu->minor));
 
-      Try<Nothing> deny = cgroups::devices::deny(
-          hierarchy, info->cgroup, entry);
+      if (gpu->ismig) {
+	// MIG GPU instance
+	Try<Nothing> deny = denyDevice(hierarchy, info->cgroup, gpu->caps_major, gpu->gi_minor);
+	if (deny.isError()) {
+	  return Failure("Failed to deny cgroups access to MIG GI device: " + deny.error());
+	}
 
-      if (deny.isError()) {
-        return Failure("Failed to deny cgroups access to GPU device"
-                       " '" + stringify(entry) + "': " + deny.error());
+	// MIG Compute instance
+	deny = denyDevice(hierarchy, info->cgroup, gpu->caps_major, gpu->ci_minor);
+	if (deny.isError()) {
+	  return Failure("Failed to deny cgroups access to MIG CI device: " + deny.error());
+	}
       }
 
       deallocated.insert(*gpu);
       info->allocated.erase(gpu);
+    }
+
+    set<std::pair<unsigned int, unsigned int>> allocated_devs;
+    foreach (Gpu gpu, info->allocated) {
+      allocated_devs.insert(std::make_pair(gpu.major, gpu.minor));
+    }
+
+    // Any GPU device present in the difference of the two sets can now
+    // be denied, as it is not needed by any of the remaining allocated
+    // GPUs.
+    set<std::pair<unsigned int, unsigned int>> safe_deny;
+    std::set_difference(deallocated_devs.begin(), deallocated_devs.end(),
+			allocated_devs.begin(), allocated_devs.end(),
+			std::inserter(safe_deny, safe_deny.begin()));
+
+    foreach (auto dev, safe_deny) {
+      // Main GPU device node
+      Try<Nothing> deny = denyDevice(hierarchy, info->cgroup, dev.first, dev.second);
+      if (deny.isError()) {
+        return Failure("Failed to deny cgroups access to GPU device: " + deny.error());
+      }
     }
 
     return allocator.deallocate(deallocated);
@@ -563,20 +671,21 @@ Future<Nothing> NvidiaGpuIsolatorProcess::_update(
   Info* info = CHECK_NOTNULL(infos.at(containerId));
 
   foreach (const Gpu& gpu, allocation) {
-    cgroups::devices::Entry entry;
-    entry.selector.type = Entry::Selector::Type::CHARACTER;
-    entry.selector.major = gpu.major;
-    entry.selector.minor = gpu.minor;
-    entry.access.read = true;
-    entry.access.write = true;
-    entry.access.mknod = true;
-
-    Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy, info->cgroup, entry);
-
+    Try<Nothing> allow = allowDevice(hierarchy, info->cgroup, gpu.major, gpu.minor);
     if (allow.isError()) {
-      return Failure("Failed to grant cgroups access to GPU device"
-                     " '" + stringify(entry) + "': " + allow.error());
+      return Failure("Failed to grant cgroups access to GPU device: " + allow.error());
+    }
+
+    if (gpu.ismig) {
+      allow = allowDevice(hierarchy, info->cgroup, gpu.caps_major, gpu.gi_minor);
+      if (allow.isError()) {
+	return Failure("Failed to grant cgroups access to MIG GI device: " + allow.error());
+      }
+
+      allow = allowDevice(hierarchy, info->cgroup, gpu.caps_major, gpu.ci_minor);
+      if (allow.isError()) {
+	return Failure("Failed to grant cgroups access to MIG CI device: " + allow.error());
+      }
     }
   }
 

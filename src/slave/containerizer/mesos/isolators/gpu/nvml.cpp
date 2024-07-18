@@ -18,7 +18,9 @@
 
 #include <glog/logging.h>
 
+#include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
 
 #include <process/once.hpp>
@@ -61,17 +63,38 @@ struct NvidiaManagementLibrary
       nvmlReturn_t (*_deviceGetCount)(unsigned int*),
       nvmlReturn_t (*_deviceGetHandleByIndex)(unsigned int, nvmlDevice_t*),
       nvmlReturn_t (*_deviceGetMinorNumber)(nvmlDevice_t, unsigned int*),
+      nvmlReturn_t (*_deviceGetIndex)(nvmlDevice_t, unsigned int*),
+      nvmlReturn_t (*_deviceGetMigMode)(nvmlDevice_t, unsigned int*, unsigned int*),
+      nvmlReturn_t (*_deviceGetMaxMigDeviceCount)(nvmlDevice_t, unsigned int*),
+      nvmlReturn_t (*_deviceGetMigDeviceHandleByIndex)(nvmlDevice_t, unsigned int, nvmlDevice_t*),
+      nvmlReturn_t (*_deviceGetDeviceHandleFromMigDeviceHandle)(nvmlDevice_t, nvmlDevice_t*),
+      nvmlReturn_t (*_deviceGetGpuInstanceId)(nvmlDevice_t, unsigned int*),
+      nvmlReturn_t (*_deviceGetComputeInstanceId)(nvmlDevice_t, unsigned int*),
       const char* (*_errorString)(nvmlReturn_t))
     : systemGetDriverVersion(_systemGetDriverVersion),
       deviceGetCount(_deviceGetCount),
       deviceGetHandleByIndex(_deviceGetHandleByIndex),
       deviceGetMinorNumber(_deviceGetMinorNumber),
+      deviceGetIndex(_deviceGetIndex),
+      deviceGetMigMode(_deviceGetMigMode),
+      deviceGetMaxMigDeviceCount(_deviceGetMaxMigDeviceCount),
+      deviceGetMigDeviceHandleByIndex(_deviceGetMigDeviceHandleByIndex),
+      deviceGetDeviceHandleFromMigDeviceHandle(_deviceGetDeviceHandleFromMigDeviceHandle),
+      deviceGetGpuInstanceId(_deviceGetGpuInstanceId),
+      deviceGetComputeInstanceId(_deviceGetComputeInstanceId),
       errorString(_errorString) {}
 
   nvmlReturn_t (*systemGetDriverVersion)(char *, unsigned int);
   nvmlReturn_t (*deviceGetCount)(unsigned int*);
   nvmlReturn_t (*deviceGetHandleByIndex)(unsigned int, nvmlDevice_t*);
   nvmlReturn_t (*deviceGetMinorNumber)(nvmlDevice_t, unsigned int*);
+  nvmlReturn_t (*deviceGetIndex)(nvmlDevice_t, unsigned int*);
+  nvmlReturn_t (*deviceGetMigMode)(nvmlDevice_t, unsigned int*, unsigned int*);
+  nvmlReturn_t (*deviceGetMaxMigDeviceCount)(nvmlDevice_t, unsigned int*);
+  nvmlReturn_t (*deviceGetMigDeviceHandleByIndex)(nvmlDevice_t, unsigned int, nvmlDevice_t*);
+  nvmlReturn_t (*deviceGetDeviceHandleFromMigDeviceHandle)(nvmlDevice_t, nvmlDevice_t *);
+  nvmlReturn_t (*deviceGetGpuInstanceId)(nvmlDevice_t, unsigned int*);
+  nvmlReturn_t (*deviceGetComputeInstanceId)(nvmlDevice_t, unsigned int*);
   const char* (*errorString)(nvmlReturn_t);
 };
 
@@ -113,6 +136,13 @@ Try<Nothing> initialize()
       { "nvmlDeviceGetCount", nullptr },
       { "nvmlDeviceGetHandleByIndex", nullptr },
       { "nvmlDeviceGetMinorNumber", nullptr },
+      { "nvmlDeviceGetIndex", nullptr },
+      { "nvmlDeviceGetMigMode", nullptr },
+      { "nvmlDeviceGetMaxMigDeviceCount", nullptr },
+      { "nvmlDeviceGetMigDeviceHandleByIndex", nullptr },
+      { "nvmlDeviceGetDeviceHandleFromMigDeviceHandle", nullptr },
+      { "nvmlDeviceGetGpuInstanceId", nullptr },
+      { "nvmlDeviceGetComputeInstanceId", nullptr },
       { "nvmlErrorString", nullptr },
   };
 
@@ -148,6 +178,20 @@ Try<Nothing> initialize()
           symbols.at("nvmlDeviceGetHandleByIndex"),
       (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*))
           symbols.at("nvmlDeviceGetMinorNumber"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*))
+          symbols.at("nvmlDeviceGetIndex"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*, unsigned int*))
+          symbols.at("nvmlDeviceGetMigMode"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*))
+          symbols.at("nvmlDeviceGetMaxMigDeviceCount"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int, nvmlDevice_t*))
+          symbols.at("nvmlDeviceGetMigDeviceHandleByIndex"),
+      (nvmlReturn_t (*)(nvmlDevice_t, nvmlDevice_t*))
+          symbols.at("nvmlDeviceGetDeviceHandleFromMigDeviceHandle"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*))
+          symbols.at("nvmlDeviceGetGpuInstanceId"),
+      (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*))
+          symbols.at("nvmlDeviceGetComputeInstanceId"),
       (const char* (*)(nvmlReturn_t))
           symbols.at("nvmlErrorString"));
 
@@ -190,6 +234,30 @@ bool isAvailable()
     << "dlcose failed: " << dlerror();
 
   return true;
+}
+
+
+Try<unsigned int> systemGetCapsMajor()
+{
+  std::ifstream procfile("/proc/devices");
+
+  while (procfile) {
+    string procline;
+    std::getline(procfile, procline);
+
+    if (procline.find(" nvidia-caps") != std::string::npos) {
+      unsigned int major;
+
+      try {
+	major = std::stoi(procline);
+      } catch (...) {
+	return Error("Could not parse nvidia-caps major from /proc/devices");
+      }
+
+      return major;
+    }
+  }
+  return Error("nvidia-caps not found in /proc/devices");
 }
 
 
@@ -255,6 +323,155 @@ Try<unsigned int> deviceGetMinorNumber(nvmlDevice_t handle)
     return Error(nvml->errorString(result));
   }
   return minor;
+}
+
+
+Try<bool> deviceGetMigMode(nvmlDevice_t handle)
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  unsigned int current;
+  unsigned int pending;
+  nvmlReturn_t result = nvml->deviceGetMigMode(handle, &current, &pending);
+  if (result == NVML_ERROR_NOT_SUPPORTED) {
+    return false;
+  } else if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+  return current == NVML_DEVICE_MIG_ENABLE;
+}
+
+
+Try<unsigned int> deviceGetMigDeviceCount(nvmlDevice_t handle)
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  unsigned int maxmig;
+  nvmlReturn_t result = nvml->deviceGetMaxMigDeviceCount(handle, &maxmig);
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+  if (maxmig == 0)
+    return 0;
+
+  for (unsigned int migidx = 0; migidx < maxmig; migidx++) {
+    nvmlDevice_t mighandle;
+    nvmlReturn_t result = nvml->deviceGetMigDeviceHandleByIndex(handle, migidx, &mighandle);
+    if (result == NVML_ERROR_NOT_FOUND) {
+      return migidx;
+    } else if (result != NVML_SUCCESS) {
+      return Error(nvml->errorString(result));
+    }
+  }
+  return 0;
+}
+
+
+Try<nvmlDevice_t> deviceGetMigDeviceHandleByIndex(nvmlDevice_t handle, unsigned int migindex)
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  nvmlDevice_t mighandle;
+  nvmlReturn_t result = nvml->deviceGetMigDeviceHandleByIndex(handle, migindex, &mighandle);
+  if (result == NVML_ERROR_NOT_FOUND) {
+    return Error("MIG device not found");
+  }
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+  return mighandle;
+}
+
+
+typedef enum {
+  INSTANCE_GPU,
+  INSTANCE_COMPUTE,
+} InstanceType;
+
+static Try<unsigned int> getMigInstanceMinorByType(nvmlDevice_t mighandle, InstanceType itype)
+{
+  nvmlDevice_t handle;
+  nvmlReturn_t result = nvml->deviceGetDeviceHandleFromMigDeviceHandle(mighandle, &handle);
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+
+  unsigned int devidx;
+  result = nvml->deviceGetIndex(handle, &devidx);
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+
+  unsigned int giid;
+  result = nvml->deviceGetGpuInstanceId(mighandle, &giid);
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+
+  std::ostringstream procpath;
+
+  switch (itype) {
+  case INSTANCE_GPU:
+    procpath << "/proc/driver/nvidia/capabilities/gpu" << devidx << "/mig/gi" << giid << "/access";
+    break;
+
+  case INSTANCE_COMPUTE:
+    unsigned int ciid;
+    result = nvml->deviceGetComputeInstanceId(mighandle, &ciid);
+    if (result != NVML_SUCCESS) {
+      return Error(nvml->errorString(result));
+    }
+
+    procpath << "/proc/driver/nvidia/capabilities/gpu" << devidx << "/mig/gi" << giid << "/ci" << ciid << "/access";
+    break;
+  }
+
+  string procline;
+  std::ifstream procfile(procpath.str().c_str());
+  std::getline(procfile, procline);
+
+  size_t pos = procline.find(' ');
+  if (pos == std::string::npos) {
+    return Error("Could not parse " + procpath.str() + ": malformed line");
+  }
+
+  procline = procline.substr(pos + 1);
+
+  unsigned int minor;
+
+  try {
+    minor = std::stoi(procline);
+  } catch (...) {
+    return Error("Could not parse minor from " + procpath.str());
+  }
+
+  return minor;
+}
+
+
+Try<unsigned int> deviceGetGpuInstanceMinor(nvmlDevice_t handle)
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  return getMigInstanceMinorByType(handle, INSTANCE_GPU);
+}
+
+
+Try<unsigned int> deviceGetComputeInstanceMinor(nvmlDevice_t handle)
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  return getMigInstanceMinorByType(handle, INSTANCE_COMPUTE);
 }
 
 } // namespace nvml {
