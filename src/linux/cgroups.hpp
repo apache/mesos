@@ -933,7 +933,12 @@ namespace devices {
 struct Entry
 {
   static Try<Entry> parse(const std::string& s);
+
+  // Returns true iff entry matches all devices accesses.
   bool is_catch_all() const;
+
+  // Returns true iff this entry fully contains the other's device accesses.
+  bool encompasses(const Entry& other) const;
 
   struct Selector
   {
@@ -947,6 +952,9 @@ struct Entry
     Type type;
     Option<unsigned int> major; // Matches all `major` numbers if None.
     Option<unsigned int> minor; // Matches all `minor` numbers if None.
+
+    // Returns iff major or minor are wildcards or if type == ALL.
+    bool has_wildcard() const;
   };
 
   struct Access
@@ -954,6 +962,7 @@ struct Entry
     bool read;
     bool write;
     bool mknod;
+    bool none() const;
   };
 
   Selector selector;

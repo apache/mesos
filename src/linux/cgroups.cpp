@@ -2914,9 +2914,45 @@ bool Entry::is_catch_all() const
 }
 
 
-Try<vector<Entry>> list(
-    const string& hierarchy,
-    const string& cgroup)
+bool Entry::encompasses(const Entry& other) const
+{
+  if (*this == other) {
+    return true;
+  }
+
+  if (selector.major.isSome() && selector.major != other.selector.major) {
+    return false;
+  }
+
+  if (selector.minor.isSome() && selector.minor != other.selector.minor) {
+    return false;
+  }
+
+  if (selector.type != Entry::Selector::Type::ALL
+      && selector.type != other.selector.type) {
+    return false;
+  }
+
+  if ((!access.mknod && other.access.mknod)
+      || (!access.read && other.access.read)
+      || (!access.write && other.access.write)) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool Entry::Access::none() const { return !mknod && !read && !write; }
+
+
+bool Entry::Selector::has_wildcard() const
+{
+  return major.isNone() || minor.isNone() || type == Entry::Selector::Type::ALL;
+}
+
+
+Try<vector<Entry>> list(const string& hierarchy, const string& cgroup)
 {
   Try<string> read = cgroups::read(hierarchy, cgroup, "devices.list");
 
