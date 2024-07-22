@@ -24,6 +24,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/devices.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/io.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/hugetlb.hpp"
 
 #include <set>
 #include <string>
@@ -85,6 +86,7 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
     {"mem", &MemoryControllerProcess::create},
     {"perf_event", &PerfEventControllerProcess::create},
     {"io", &IoControllerProcess::create}
+    {"hugetlb", &HugetlbControllerProcess::create}
   };
 
   hashmap<string, Try<Owned<ControllerProcess>>(*)(
