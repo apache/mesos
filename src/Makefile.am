@@ -1496,7 +1496,9 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/cgroups2/controllers/memory.cpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/memory.hpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.cpp    \
-  slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp
+  slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp    \
+  slave/containerizer/device_manager/device_manager.cpp    \
+  slave/containerizer/device_manager/device_manager.hpp
 
 if ENABLE_XFS_DISK_ISOLATOR
 MESOS_LINUX_FILES +=							\
@@ -2829,7 +2831,8 @@ mesos_tests_SOURCES =						\
   tests/containerizer/rootfs.hpp				\
   tests/containerizer/setns_test_helper.hpp			\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp    \
-  tests/containerizer/cgroups2_tests.cpp
+  tests/containerizer/cgroups2_tests.cpp    \
+  tests/device_manager_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\

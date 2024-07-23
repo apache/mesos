@@ -840,7 +840,6 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_AtomicReplace)
 }
 
 
-
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_GetBpfFdById)
 {
   const string& cgroup = TEST_CGROUP;
