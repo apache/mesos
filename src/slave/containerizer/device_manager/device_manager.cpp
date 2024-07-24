@@ -224,16 +224,25 @@ Future<Nothing> DeviceManager::configure(
 }
 
 
-hashmap<string, DeviceManager::CgroupDeviceAccess> DeviceManager::state() const
+Future<hashmap<string, DeviceManager::CgroupDeviceAccess>>
+  DeviceManager::state() const
 {
-  return process->state();
+  // Necessary due to overloading of state().
+  auto process_copy = process;
+  return dispatch(*process, [process_copy]() {
+    return process_copy->state();
+  });
 }
 
 
-DeviceManager::CgroupDeviceAccess DeviceManager::state(
+Future<DeviceManager::CgroupDeviceAccess> DeviceManager::state(
     const string& cgroup) const
 {
-  return process->state(cgroup);
+  // Necessary due to overloading of state().
+  auto process_copy = process;
+  return dispatch(*process, [process_copy, cgroup]() {
+    return process_copy->state(cgroup);
+  });
 }
 
 

@@ -126,10 +126,12 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_Normal)
       allow_list,
       CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
 
-  DeviceManager::CgroupDeviceAccess cgroup_state = dm->state(TEST_CGROUP);
+  Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
+    dm->state(TEST_CGROUP);
 
-  EXPECT_EQ(cgroup_state.allow_list, allow_list);
-  EXPECT_EQ(cgroup_state.deny_list, deny_list);
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(allow_list, cgroup_state->allow_list);
+  EXPECT_EQ(deny_list, cgroup_state->deny_list);
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
@@ -171,10 +173,13 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
       TEST_CGROUP,
       allow_list,
       CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
-  DeviceManager::CgroupDeviceAccess cgroup_state = dm->state(TEST_CGROUP);
 
-  EXPECT_EQ(cgroup_state.allow_list, allow_list);
-  EXPECT_EQ(cgroup_state.deny_list, deny_list);
+  Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
+    dm->state(TEST_CGROUP);
+
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(allow_list, cgroup_state->allow_list);
+  EXPECT_EQ(deny_list, cgroup_state->deny_list);
 
   vector<devices::Entry> additions = {*devices::Entry::parse("c 1:3 r")};
   vector<devices::Entry> removals = allow_list;
@@ -183,10 +188,12 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
       TEST_CGROUP,
       CHECK_NOTERROR(convert_to_non_wildcards(additions)),
       CHECK_NOTERROR(convert_to_non_wildcards(removals))));
+
   cgroup_state = dm->state(TEST_CGROUP);
 
-  EXPECT_EQ(cgroup_state.allow_list, additions);
-  EXPECT_EQ(cgroup_state.deny_list, deny_list);
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(additions, cgroup_state->allow_list);
+  EXPECT_EQ(deny_list, cgroup_state->deny_list);
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
@@ -250,10 +257,12 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_AllowWildcard)
       allow_list,
       CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
 
-  DeviceManager::CgroupDeviceAccess dm_state = dm->state(TEST_CGROUP);
+  Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
+    dm->state(TEST_CGROUP);
 
-  EXPECT_EQ(dm_state.allow_list, allow_list);
-  EXPECT_EQ(dm_state.deny_list, deny_list);
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(allow_list, cgroup_state->allow_list);
+  EXPECT_EQ(deny_list, cgroup_state->deny_list);
 }
 
 
@@ -315,18 +324,20 @@ TEST_P(DeviceManagerGetDiffStateTestFixture, ROOT_DeviceManagerGetDiffState)
       setup_allow,
       CHECK_NOTERROR(convert_to_non_wildcards(setup_deny))));
 
-  DeviceManager::CgroupDeviceAccess dm_state = dm->state(TEST_CGROUP);
+  Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
+    dm->state(TEST_CGROUP);
 
-  EXPECT_EQ(dm_state.allow_list, setup_allow);
-  EXPECT_EQ(dm_state.deny_list, setup_deny);
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(setup_allow, cgroup_state->allow_list);
+  EXPECT_EQ(setup_deny, cgroup_state->deny_list);
 
-  dm_state = dm->apply_diff(
-      dm->state(TEST_CGROUP),
+  cgroup_state = dm->apply_diff(
+      cgroup_state.get(),
       CHECK_NOTERROR(convert_to_non_wildcards(additions)),
       CHECK_NOTERROR(convert_to_non_wildcards(removals)));
 
-  EXPECT_EQ(dm_state.allow_list, reconfigured_allow);
-  EXPECT_EQ(dm_state.deny_list, reconfigured_deny);
+  EXPECT_EQ(reconfigured_allow, cgroup_state->allow_list);
+  EXPECT_EQ(reconfigured_deny, cgroup_state->deny_list);
 }
 
 

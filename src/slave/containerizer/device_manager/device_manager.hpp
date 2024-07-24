@@ -97,10 +97,10 @@ public:
 
   // Return the cgroup's device access state, which can be
   // used to query if a device access would be granted.
-  CgroupDeviceAccess state(const std::string& cgroup) const;
+  process::Future<CgroupDeviceAccess> state(const std::string& cgroup) const;
 
   // Return the cgroup's device access state for all cgroups tracked.
-  hashmap<std::string, CgroupDeviceAccess> state() const;
+  process::Future<hashmap<std::string, CgroupDeviceAccess>> state() const;
 
   // Returns cgroup device state with additions and removals applied to it.
   // Exposed for unit testing.
