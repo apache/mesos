@@ -45,9 +45,7 @@ class DeviceManagerProcess;
 // to incrementally adjust the device access state for a cgroup and generate
 // the appropriate ebpf programs.
 //
-// TODO(jasonzhou): This initial implementation only adds in-memory tracking
-// of the access, add bpf program attachment and checkpointing in follow-on
-// patches.
+// TODO(jasonzhou): Add checkpointing / recovery support in follow-on patches.
 class DeviceManager
 {
 public:

@@ -27,6 +27,7 @@
 
 #include "slave/containerizer/device_manager/device_manager.hpp"
 #include "slave/paths.hpp"
+#include "linux/cgroups2.hpp"
 
 using std::string;
 using std::vector;
@@ -94,6 +95,14 @@ public:
     device_access_per_cgroup[cgroup].allow_list = allow_list;
     device_access_per_cgroup[cgroup].deny_list = deny_list;
 
+    Try<Nothing> commit = commit_device_access_changes(cgroup);
+    if (commit.isError()) {
+      // We do not rollback the state when something goes wrong in the
+      // update because the container will be destroyed when this fails.
+      return Failure("Failed to commit cgroup device access changes: "
+                     + commit.error());
+    }
+
     return Nothing();
   }
 
@@ -120,6 +129,14 @@ public:
         non_wildcard_additions,
         non_wildcard_removals);
 
+    Try<Nothing> commit = commit_device_access_changes(cgroup);
+    if (commit.isError()) {
+      // We do not rollback the state when something goes wrong in the
+      // update because the container will be destroyed when this fails.
+      return Failure("Failed to commit cgroup device access changes: "
+                     + commit.error());
+    }
+
     return Nothing();
   }
 
@@ -139,6 +156,21 @@ private:
   const string meta_dir;
 
   hashmap<string, DeviceManager::CgroupDeviceAccess> device_access_per_cgroup;
+
+  // TODO(jasonzhou): persist device_access_per_cgroup on disk.
+  Try<Nothing> commit_device_access_changes(const string& cgroup) const
+  {
+    Try<Nothing> status = cgroups2::devices::configure(
+        cgroup,
+        device_access_per_cgroup.at(cgroup).allow_list,
+        device_access_per_cgroup.at(cgroup).deny_list);
+
+    if (status.isError()) {
+      return Error("Failed to configure device access: " + status.error());
+    }
+
+    return Nothing();
+  }
 };
 
 

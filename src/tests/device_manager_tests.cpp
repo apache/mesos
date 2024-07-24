@@ -21,6 +21,7 @@
 #include <tuple>
 
 #include <process/gtest.hpp>
+#include <process/reap.hpp>
 
 #include <stout/unreachable.hpp>
 #include <stout/tests/utils.hpp>
@@ -110,13 +111,14 @@ TEST(NonWildcardEntry, NonWildcardFromWildcard)
 
 TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_Normal)
 {
+  typedef std::pair<string, int> OpenArgs;
   ASSERT_SOME(cgroups2::create(TEST_CGROUP));
   slave::Flags flags;
   flags.work_dir = *sandbox;
   Owned<DeviceManager> dm =
     Owned<DeviceManager>(CHECK_NOTERROR(DeviceManager::create(flags)));
 
-  vector<devices::Entry> allow_list = {*devices::Entry::parse("c 1:3 w")};
+  vector<devices::Entry> allow_list = {*devices::Entry::parse("c 1:3 r")};
   vector<devices::Entry> deny_list = {*devices::Entry::parse("c 3:1 w")};
 
   AWAIT_ASSERT_READY(dm->configure(
@@ -128,6 +130,29 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_Normal)
 
   EXPECT_EQ(cgroup_state.allow_list, allow_list);
   EXPECT_EQ(cgroup_state.deny_list, deny_list);
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // Move the child process into the newly created cgroup.
+    Try<Nothing> assign = cgroups2::assign(TEST_CGROUP, ::getpid());
+    if (assign.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to assign child process to cgroup");
+    }
+
+    // Check that we can only do the "allowed_accesses".
+    if (os::open(os::DEV_NULL, O_RDONLY).isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Expected allowed read to succeed");
+    }
+    if (os::open(os::DEV_NULL, O_RDWR).isSome()) {
+      SAFE_EXIT(EXIT_FAILURE, "Expected blocked read to fail");
+    }
+
+    ::_exit(EXIT_SUCCESS);
+  }
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(EXIT_SUCCESS, process::reap(pid));
 }
 
 
@@ -151,7 +176,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
   EXPECT_EQ(cgroup_state.allow_list, allow_list);
   EXPECT_EQ(cgroup_state.deny_list, deny_list);
 
-  vector<devices::Entry> additions = {*devices::Entry::parse("b 3:4 w")};
+  vector<devices::Entry> additions = {*devices::Entry::parse("c 1:3 r")};
   vector<devices::Entry> removals = allow_list;
 
   AWAIT_ASSERT_READY(dm->reconfigure(
@@ -162,6 +187,29 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
 
   EXPECT_EQ(cgroup_state.allow_list, additions);
   EXPECT_EQ(cgroup_state.deny_list, deny_list);
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // Move the child process into the newly created cgroup.
+    Try<Nothing> assign = cgroups2::assign(TEST_CGROUP, ::getpid());
+    if (assign.isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Failed to assign child process to cgroup");
+    }
+
+    // Check that we can only do the "allowed_accesses".
+    if (os::open(os::DEV_NULL, O_RDONLY).isError()) {
+      SAFE_EXIT(EXIT_FAILURE, "Expected allowed read to succeed");
+    }
+    if (os::open(os::DEV_NULL, O_RDWR).isSome()) {
+      SAFE_EXIT(EXIT_FAILURE, "Expected blocked read to fail");
+    }
+
+    ::_exit(EXIT_SUCCESS);
+  }
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(EXIT_SUCCESS, process::reap(pid));
 }
 
 
