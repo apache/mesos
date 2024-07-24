@@ -953,8 +953,11 @@ struct Entry
     Option<unsigned int> major; // Matches all `major` numbers if None.
     Option<unsigned int> minor; // Matches all `minor` numbers if None.
 
-    // Returns iff major or minor are wildcards or if type == ALL.
+    // Returns true iff major or minor are wildcards or if type == ALL.
     bool has_wildcard() const;
+
+    // Returns true iff selector encompasses the other selector.
+    bool encompasses(const Selector& other) const;
   };
 
   struct Access

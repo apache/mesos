@@ -2920,16 +2920,7 @@ bool Entry::encompasses(const Entry& other) const
     return true;
   }
 
-  if (selector.major.isSome() && selector.major != other.selector.major) {
-    return false;
-  }
-
-  if (selector.minor.isSome() && selector.minor != other.selector.minor) {
-    return false;
-  }
-
-  if (selector.type != Entry::Selector::Type::ALL
-      && selector.type != other.selector.type) {
+  if (!selector.encompasses(other.selector)) {
     return false;
   }
 
@@ -2957,6 +2948,24 @@ bool Entry::Access::overlaps(const Entry::Access& other) const
 bool Entry::Selector::has_wildcard() const
 {
   return major.isNone() || minor.isNone() || type == Entry::Selector::Type::ALL;
+}
+
+
+bool Entry::Selector::encompasses(const Entry::Selector& other) const
+{
+  if (type != Entry::Selector::Type::ALL && type != other.type) {
+    return false;
+  }
+
+  if (major.isSome() && major != other.major) {
+    return false;
+  }
+
+  if (minor.isSome() && minor != other.minor) {
+    return false;
+  }
+
+  return true;
 }
 
 

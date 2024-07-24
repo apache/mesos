@@ -1547,6 +1547,65 @@ TEST(DeviceTest, SelectorWildcardTest)
   EXPECT_FALSE(selector.has_wildcard());
 }
 
+
+TEST(DeviceTest, SelectorEncompassTest)
+{
+  cgroups::devices::Entry::Selector other;
+  other.type = cgroups::devices::Entry::Selector::Type::CHARACTER;
+  other.major = 1;
+  other.minor = 1;
+
+  // Same selector should be encompass each other.
+  cgroups::devices::Entry::Selector selector;
+  selector.type = cgroups::devices::Entry::Selector::Type::CHARACTER;
+  selector.major = 1;
+  selector.minor = 1;
+  EXPECT_TRUE(selector.encompasses(other));
+  EXPECT_TRUE(other.encompasses(selector));
+
+  // Wildcard in type
+  selector.type = cgroups::devices::Entry::Selector::Type::ALL;
+  selector.major = 1;
+  selector.minor = 1;
+  EXPECT_TRUE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+
+  // Wildcard in major
+  selector.type = cgroups::devices::Entry::Selector::Type::CHARACTER;
+  selector.major = Option<unsigned int>::none();
+  selector.minor = 1;
+  EXPECT_TRUE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+
+  // Wildcard in minor
+  selector.type = cgroups::devices::Entry::Selector::Type::CHARACTER;
+  selector.major = 1;
+  selector.minor = Option<unsigned int>::none();
+  EXPECT_TRUE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+
+  // Mismatch in type
+  selector.type = cgroups::devices::Entry::Selector::Type::BLOCK;
+  selector.major = Option<unsigned int>::none();
+  selector.minor = Option<unsigned int>::none();
+  EXPECT_FALSE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+
+  // Mismatch in major
+  selector.type = cgroups::devices::Entry::Selector::Type::ALL;
+  selector.major = 2;
+  selector.minor = Option<unsigned int>::none();
+  EXPECT_FALSE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+
+  // Mismatch in minor
+  selector.type = cgroups::devices::Entry::Selector::Type::ALL;
+  selector.major = Option<unsigned int>::none();
+  selector.minor = 2;
+  EXPECT_FALSE(selector.encompasses(other));
+  EXPECT_FALSE(other.encompasses(selector));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
