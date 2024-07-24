@@ -1493,6 +1493,36 @@ TEST(DevicesTest, AccessNoneTest)
 }
 
 
+TEST(DeviceTest, AccessOverlapsTest)
+{
+  cgroups::devices::Entry::Access access;
+  cgroups::devices::Entry::Access other;
+  access.read = true;
+  access.write = true;
+  access.mknod = true;
+
+  other.read = false;
+  other.write = false;
+  other.mknod = false;
+  EXPECT_FALSE(access.overlaps(other));
+
+  other.read = true;
+  other.write = false;
+  other.mknod = false;
+  EXPECT_TRUE(access.overlaps(other));
+
+  other.read = false;
+  other.write = true;
+  other.mknod = false;
+  EXPECT_TRUE(access.overlaps(other));
+
+  other.read = false;
+  other.write = false;
+  other.mknod = true;
+  EXPECT_TRUE(access.overlaps(other));
+}
+
+
 TEST(DeviceTest, SelectorWildcardTest)
 {
   cgroups::devices::Entry::Selector selector;

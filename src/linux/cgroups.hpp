@@ -963,6 +963,7 @@ struct Entry
     bool write;
     bool mknod;
     bool none() const;
+    bool overlaps(const Access& other) const;
   };
 
   Selector selector;

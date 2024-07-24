@@ -2946,6 +2946,14 @@ bool Entry::encompasses(const Entry& other) const
 bool Entry::Access::none() const { return !mknod && !read && !write; }
 
 
+bool Entry::Access::overlaps(const Entry::Access& other) const
+{
+  return (read && other.read)
+      || (write && other.write)
+      || (mknod && other.mknod);
+}
+
+
 bool Entry::Selector::has_wildcard() const
 {
   return major.isNone() || minor.isNone() || type == Entry::Selector::Type::ALL;
