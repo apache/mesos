@@ -624,158 +624,144 @@ TEST_P(DeviceControllerTestFixture, ROOT_CGROUPS2_DeviceController)
 
 
 INSTANTIATE_TEST_CASE_P(
-    DeviceControllerTestParams,
-    DeviceControllerTestFixture,
-    ::testing::Values<DeviceControllerTestParams>(
-        // Acceses are blocked by default if no entries are configured.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{},
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDWR}}
-        },
-        // Deny access to /dev/null.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{},
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 rwm")},
-          vector<OpenArgs>{},
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
-        },
-        // Allow access to /dev/null.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 rwm")},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}},
-          vector<OpenArgs>{}
-        },
-        // Allow read-only access to /dev/null.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 r")},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
-        },
-        // Allow write-only access to /dev/null.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 w")},
-          vector<devices::Entry>{},
-            // write-only allowed
-          vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}},
-            // read is blocked
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
-        },
-        // Do not allow device if it's on both allow and deny list
-        DeviceControllerTestParams{
-          vector<devices::Entry>{
-            *devices::Entry::parse("c 1:3 w"),
-            *devices::Entry::parse("b 1:3 w")},
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 w")},
-          vector<OpenArgs>{},
-            // write-only is blocked
-          vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}}
-        },
-        // Mismatched entry in deny list is ignored and write access is granted
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 w")},
-          vector<devices::Entry>{*devices::Entry::parse("b 1:3 w")},
-            // write-only allowed
-          vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}},
-            // read is blocked
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
-        },
-        // Access to /dev/null is denied because the allowed access is to
-        // a different device type with the same major:minor numbers.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("b 1:3 rwm")},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{},
-            // /dev/null is blocked
-          vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
-        },
-        // Allow access to all devices.
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("a *:* rwm")},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{
-            {os::DEV_NULL, O_WRONLY},
-            {os::DEV_NULL, O_RDWR},
-            {os::DEV_NULL, O_RDONLY}},
-          vector<OpenArgs>{},
-        },
-        // Allow access with catch-all and specified device
-        DeviceControllerTestParams{
-          vector<devices::Entry>{
-            *devices::Entry::parse("a *:* rwm"),
-            *devices::Entry::parse("c 1:3 w")},
-          vector<devices::Entry>{},
-          vector<OpenArgs>{
-            {os::DEV_NULL, O_WRONLY},
-            {os::DEV_NULL, O_RDWR},
-            {os::DEV_NULL, O_RDONLY}},
-          vector<OpenArgs>{},
-        },
-        // Allow access to all devices except one
-        DeviceControllerTestParams{
-          vector<devices::Entry>{*devices::Entry::parse("a *:* rwm")},
-          vector<devices::Entry>{*devices::Entry::parse("c 1:3 w")},
-          // read is allowed by catch-all
-          vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
-          // write-only is blocked
-          vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}}
-        },
-        // Deny access to all devices
-        DeviceControllerTestParams{
-          vector<devices::Entry>{},
-          vector<devices::Entry>{*devices::Entry::parse("a *:* rwm")},
-          vector<OpenArgs>{},
-          vector<OpenArgs>{
-            {os::DEV_NULL, O_WRONLY},
-            {os::DEV_NULL, O_RDWR},
-            {os::DEV_NULL, O_RDONLY}},
-        },
-        // Deny access using catch-all and specified device
-        DeviceControllerTestParams{
-          vector<devices::Entry>{},
-          vector<devices::Entry>{
-            *devices::Entry::parse("c 1:3 w"),
-            *devices::Entry::parse("a *:* rwm")},
-          vector<OpenArgs>{},
-          vector<OpenArgs>{
-            {os::DEV_NULL, O_WRONLY},
-            {os::DEV_NULL, O_RDWR},
-            {os::DEV_NULL, O_RDONLY}},
-        },
-        // Catch-all in both allow and deny list
-        DeviceControllerTestParams{
-          vector<devices::Entry>{
-            *devices::Entry::parse("c 1:3 w"),
-            *devices::Entry::parse("a *:* rwm")},
-          vector<devices::Entry>{*devices::Entry::parse("a *:* rwm")},
-          vector<OpenArgs>{},
-          vector<OpenArgs>{
-            {os::DEV_NULL, O_WRONLY},
-            {os::DEV_NULL, O_RDWR},
-            {os::DEV_NULL, O_RDONLY}},
-        }
-      ));
+  DeviceControllerTestParams,
+  DeviceControllerTestFixture,
+  ::testing::Values<DeviceControllerTestParams>(
+    // Acceses are blocked by default if no entries are configured.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{},
+      vector<devices::Entry>{},
+      vector<OpenArgs>{},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDWR}}
+    },
+    // Deny access to /dev/null.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{},
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("c 1:3 rwm"))},
+      vector<OpenArgs>{},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
+    },
+    // Allow access to /dev/null.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("c 1:3 rwm"))},
+      vector<devices::Entry>{},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}},
+      vector<OpenArgs>{}
+    },
+    // Allow read-only access to /dev/null.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 r"))},
+      vector<devices::Entry>{},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}}
+    },
+    // Allow write-only access to /dev/null.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))},
+      vector<devices::Entry>{},
+      // Write-only allowed.
+      vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}},
+      // Read is blocked.
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
+    },
+    // Do not allow device if it's on both allow and deny list.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("c 1:3 w")),
+        CHECK_NOTERROR(devices::Entry::parse("b 1:3 w"))},
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))},
+      vector<OpenArgs>{},
+      // Write-only is blocked.
+      vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}}
+    },
+    // Mismatched entry in deny list is ignored and write access is granted.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))},
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("b 1:3 w"))},
+      // Write-only allowed.
+      vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}},
+      // Read is blocked.
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
+    },
+    // Access to /dev/null is denied because the allowed access is to
+    // a different device type with the same major:minor numbers.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("b 1:3 rwm"))},
+      vector<devices::Entry>{},
+      vector<OpenArgs>{},
+      // /dev/null is blocked.
+      vector<OpenArgs>{{os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}}
+    },
+    // Allow access to all devices.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("a *:* rwm"))},
+      vector<devices::Entry>{},
+      vector<OpenArgs>{
+        {os::DEV_NULL, O_WRONLY},
+        {os::DEV_NULL, O_RDWR},
+        {os::DEV_NULL, O_RDONLY}},
+      vector<OpenArgs>{}
+    },
+    // Allow access to all devices except one.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("a *:* rwm"))},
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))},
+      // Read is allowed by catch-all.
+      vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
+      // Write-only is blocked.
+      vector<OpenArgs>{{os::DEV_NULL, O_WRONLY}}
+    },
+    // Deny access to all devices.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{},
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("a *:* rwm"))},
+      vector<OpenArgs>{},
+      vector<OpenArgs>{
+        {os::DEV_NULL, O_WRONLY},
+        {os::DEV_NULL, O_RDWR},
+        {os::DEV_NULL, O_RDONLY}}
+    },
+    // Catch-all in both allow and deny list.
+    DeviceControllerTestParams{
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("a *:* rwm"))},
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("a *:* rwm"))},
+      vector<OpenArgs>{},
+      vector<OpenArgs>{
+        {os::DEV_NULL, O_WRONLY},
+        {os::DEV_NULL, O_RDWR},
+        {os::DEV_NULL, O_RDONLY}}
+    },
+    // Deny all accesses involving write
+    DeviceControllerTestParams{
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("a *:* rw"))},
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))},
+      vector<OpenArgs>{{os::DEV_NULL, O_RDONLY}},
+      vector<OpenArgs>{
+        {os::DEV_NULL, O_WRONLY},
+        {os::DEV_NULL, O_RDWR},
+      }}));
 
 
 TEST_F(Cgroups2Test, ROOT_CGROUPS2_AtomicReplace)
 {
   const string& cgroup = TEST_CGROUP;
-  const vector<devices::Entry>& allow = {*devices::Entry::parse("c 1:3 w")};
+  const vector<devices::Entry>& allow = {
+    CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))};
   const vector<devices::Entry>& deny = {};
-  const vector<OpenArgs>& allowed_accesses = {
-      {os::DEV_NULL, O_WRONLY}
-  };
+  const vector<OpenArgs>& allowed_accesses = {{os::DEV_NULL, O_WRONLY}};
   const vector<OpenArgs>& blocked_accesses = {
-      {os::DEV_NULL, O_RDWR},
-      {os::DEV_NULL, O_RDONLY}
-  };
+    {os::DEV_NULL, O_RDWR}, {os::DEV_NULL, O_RDONLY}};
   const vector<devices::Entry>& to_be_replaced_allow = {};
   const vector<devices::Entry>& to_be_replaced_deny = {
-      *devices::Entry::parse("c 1:3 w")
-  };
+    CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))};
 
   ASSERT_SOME(cgroups2::create(cgroup));
   string path = cgroups2::path(cgroup);

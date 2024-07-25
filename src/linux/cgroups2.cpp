@@ -1250,8 +1250,8 @@ public:
       short allow_block_trailer_size = allow_block_trailer(0).size();
 
       foreach (const Entry& entry, allow) {
-        vector<bpf_insn> allow_block =
-          add_device_checks(entry, allow_block_trailer_size);
+        vector<bpf_insn> allow_block = add_device_checks(
+            entry, allow_block_trailer_size, DeviceCheckType::ALLOW);
         allow_device_check_blocks.push_back(allow_block);
 
         start_of_deny_jmp_size += allow_block.size() + allow_block_trailer_size;
@@ -1273,7 +1273,8 @@ public:
     // We are either following the normal code flow or special case 1 (see
     // diagram above) if we reached this section.
     foreach (const Entry& entry, deny) {
-      program.append(add_device_checks(entry, deny_block_trailer().size()));
+      program.append(add_device_checks(
+          entry, deny_block_trailer().size(), DeviceCheckType::DENY));
       program.append(deny_block_trailer());
     }
 
@@ -1289,9 +1290,16 @@ public:
   }
 
 private:
+  enum DeviceCheckType
+  {
+    ALLOW,
+    DENY
+  };
+
   static vector<bpf_insn> add_device_checks(
       const Entry& entry,
-      short trailer_length)
+      short trailer_length,
+      DeviceCheckType device_check_type)
   {
     // We create a block of bytecode with the format:
     // 1. Major Version Check
@@ -1324,7 +1332,25 @@ private:
       });
     };
 
-    auto check_access_instructions =
+    auto check_deny_access_instructions =
+      [](short jmp_size, const Entry::Access& access)
+    {
+      int bpf_access = 0;
+      bpf_access |= access.read ? BPF_DEVCG_ACC_READ : 0;
+      bpf_access |= access.write ? BPF_DEVCG_ACC_WRITE : 0;
+      bpf_access |= access.mknod ? BPF_DEVCG_ACC_MKNOD : 0;
+      return vector<bpf_insn>({
+          BPF_MOV32_REG(BPF_REG_1, BPF_REG_3),
+          BPF_ALU32_IMM(BPF_AND, BPF_REG_1, bpf_access),
+          BPF_JMP_IMM(
+            BPF_JEQ,
+            BPF_REG_1,
+            0,
+            static_cast<short>(jmp_size - 2)),
+      });
+    };
+
+    auto check_allow_access_instructions =
       [](short jmp_size, const Entry::Access& access)
     {
       int bpf_access = 0;
@@ -1368,10 +1394,14 @@ private:
     // The jump sizes here correspond to the size of the bpf instructions
     // that each check adds to the program. The total size of the block is
     // the trailer length plus the total length of all checks.
+    size_t access_insn_size =
+      device_check_type == DeviceCheckType::ALLOW
+        ? check_allow_access_instructions(0, access).size()
+        : check_deny_access_instructions(0, access).size();
     short nxt_blk_jmp_size = trailer_length
       + (check_major ? check_major_instructions(0, 0).size() : 0)
       + (check_minor ? check_minor_instructions(0, 0).size() : 0)
-      + (check_access ? check_access_instructions(0, access).size() : 0)
+      + (check_access ? access_insn_size : 0)
       + (check_type ? check_type_instructions(0, selector).size() : 0);
 
     // We subtract one because the program counter will be one ahead when it
@@ -1414,7 +1444,9 @@ private:
     // 4. Check access (r3) against entry.
     if (check_access) {
       vector<bpf_insn> insert_instructions =
-        check_access_instructions(nxt_blk_jmp_size, access);
+        device_check_type == DeviceCheckType::ALLOW
+          ? check_allow_access_instructions(nxt_blk_jmp_size, access)
+          : check_deny_access_instructions(nxt_blk_jmp_size, access);
       foreach (const bpf_insn& insn, insert_instructions) {
         device_check_block.push_back(insn);
       }
