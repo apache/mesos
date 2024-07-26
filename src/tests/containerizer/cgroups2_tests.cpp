@@ -972,6 +972,50 @@ TEST(Cgroups2DevicesTest, NormalizeTest)
             cgroups2::devices::normalize(already_normalized));
 }
 
+
+TEST_F(Cgroups2Test, CGROUPS2_ConfigureValidation)
+{
+  const string& cgroup = TEST_CGROUP;
+
+  // Error if there is empty accesses in any entry.
+  devices::Entry empty_entry = CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"));
+  empty_entry.access.read = false;
+  empty_entry.access.write = false;
+  empty_entry.access.mknod = false;
+  vector<devices::Entry> allow = {empty_entry};
+  vector<devices::Entry> deny = {
+    CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))
+  };
+  Try<Nothing> configure_status = devices::configure(cgroup, allow, deny);
+  EXPECT_ERROR(configure_status);
+  EXPECT_EQ("Failed to validate arguments: allow or deny lists are not"
+            " normalized",
+            configure_status.error());
+
+  // Error if there is any entry that shares the same type, major, and minor
+  // numbers with another entry in the same list.
+  allow = {
+    CHECK_NOTERROR(devices::Entry::parse("b 3:1 rw")),
+    CHECK_NOTERROR(devices::Entry::parse("b 3:1 m"))};
+  deny = {CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))};
+  configure_status = devices::configure(cgroup, allow, deny);
+  EXPECT_ERROR(configure_status);
+  EXPECT_EQ("Failed to validate arguments: allow or deny lists are not"
+            " normalized",
+            configure_status.error());
+
+  // Error if there are entries which are encompassed by another on the same
+  // list.
+  allow = {
+    CHECK_NOTERROR(devices::Entry::parse("c *:* rw")),
+    CHECK_NOTERROR(devices::Entry::parse("c 3:1 w"))};
+  deny = {CHECK_NOTERROR(devices::Entry::parse("c 1:3 w"))};
+  configure_status = devices::configure(cgroup, allow, deny);
+  EXPECT_ERROR(configure_status);
+  EXPECT_EQ("Failed to validate arguments: allow or deny lists are not"
+            " normalized",
+            configure_status.error());
+}
 } // namespace tests {
 
 } // namespace internal {

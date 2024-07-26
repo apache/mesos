@@ -1466,6 +1466,11 @@ Try<Nothing> configure(
     const vector<Entry>& allow,
     const vector<Entry>& deny)
 {
+  if (!normalized(allow) || !normalized(deny)) {
+    return Error(
+        "Failed to validate arguments: allow or deny lists are not normalized");
+  }
+
   Try<ebpf::Program> program = DeviceProgram::build(allow, deny);
 
   if (program.isError()) {
