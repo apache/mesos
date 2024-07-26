@@ -41,8 +41,6 @@
 #include "linux/ebpf.hpp"
 #include "linux/fs.hpp"
 
-#include "slave/containerizer/device_manager/device_manager.hpp"
-
 using std::ostream;
 using std::set;
 using std::string;
@@ -1467,16 +1465,6 @@ Try<Nothing> configure(
     const vector<Entry>& allow,
     const vector<Entry>& deny)
 {
-  using mesos::internal::slave::DeviceManager;
-  DeviceManager::CgroupDeviceAccess state =
-    CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {}));
-  state.allow_list = allow;
-  state.deny_list = deny;
-  if (!state.normalized()) {
-    return Error(
-      "Failed to validate arguments: allow or deny lists are not normalized.");
-  }
-
   Try<ebpf::Program> program = DeviceProgram::build(allow, deny);
 
   if (program.isError()) {

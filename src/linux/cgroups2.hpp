@@ -434,15 +434,7 @@ using cgroups::devices::Entry;
 // are hierarchical. I.e. if a parent cgroup does not allow an access then
 // 'this' cgroup will be denied access.
 // For access to be granted, the requested access must match an entry in the
-// allow list, and not match with any entry on the deny list. If the device
-// type, major, minor numbers match with an entry on the deny list, there must
-// be no overlap between the requested access and the deny entry's accesses
-//
-// We additionally enforce the following constraints on both allow and deny:
-// 1. No Entry can have no accesses specified
-// 2. No two entries on the same list can have the same type, major & minor
-//    numbers.
-// 3. No two entries on the same list can be encompassed by the other entry.
+// allow list, and not match with any entry on the deny list.
 Try<Nothing> configure(
     const std::string& cgroup,
     const std::vector<Entry>& allow,
