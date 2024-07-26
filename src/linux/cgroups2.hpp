@@ -451,6 +451,11 @@ Try<Nothing> configure(
 //   entry (see Entry::encompasses).
 bool normalized(const std::vector<Entry>& entries);
 
+
+// Modifies the given entries such that the three normalization requirements
+// are fulfilled.
+std::vector<Entry> normalize(const std::vector<Entry>& entries);
+
 } // namespace devices {
 
 } // namespace cgroups2 {

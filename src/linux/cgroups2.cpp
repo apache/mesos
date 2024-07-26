@@ -30,6 +30,7 @@
 #include <process/pid.hpp>
 
 #include <stout/adaptor.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -1528,6 +1529,64 @@ bool normalized(const vector<Entry>& query)
   }
 
   return true;
+}
+
+
+vector<Entry> normalize(const vector<Entry>& to_normalize)
+{
+  auto strip_empties = [](const vector<Entry>& entries) {
+    vector<Entry> stripped = {};
+    foreach (const Entry& entry, entries) {
+      if (!entry.access.none()) {
+        stripped.push_back(entry);
+      }
+    }
+    return stripped;
+  };
+
+  auto deduplicate = [](const vector<Entry>& entries) {
+    LinkedHashMap<string, Entry> deduplicated;
+    foreach (const Entry& entry, entries) {
+      if (!deduplicated.contains(stringify(entry.selector))) {
+        deduplicated[stringify(entry.selector)] = entry;
+      }
+
+      Entry& e = deduplicated.at(stringify(entry.selector));
+      e.access.write |= entry.access.write;
+      e.access.read |= entry.access.read;
+      e.access.mknod |= entry.access.mknod;
+    }
+
+    return deduplicated.values();
+  };
+
+  auto strip_encompassed = [](const vector<Entry>& entries) {
+    vector<Entry> result = {};
+    foreach (const Entry& entry, entries) {
+      bool is_encompassed = [&]() {
+        foreach (const Entry& other, entries) {
+          if (!cgroups::devices::operator==(entry.selector, other.selector)
+              && other.encompasses(entry)) {
+            return true;
+          }
+        }
+        return false;
+      }();
+
+      // Skip entries that are encompassed by other entries.
+      if (!is_encompassed) {
+        result.push_back(entry);
+      }
+    }
+    return result;
+  };
+
+  vector<Entry> result = to_normalize;
+  result = strip_empties(result);
+  result = deduplicate(result);
+  result = strip_encompassed(result);
+  CHECK(normalized(result));
+  return result;
 }
 
 } // namespace devices {

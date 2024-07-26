@@ -907,6 +907,71 @@ TEST(Cgroups2DevicesTest, NormalizedTest)
   }));
 }
 
+
+TEST(Cgroups2DevicesTest, NormalizeTest)
+{
+  // Empty entries are eliminated.
+  devices::Entry empty_entry;
+  empty_entry.selector.type = devices::Entry::Selector::Type::CHARACTER;
+  empty_entry.selector.major = 1;
+  empty_entry.selector.minor = 3;
+  empty_entry.access.read = false;
+  empty_entry.access.write = false;
+  empty_entry.access.mknod = false;
+  EXPECT_EQ(
+      vector<devices::Entry>{},
+      cgroups2::devices::normalize({empty_entry}));
+
+  // Entries with matching type, major & minor numbers are combined into one
+  EXPECT_EQ(
+      vector<devices::Entry>{
+        CHECK_NOTERROR(devices::Entry::parse("b 3:1 rwm"))
+      },
+      cgroups2::devices::normalize({
+        CHECK_NOTERROR(devices::Entry::parse("b 3:1 rw")),
+        CHECK_NOTERROR(devices::Entry::parse("b 3:1 m"))
+      }));
+
+  // Entries that are encompassed by another are eliminated
+  EXPECT_EQ(
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c *:* rw"))},
+      cgroups2::devices::normalize({
+        CHECK_NOTERROR(devices::Entry::parse("c *:* rw")),
+        CHECK_NOTERROR(devices::Entry::parse("c 3:1 w"))
+      }));
+
+  // Test all three scenarios
+  EXPECT_EQ(
+      vector<devices::Entry>{CHECK_NOTERROR(devices::Entry::parse("c *:* rw"))},
+      cgroups2::devices::normalize({
+        empty_entry,
+        CHECK_NOTERROR(devices::Entry::parse("c *:* r")),
+        CHECK_NOTERROR(devices::Entry::parse("c *:* w")),
+        CHECK_NOTERROR(devices::Entry::parse("c 3:1 w"))
+       }));
+
+  // Normalized lists are unaffected
+  vector<devices::Entry> already_normalized = {
+    CHECK_NOTERROR(devices::Entry::parse("c *:* m")),
+    CHECK_NOTERROR(devices::Entry::parse("b *:* m")),
+    CHECK_NOTERROR(devices::Entry::parse("c 5:1 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 4:0 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 4:1 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 136:* rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 5:2 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 10:200 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 1:3 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 1:5 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 1:7 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 5:0 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 1:9 rwm")),
+    CHECK_NOTERROR(devices::Entry::parse("c 1:8 rwm"))
+  };
+  EXPECT_TRUE(cgroups2::devices::normalized(already_normalized));
+  EXPECT_EQ(already_normalized,
+            cgroups2::devices::normalize(already_normalized));
+}
+
 } // namespace tests {
 
 } // namespace internal {
