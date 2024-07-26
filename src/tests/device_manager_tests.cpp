@@ -352,7 +352,8 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{},
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rm")},
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 w")},
-      vector<devices::Entry>{}},
+      vector<devices::Entry>{}
+    },
     // Remove existing deny entry accesses:
     DeviceManagerGetDiffStateTestParams{
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rwm")},
@@ -360,9 +361,10 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rm")},
       vector<devices::Entry>{},
       vector<devices::Entry>{
-        *devices::Entry::parse("c 3:* rwm"),
-        *devices::Entry::parse("c 3:1 rm")},
-      vector<devices::Entry>{*devices::Entry::parse("c 3:1 w")}},
+        *devices::Entry::parse("c 3:* rwm")
+      },
+      vector<devices::Entry>{*devices::Entry::parse("c 3:1 w")}
+    },
     // Remove entire existing allow entry:
     DeviceManagerGetDiffStateTestParams{
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rm")},
@@ -370,7 +372,8 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{},
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rwm")},
       vector<devices::Entry>{},
-      vector<devices::Entry>{}},
+      vector<devices::Entry>{}
+    },
     // Remove entire existing deny entry:
     DeviceManagerGetDiffStateTestParams{
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rm")},
@@ -378,8 +381,10 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rm")},
       vector<devices::Entry>{},
       vector<devices::Entry>{
-        *devices::Entry::parse("c 3:* rm"), *devices::Entry::parse("c 3:1 rm")},
-      vector<devices::Entry>{}},
+        *devices::Entry::parse("c 3:* rm")
+      },
+      vector<devices::Entry>{}
+    },
     // Overlapping entries where none encompasses the other:
     DeviceManagerGetDiffStateTestParams{
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rm")},
@@ -387,8 +392,11 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rw")},
       vector<devices::Entry>{},
       vector<devices::Entry>{
-        *devices::Entry::parse("c 3:* rm"), *devices::Entry::parse("c 3:1 rw")},
-      vector<devices::Entry>{*devices::Entry::parse("c 3:1 m")}},
+        *devices::Entry::parse("c 3:* rm"),
+        *devices::Entry::parse("c 3:1 rwm")
+      },
+      vector<devices::Entry>{*devices::Entry::parse("c 3:1 m")}
+    },
     // Overlapping with non-encompassing wildcard:
     DeviceManagerGetDiffStateTestParams{
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rm")},
@@ -396,7 +404,8 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{},
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 rw")},
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rm")},
-      vector<devices::Entry>{*devices::Entry::parse("c 3:1 r")}}));
+      vector<devices::Entry>{*devices::Entry::parse("c 3:1 r")}
+    }));
 
 
 TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)

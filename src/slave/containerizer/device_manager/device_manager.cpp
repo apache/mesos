@@ -81,6 +81,13 @@ public:
       const vector<DeviceManager::NonWildcardEntry>& non_wildcard_deny_list)
   {
     vector<Entry> deny_list = convert_to_entries(non_wildcard_deny_list);
+
+    if (!cgroups2::devices::normalized(allow_list)
+        || !cgroups2::devices::normalized(deny_list)) {
+      return Failure("Failed to configure allow and deny devices:"
+                     " the input allow or deny list is not normalized");
+    }
+
     foreach (const Entry& allow_entry, allow_list) {
       foreach (const Entry& deny_entry, deny_list) {
         if (deny_entry.encompasses(allow_entry)) {
@@ -324,18 +331,8 @@ DeviceManager::CgroupDeviceAccess DeviceManager::apply_diff(
     }
   }
 
-  auto strip_empties = [](const vector<Entry>& entries) {
-    vector<Entry> res = {};
-    foreach (const Entry& entry, entries) {
-      if (!entry.access.none()) {
-        res.push_back(entry);
-      }
-    }
-    return res;
-  };
-
-  new_state.allow_list = strip_empties(new_state.allow_list);
-  new_state.deny_list = strip_empties(new_state.deny_list);
+  new_state.allow_list = cgroups2::devices::normalize(new_state.allow_list);
+  new_state.deny_list = cgroups2::devices::normalize(new_state.deny_list);
 
   return new_state;
 }
