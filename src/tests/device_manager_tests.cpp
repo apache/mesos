@@ -398,6 +398,54 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{*devices::Entry::parse("c 3:* rm")},
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 r")}}));
 
+
+TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)
+{
+  DeviceManager::CgroupDeviceAccess cgroup_device_access;
+
+  // Character devices with major minor numbers 1:3 can do write only:
+  cgroup_device_access.allow_list = {*devices::Entry::parse("c 1:3 w")};
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 w")));
+  EXPECT_FALSE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 rw")));
+  EXPECT_FALSE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("b 1:3 w")));
+
+  // Character devices with minor number 3 can do write only:
+  cgroup_device_access.allow_list = {*devices::Entry::parse("c *:3 w")};
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 4:3 w")));
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c *:3 w")));
+
+  // Character devices with major number 5 can do write only:
+  cgroup_device_access.allow_list = {(*devices::Entry::parse("c 5:* w"))};
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 5:* w")));
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 5:2 w")));
+
+  // All devices will match the catch-all and can perform all operations:
+  cgroup_device_access.allow_list = {*devices::Entry::parse("a *:* rwm")};
+  EXPECT_TRUE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 6:2 w")));
+
+  // Deny all accesses to character device with major and numbers 1:3.
+  cgroup_device_access.deny_list = {*devices::Entry::parse("c 1:3 rwm")};
+  EXPECT_FALSE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 w")));
+  EXPECT_FALSE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 rw")));
+
+  // Entry should be denied if encompassed by an entry in allow_list and
+  // overlaps with entry in deny_list.
+  cgroup_device_access.allow_list = {*devices::Entry::parse("c 1:3 rw")};
+  cgroup_device_access.deny_list = {*devices::Entry::parse("c 1:3 w")};
+  EXPECT_FALSE(
+    cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 rw")));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

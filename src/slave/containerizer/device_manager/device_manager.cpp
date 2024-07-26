@@ -340,6 +340,35 @@ DeviceManager::CgroupDeviceAccess DeviceManager::apply_diff(
   return new_state;
 }
 
+
+bool DeviceManager::CgroupDeviceAccess::is_access_granted(
+    const Entry& query) const
+{
+  CHECK(cgroups2::devices::normalized(allow_list));
+  CHECK(cgroups2::devices::normalized(deny_list));
+
+  auto allowed = [&]() {
+    foreach (const Entry& allow, allow_list) {
+      if (allow.encompasses(query)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto denied = [&]() {
+    foreach (const Entry& deny, deny_list) {
+      if (deny.selector.encompasses(query.selector)
+          && deny.access.overlaps(query.access)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  return allowed() && !denied();
+}
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

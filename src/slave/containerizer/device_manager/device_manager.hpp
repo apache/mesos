@@ -68,6 +68,10 @@ public:
   {
     std::vector<cgroups::devices::Entry> allow_list;
     std::vector<cgroups::devices::Entry> deny_list;
+
+    // A device access is granted if it is encompassed by an allow entry
+    // and does not have access overlaps with any deny entry.
+    bool is_access_granted(const cgroups::devices::Entry& entry) const;
   };
 
   static Try<DeviceManager*> create(const Flags& flags);
