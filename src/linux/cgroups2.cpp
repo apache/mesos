@@ -1483,6 +1483,53 @@ Try<Nothing> configure(
   return Nothing();
 }
 
+
+bool normalized(const vector<Entry>& query)
+{
+  auto has_empties = [](const vector<Entry>& entries) {
+    foreach (const Entry& entry, entries) {
+      if (entry.access.none()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (has_empties(query)) {
+    return false;
+  }
+
+  auto has_duplicate_selectors = [](const vector<Entry>& entries) {
+    hashset<string> selectors;
+    foreach (const Entry& entry, entries) {
+      selectors.insert(stringify(entry.selector));
+    }
+    return selectors.size() != entries.size();
+  };
+
+  if (has_duplicate_selectors(query)) {
+    return false;
+  }
+
+  auto has_encompassed_entries = [](const vector<Entry>& entries) {
+    foreach (const Entry& entry, entries) {
+      foreach (const Entry& other, entries) {
+        if ((!cgroups::devices::operator==(entry, other))
+            && entry.encompasses(other)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  if (has_encompassed_entries(query)) {
+    return false;
+  }
+
+  return true;
+}
+
 } // namespace devices {
 
 } // namespace cgroups2 {

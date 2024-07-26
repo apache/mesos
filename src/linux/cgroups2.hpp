@@ -440,6 +440,17 @@ Try<Nothing> configure(
     const std::vector<Entry>& allow,
     const std::vector<Entry>& deny);
 
+
+// Checks if the list of entries passed in is normalized.
+// A list of entries is normalized if:
+//
+// 1. No Entry has empty accesses specified.
+// 2. No two entries on the same list can have the same selector (type,
+//    major & minor numbers).
+// 3. No two entries on the same list can be encompassed by the other
+//   entry (see Entry::encompasses).
+bool normalized(const std::vector<Entry>& entries);
+
 } // namespace devices {
 
 } // namespace cgroups2 {
