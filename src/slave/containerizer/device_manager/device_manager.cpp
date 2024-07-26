@@ -91,9 +91,21 @@ public:
         }
       }
     }
+    auto it = device_access_per_cgroup.find(cgroup);
+    if (it != device_access_per_cgroup.end()) {
+      return Failure(
+        "Failed to configure allow and deny devices: cgroup entry already "
+        "exists.");
+    } else {
+      auto result = device_access_per_cgroup.emplace(
+        cgroup,
+        CHECK_NOTERROR(
+          DeviceManager::CgroupDeviceAccess::create(allow_list, deny_list)));
+      if (!result.second) {
+        return Failure("Failed to insert new element for key '" + cgroup + "'");
+      }
+    }
 
-    device_access_per_cgroup[cgroup].allow_list = allow_list;
-    device_access_per_cgroup[cgroup].deny_list = deny_list;
 
     Try<Nothing> commit = commit_device_access_changes(cgroup);
     if (commit.isError()) {
@@ -124,10 +136,21 @@ public:
       }
     }
 
-    device_access_per_cgroup[cgroup] = DeviceManager::apply_diff(
-        device_access_per_cgroup[cgroup],
-        non_wildcard_additions,
-        non_wildcard_removals);
+    auto it = device_access_per_cgroup.find(cgroup);
+    if (it != device_access_per_cgroup.end()) {
+      it->second = DeviceManager::apply_diff(
+        it->second, non_wildcard_additions, non_wildcard_removals);
+    } else {
+      auto result = device_access_per_cgroup.emplace(
+        cgroup,
+        DeviceManager::apply_diff(
+          CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {})),
+          non_wildcard_additions,
+          non_wildcard_removals));
+      if (!result.second) {
+        return Failure("Failed to insert new element for key '" + cgroup + "'");
+      }
+    }
 
     Try<Nothing> commit = commit_device_access_changes(cgroup);
     if (commit.isError()) {
@@ -149,7 +172,7 @@ public:
   {
     return device_access_per_cgroup.contains(cgroup)
       ? device_access_per_cgroup.at(cgroup)
-      : DeviceManager::CgroupDeviceAccess();
+      : CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {}));
   }
 
 private:
@@ -172,6 +195,107 @@ private:
     return Nothing();
   }
 };
+
+
+DeviceManager::CgroupDeviceAccess::CgroupDeviceAccess(
+  const std::vector<cgroups::devices::Entry>& _allow_list,
+  const std::vector<cgroups::devices::Entry>& _deny_list)
+  : allow_list(_allow_list), deny_list(_deny_list) {}
+
+
+bool DeviceManager::CgroupDeviceAccess::normalized() const
+{
+  auto has_empties = [](const vector<Entry>& entries) {
+    foreach (const Entry& entry, entries) {
+      if (entry.access.none()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (has_empties(allow_list) || has_empties(deny_list)) {
+    return false;
+  }
+
+  auto has_duplicate_selectors = [](const vector<Entry>& entries) {
+    hashset<string> seen;
+    foreach (const Entry& entry, entries) {
+      Entry no_access = entry;
+      no_access.access.write = false;
+      no_access.access.read = false;
+      no_access.access.mknod = false;
+      string item = stringify(no_access);
+      if (seen.contains(item)) {
+        return true;
+      }
+      seen.insert(item);
+    }
+    return false;
+  };
+
+  if (
+    has_duplicate_selectors(allow_list) || has_duplicate_selectors(deny_list)) {
+    return false;
+  }
+
+  auto has_encompassed_entries = [](const vector<Entry>& entries) {
+    foreach (const Entry& entry, entries) {
+      foreach (const Entry& other, entries) {
+        if (
+          (!cgroups::devices::operator==(entry, other)) &&
+          other.encompasses(entry)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  if (
+    has_encompassed_entries(allow_list) || has_encompassed_entries(deny_list)) {
+    return false;
+  }
+  return true;
+}
+
+
+Try<DeviceManager::CgroupDeviceAccess>
+DeviceManager::CgroupDeviceAccess::create(
+  const vector<Entry>& allow_list, const vector<Entry>& deny_list)
+{
+  CgroupDeviceAccess res(allow_list, deny_list);
+  if (!res.normalized()) {
+    return Error(
+      "Failed to create CgroupDeviceAccess: The allow or deny list is not "
+      "normalized.");
+  }
+  return res;
+}
+
+
+bool DeviceManager::CgroupDeviceAccess::is_access_granted(
+  const Entry& query) const
+{
+  CHECK(normalized());
+  bool encompassed_by_allow = false;
+  foreach (const Entry& allow, allow_list) {
+    if (allow.encompasses(query)) {
+      encompassed_by_allow = true;
+    }
+  }
+  if (!encompassed_by_allow) {
+    return false;
+  }
+  foreach (const Entry& deny, deny_list) {
+    if (
+      deny.selector.encompasses(query.selector) &&
+      deny.access.overlaps(query.access)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 
 Try<DeviceManager*> DeviceManager::create(const Flags& flags)
