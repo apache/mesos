@@ -99,8 +99,13 @@ public:
       }
     }
 
-    device_access_per_cgroup[cgroup].allow_list = allow_list;
-    device_access_per_cgroup[cgroup].deny_list = deny_list;
+    auto result = device_access_per_cgroup.emplace(
+        cgroup,
+        CHECK_NOTERROR(
+          DeviceManager::CgroupDeviceAccess::create(allow_list, deny_list)));
+    if (!result.second) {
+      return Failure("cgroup entry already exists");
+    }
 
     Try<Nothing> commit = commit_device_access_changes(cgroup);
     if (commit.isError()) {
@@ -131,10 +136,19 @@ public:
       }
     }
 
-    device_access_per_cgroup[cgroup] = DeviceManager::apply_diff(
-        device_access_per_cgroup[cgroup],
-        non_wildcard_additions,
-        non_wildcard_removals);
+    auto it = device_access_per_cgroup.find(cgroup);
+    if (it != device_access_per_cgroup.end()) {
+      it->second = DeviceManager::apply_diff(
+          it->second, non_wildcard_additions, non_wildcard_removals);
+    } else {
+      auto result = device_access_per_cgroup.emplace(
+        cgroup,
+        DeviceManager::apply_diff(
+          CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {})),
+          non_wildcard_additions,
+          non_wildcard_removals));
+      CHECK(result.second);
+    }
 
     Try<Nothing> commit = commit_device_access_changes(cgroup);
     if (commit.isError()) {
@@ -156,7 +170,7 @@ public:
   {
     return device_access_per_cgroup.contains(cgroup)
       ? device_access_per_cgroup.at(cgroup)
-      : DeviceManager::CgroupDeviceAccess();
+      : CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {}));
   }
 
 private:
@@ -364,6 +378,26 @@ bool DeviceManager::CgroupDeviceAccess::is_access_granted(
   };
 
   return allowed() && !denied();
+}
+
+
+DeviceManager::CgroupDeviceAccess::CgroupDeviceAccess(
+  const std::vector<cgroups::devices::Entry>& _allow_list,
+  const std::vector<cgroups::devices::Entry>& _deny_list)
+  : allow_list(_allow_list), deny_list(_deny_list) {}
+
+
+Try<DeviceManager::CgroupDeviceAccess>
+DeviceManager::CgroupDeviceAccess::create(
+    const vector<Entry>& allow_list,
+    const vector<Entry>& deny_list)
+{
+  if (!cgroups2::devices::normalized(allow_list)
+      || !(cgroups2::devices::normalized(deny_list))) {
+    return Error("Failed to create CgroupDeviceAccess:"
+                 " The allow or deny list is not normalized");
+  }
+  return CgroupDeviceAccess(allow_list, deny_list);
 }
 
 } // namespace slave {

@@ -72,6 +72,16 @@ public:
     // A device access is granted if it is encompassed by an allow entry
     // and does not have access overlaps with any deny entry.
     bool is_access_granted(const cgroups::devices::Entry& entry) const;
+
+    // Returns an error if it the allow or deny lists are not normalized.
+    static Try<CgroupDeviceAccess> create(
+      const std::vector<cgroups::devices::Entry>& allow_list,
+      const std::vector<cgroups::devices::Entry>& deny_list);
+
+  private:
+    CgroupDeviceAccess(
+      const std::vector<cgroups::devices::Entry>& allow_list,
+      const std::vector<cgroups::devices::Entry>& deny_list);
   };
 
   static Try<DeviceManager*> create(const Flags& flags);
