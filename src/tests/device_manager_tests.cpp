@@ -436,6 +436,7 @@ TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)
   EXPECT_TRUE(
       cgroup_device_access.is_access_granted(*devices::Entry::parse("c *:3 w"))
   );
+
   // Character devices with major number 5 can do write only:
   cgroup_device_access = CHECK_NOTERROR(
       DeviceManager::CgroupDeviceAccess::create(
@@ -447,14 +448,15 @@ TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)
   EXPECT_TRUE(
       cgroup_device_access.is_access_granted(*devices::Entry::parse("c 5:2 w"))
   );
+
   // All devices will match the catch-all and can perform all operations:
   cgroup_device_access = CHECK_NOTERROR(
       DeviceManager::CgroupDeviceAccess::create(
       {*devices::Entry::parse("a *:* rwm")}, {}
   ));
-
   EXPECT_TRUE(
     cgroup_device_access.is_access_granted(*devices::Entry::parse("c 6:2 w")));
+
   // Deny all accesses to character device with major and numbers 1:3.
   cgroup_device_access = CHECK_NOTERROR(
       DeviceManager::CgroupDeviceAccess::create(
