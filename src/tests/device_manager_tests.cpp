@@ -393,7 +393,7 @@ INSTANTIATE_TEST_CASE_P(
       vector<devices::Entry>{},
       vector<devices::Entry>{
         *devices::Entry::parse("c 3:* rm"),
-        *devices::Entry::parse("c 3:1 rwm")
+        *devices::Entry::parse("c 3:1 rw")
       },
       vector<devices::Entry>{*devices::Entry::parse("c 3:1 m")}
     },
@@ -424,6 +424,12 @@ TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)
   EXPECT_FALSE(
       cgroup_device_access.is_access_granted(*devices::Entry::parse("b 1:3 w"))
   );
+
+  // Character devices with minor number 3 can do write only:
+  cgroup_device_access = CHECK_NOTERROR(
+      DeviceManager::CgroupDeviceAccess::create(
+      {*devices::Entry::parse("c *:3 w")}, {}
+  ));
   EXPECT_TRUE(
       cgroup_device_access.is_access_granted(*devices::Entry::parse("c 4:3 w"))
   );
