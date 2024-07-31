@@ -70,6 +70,7 @@ Try<vector<DeviceManager::NonWildcardEntry>> convert_to_non_wildcards(
         case cgroups::devices::Entry::Selector::Type::ALL:
           UNREACHABLE();
       }
+      UNREACHABLE();
     }();
     non_wildcards.push_back(non_wildcard);
   }
