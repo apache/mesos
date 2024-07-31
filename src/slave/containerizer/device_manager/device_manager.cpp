@@ -175,6 +175,14 @@ public:
       : CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create({}, {}));
   }
 
+  Future<Nothing> remove(const std::string& cgroup)
+  {
+    if (device_access_per_cgroup.contains(cgroup)) {
+      device_access_per_cgroup.erase(cgroup);
+    }
+    return Nothing();
+  }
+
 private:
   const string meta_dir;
 
@@ -400,6 +408,15 @@ DeviceManager::CgroupDeviceAccess::create(
                  " The allow or deny list is not normalized");
   }
   return CgroupDeviceAccess(allow_list, deny_list);
+}
+
+
+Future<Nothing> DeviceManager::remove(const std::string& cgroup)
+{
+  return dispatch(
+      *process,
+      &DeviceManagerProcess::remove,
+      cgroup);
 }
 
 } // namespace slave {

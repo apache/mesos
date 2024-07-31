@@ -123,6 +123,9 @@ public:
       const std::vector<DeviceManager::NonWildcardEntry>& additions,
       const std::vector<DeviceManager::NonWildcardEntry>& removals);
 
+  // Remove the cgroup from the DeviceManager state if the state contains it.
+  process::Future<Nothing> remove(const std::string& cgroup);
+
 private:
   explicit DeviceManager(const process::Owned<DeviceManagerProcess>& process);
   process::Owned<DeviceManagerProcess> process;

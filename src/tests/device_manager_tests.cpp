@@ -287,6 +287,44 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerGetDiffState_AllowMatchesDeny)
 }
 
 
+TEST_F(DeviceManagerTest, ROOT_DeviceManagerRemove)
+{
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  slave::Flags flags;
+  flags.work_dir = *sandbox;
+  Owned<DeviceManager> dm =
+    Owned<DeviceManager>(CHECK_NOTERROR(DeviceManager::create(flags)));
+
+  vector<devices::Entry> allow_list = {*devices::Entry::parse("c 1:3 w")};
+  vector<devices::Entry> deny_list = {*devices::Entry::parse("c 3:1 w")};
+
+  AWAIT_ASSERT_READY(dm->configure(
+      TEST_CGROUP,
+      allow_list,
+      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+
+  Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
+    dm->state(TEST_CGROUP);
+
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(allow_list, cgroup_state->allow_list);
+  EXPECT_EQ(deny_list, cgroup_state->deny_list);
+
+  Future<Nothing> removal = dm->remove(TEST_CGROUP);
+  AWAIT_ASSERT_READY(removal);
+
+  Future<hashmap<std::string, DeviceManager::CgroupDeviceAccess>> dm_state =
+    dm->state();
+  EXPECT_FALSE(dm_state->contains(TEST_CGROUP));
+
+  cgroup_state = dm->state(TEST_CGROUP);
+
+  AWAIT_ASSERT_READY(cgroup_state);
+  EXPECT_EQ(vector<devices::Entry>{}, cgroup_state->allow_list);
+  EXPECT_EQ(vector<devices::Entry>{}, cgroup_state->deny_list);
+}
+
+
 using DeviceManagerGetDiffStateTestParams = tuple<
   vector<devices::Entry>, // Allow list for initial configure.
   vector<devices::Entry>, // Deny list for initial configure.
