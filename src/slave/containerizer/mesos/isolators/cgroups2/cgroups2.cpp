@@ -73,7 +73,9 @@ Cgroups2IsolatorProcess::Cgroups2IsolatorProcess(
 Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
 
 
-Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
+Try<Isolator*> Cgroups2IsolatorProcess::create(
+    const Flags& flags,
+    const Owned<DeviceManager>& deviceManager)
 {
   hashmap<string, Try<Owned<ControllerProcess>>(*)(const Flags&)> creators = {
     {"core", &CoreControllerProcess::create},
@@ -81,6 +83,10 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
     {"mem", &MemoryControllerProcess::create},
     {"perf_event", &PerfEventControllerProcess::create}
   };
+
+  hashmap<string, Try<Owned<ControllerProcess>>(*)
+      (const Flags&, const Owned<DeviceManager>)>
+    creatorsWithDeviceManager = {};
 
   hashmap<string, Owned<Controller>> controllers;
 
@@ -105,9 +111,10 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
       }
 
       isolator = strings::remove(isolator, "cgroups/", strings::Mode::PREFIX);
-      if (!creators.contains(isolator)) {
+      if (!creators.contains(isolator)
+          && !creatorsWithDeviceManager.contains(isolator)) {
         return Error(
-            "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
+          "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
       }
 
       controllersToCreate.insert(isolator);
@@ -115,12 +122,15 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(const Flags& flags)
   }
 
   foreach (const string& controllerName, controllersToCreate) {
-    if (creators.count(controllerName) == 0) {
+    if (creators.count(controllerName) == 0
+        && creatorsWithDeviceManager.count(controllerName) == 0) {
       return Error(
-          "Cgroups v2 controller '" + controllerName + "' is not supported.");
+        "Cgroups v2 controller '" + controllerName + "' is not supported.");
     }
 
-    Try<Owned<ControllerProcess>> process = creators.at(controllerName)(flags);
+    Try<Owned<ControllerProcess>> process = creators.contains(controllerName)
+        ? creators.at(controllerName)(flags)
+        : creatorsWithDeviceManager.at(controllerName)(flags, deviceManager);
     if (process.isError()) {
       return Error("Failed to create controller '" + controllerName + "': "
                    + process.error());

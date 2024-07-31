@@ -45,6 +45,8 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
+#include "slave/containerizer/device_manager/device_manager.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {

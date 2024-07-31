@@ -369,16 +369,21 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   Shared<Provisioner> provisioner = _provisioner->share();
 
 #ifdef __linux__
+  Owned<DeviceManager> device_manager =
+    Owned<DeviceManager>(CHECK_NOTERROR(DeviceManager::create(flags)));
+
   // Initialize either the cgroups v2 or cgroups v1 isolator, based on what
   // is available on the host machine.
-  auto cgroupsIsolatorSelector = [] (const Flags& flags) -> Try<Isolator*> {
+  auto cgroupsIsolatorSelector = [device_manager] (const Flags& flags)
+      -> Try<Isolator*>
+  {
     Try<bool> mounted = cgroups2::mounted();
     if (mounted.isError()) {
       return Error("Failed to determine if the cgroup2 filesystem is mounted: "
                    + mounted.error());
     }
     if (*mounted) {
-      return Cgroups2IsolatorProcess::create(flags);
+      return Cgroups2IsolatorProcess::create(flags, device_manager);
     }
     return CgroupsIsolatorProcess::create(flags);
   };

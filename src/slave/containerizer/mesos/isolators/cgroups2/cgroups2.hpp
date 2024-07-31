@@ -27,6 +27,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
+#include "slave/containerizer/device_manager/device_manager.hpp"
 #include "slave/containerizer/mesos/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
 #include "slave/flags.hpp"
@@ -57,7 +58,9 @@ namespace slave {
 class Cgroups2IsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(
+      const Flags& flags,
+      const process::Owned<DeviceManager>& deviceManager);
 
   ~Cgroups2IsolatorProcess() override;
 
