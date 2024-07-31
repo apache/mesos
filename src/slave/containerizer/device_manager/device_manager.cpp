@@ -24,6 +24,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 
 #include "slave/containerizer/device_manager/device_manager.hpp"
 #include "slave/paths.hpp"
@@ -59,6 +60,7 @@ vector<Entry> convert_to_entries(
         case DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER:
           return Entry::Selector::Type::CHARACTER;
       }
+      UNREACHABLE();
     }();
     entry.selector.major = non_wildcards_entry.selector.major;
     entry.selector.minor = non_wildcards_entry.selector.minor;
