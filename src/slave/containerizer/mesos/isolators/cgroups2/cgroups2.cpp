@@ -22,6 +22,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpu.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/memory.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/devices.hpp"
 
 #include <set>
 #include <string>
@@ -84,9 +85,12 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
     {"perf_event", &PerfEventControllerProcess::create}
   };
 
-  hashmap<string, Try<Owned<ControllerProcess>>(*)
-      (const Flags&, const Owned<DeviceManager>)>
-    creatorsWithDeviceManager = {};
+  hashmap<string, Try<Owned<ControllerProcess>>(*)(
+      const Flags&,
+      const Owned<DeviceManager>)>
+    creatorsWithDeviceManager = {
+      {"devices", &DeviceControllerProcess::create},
+    };
 
   hashmap<string, Owned<Controller>> controllers;
 
