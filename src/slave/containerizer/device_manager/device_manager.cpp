@@ -45,26 +45,33 @@ namespace internal {
 namespace slave {
 
 
+Entry convert_to_entry(
+    const DeviceManager::NonWildcardEntry& non_wildcard_entry)
+{
+  Entry entry;
+  entry.access = non_wildcard_entry.access;
+  entry.selector.type = [&]() {
+    switch (non_wildcard_entry.selector.type) {
+      case DeviceManager::NonWildcardEntry::Selector::Type::BLOCK:
+        return Entry::Selector::Type::BLOCK;
+      case DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER:
+        return Entry::Selector::Type::CHARACTER;
+    }
+    UNREACHABLE();
+  }();
+  entry.selector.major = non_wildcard_entry.selector.major;
+  entry.selector.minor = non_wildcard_entry.selector.minor;
+  return entry;
+}
+
+
 vector<Entry> convert_to_entries(
-    const vector<DeviceManager::NonWildcardEntry>& non_wildcards_entries)
+    const vector<DeviceManager::NonWildcardEntry>& non_wildcard_entries)
 {
   vector<Entry> entries = {};
-  foreach (const DeviceManager::NonWildcardEntry& non_wildcards_entry,
-           non_wildcards_entries) {
-    Entry entry;
-    entry.access = non_wildcards_entry.access;
-    entry.selector.type = [&]() {
-      switch (non_wildcards_entry.selector.type) {
-        case DeviceManager::NonWildcardEntry::Selector::Type::BLOCK:
-          return Entry::Selector::Type::BLOCK;
-        case DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER:
-          return Entry::Selector::Type::CHARACTER;
-      }
-      UNREACHABLE();
-    }();
-    entry.selector.major = non_wildcards_entry.selector.major;
-    entry.selector.minor = non_wildcards_entry.selector.minor;
-    entries.push_back(entry);
+  foreach (const DeviceManager::NonWildcardEntry& non_wildcard,
+           non_wildcard_entries) {
+    entries.push_back(convert_to_entry(non_wildcard));
   }
   return entries;
 }
@@ -388,6 +395,12 @@ bool DeviceManager::CgroupDeviceAccess::is_access_granted(
   };
 
   return allowed() && !denied();
+}
+
+bool DeviceManager::CgroupDeviceAccess::is_access_granted(
+    const DeviceManager::NonWildcardEntry& query) const
+{
+  return is_access_granted(convert_to_entry(query));
 }
 
 

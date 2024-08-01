@@ -72,6 +72,7 @@ public:
     // A device access is granted if it is encompassed by an allow entry
     // and does not have access overlaps with any deny entry.
     bool is_access_granted(const cgroups::devices::Entry& entry) const;
+    bool is_access_granted(const NonWildcardEntry& entry) const;
 
     // Returns an error if it the allow or deny lists are not normalized.
     static Try<CgroupDeviceAccess> create(
