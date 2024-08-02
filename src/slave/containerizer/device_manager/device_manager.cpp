@@ -77,6 +77,38 @@ vector<Entry> convert_to_entries(
 }
 
 
+Try<vector<DeviceManager::NonWildcardEntry>>
+  DeviceManager::NonWildcardEntry::create(
+      const vector<cgroups::devices::Entry>& entries)
+{
+  vector<DeviceManager::NonWildcardEntry> non_wildcards = {};
+
+  foreach (const cgroups::devices::Entry& entry, entries) {
+    if (entry.selector.has_wildcard()) {
+      return Error("Entry cannot have wildcard");
+    }
+    DeviceManager::NonWildcardEntry non_wildcard;
+    non_wildcard.access = entry.access;
+    non_wildcard.selector.major = *entry.selector.major;
+    non_wildcard.selector.minor = *entry.selector.minor;
+    non_wildcard.selector.type = [&]() {
+      switch (entry.selector.type) {
+        case cgroups::devices::Entry::Selector::Type::BLOCK:
+          return DeviceManager::NonWildcardEntry::Selector::Type::BLOCK;
+        case cgroups::devices::Entry::Selector::Type::CHARACTER:
+          return DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER;
+        case cgroups::devices::Entry::Selector::Type::ALL:
+          UNREACHABLE();
+      }
+      UNREACHABLE();
+    }();
+    non_wildcards.push_back(non_wildcard);
+  }
+
+  return non_wildcards;
+}
+
+
 class DeviceManagerProcess : public process::Process<DeviceManagerProcess>
 {
 public:

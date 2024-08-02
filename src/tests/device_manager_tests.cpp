@@ -48,37 +48,6 @@ namespace tests {
 const string TEST_CGROUP = "test";
 
 
-Try<vector<DeviceManager::NonWildcardEntry>> convert_to_non_wildcards(
-    const vector<devices::Entry>& entries)
-{
-  vector<DeviceManager::NonWildcardEntry> non_wildcards = {};
-
-  foreach (const devices::Entry& entry, entries) {
-    if (entry.selector.has_wildcard()) {
-      return Error("Entry cannot have wildcard");
-    }
-    DeviceManager::NonWildcardEntry non_wildcard;
-    non_wildcard.access = entry.access;
-    non_wildcard.selector.major = *entry.selector.major;
-    non_wildcard.selector.minor = *entry.selector.minor;
-    non_wildcard.selector.type = [&]() {
-      switch (entry.selector.type) {
-        case cgroups::devices::Entry::Selector::Type::BLOCK:
-          return DeviceManager::NonWildcardEntry::Selector::Type::BLOCK;
-        case cgroups::devices::Entry::Selector::Type::CHARACTER:
-          return DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER;
-        case cgroups::devices::Entry::Selector::Type::ALL:
-          UNREACHABLE();
-      }
-      UNREACHABLE();
-    }();
-    non_wildcards.push_back(non_wildcard);
-  }
-
-  return non_wildcards;
-}
-
-
 class DeviceManagerTest : public TemporaryDirectoryTest
 {
   void SetUp() override
@@ -105,7 +74,7 @@ class DeviceManagerTest : public TemporaryDirectoryTest
 
 TEST(NonWildcardEntry, NonWildcardFromWildcard)
 {
-  EXPECT_ERROR(convert_to_non_wildcards(
+  EXPECT_ERROR(DeviceManager::NonWildcardEntry::create(
       vector<devices::Entry>{*devices::Entry::parse("c *:1 w")}));
 }
 
@@ -125,7 +94,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_Normal)
   AWAIT_ASSERT_READY(dm->configure(
       TEST_CGROUP,
       allow_list,
-      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(deny_list))));
 
   Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
     dm->state(TEST_CGROUP);
@@ -173,7 +142,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
   AWAIT_ASSERT_READY(dm->configure(
       TEST_CGROUP,
       allow_list,
-      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(deny_list))));
 
   Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
     dm->state(TEST_CGROUP);
@@ -187,8 +156,8 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerReconfigure_Normal)
 
   AWAIT_ASSERT_READY(dm->reconfigure(
       TEST_CGROUP,
-      CHECK_NOTERROR(convert_to_non_wildcards(additions)),
-      CHECK_NOTERROR(convert_to_non_wildcards(removals))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(additions)),
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(removals))));
 
   cgroup_state = dm->state(TEST_CGROUP);
 
@@ -238,7 +207,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_AllowMatchesDeny)
   AWAIT_ASSERT_FAILED(dm->configure(
       TEST_CGROUP,
       allow_list,
-      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(deny_list))));
 }
 
 
@@ -256,7 +225,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerConfigure_AllowWildcard)
   AWAIT_ASSERT_READY(dm->configure(
       TEST_CGROUP,
       allow_list,
-      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(deny_list))));
 
   Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
     dm->state(TEST_CGROUP);
@@ -283,8 +252,8 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerGetDiffState_AllowMatchesDeny)
 
   AWAIT_ASSERT_FAILED(dm->reconfigure(
       TEST_CGROUP,
-      CHECK_NOTERROR(convert_to_non_wildcards(additions)),
-      CHECK_NOTERROR(convert_to_non_wildcards(removals))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(additions)),
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(removals))));
 }
 
 
@@ -302,7 +271,7 @@ TEST_F(DeviceManagerTest, ROOT_DeviceManagerRemove)
   AWAIT_ASSERT_READY(dm->configure(
       TEST_CGROUP,
       allow_list,
-      CHECK_NOTERROR(convert_to_non_wildcards(deny_list))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(deny_list))));
 
   Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
     dm->state(TEST_CGROUP);
@@ -361,7 +330,7 @@ TEST_P(DeviceManagerGetDiffStateTestFixture, ROOT_DeviceManagerGetDiffState)
   AWAIT_ASSERT_READY(dm->configure(
       TEST_CGROUP,
       setup_allow,
-      CHECK_NOTERROR(convert_to_non_wildcards(setup_deny))));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(setup_deny))));
 
   Future<DeviceManager::CgroupDeviceAccess> cgroup_state =
     dm->state(TEST_CGROUP);
@@ -372,8 +341,8 @@ TEST_P(DeviceManagerGetDiffStateTestFixture, ROOT_DeviceManagerGetDiffState)
 
   cgroup_state = dm->apply_diff(
       cgroup_state.get(),
-      CHECK_NOTERROR(convert_to_non_wildcards(additions)),
-      CHECK_NOTERROR(convert_to_non_wildcards(removals)));
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(additions)),
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(removals)));
 
   EXPECT_EQ(reconfigured_allow, cgroup_state->allow_list);
   EXPECT_EQ(reconfigured_deny, cgroup_state->deny_list);

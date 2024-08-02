@@ -52,6 +52,9 @@ public:
   // Used to enforce non-wildcard entry restrictions at compile time.
   struct NonWildcardEntry
   {
+    static Try<std::vector<NonWildcardEntry>> create(
+        const std::vector<cgroups::devices::Entry>& entries);
+
     struct Selector
     {
       enum class Type { BLOCK, CHARACTER };
