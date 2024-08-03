@@ -41,6 +41,7 @@ extern "C" {
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -48,6 +49,7 @@ extern "C" {
 #include "common/protobuf_utils.hpp"
 
 #include "linux/cgroups.hpp"
+#include "linux/cgroups2.hpp"
 #include "linux/fs.hpp"
 
 #include "slave/flags.hpp"
@@ -91,23 +93,53 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+
+DeviceManager::NonWildcardEntry asDeviceEntry(const Gpu& gpu)
+{
+  DeviceManager::NonWildcardEntry entry;
+  entry.selector.type =
+    DeviceManager::NonWildcardEntry::Selector::Type::CHARACTER;
+  entry.selector.major = gpu.major;
+  entry.selector.minor = gpu.minor;
+  entry.access.read = true;
+  entry.access.write = true;
+  entry.access.mknod = false;
+  return entry;
+}
+
+
+vector<DeviceManager::NonWildcardEntry> asDeviceEntries(const set<Gpu>& gpus)
+{
+  vector<DeviceManager::NonWildcardEntry> device_entries;
+  foreach (const Gpu& gpu, gpus) {
+    device_entries.push_back(asDeviceEntry(gpu));
+  }
+  return device_entries;
+}
+
+
 NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const NvidiaGpuAllocator& _allocator,
     const NvidiaVolume& _volume,
-    const map<Path, cgroups::devices::Entry>& _controlDeviceEntries)
+    const LinkedHashMap<string, cgroups::devices::Entry>& _controlDevices,
+    const process::Owned<DeviceManager>& _deviceManager,
+    const bool _usingCgroups2)
   : ProcessBase(process::ID::generate("mesos-nvidia-gpu-isolator")),
     flags(_flags),
     hierarchy(_hierarchy),
     allocator(_allocator),
     volume(_volume),
-    controlDeviceEntries(_controlDeviceEntries) {}
+    controlDevices(_controlDevices),
+    deviceManager(_deviceManager),
+    usingCgroups2(_usingCgroups2) {}
 
 
 Try<Isolator*> NvidiaGpuIsolatorProcess::create(
     const Flags& flags,
-    const NvidiaComponents& components)
+    const NvidiaComponents& components,
+    const process::Owned<DeviceManager>& deviceManager)
 {
   // Make sure both the 'cgroups/devices' (or 'cgroups/all')
   // and the 'filesystem/linux' isolators are present.
@@ -153,19 +185,29 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
                  " order to use the 'gpu/nvidia' isolator");
   }
 
-  // Retrieve the cgroups devices hierarchy.
   Result<string> hierarchy = cgroups::hierarchy(CGROUP_SUBSYSTEM_DEVICES_NAME);
+  Try<bool> cgroups2Mounted = cgroups2::mounted();
 
-  if (hierarchy.isError()) {
-    return Error(
-        "Error retrieving the 'devices' subsystem hierarchy: " +
-        hierarchy.error());
+  if (cgroups2Mounted.isError()) {
+    return Error("Failed to check whether system is using cgroups v2: " +
+                 cgroups2Mounted.error());
+  }
+
+  if (!(*cgroups2Mounted) && hierarchy.isError()) {
+    return Error("Failed to retrieve the " + CGROUP_SUBSYSTEM_DEVICES_NAME
+                 + " subsystem hierarchy when cgroups v2 is not being used: "
+                 + hierarchy.error());
+  }
+
+  if (!(*cgroups2Mounted) && !hierarchy.isSome()) {
+    return Error("Failed to determine whether cgroups v1 or v2 is being used: "
+                 "did not find cgroups v2 mount, nor a v1 'devices' subsystem");
   }
 
   // Create device entries for `/dev/nvidiactl` and
   // `/dev/nvidia-uvm`. Optionally create a device entry for
   // `/dev/nvidia-uvm-tools` if it exists.
-  map<Path, cgroups::devices::Entry> deviceEntries;
+  LinkedHashMap<string, cgroups::devices::Entry> deviceEntries;
 
   Try<dev_t> device = os::stat::rdev("/dev/nvidiactl");
   if (device.isError()) {
@@ -181,7 +223,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
   entry.access.write = true;
   entry.access.mknod = true;
 
-  deviceEntries[Path("/dev/nvidiactl")] = entry;
+  deviceEntries["/dev/nvidiactl"] = entry;
 
   // The `nvidia-uvm` module is not typically loaded by default on
   // systems that have Nvidia GPU drivers installed. Instead,
@@ -213,7 +255,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
   entry.access.write = true;
   entry.access.mknod = true;
 
-  deviceEntries[Path("/dev/nvidia-uvm")] = entry;
+  deviceEntries["/dev/nvidia-uvm"] = entry;
 
   device = os::stat::rdev("/dev/nvidia-uvm-tools");
   if (device.isSome()) {
@@ -224,16 +266,18 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
     entry.access.write = true;
     entry.access.mknod = true;
 
-    deviceEntries[Path("/dev/nvidia-uvm-tools")] = entry;
+    deviceEntries["/dev/nvidia-uvm-tools"] = entry;
   }
 
   process::Owned<MesosIsolatorProcess> process(
       new NvidiaGpuIsolatorProcess(
           flags,
-          hierarchy.get(),
+          *cgroups2Mounted ? flags.cgroups_hierarchy : hierarchy.get(),
           components.allocator,
           components.volume,
-          deviceEntries));
+          deviceEntries,
+          deviceManager,
+          *cgroups2Mounted));
 
   return new MesosIsolator(process);
 }
@@ -241,7 +285,8 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
 
 bool NvidiaGpuIsolatorProcess::supportsNesting()
 {
-  return true;
+  // TODO(jasonzhou): return true once nesting is supported w/cgroups v2.
+  return usingCgroups2 ? false : true;
 }
 
 
@@ -254,6 +299,21 @@ bool NvidiaGpuIsolatorProcess::supportsStandalone()
 Future<Nothing> NvidiaGpuIsolatorProcess::recover(
     const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
+{
+  if (usingCgroups2) {
+    return deviceManager->state()
+      .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
+                  &NvidiaGpuIsolatorProcess::_recover,
+                  states,
+                  lambda::_1));
+  }
+  return _recover(states);
+}
+
+
+Future<Nothing> NvidiaGpuIsolatorProcess::_recover(
+    const vector<ContainerState>& states,
+    const hashmap<string, DeviceManager::CgroupDeviceAccess>& cgroup_states)
 {
   vector<Future<Nothing>> futures;
 
@@ -268,7 +328,8 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
 
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    if (!cgroups::exists(hierarchy, cgroup)) {
+    if ((usingCgroups2 && !cgroups2::exists(cgroup)) ||
+        (!usingCgroups2 && !cgroups::exists(hierarchy, cgroup))) {
       // This may occur if the executor has exited and the isolator
       // has destroyed the cgroup but the slave dies before noticing
       // this. This will be detected when the containerizer tries to
@@ -282,35 +343,60 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
     infos[containerId] = new Info(containerId, cgroup);
 
     // Determine which GPUs are allocated to this container.
-    Try<vector<cgroups::devices::Entry>> entries =
-      cgroups::devices::list(hierarchy, cgroup);
-
-    if (entries.isError()) {
-      return Failure("Failed to obtain devices list for cgroup"
-                     " '" + cgroup + "': " + entries.error());
-    }
-
     const set<Gpu>& available = allocator.total();
-
     set<Gpu> containerGpus;
-    foreach (const cgroups::devices::Entry& entry, entries.get()) {
+
+    if (usingCgroups2) {
+      // If the cgroup does not have a recorded state in the DeviceManager,
+      // then no gpu would be granted access anyway. So we can skip to the
+      // cgroup for the next container state.
+      if (!cgroup_states.contains(cgroup)) {
+        LOG(WARNING) << "Couldn't find the cgroup '" << cgroup << "'"
+                     << " in the device manager for container " << containerId;
+        continue;
+      }
+
+      const DeviceManager::CgroupDeviceAccess& device_access =
+        cgroup_states.at(cgroup);
       foreach (const Gpu& gpu, available) {
-        if (entry.selector.major == gpu.major &&
-            entry.selector.minor == gpu.minor) {
+        if (device_access.is_access_granted(asDeviceEntry(gpu))) {
           containerGpus.insert(gpu);
-          break;
+        }
+      }
+    } else {
+      Try<vector<Entry>> entries = cgroups::devices::list(hierarchy, cgroup);
+      if (entries.isError()) {
+        return Failure("Failed to obtain devices list for cgroup"
+                       " '" + cgroup + "': " + entries.error());
+      }
+
+      foreach (const Entry& entry, entries.get()) {
+        foreach (const Gpu& gpu, available) {
+          if (entry.selector.major == gpu.major &&
+              entry.selector.minor == gpu.minor) {
+            containerGpus.insert(gpu);
+            break;
+          }
         }
       }
     }
 
-    futures.push_back(allocator.allocate(containerGpus)
-      .then(defer(self(), [=]() -> Future<Nothing> {
-        infos[containerId]->allocated = containerGpus;
-        return Nothing();
-      })));
+    futures.push_back(__recover(containerId, containerGpus));
   }
 
   return collect(futures).then([]() { return Nothing(); });
+}
+
+
+Future<Nothing> NvidiaGpuIsolatorProcess::__recover(
+    const ContainerID& containerId,
+    const set<Gpu>& containerGpus)
+{
+  return allocator.allocate(containerGpus)
+    .then(defer(self(), [=]() -> Future<Nothing> {
+      infos[containerId]->allocated = containerGpus;
+      return Nothing();
+    }));
 }
 
 
@@ -343,20 +429,38 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
   infos[containerId] = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  // Grant access to all `controlDeviceEntries`.
+  // Grant access to all control devices.
   //
   // This allows standard NVIDIA tools like `nvidia-smi` to be
   // used within the container even if no GPUs are allocated.
   // Without these devices, these tools fail abnormally.
-  foreachkey (const Path& devicePath, controlDeviceEntries) {
-    Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy,
+  if (usingCgroups2) {
+    // Cgroups2 requires us to attach ebpf programs so we use the deviceManager.
+    vector<DeviceManager::NonWildcardEntry> control_entries =
+      CHECK_NOTERROR(DeviceManager::NonWildcardEntry::create(
+          controlDevices.values()));
+
+    return deviceManager->reconfigure(
         infos[containerId]->cgroup,
-        controlDeviceEntries.at(devicePath));
+        control_entries,
+        {})
+      .then(defer(self(), [=] {
+        return update(containerId, containerConfig.resources())
+          .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
+                      &NvidiaGpuIsolatorProcess::_prepare,
+                      containerId,
+                      containerConfig));
+      }));
+  }
+
+  // Cgroups v1:
+  foreachpair (const string& devicePath, const Entry& device, controlDevices) {
+    Try<Nothing> allow = cgroups::devices::allow(
+        hierarchy, infos[containerId]->cgroup, device);
 
     if (allow.isError()) {
       return Failure("Failed to grant cgroups access to"
-                     " '" + stringify(devicePath) + "': " + allow.error());
+                     " '" + devicePath + "': " + allow.error());
     }
   }
 
@@ -522,6 +626,22 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
 
     set<Gpu> deallocated;
 
+    if (usingCgroups2) {
+      vector<DeviceManager::NonWildcardEntry> deallocated_entries;
+
+      for (size_t i = 0; i < fewer; i++) {
+        const auto gpu = info->allocated.begin();
+
+        deallocated_entries.push_back(asDeviceEntry(*gpu));
+        deallocated.insert(*gpu);
+        info->allocated.erase(gpu);
+      }
+
+      return deviceManager->reconfigure(info->cgroup, {}, {deallocated_entries})
+        .then(defer(self(), [=] { return allocator.deallocate(deallocated); }));
+    }
+
+    // Cgroups v1:
     for (size_t i = 0; i < fewer; i++) {
       const auto gpu = info->allocated.begin();
 
@@ -562,6 +682,18 @@ Future<Nothing> NvidiaGpuIsolatorProcess::_update(
 
   Info* info = CHECK_NOTNULL(infos.at(containerId));
 
+  if (usingCgroups2) {
+    return deviceManager->reconfigure(
+        info->cgroup,
+        {asDeviceEntries(allocation)},
+        {})
+      .then(defer(self(), [=] {
+        info->allocated = allocation;
+        return Nothing();
+      }));
+  }
+
+  // Cgroups v1:
   foreach (const Gpu& gpu, allocation) {
     cgroups::devices::Entry entry;
     entry.selector.type = Entry::Selector::Type::CHARACTER;

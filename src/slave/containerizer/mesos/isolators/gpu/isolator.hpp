@@ -24,13 +24,15 @@
 #include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
-#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
 
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/device_manager/device_manager.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
@@ -82,7 +84,8 @@ class NvidiaGpuIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(
       const Flags& flags,
-      const NvidiaComponents& components);
+      const NvidiaComponents& components,
+      const process::Owned<DeviceManager>& deviceManager);
 
   bool supportsNesting() override;
   bool supportsStandalone() override;
@@ -113,7 +116,10 @@ private:
       const std::string& hierarchy,
       const NvidiaGpuAllocator& _allocator,
       const NvidiaVolume& _volume,
-      const std::map<Path, cgroups::devices::Entry>& _controlDeviceEntries);
+      const LinkedHashMap<std::string, cgroups::devices::Entry>&
+        _controlDevices,
+      const process::Owned<DeviceManager>& deviceManager,
+      const bool usingCgroups2);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
@@ -122,6 +128,16 @@ private:
   process::Future<Nothing> _update(
       const ContainerID& containerId,
       const std::set<Gpu>& allocation);
+
+  process::Future<Nothing> _recover(
+      const std::vector<mesos::slave::ContainerState>& states,
+      const hashmap<std::string, DeviceManager::CgroupDeviceAccess>&
+        cgroup_states =
+          hashmap<std::string, DeviceManager::CgroupDeviceAccess>());
+
+  process::Future<Nothing> __recover(
+      const ContainerID& containerId,
+      const std::set<Gpu>& containerGpus);
 
   struct Info
   {
@@ -144,7 +160,9 @@ private:
   NvidiaGpuAllocator allocator;
   NvidiaVolume volume;
 
-  const std::map<Path, cgroups::devices::Entry> controlDeviceEntries;
+  const LinkedHashMap<std::string, cgroups::devices::Entry> controlDevices;
+  const process::Owned<DeviceManager> deviceManager;
+  const bool usingCgroups2;
 };
 
 } // namespace slave {
