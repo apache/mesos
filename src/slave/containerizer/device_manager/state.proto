@@ -18,11 +18,11 @@ syntax = "proto2";
 
 package mesos.internal.slave;
 
-message CgroupDeviceAccessMessage {
+message CgroupDeviceAccessState {
   repeated string allow_list = 1;
   repeated string deny_list = 2;
 }
 
-message CgroupsDeviceAccess {
-  map<string, CgroupDeviceAccessMessage> device_access_per_cgroup = 1;
+message CgroupDeviceAccessStates {
+  map<string, CgroupDeviceAccessState> device_access_per_cgroup = 1;
 }

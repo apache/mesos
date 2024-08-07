@@ -457,6 +457,9 @@ std::string getPersistentVolumePath(
 std::string getVolumeGidsPath(const std::string& rootDir);
 
 
+std::string getDevicesStatePath(const std::string& rootDir);
+
+
 Try<std::string> createExecutorDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId,
