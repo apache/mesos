@@ -27,7 +27,9 @@
 #include <stout/unreachable.hpp>
 
 #include "slave/containerizer/device_manager/device_manager.hpp"
+#include "slave/containerizer/device_manager/state.hpp"
 #include "slave/paths.hpp"
+#include "slave/state.hpp"
 #include "linux/cgroups2.hpp"
 
 using std::string;
@@ -227,10 +229,43 @@ private:
 
   hashmap<string, DeviceManager::CgroupDeviceAccess> device_access_per_cgroup;
 
-  // TODO(jasonzhou): persist device_access_per_cgroup on disk.
+  Try<Nothing> checkpoint() const
+  {
+    CgroupDeviceAccessStates states;
+
+    foreachpair (const string& cgroup,
+                 const DeviceManager::CgroupDeviceAccess& access,
+                 device_access_per_cgroup) {
+      CgroupDeviceAccessState* state = &(*(states.mutable_device_access_per_cgroup()))[cgroup];
+
+      foreach (const Entry& entry, access.allow_list) {
+        state->add_allow_list(stringify(entry));
+      }
+      foreach (const Entry& entry, access.deny_list) {
+        state->add_deny_list(stringify(entry));
+      }
+    }
+
+    Try<Nothing> status =
+      state::checkpoint(paths::getDevicesStatePath(meta_dir), states);
+
+    if (status.isError()) {
+      return Error("Failed to perform checkpoint: " + status.error());
+    }
+
+    return Nothing();
+  }
+
   Try<Nothing> commit_device_access_changes(const string& cgroup) const
   {
-    Try<Nothing> status = cgroups2::devices::configure(
+    Try<Nothing> status = checkpoint();
+
+    if (status.isError()) {
+      return Error("Failed to checkpoint device access state: "
+                   + status.error());
+    }
+
+    status = cgroups2::devices::configure(
         cgroup,
         device_access_per_cgroup.at(cgroup).allow_list,
         device_access_per_cgroup.at(cgroup).deny_list);
