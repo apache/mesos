@@ -42,6 +42,7 @@ const std::string CGROUPS2_CONTROLLER_PERF_EVENT_NAME = "perf_event";
 const std::string CGROUPS2_CONTROLLER_DEVICES_NAME = "devices";
 const std::string CGROUPS2_CONTROLLER_IO_NAME = "io";
 const std::string CGROUPS2_CONTROLLER_HUGETLB_NAME = "hugetlb";
+const std::string CGROUPS2_CONTROLLER_CPUSET_NAME = "cpuset";
 
 } // namespace slave {
 } // namespace internal {

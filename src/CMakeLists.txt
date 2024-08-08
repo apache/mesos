@@ -353,6 +353,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.cpp
   slave/containerizer/mesos/isolators/cgroups2/controllers/io.cpp
   slave/containerizer/mesos/isolators/cgroups2/controllers/hugetlb.cpp
+  slave/containerizer/mesos/isolators/cgroups2/controllers/cpuset.cpp
   slave/containerizer/device_manager/device_manager.cpp)
 
 if (ENABLE_XFS_DISK_ISOLATOR)
