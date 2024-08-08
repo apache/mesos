@@ -1508,6 +1508,8 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/cgroups2/controllers/hugetlb.hpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/cpuset.cpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/cpuset.hpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/pids.cpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/pids.hpp    \
   slave/containerizer/device_manager/device_manager.cpp    \
   slave/containerizer/device_manager/device_manager.hpp    \
   slave/containerizer/device_manager/state.hpp

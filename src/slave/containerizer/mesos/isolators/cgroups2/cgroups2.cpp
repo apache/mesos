@@ -26,6 +26,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/io.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/hugetlb.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controllers/cpuset.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups2/controllers/pids.hpp"
 
 #include <set>
 #include <string>
@@ -89,6 +90,7 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
     {"io", &IoControllerProcess::create}
     {"hugetlb", &HugetlbControllerProcess::create}
     {"cpuset", &CpusetControllerProcess::create}
+    {"pids", &PidsControllerProcess::create}
   };
 
   hashmap<string, Try<Owned<ControllerProcess>>(*)(
