@@ -1502,6 +1502,8 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/cgroups2/controllers/perf_event.hpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/devices.cpp    \
   slave/containerizer/mesos/isolators/cgroups2/controllers/devices.hpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/io.cpp    \
+  slave/containerizer/mesos/isolators/cgroups2/controllers/io.hpp    \
   slave/containerizer/device_manager/device_manager.cpp    \
   slave/containerizer/device_manager/device_manager.hpp    \
   slave/containerizer/device_manager/state.hpp
