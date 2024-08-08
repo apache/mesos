@@ -256,16 +256,20 @@ private:
     return Nothing();
   }
 
-  Try<Nothing> commit_device_access_changes(const string& cgroup) const
+  Try<Nothing> commit_device_access_changes(
+      const string& cgroup,
+      bool write_checkpoint = true) const
   {
-    Try<Nothing> status = checkpoint();
+    if (write_checkpoint) {
+      Try<Nothing> status = checkpoint();
 
-    if (status.isError()) {
-      return Error("Failed to checkpoint device access state: "
-                   + status.error());
+      if (status.isError()) {
+        return Error("Failed to checkpoint device access state: "
+                    + status.error());
+      }
     }
 
-    status = cgroups2::devices::configure(
+    Try<Nothing> status = cgroups2::devices::configure(
         cgroup,
         device_access_per_cgroup.at(cgroup).allow_list,
         device_access_per_cgroup.at(cgroup).deny_list);
