@@ -60,14 +60,21 @@ process::Future<ResourceStatistics> CoreControllerProcess::usage(
   ResourceStatistics stats;
 
   if (flags.cgroups_cpu_enable_pids_and_tids_count) {
-    Try<set<pid_t>> pids = cgroups2::processes(cgroup);
+    // In cgroups v2 we store our processes and threads in a leaf child, so we
+    // look at the leaf child of the cgroup if the provided cgroup isn't a leaf
+    // child.
+    string target = strings::endsWith(strings::trim(cgroup, "/"), "leaf")
+                      ? strings::trim(cgroup, "/")
+                      : path::join(cgroup, "leaf");
+
+    Try<set<pid_t>> pids = cgroups2::processes(target);
     if (pids.isError()) {
       return Failure("Failed to get processes in cgroup: " + pids.error());
     }
 
     stats.set_processes(pids->size());
 
-    Try<set<pid_t>> tids = cgroups2::threads(cgroup);
+    Try<set<pid_t>> tids = cgroups2::threads(target);
     if (tids.isError()) {
       return Failure("Failed to get threads in cgroup: " + tids.error());
     }
