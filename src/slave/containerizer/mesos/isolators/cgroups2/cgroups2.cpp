@@ -228,28 +228,15 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
       new Info(containerId, nonLeafCgroup, leafCgroup));
 
   vector<Future<Nothing>> prepares;
+  hashset<string> skip_enable = {"core", "perf_event", "devices"};
   foreachvalue (const Owned<Controller>& controller, controllers) {
-    if (controller->name() == "core") {
-      // The "core" controller is always enabled because the "cgroup.*" control
-      // files exist for all cgroups.
-      //
-      // Additionally, since "core", "perf_event", and "devices" aren't valid
-      // controller names (i.e. they don't exist in "cgroup.controllers"),
-      // calling `cgroups2::controllers::enable` with these cgroups will fail
-      // with "Invalid argument".
-      //
-      // Therefore, we skip enabling the "core", "perf_event", and "devices"
-      // controller here.
-      continue;
-    }
-
-    // Similar to "core", "perf_event" and "devices" do not exist in
-    // cgroup.controllers, and therefore we cannot call
+    // The "core", "perf_event" and "devices" controllers do not exist in
+    // cgroup.controllers file, and therefore we cannot call
     // cgroups2::controllers::enable with it as it cannot be written into
     // cgroup.subtree_control, but we still need to push it into the controllers
     // of the containers, so we will only skip the call for
     // cgroups2::controllers::enable.
-    if (controller->name() != "perf_event" && controller->name() != "devices") {
+    if (!skip_enable.contains(controller->name())) {
       Try<Nothing> enable =
         cgroups2::controllers::enable(nonLeafCgroup, {controller->name()});
       if (enable.isError()) {
