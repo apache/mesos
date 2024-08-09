@@ -690,13 +690,35 @@ Option<ContainerID> containerId(
   vector<string> tokens =
     strings::tokenize(path, stringify(os::PATH_SEPARATOR));
 
+  vector<string> root_tokens =
+    strings::tokenize(root, stringify(os::PATH_SEPARATOR));
+
   if (tokens.size() == 0) {
     // Root.
     return None();
   }
+
   if (tokens.back() == "agent") {
     // Mesos Agent.
     return None();
+  }
+
+  bool starts_with_root = [&]() {
+    if (tokens.size() < root_tokens.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < root_tokens.size(); ++i) {
+      if (root_tokens[i] != tokens[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }();
+
+  if (starts_with_root) {
+    tokens.erase(tokens.begin(), tokens.begin() + root_tokens.size());
   }
 
   Option<ContainerID> current;

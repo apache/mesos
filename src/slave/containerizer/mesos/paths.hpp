@@ -326,6 +326,9 @@ std::string container(
 //
 // Leaf paths (which end in `/leaf`) and non-leaf paths will resolve to the
 // same container id.
+// If the passed cgroup includes the root, it will be removed.
+// e.g. if root is root/mesos, and the cgroup is root/mesos/id1, the result
+// will be id1
 Option<ContainerID> containerId(
     const std::string& root,
     const std::string& cgroup);

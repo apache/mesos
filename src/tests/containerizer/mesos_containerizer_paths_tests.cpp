@@ -196,6 +196,21 @@ TEST(MesosContainerizerPathsTest, CGROUPS2_Cgroups2ParsePaths)
   EXPECT_SOME_ID_EQ(
       id1,
       cgroups2::containerId("mesos", cgroups2::container("mesos", id1, true)));
+
+  EXPECT_SOME_ID_EQ(
+      id1,
+      cgroups2::containerId(
+          "root", cgroups2::container("root", id1, true)));
+
+  EXPECT_SOME_ID_EQ(
+      id1,
+      cgroups2::containerId(
+          "test/root", cgroups2::container("test/root", id1, true)));
+
+  EXPECT_SOME_ID_EQ(
+      id3,
+      cgroups2::containerId(
+          "test/root", "test/root/id1/mesos/id2/mesos/id3"));
 }
 
 } // namespace tests {
