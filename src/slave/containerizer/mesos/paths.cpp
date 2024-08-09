@@ -682,16 +682,15 @@ Option<ContainerID> containerId(
     const string& root,
     const string& cgroup)
 {
-  // Remove the trailing `/leaf`, if present.
-  string path = strings::remove(cgroup, "/leaf", strings::SUFFIX);
   // Remove leading or trailing slashes.
-  path = strings::trim(path, "/");
+  string path = strings::trim(cgroup, "/");
+  // Remove the trailing `/leaf`, if present.
+  path = strings::remove(path, "/leaf", strings::SUFFIX);
+  // Remove the leading root, if present
+  path = strings::remove(path, strings::trim(root, "/"), strings::PREFIX);
 
   vector<string> tokens =
     strings::tokenize(path, stringify(os::PATH_SEPARATOR));
-
-  vector<string> root_tokens =
-    strings::tokenize(root, stringify(os::PATH_SEPARATOR));
 
   if (tokens.size() == 0) {
     // Root.
@@ -701,24 +700,6 @@ Option<ContainerID> containerId(
   if (tokens.back() == "agent") {
     // Mesos Agent.
     return None();
-  }
-
-  bool starts_with_root = [&]() {
-    if (tokens.size() < root_tokens.size()) {
-      return false;
-    }
-
-    for (int i = 0; i < root_tokens.size(); ++i) {
-      if (root_tokens[i] != tokens[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  }();
-
-  if (starts_with_root) {
-    tokens.erase(tokens.begin(), tokens.begin() + root_tokens.size());
   }
 
   Option<ContainerID> current;
