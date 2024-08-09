@@ -2366,15 +2366,19 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
 
   EXPECT_TRUE(usage->has_mem_total_bytes());
 
-  Result<string> hierarchy = cgroups::hierarchy("memory");
-  ASSERT_SOME(hierarchy);
-
-  Try<bool> exists = cgroups::exists(
-      hierarchy.get(), "memory.kmem.usage_in_bytes");
-  ASSERT_SOME(exists);
-
-  if (exists.get()) {
+  if (cgroupsV2()) {
     EXPECT_TRUE(usage->has_mem_kmem_usage_bytes());
+  } else {
+    Result<string> hierarchy = cgroups::hierarchy("memory");
+    ASSERT_SOME(hierarchy);
+
+    Try<bool> exists = cgroups::exists(
+        hierarchy.get(), "memory.kmem.usage_in_bytes");
+    ASSERT_SOME(exists);
+
+    if (exists.get()) {
+      EXPECT_TRUE(usage->has_mem_kmem_usage_bytes());
+    }
   }
 
   driver.stop();
