@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/protobuf_utils.hpp"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -28,6 +30,7 @@
 
 #include "linux/cgroups2.hpp"
 #include "slave/containerizer/device_manager/device_manager.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 
 using mesos::internal::slave::DeviceManager;
 using mesos::internal::slave::DeviceManagerProcess;
@@ -47,6 +50,10 @@ namespace tests {
 
 const string TEST_CGROUP = "test";
 
+const string TEST_CGROUPS_ROOT = "mesos_test";
+
+const string TEST_CGROUP_WITH_ROOT = path::join(TEST_CGROUPS_ROOT, TEST_CGROUP);
+
 
 class DeviceManagerTest : public TemporaryDirectoryTest
 {
@@ -59,12 +66,20 @@ class DeviceManagerTest : public TemporaryDirectoryTest
     if (cgroups2::exists(TEST_CGROUP)) {
       AWAIT_READY(cgroups2::destroy(TEST_CGROUP));
     }
+
+    if (cgroups2::exists(TEST_CGROUP_WITH_ROOT)) {
+      AWAIT_READY(cgroups2::destroy(TEST_CGROUP_WITH_ROOT));
+    }
   }
 
   void TearDown() override
   {
     if (cgroups2::exists(TEST_CGROUP)) {
       AWAIT_READY(cgroups2::destroy(TEST_CGROUP));
+    }
+
+    if (cgroups2::exists(TEST_CGROUP_WITH_ROOT)) {
+      AWAIT_READY(cgroups2::destroy(TEST_CGROUP_WITH_ROOT));
     }
 
     TemporaryDirectoryTest::TearDown();
@@ -486,6 +501,57 @@ TEST(DeviceManagerCgroupDeviceAccessTest, IsAccessGrantedTest)
   EXPECT_FALSE(
       cgroup_device_access.is_access_granted(*devices::Entry::parse("c 1:3 rw"))
   );
+}
+
+
+TEST_F(DeviceManagerTest, ROOT_Recover)
+{
+  slave::Flags flags;
+  flags.work_dir = *sandbox;
+  flags.cgroups_root = TEST_CGROUPS_ROOT;
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP_WITH_ROOT, true));
+  Owned<DeviceManager> dm =
+    Owned<DeviceManager>(CHECK_NOTERROR(DeviceManager::create(flags)));
+
+  vector<devices::Entry> allow_list = {*devices::Entry::parse("c 1:3 w")};
+
+  Future<Nothing> setup = dm->configure(
+      TEST_CGROUP_WITH_ROOT,
+      allow_list,
+      {});
+
+  AWAIT_ASSERT_READY(setup);
+
+  Future<DeviceManager::CgroupDeviceAccess> dm_state =
+    dm->state(TEST_CGROUP_WITH_ROOT);
+
+  AWAIT_ASSERT_READY(dm_state);
+
+  EXPECT_EQ(dm_state->allow_list, allow_list);
+  EXPECT_EQ(dm_state->deny_list, vector<devices::Entry>{});
+
+  dm = Owned<DeviceManager>(CHECK_NOTERROR(DeviceManager::create(flags)));
+
+  dm_state = dm->state(TEST_CGROUP_WITH_ROOT);
+  AWAIT_ASSERT_READY(dm_state);
+  EXPECT_EQ(dm_state->allow_list, vector<devices::Entry>{});
+  EXPECT_EQ(dm_state->deny_list, vector<devices::Entry>{});
+
+  Option<ContainerID> container_id =
+    slave::containerizer::paths::cgroups2::containerId(
+        flags.cgroups_root, TEST_CGROUP);
+  ASSERT_SOME(container_id);
+
+
+  Future<Nothing> recover = dm->recover({protobuf::slave::createContainerState(
+      None(), None(), *container_id, -1, *sandbox)});
+
+  AWAIT_ASSERT_READY(recover);
+
+  dm_state = dm->state(TEST_CGROUP_WITH_ROOT);
+  AWAIT_ASSERT_READY(dm_state);
+  EXPECT_EQ(dm_state->allow_list, allow_list);
+  EXPECT_EQ(dm_state->deny_list, vector<devices::Entry>{});
 }
 
 } // namespace tests {

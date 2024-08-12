@@ -23,14 +23,19 @@
 #include <process/process.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/hashset.hpp>
+#include <stout/os/exists.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 
 #include "slave/containerizer/device_manager/device_manager.hpp"
 #include "slave/containerizer/device_manager/state.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 #include "linux/cgroups2.hpp"
+
+using google::protobuf::RepeatedPtrField;
 
 using std::string;
 using std::vector;
@@ -41,6 +46,8 @@ using process::Future;
 using process::Owned;
 
 using cgroups::devices::Entry;
+
+using mesos::slave::ContainerState;
 
 namespace mesos {
 namespace internal {
@@ -114,9 +121,10 @@ Try<vector<DeviceManager::NonWildcardEntry>>
 class DeviceManagerProcess : public process::Process<DeviceManagerProcess>
 {
 public:
-  DeviceManagerProcess(const string& work_dir)
+  DeviceManagerProcess(const Flags& flags)
     : ProcessBase(process::ID::generate("device-manager")),
-      meta_dir(paths::getMetaRootDir(work_dir)) {}
+      meta_dir(paths::getMetaRootDir(flags.work_dir)),
+      cgroups_root(flags.cgroups_root) {}
 
   Future<Nothing> configure(
       const string& cgroup,
@@ -224,8 +232,120 @@ public:
     return Nothing();
   }
 
+  Future<Nothing> recover(const vector<ContainerState>& states)
+  {
+    hashset<string> cgroups_to_recover;
+    foreach(const ContainerState& state, states) {
+      cgroups_to_recover.insert(containerizer::paths::cgroups2::container(
+          cgroups_root, state.container_id(), false));
+    }
+
+    const string checkpoint_path = paths::getDevicesStatePath(meta_dir);
+    if (!os::exists(checkpoint_path)) {
+      return Nothing(); // This happens on the first run.
+    }
+
+    Result<CgroupDeviceAccessStates> device_states =
+      state::read<CgroupDeviceAccessStates>(checkpoint_path);
+
+    if (device_states.isError()) {
+      return Failure("Failed to read device configuration info from"
+                     " '" + checkpoint_path + "': " + device_states.error());
+    } else if (device_states.isNone()) {
+      LOG(WARNING) << "The device info file at '" << checkpoint_path << "'"
+                   << " is empty";
+      return Nothing();
+    }
+    CHECK_SOME(device_states);
+
+    vector<string> recovered_cgroups = {};
+    foreach (const auto& entry, device_states->device_access_per_cgroup()) {
+      const string& cgroup = entry.first;
+      const CgroupDeviceAccessState& state = entry.second;
+
+      if (!cgroups_to_recover.contains(cgroup)) {
+        LOG(WARNING)
+          << "The cgroup '" << cgroup << "' from the device manager's"
+             " checkpointed state is not present in the expected cgroups of"
+             " the containerizer";
+        continue;
+      }
+
+      auto parse = [&](const RepeatedPtrField<string>& list)
+          -> Try<vector<Entry>>
+      {
+        vector<Entry> parsed_entries;
+        foreach (const string& entry, list) {
+          Try<Entry> parsed_entry = Entry::parse(entry);
+          if (parsed_entry.isError()) {
+            return Error("Failed to parse entry " + entry + " during recover"
+                         " for cgroup " + cgroup + ": " + parsed_entry.error());
+          }
+          parsed_entries.push_back(*parsed_entry);
+        }
+        return parsed_entries;
+      };
+
+      // We return failure because we expect all data in the checkpoint file
+      // to be valid.
+      Try<vector<Entry>> allow_entries = parse(state.allow_list());
+      if (allow_entries.isError()) {
+        return Failure(allow_entries.error());
+      }
+
+      Try<vector<Entry>> deny_entries = parse(state.deny_list());
+      if (deny_entries.isError()) {
+        return Failure(deny_entries.error());
+      }
+
+      auto result = device_access_per_cgroup.emplace(
+          cgroup,
+          CHECK_NOTERROR(DeviceManager::CgroupDeviceAccess::create(
+              *allow_entries, *deny_entries)));
+
+      CHECK(result.second); // There should be a single insertion per cgroup.
+
+      recovered_cgroups.push_back(cgroup);
+    }
+
+    foreach (const string& cgroup, recovered_cgroups) {
+      // Commit with checkpoint = false, since there's no need to re-checkpoint.
+      Try<Nothing> commit = commit_device_access_changes(cgroup, false);
+      if (commit.isError()) {
+        // Return failure as the checkpointed state should be valid, allowing us
+        // to generate and attach BPF programs. This is because the cgroup
+        // previously succeeded in doing so.
+        return Failure(
+            "Failed to perform configuration of ebpf file for cgroup"
+            " '" + cgroup + "': " + commit.error());
+      }
+    }
+
+    // Checkpoint only after all cgroups are recovered to avoid deleting states
+    // of unrecovered cgroups.
+    Try<Nothing> status = checkpoint();
+
+    if (status.isError()) {
+      return Failure(
+          "Failed to checkpoint device access state: " + status.error());
+    }
+
+    foreach(const string& cgroup, cgroups_to_recover) {
+      if (!device_access_per_cgroup.contains(cgroup)) {
+        LOG(WARNING)
+          << "Unable to recover state for cgroup '" + cgroup + "' as requested"
+             " by the containerizer, because it was missing in the device"
+             " manager's checkpointed state";
+      }
+    }
+
+    return Nothing();
+  }
+
 private:
   const string meta_dir;
+
+  const string cgroups_root;
 
   hashmap<string, DeviceManager::CgroupDeviceAccess> device_access_per_cgroup;
 
@@ -286,7 +406,7 @@ private:
 Try<DeviceManager*> DeviceManager::create(const Flags& flags)
 {
   return new DeviceManager(
-      Owned<DeviceManagerProcess>(new DeviceManagerProcess(flags.work_dir)));
+      Owned<DeviceManagerProcess>(new DeviceManagerProcess(flags)));
 }
 
 
@@ -492,6 +612,12 @@ DeviceManager::CgroupDeviceAccess::create(
                  " The allow or deny list is not normalized");
   }
   return CgroupDeviceAccess(allow_list, deny_list);
+}
+
+
+Future<Nothing> DeviceManager::recover(const vector<ContainerState>& states)
+{
+  return dispatch(*process, &DeviceManagerProcess::recover, states);
 }
 
 

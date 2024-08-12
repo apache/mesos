@@ -23,6 +23,7 @@
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
+#include "slave/containerizer/containerizer.hpp"
 #include "slave/flags.hpp"
 
 namespace mesos {
@@ -129,6 +130,12 @@ public:
 
   // Remove the cgroup from the DeviceManager state if the state contains it.
   process::Future<Nothing> remove(const std::string& cgroup);
+
+  // Recover the cgroup device access state stored in the checkpointing file.
+  // We will only recover cgroups that belong to containers in the passed in
+  // container states.
+  process::Future<Nothing> recover(
+      const std::vector<mesos::slave::ContainerState>& states);
 
 private:
   explicit DeviceManager(const process::Owned<DeviceManagerProcess>& process);
