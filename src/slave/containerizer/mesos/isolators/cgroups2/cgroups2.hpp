@@ -122,7 +122,8 @@ private:
 
   Cgroups2IsolatorProcess(
       const Flags& flags,
-      const hashmap<std::string, process::Owned<Controller>>& controllers);
+      const hashmap<std::string, process::Owned<Controller>>& controllers,
+      const process::Owned<DeviceManager>& deviceManager);
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
     const ContainerID& containerId,
@@ -134,8 +135,7 @@ private:
       const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _recover(
-    const hashset<ContainerID>& orphans,
-    const std::vector<process::Future<Nothing>>& futures);
+    const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> __recover(
       const hashset<ContainerID>& unknownOrphans,
@@ -179,6 +179,8 @@ private:
 
   // Associates a container with the information to access its controllers.
   hashmap<ContainerID, process::Owned<Info>> infos;
+
+  const process::Owned<DeviceManager> deviceManager;
 };
 
 } // namespace slave {

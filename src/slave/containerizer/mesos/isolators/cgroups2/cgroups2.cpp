@@ -69,10 +69,12 @@ namespace cgroups2_paths = containerizer::paths::cgroups2;
 
 Cgroups2IsolatorProcess::Cgroups2IsolatorProcess(
     const Flags& _flags,
-    const hashmap<string, Owned<Controller>>& _controllers)
+    const hashmap<string, Owned<Controller>>& _controllers,
+    const process::Owned<DeviceManager>& _deviceManager)
     : ProcessBase(process::ID::generate("cgroups2-isolator")),
     flags(_flags),
-    controllers(_controllers) {}
+    controllers(_controllers),
+    deviceManager(_deviceManager) {}
 
 
 Cgroups2IsolatorProcess::~Cgroups2IsolatorProcess() {}
@@ -152,7 +154,7 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
 
 
   Owned<MesosIsolatorProcess> process(
-      new Cgroups2IsolatorProcess(flags, controllers));
+      new Cgroups2IsolatorProcess(flags, controllers, deviceManager));
   return new MesosIsolator(process);
 }
 
@@ -373,30 +375,34 @@ Future<Nothing> Cgroups2IsolatorProcess::recover(
 
   // Then recover containers we find in the cgroups hierarchy:
   return await(recovers)
-    .then(defer(
-        PID<Cgroups2IsolatorProcess>(this),
-        &Cgroups2IsolatorProcess::_recover,
-        orphans,
-        lambda::_1));
+    .then(defer(self(), [=](const vector<Future<Nothing>>& futures)
+        -> Future<Nothing> {
+      vector<string> errors;
+      foreach (const Future<Nothing>& future, futures) {
+        if (!future.isReady()) {
+          errors.push_back(future.isFailed() ? future.failure() : "discarded");
+        }
+      }
+
+      if (!errors.empty()) {
+        return Failure("Failed to recover active containers: "
+                      + strings::join(", ", errors));
+      }
+
+      vector<Future<Nothing>> recovers = {
+          _recover(orphans),
+          deviceManager->recover(states)
+      };
+
+      return collect(recovers)
+        .then([]() { return Nothing(); });
+    }));
 }
 
 
 Future<Nothing> Cgroups2IsolatorProcess::_recover(
-  const hashset<ContainerID>& orphans,
-  const vector<Future<Nothing>>& futures)
+    const hashset<ContainerID>& orphans)
 {
-  vector<string> errors;
-  foreach (const Future<Nothing>& future, futures) {
-    if (!future.isReady()) {
-      errors.push_back(future.isFailed() ? future.failure() : "discarded");
-    }
-  }
-
-  if (!errors.empty()) {
-    return Failure("Failed to recover active containers: "
-                   + strings::join(", ", errors));
-  }
-
   hashset<ContainerID> knownOrphans;
   hashset<ContainerID> unknownOrphans;
 
