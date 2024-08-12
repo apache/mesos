@@ -107,14 +107,12 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
   set<string> controllersToCreate = { "core" };
 
   if (strings::contains(flags.isolation, "cgroups/all")) {
-    Try<set<string>> available =
-      ::cgroups2::controllers::available(::cgroups2::path(flags.cgroups_root));
-    if (available.isError()) {
-      return Error("Failed to determine the available cgroups v2 controllers: "
-                   + available.error());
+    foreachkey (const string& creator, creators) {
+      controllersToCreate.insert(creator);
     }
-
-    controllersToCreate = *available;
+    foreachkey (const string& creator, creatorsWithDeviceManager) {
+      controllersToCreate.insert(creator);
+    }
   } else {
     foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
       if (!strings::startsWith(isolator, "cgroups/")) {
