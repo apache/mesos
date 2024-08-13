@@ -203,7 +203,7 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
     return Failure("Cgroup '" + nonLeafCgroup + "' already exists");
   }
 
-  Try<Nothing> create = cgroups2::create(nonLeafCgroup);
+  Try<Nothing> create = cgroups2::create(nonLeafCgroup, true);
   if (create.isError()) {
     return Failure("Failed to create cgroup '" + nonLeafCgroup + "': "
                    + create.error());
@@ -215,7 +215,7 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
     return Failure("Cgroup '" + leafCgroup + "' already exists");
   }
 
-  create = cgroups2::create(leafCgroup);
+  create = cgroups2::create(leafCgroup, true);
   if (create.isError()) {
     return Failure("Failed to create cgroup '" + leafCgroup + "': "
                    + create.error());
@@ -237,11 +237,19 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
     // of the containers, so we will only skip the call for
     // cgroups2::controllers::enable.
     if (!skip_enable.contains(controller->name())) {
-      Try<Nothing> enable =
-        cgroups2::controllers::enable(nonLeafCgroup, {controller->name()});
-      if (enable.isError()) {
-        return Failure("Failed to enable controller '" + controller->name() + "'"
-                       " in cgroup '" + nonLeafCgroup + "': " + enable.error());
+      vector<string> cgroup_tokens = strings::tokenize(
+          strings::remove(nonLeafCgroup, flags.cgroups_root, strings::PREFIX),
+          "/");
+      string current_cgroup = flags.cgroups_root;
+      foreach (const string& token, cgroup_tokens) {
+        current_cgroup = path::join(current_cgroup, token);
+        Try<Nothing> enable =
+          cgroups2::controllers::enable(current_cgroup, {controller->name()});
+        if (enable.isError()) {
+          return Failure(
+              "Failed to enable controller '" + controller->name() + "'"
+              " in cgroup '" + current_cgroup + "': " + enable.error());
+        }
       }
     }
 
