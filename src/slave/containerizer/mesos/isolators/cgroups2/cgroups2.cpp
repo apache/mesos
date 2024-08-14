@@ -176,9 +176,6 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  if (containerId.has_parent()) {
-    return Failure("cgroups v2 does not support nested containers");
-  }
 
   if (infos.contains(containerId)) {
     return Failure("Container with id '" + stringify(containerId) + "'"
@@ -224,8 +221,16 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
   LOG(INFO) << "Created cgroups '" << nonLeafCgroup << "'"
             << " and '" << leafCgroup << "'";
 
+  const bool shareCgroups =
+    containerId.has_parent() &&
+    ((containerConfig.has_container_info() &&
+      containerConfig.container_info().has_linux_info() &&
+      containerConfig.container_info().linux_info().has_share_cgroups())
+       ? containerConfig.container_info().linux_info().share_cgroups()
+       : true);
+
   infos[containerId] = Owned<Info>(
-      new Info(containerId, nonLeafCgroup, leafCgroup));
+      new Info(containerId, nonLeafCgroup, leafCgroup, !shareCgroups));
 
   vector<Future<Nothing>> prepares;
   hashset<string> skip_enable = {"core", "perf_event", "devices"};
@@ -378,7 +383,14 @@ Future<Nothing> Cgroups2IsolatorProcess::recover(
   // Recover containers from checkpointed data:
   vector<Future<Nothing>> recovers;
   foreach (const ContainerState& state, states) {
-    recovers.push_back(___recover(state.container_id()));
+    const bool shareCgroups =
+      state.container_id().has_parent() &&
+      ((state.has_container_info() && state.container_info().has_linux_info() &&
+        state.container_info().linux_info().has_share_cgroups())
+         ? state.container_info().linux_info().share_cgroups()
+         : true);
+
+    recovers.push_back(___recover(state.container_id(), !shareCgroups));
   }
 
   // Then recover containers we find in the cgroups hierarchy:
@@ -489,7 +501,7 @@ Future<Nothing> Cgroups2IsolatorProcess::__recover(
 
 
 Future<Nothing> Cgroups2IsolatorProcess::___recover(
-    const ContainerID& containerId)
+    const ContainerID& containerId, bool isolate)
 {
   // Remark and handle invalid container states and recover enabled controllers.
   //
@@ -574,6 +586,7 @@ Future<Nothing> Cgroups2IsolatorProcess::___recover(
         &Cgroups2IsolatorProcess::____recover,
         containerId,
         recoveredControllers,
+        isolate,
         lambda::_1));
 }
 
@@ -581,6 +594,7 @@ Future<Nothing> Cgroups2IsolatorProcess::___recover(
 Future<Nothing> Cgroups2IsolatorProcess::____recover(
     const ContainerID& containerId,
     const hashset<string>& recoveredControllers,
+    bool isolate,
     const vector<Future<Nothing>>& futures)
 {
   CHECK(!infos.contains(containerId));
@@ -600,7 +614,8 @@ Future<Nothing> Cgroups2IsolatorProcess::____recover(
   infos[containerId] = Owned<Info>(new Info(
       containerId,
       cgroups2_paths::container(flags.cgroups_root, containerId, false),
-      cgroups2_paths::container(flags.cgroups_root, containerId, true)));
+      cgroups2_paths::container(flags.cgroups_root, containerId, true),
+      isolate));
 
   infos[containerId]->controllers = recoveredControllers;
 

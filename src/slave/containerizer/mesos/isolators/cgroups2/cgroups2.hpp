@@ -101,8 +101,9 @@ private:
   {
     Info(const ContainerID& containerId,
          const std::string& cgroup,
-         const std::string& cgroup_leaf)
-      : containerId(containerId), cgroup(cgroup), cgroup_leaf(cgroup_leaf) {}
+         const std::string& cgroup_leaf,
+         const bool isolate)
+      : containerId(containerId), cgroup(cgroup), cgroup_leaf(cgroup_leaf), isolate(isolate) {}
 
     const ContainerID containerId;
 
@@ -118,6 +119,13 @@ private:
     // Promise that will complete when a container is impacted by a resource
     // limitation and should be terminated.
     process::Promise<mesos::slave::ContainerLimitation> limitation;
+
+    // Whether to perform resource isolation on this container.
+    //   1. For non-nested containers, this will always be true.
+    //   2. For nested containers, this may be true or false.
+    //
+    // This field is derived from LinuxInfo::share_cgroups.
+    const bool isolate;
   };
 
   Cgroups2IsolatorProcess(
@@ -142,11 +150,13 @@ private:
       const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> ___recover(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      bool isolate = true);
 
   process::Future<Nothing> ____recover(
       const ContainerID& containerId,
       const hashset<std::string>& recoveredSubsystems,
+      bool isolate,
       const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> _isolate(
