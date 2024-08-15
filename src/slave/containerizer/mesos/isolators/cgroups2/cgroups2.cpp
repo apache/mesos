@@ -632,6 +632,14 @@ Future<Nothing> Cgroups2IsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container '" + stringify(containerId) + "'");
+  }
+
+  if (infos[containerId]->isolate) {
+    return Nothing();
+  }
+
   vector<Future<Nothing>> isolates;
 
   // Move the process into the container's cgroup.
