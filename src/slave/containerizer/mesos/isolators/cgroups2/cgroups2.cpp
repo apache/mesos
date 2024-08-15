@@ -182,7 +182,6 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
                    " has already been prepared");
   }
 
-  CHECK(containerConfig.container_class() != ContainerClass::DEBUG);
 
   // Based on MESOS-9305, there seems to be a possibility that the root
   // folder may be deleted underneath us. Since we make use of subtree_control
@@ -231,6 +230,12 @@ Future<Option<ContainerLaunchInfo>> Cgroups2IsolatorProcess::prepare(
 
   infos[containerId] = Owned<Info>(
       new Info(containerId, nonLeafCgroup, leafCgroup, !shareCgroups));
+
+  if (shareCgroups) {
+    return __prepare(containerId, containerConfig);
+  }
+
+  CHECK(containerConfig.container_class() != ContainerClass::DEBUG);
 
   vector<Future<Nothing>> prepares;
   hashset<string> skip_enable = {"core", "perf_event", "devices"};
