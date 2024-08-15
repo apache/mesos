@@ -624,6 +624,20 @@ Try<pid_t> LinuxLauncherProcess::fork(
           child);
       }));
     }
+  } else {
+    parentHooks.emplace_back(
+      Subprocess::ParentHook([=](pid_t child) -> Try<Nothing> {
+        string leaf = containerizer::paths::cgroups2::container(
+          this->flags.cgroups_root, containerId, true);
+        CHECK(cgroups2::exists(leaf));
+
+        Try<Nothing> assign = cgroups2::assign(leaf, child);
+        if (assign.isError()) {
+          return Error("Failed to assign process " + stringify(child)
+                       + " to cgroup " + leaf + ": " + assign.error());
+        }
+        return Nothing();
+      }));
   }
 
   vector<Subprocess::ChildHook> childHooks;

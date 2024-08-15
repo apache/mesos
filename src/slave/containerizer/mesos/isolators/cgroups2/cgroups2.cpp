@@ -672,13 +672,8 @@ Future<Nothing> Cgroups2IsolatorProcess::_isolate(
         "Failed to find cgroup for container '" + stringify(containerId) + "'");
   }
 
-  // Move the process into its leaf cgroup.
-  Try<Nothing> assign = cgroups2::assign(info->cgroup_leaf, pid);
-  if (assign.isError()) {
-    return Failure("Failed to assign container '" + stringify(containerId) + "'"
-                   " to cgroup '" + info->cgroup_leaf + "': " + assign.error());
-  }
-
+  // At this point, the pid should already be placed in the leaf by linux
+  // launcher, no need to assign it ourselves.
   return Nothing();
 }
 
