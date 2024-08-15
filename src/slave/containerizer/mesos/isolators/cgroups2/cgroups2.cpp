@@ -736,7 +736,11 @@ Future<Nothing> Cgroups2IsolatorProcess::update(
     const google::protobuf::Map<string, Value::Scalar>& resourceLimits)
 {
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container '" + stringify(containerId) + "'");
+    return Failure("Unknown container");
+  }
+
+  if (!infos[containerId]->isolate) {
+    return Failure("Update is not supported for nested containers");
   }
 
   vector<Future<Nothing>> updates;
