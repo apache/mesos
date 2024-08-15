@@ -567,12 +567,19 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   bool cgroupsIsolatorCreated = false;
 
   // First, apply the built-in isolators, in dependency order.
-  foreach (const auto& creator, creators) {
-    if (!isolations->contains(creator.first)) {
+  foreach (const auto& creator, creators)  {
+    // When the linux launcher is used, we *must* create the cgroups isolator,
+    // even if no specific cgroups/... isolations are requested.
+    bool forceCreation = !cgroupsIsolatorCreated
+        && strings::startsWith(creator.first, "cgroups/")
+        && flags.launcher == "linux";
+
+    if (!forceCreation && !isolations->contains(creator.first)) {
       continue;
     }
 
     if (strings::startsWith(creator.first, "cgroups/")) {
+      CHECK(flags.launcher == "linux");
       if (cgroupsIsolatorCreated) {
         // Skip when `Cgroups(2)IsolatorProcess` have already been created.
         continue;
