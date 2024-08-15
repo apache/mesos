@@ -824,7 +824,15 @@ Future<ResourceStatistics> Cgroups2IsolatorProcess::usage(
 Future<ContainerStatus> Cgroups2IsolatorProcess::status(
     const ContainerID& containerId)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  // If we are a nested container without isolation,
+  // we try to find the status of its ancestor.
+  if (!infos[containerId]->isolate) {
+    return status(containerId.parent());
+  }
 
   vector<Future<ContainerStatus>> statuses;
   foreachvalue (const Owned<Controller>& controller, controllers) {
