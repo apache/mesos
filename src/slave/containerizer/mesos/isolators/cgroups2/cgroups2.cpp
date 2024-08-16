@@ -694,9 +694,9 @@ Future<Nothing> Cgroups2IsolatorProcess::_isolate(
 Future<ContainerLimitation> Cgroups2IsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  // TODO(dleamy): Revisit this once nested containers are implemented. We
-  // may want to do what is done in cgroups v2 where we return a pending future
-  // for child containers that share cgroups with their ancestor.
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
 
   foreachvalue (const Owned<Controller>& controller, controllers) {
     if (infos[containerId]->controllers.contains(controller->name())) {
