@@ -162,8 +162,7 @@ Try<Isolator*> Cgroups2IsolatorProcess::create(
 
 bool Cgroups2IsolatorProcess::supportsNesting()
 {
-  // TODO(dleamy): Update this once cgroups v2 supports nested containers.
-  return false;
+  return true;
 }
 
 
