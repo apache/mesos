@@ -399,35 +399,21 @@ Future<Nothing> destroy(const string& cgroup)
     return Failure("Failed to kill processes in cgroup: " + kill.error());
   }
 
-  // Wait until all of the processes have been killed.
-  int retries = 50;
-  Future<Nothing> emptied = loop(
+  // In order to reliably destroy a cgroup, one has to retry on EBUSY
+  // *even if* all the processes are no longer found in cgroup.procs.
+  // We retry for up to ~5 seconds, based on how crun destroys its
+  // cgroups:
+  //
+  // https://github.com/containers/crun/blob/10b3038c1398b7db20b1826f
+  // 94e9d4cb444e9568/src/libcrun/cgroup-utils.c#L471
+  int retries = 5000;
+  Future<Nothing> removal = loop(
     []() { return process::after(Milliseconds(1)); },
     [=](const Nothing&) mutable -> Future<ControlFlow<Nothing>> {
-      Try<set<pid_t>> pids = cgroups2::processes(cgroup, true);
-      if (pids.isError()) {
-        return Failure("Failed to fetch pids in cgroup: " + pids.error());
-      }
-
-      if (pids->empty()) {
-        return Break();
-      }
-
-      --retries;
-      if (retries == 0) {
-        return Failure("Processes were still found: " + stringify(*pids));
-      }
-
-      return Continue();
-    });
-
-  return emptied
-    .then([=]() -> Future<Nothing> {
       Try<set<string>> cgroups = cgroups2::get(cgroup);
       if (cgroups.isError()) {
         return Failure("Failed to get nested cgroups: " + cgroups.error());
       }
-
       cgroups->insert(cgroup);
 
       // Remove the cgroups in bottom-up order.
@@ -438,15 +424,23 @@ Future<Nothing> destroy(const string& cgroup)
         // ignore the error to protect against races.
         if (::rmdir(path.c_str()) < 0) {
           ErrnoError error = ErrnoError();
-          if (error.code != ENOENT) {
+          if (error.code == EBUSY) {
+            --retries;
+            if (retries == 0) {
+              return Failure("Failed to remove cgroup after 5000 attempts");
+            }
+            return Continue();
+          } else if (error.code != ENOENT) {
             return Failure(
                 "Failed to remove directory '" + path + "': " + error.message);
           }
         }
       }
 
-      return Nothing();
-  });
+      return Break();
+    });
+
+  return removal;
 }
 
 
