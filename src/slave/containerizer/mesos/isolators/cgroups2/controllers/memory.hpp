@@ -25,6 +25,7 @@
 
 #include "slave/flags.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups2/controller.hpp"
+#include "linux/cgroups2.hpp"
 
 namespace mesos {
 namespace internal {
@@ -85,7 +86,9 @@ private:
     bool hardLimitUpdated = false;
   };
 
-  MemoryControllerProcess(const Flags& flags);
+  MemoryControllerProcess(
+      const Flags& flags,
+      cgroups2::memory::OomListener&& oomListener);
 
   void oomListen(
       const ContainerID& containerId,
@@ -97,6 +100,8 @@ private:
       const process::Future<Nothing>& oomFuture);
 
   hashmap<ContainerID, Info> infos;
+
+  cgroups2::memory::OomListener oomListener;
 };
 
 } // namespace slave {

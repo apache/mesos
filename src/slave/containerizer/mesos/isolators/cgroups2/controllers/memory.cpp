@@ -35,6 +35,7 @@ using process::PID;
 using process::Owned;
 
 using cgroups2::memory::Stats;
+using cgroups2::memory::OomListener;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
@@ -48,13 +49,22 @@ namespace slave {
 
 Try<Owned<ControllerProcess>> MemoryControllerProcess::create(const Flags& flags)
 {
-  return Owned<ControllerProcess>(new MemoryControllerProcess(flags));
+  Try<OomListener> listener = OomListener::create();
+  if (listener.isError()) {
+    return Error(
+        "Could not create oom listener for MemoryControllerProcess: "
+        + listener.error());
+  }
+  return Owned<ControllerProcess>(
+      new MemoryControllerProcess(flags, std::move(*listener)));
 }
 
 
-MemoryControllerProcess::MemoryControllerProcess(const Flags& _flags)
+MemoryControllerProcess::MemoryControllerProcess(
+    const Flags& _flags,  OomListener&& _oomListener)
   : ProcessBase(process::ID::generate("cgroups-v2-memory-controller")),
-    ControllerProcess(_flags) {}
+    ControllerProcess(_flags),
+    oomListener(std::move(_oomListener)) {}
 
 
 string MemoryControllerProcess::name() const
@@ -277,7 +287,7 @@ void MemoryControllerProcess::oomListen(
     return;
   }
 
-  infos[containerId].oom = cgroups2::memory::oom(cgroup);
+  infos[containerId].oom = oomListener.listen(cgroup);
 
   LOG(INFO) << "Listening for OOM events for container "
             << containerId;
