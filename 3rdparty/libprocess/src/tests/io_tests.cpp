@@ -143,7 +143,7 @@ TEST_F(IOTest, PollWrite)
   // until the reader reads at least a page of data.
   size_t size = os::pagesize();
   std::unique_ptr<char[]> buffer(new char[size]);
-  ASSERT_EQ(size, ::read(pipes[0], buffer.get(), size));
+  ASSERT_EQ(size, (unsigned long)::read(pipes[0], buffer.get(), size));
 
   AWAIT_EXPECT_EQ(io::WRITE, future);
 
