@@ -99,6 +99,7 @@ if (NOT WIN32)
   PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/volume/csi/state)
   PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
   PROTOC_GENERATE(INTERNAL TARGET slave/volume_gid_manager/state)
+  PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/device_manager/state)
 endif ()
 
 
