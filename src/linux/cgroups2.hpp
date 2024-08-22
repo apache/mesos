@@ -17,11 +17,13 @@
 #ifndef __CGROUPS_V2_HPP__
 #define __CGROUPS_V2_HPP__
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
@@ -339,10 +341,42 @@ struct Events
 };
 
 
-// Listen for an OOM event for the cgroup or any descendants.
+// Forward declaration.
+class OomListenerProcess;
+
+
+// The OomListener provides an interface for the caller to listen for the first
+// oom event in any cgroup by monitoring the future returned by listen().
 //
-// Cannot be used for the root cgroup.
-process::Future<Nothing> oom(const std::string& cgroup);
+// TODO(jasonzhou): provide functionality to minitor other memory events such
+// as low, high, max, and oom_kill.
+class OomListener
+{
+public:
+  OomListener(OomListener&&);
+  OomListener& operator=(OomListener&&);
+
+  static Try<OomListener> create();
+
+  virtual ~OomListener();
+
+  // Listen for an OOM event for the cgroup or any descendants.
+  //
+  // The returned future will become ready if an oom occurs at the
+  // target cgroup or its descendants.
+  //
+  // The future can be discarded if no longer needed, and the cgroup
+  // will no longer be monitored for oom.
+  process::Future<Nothing> listen(const std::string& cgroup);
+
+private:
+  OomListener(std::unique_ptr<OomListenerProcess>&& process);
+
+  OomListener(const OomListener&) = delete; // Not copyable.
+  OomListener& operator=(const OomListener&) = delete; // Not assignable.
+
+  std::unique_ptr<OomListenerProcess> process;
+};
 
 
 // Current memory usage of a cgroup and its descendants in bytes.

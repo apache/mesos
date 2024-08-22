@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/reap.hpp>
 #include <process/gmock.hpp>
@@ -41,6 +42,7 @@
 
 #include "tests/containerizer/memory_test_helper.hpp"
 
+using process::Clock;
 using process::Future;
 
 using std::pair;
@@ -50,6 +52,8 @@ using std::thread;
 using std::tuple;
 using std::unique_ptr;
 using std::vector;
+
+using cgroups2::memory::OomListener;
 
 namespace cpu = cgroups2::cpu;
 namespace devices = cgroups2::devices;
@@ -530,15 +534,73 @@ TEST_F(Cgroups2Test, ROOT_CGROUPS2_OomDetection)
   ASSERT_SOME(cgroups2::assign(leaf_cgroup, *helper.pid()));
   ASSERT_SOME(cgroups2::memory::set_max(TEST_CGROUP, limit));
 
-  Future<Nothing> oomEvent = cgroups2::memory::oom(TEST_CGROUP);
+  Try<OomListener> listener = OomListener::create();
+
+  ASSERT_SOME(listener);
+
+  Future<Nothing> oom = listener->listen(TEST_CGROUP);
 
   // Assert that the OOM event has not been triggered.
-  EXPECT_FALSE(oomEvent.isReady());
+  EXPECT_FALSE(oom.isReady());
 
   // Increase memory usage beyond the limit.
   ASSERT_ERROR(helper.increaseRSS(limit * 2));
 
-  AWAIT_EXPECT_READY(oomEvent);
+  AWAIT_EXPECT_READY(oom);
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_OomListenerDestruction)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const string leaf_cgroup = TEST_CGROUP + "/leaf";
+  ASSERT_SOME(cgroups2::create(leaf_cgroup));
+
+  Future<Nothing> oom;
+  {
+    Try<OomListener> listener = OomListener::create();
+
+    ASSERT_SOME(listener);
+
+    oom = listener->listen(TEST_CGROUP);
+
+    // We want to ensure that the dispatch for OomListenerProcess::listen goes
+    // through.
+    Clock::pause();
+    Clock::settle();
+    Clock::resume();
+  }
+
+  // Assert that the OOM event has not been triggered.
+  EXPECT_FALSE(oom.isReady());
+
+  AWAIT_EXPECT_FAILED(oom);
+}
+
+
+TEST_F(Cgroups2Test, ROOT_CGROUPS2_OomFutureDiscard)
+{
+  ASSERT_SOME(enable_controllers({"memory"}));
+
+  ASSERT_SOME(cgroups2::create(TEST_CGROUP));
+  ASSERT_SOME(cgroups2::controllers::enable(TEST_CGROUP, {"memory"}));
+
+  const string leaf_cgroup = TEST_CGROUP + "/leaf";
+  ASSERT_SOME(cgroups2::create(leaf_cgroup));
+
+  Try<OomListener> listener = OomListener::create();
+
+  ASSERT_SOME(listener);
+
+  Future<Nothing> oom = listener->listen(TEST_CGROUP);
+
+  oom.discard();
+
+  AWAIT_ASSERT_DISCARDED(oom);
 }
 
 

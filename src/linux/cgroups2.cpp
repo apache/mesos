@@ -28,6 +28,8 @@
 #include <process/after.hpp>
 #include <process/loop.hpp>
 #include <process/pid.hpp>
+#include <process/io.hpp>
+#include <process/owned.hpp>
 
 #include <stout/adaptor.hpp>
 #include <stout/linkedhashmap.hpp>
@@ -45,6 +47,7 @@
 using std::ostream;
 using std::set;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 using process::Break;
@@ -53,6 +56,9 @@ using process::ControlFlow;
 using process::Failure;
 using process::Future;
 using process::loop;
+using process::io::Watcher;
+using process::Owned;
+using process::Promise;
 
 using mesos::internal::fs::MountTable;
 
@@ -953,29 +959,175 @@ Try<Events> parse(const string& content)
 
 } // namespace events {
 
-Future<Nothing> oom(const string& cgroup)
+
+class OomListenerProcess : public process::Process<OomListenerProcess>
 {
-  // TODO(dleamy): Update this to use inotify, rather than polling.
-  return loop(
-      []() {
-        return process::after(Milliseconds(100));
-      },
-      [=](const Nothing&) -> Future<ControlFlow<Nothing>> {
-        Try<string> content = cgroups2::read<string>(cgroup, control::EVENTS);
-        if (content.isError()) {
-          return Failure("Failed to read 'memory.events': " + content.error());
+public:
+  OomListenerProcess(const Watcher& _watcher)
+    : ProcessBase(process::ID::generate("oom-listener")), watcher(_watcher) {}
+
+  void initialize() override
+  {
+    event_loop = loop(
+        self(),
+        [this]() {
+          return watcher.events().get();
+        },
+        [this](const Watcher::Event& event) -> Future<ControlFlow<Nothing>> {
+          if (event.type == Watcher::Event::Failure) {
+            // event.path contains error message for Failure events.
+            return Failure("Watcher failed: " + event.path);
+          }
+
+          if (!(event.type == Watcher::Event::Write)) {
+            return Continue();
+          }
+
+          read_events(event.path);
+          return Continue();
+        });
+
+    event_loop
+      .onAny(defer(self(), [this](const Future<Nothing>& f) {
+        if (f.isFailed())     fail("Read loop has terminated: " + f.failure());
+        if (f.isDiscarded())  fail("Read loop has terminated: discarded");
+        if (f.isReady())      fail("Read loop has terminated: future is ready");
+        if (f.isAbandoned())  fail("Read loop has terminated: abandoned");
+      }));
+  }
+
+  void finalize() override
+  {
+    event_loop.discard();
+
+    // Must explicitly fail all remaining oom futures because we
+    // are already in finalize, so we can't dispatch into the
+    // process in the event_loop's onAny handler.
+    fail("OomListenerProcess is terminating");
+  }
+
+  Future<Nothing> listen(const string& cgroup)
+  {
+    string events_path = path::join(cgroups2::path(cgroup), control::EVENTS);
+    if (ooms.contains(events_path)) {
+      return Failure("Already listening");
+    }
+
+    Try<Nothing> add = watcher.add(events_path);
+    if (add.isError()) {
+      return Failure("Failed to add file to watcher: " + add.error());
+    }
+
+    Promise<Nothing> promise;
+    Future<Nothing> future = promise.future();
+
+    ooms.emplace(events_path, std::move(promise));
+
+    future
+      .onDiscard(defer(self(), [this, events_path]() {
+        auto it = ooms.find(events_path);
+        if (it == ooms.end()) {
+          return; // Already removed.
         }
 
-        Try<Events> events = events::parse(strings::trim(*content));
-        if (events.isError()) {
-          return Failure("Failed to parse 'memory.events': " + events.error());
-        }
+        Promise<Nothing> promise = std::move(it->second);
+        ooms.erase(events_path);
 
-        if (events->oom > 0) {
-          return Break(Nothing());
-        }
-        return Continue();
-      });
+        // Ignoring remove failures since caller doesn't care about the file
+        // anyway now.
+        watcher.remove(events_path);
+        promise.discard();
+      }));
+
+    // Read the events file after adding to watcher in case an oom event
+    // occurred before the add was complete.
+    read_events(events_path);
+
+    return future;
+  }
+
+  void read_events(const string& path)
+  {
+    auto it = ooms.find(path);
+    if (it == ooms.end()) {
+      return;
+    }
+
+    Try<string> content = os::read(path);
+    if (content.isError()) {
+      it->second.fail("Failed to read 'memory.events': " + content.error());
+      ooms.erase(it);
+      return;
+    }
+
+    Try<Events> events = events::parse(strings::trim(*content));
+    if (events.isError()) {
+      it->second.fail("Failed to parse 'memory.events': " + events.error());
+      ooms.erase(it);
+      return;
+    }
+
+    if (events->oom > 0) {
+      it->second.set(Nothing());
+      ooms.erase(it);
+      return;
+    }
+  }
+
+  void fail(const string& reason)
+  {
+    foreachvalue (Promise<Nothing>& promise, ooms) {
+      promise.fail(reason);
+    }
+    ooms.clear();
+  }
+
+private:
+  // A map of cgroup memory.event file names to their respective futures.
+  hashmap<string, Promise<Nothing>> ooms;
+
+  Future<Nothing> event_loop;
+
+  Watcher watcher;
+};
+
+
+OomListener::OomListener(OomListener&&) = default;
+
+
+OomListener& OomListener::operator=(OomListener&&) = default;
+
+
+Try<OomListener> OomListener::create()
+{
+  Try<Watcher> watcher = process::io::create_watcher();
+  if (watcher.isError()) {
+    return Error("Failed to create watcher: " + watcher.error());
+  }
+  return OomListener(
+      unique_ptr<OomListenerProcess>(new OomListenerProcess(*watcher)));
+}
+
+
+OomListener::OomListener(unique_ptr<OomListenerProcess>&& _process)
+  : process(std::move(_process))
+{
+  spawn(*process);
+};
+
+
+OomListener::~OomListener()
+{
+  if (process) {
+    terminate(*process);
+    process::wait(*process);
+  }
+}
+
+
+Future<Nothing> OomListener::listen(const string& cgroup)
+{
+  return dispatch(*process, &OomListenerProcess::listen, cgroup);
 }
 
 
