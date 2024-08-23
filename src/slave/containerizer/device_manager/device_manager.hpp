@@ -45,8 +45,6 @@ class DeviceManagerProcess;
 // the centralized device manager to manage the state and provide an interface
 // to incrementally adjust the device access state for a cgroup and generate
 // the appropriate ebpf programs.
-//
-// TODO(jasonzhou): Add checkpointing / recovery support in follow-on patches.
 class DeviceManager
 {
 public:

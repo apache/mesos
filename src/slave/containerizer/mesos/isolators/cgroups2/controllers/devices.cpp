@@ -155,7 +155,6 @@ Future<Nothing> DeviceControllerProcess::recover(
     const ContainerID& containerId,
     const string& cgroup)
 {
-  // TODO(jasonzhou): Work with device manager recovery.
   if (containerIds.contains(containerId)) {
     return Failure(
         "The controller '" + name() + "' of container " +
