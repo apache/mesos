@@ -285,8 +285,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
 
 bool NvidiaGpuIsolatorProcess::supportsNesting()
 {
-  // TODO(jasonzhou): return true once nesting is supported w/cgroups v2.
-  return usingCgroups2 ? false : true;
+  return true;
 }
 
 
