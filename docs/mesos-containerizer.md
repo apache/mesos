@@ -77,3 +77,8 @@ unit file of Mesos agent, for example:
 [Service]
 Delegate=true
 ```
+
+## Cgroups2 Integration
+
+In order to support the new requirements for Cgroups V2, the changes are
+documented in the [Cgroups2 Support](cgroups2-support.md) documentation.

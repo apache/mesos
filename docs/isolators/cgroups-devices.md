@@ -12,6 +12,13 @@ track and enforce open and mknod restrictions on device files. To enable the
 `cgroups/devices` isolator, append `cgroups/devices` to the `--isolation` flag
 when starting the Mesos agent.
 
+## Changes for Cgroups2 Support
+
+In Croups2, we create EBPF programs to keep track of which devices
+would be allowed or denied access. This is because cgroups2 no longer offers
+interface files for device access controls. Our default witelisted devices list
+remains unchanged for cgroups2.
+
 ## Default whitelisted devices
 
 The following devices are, by default, whitelisted for each container, if you
