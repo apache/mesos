@@ -1262,6 +1262,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/network/cni/paths.hpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.hpp		\
+  slave/containerizer/mesos/isolators/network/cni/utils.cpp        \
+  slave/containerizer/mesos/isolators/network/cni/utils.hpp        \
   slave/containerizer/mesos/isolators/posix.hpp				\
   slave/containerizer/mesos/isolators/posix/disk.cpp			\
   slave/containerizer/mesos/isolators/posix/disk.hpp			\
@@ -1463,7 +1465,7 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/namespaces/ipc.hpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp				\
-  slave/containerizer/mesos/isolators/network/cni/cni.cpp				\
+  slave/containerizer/mesos/isolators/network/cni/cni.cpp       \
   slave/containerizer/mesos/isolators/network/cni/cni.hpp				\
   slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp	\
   slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp	\
