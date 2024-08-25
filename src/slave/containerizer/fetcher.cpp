@@ -366,6 +366,9 @@ Future<Nothing> FetcherProcess::fetch(
     const string& sandboxDirectory,
     const Option<string>& user)
 {
+  if (commandInfo.uris_size() == 0) {
+    return Nothing();
+  }
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << sandboxDirectory;
 
