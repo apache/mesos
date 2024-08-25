@@ -188,10 +188,10 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::launcher,
       "launcher",
       "The launcher to be used for Mesos containerizer. It could either be\n"
-      "`linux` or `posix`. The Linux launcher is required for cgroups\n"
-      "isolation and for any isolators that require Linux namespaces such as\n"
-      "network, pid, etc. If unspecified, the agent will choose the Linux\n"
-      "launcher if it's running as root on Linux.",
+      "`linux` or `posix`. The Linux launcher is required for any isolator\n"
+      "that requires Linux namespaces such as network, pid, etc.\n"
+      "If unspecified, the agent will choose the Linux launcher\n"
+      "if it's running as root and freezer subsystem is enabled on Linux.",
 #ifdef __linux__
       LinuxLauncher::available() ? "linux" : "posix"
 #elif defined(__WINDOWS__)
