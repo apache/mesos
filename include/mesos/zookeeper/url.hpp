@@ -48,7 +48,7 @@ class URL
 public:
   static Try<URL> parse(const std::string& url);
 
-  static const char* scheme()
+  static const char* urlScheme()
   {
     return "zk://";
   }
@@ -63,10 +63,11 @@ private:
     : servers(_servers),
       path(_path) {}
 
-  URL(const std::string& credentials,
+  URL(const std::string& scheme,
+      const std::string& credentials,
       const std::string& _servers,
       const std::string& _path)
-    : authentication(Authentication("digest", credentials)),
+    : authentication(Authentication(scheme, credentials)),
       servers(_servers),
       path(_path) {}
 };
@@ -76,10 +77,10 @@ inline Try<URL> URL::parse(const std::string& url)
 {
   std::string s = strings::trim(url);
 
-  if (!strings::startsWith(s, URL::scheme())) {
+  if (!strings::startsWith(s, URL::urlScheme())) {
     return Error("Expecting 'zk://' at the beginning of the URL");
   }
-  s = s.substr(5);
+  s = s.substr(strlen(urlScheme()));
 
   // Look for the trailing '/' (if any), that's where the path starts.
   std::string path;
@@ -101,16 +102,35 @@ inline Try<URL> URL::parse(const std::string& url)
   // Look for the trailing '@' (if any), that's where servers starts.
   size_t index = s.find_last_of('@');
 
-  if (index != std::string::npos) {
-    return URL(s.substr(0, index), s.substr(index + 1), path);
-  } else {
+  if (index == std::string::npos)
     return URL(s, path);
+
+  std::string servers = s.substr(index + 1);
+  std::string auth = s.substr(0, index);
+
+  size_t schemeDelimiter = auth.find_first_of('!');
+
+  // If there is not '!' in URL scheme is "digest" and everything before '@' is credentials
+  std::string scheme = "digest";
+  std::string credentials = auth;
+
+  if(schemeDelimiter != std::string::npos) {
+    if(schemeDelimiter == 0)
+      return Error("Expecting Zookeeper authentication schemee before '!' in the URL");
+
+    if(schemeDelimiter == auth.length()-1)
+      return Error("Expecting credentials after '!' in the URL");
+
+    scheme = auth.substr(0, schemeDelimiter);
+    credentials = auth.substr(schemeDelimiter+1);
   }
+
+  return URL(scheme, credentials, servers, path);
 }
 
 inline std::ostream& operator<<(std::ostream& stream, const URL& url)
 {
-  stream << URL::scheme();
+  stream << URL::urlScheme();
   if (url.authentication.isSome()) {
     stream << url.authentication.get() << "@";
   }
