@@ -255,6 +255,8 @@ DockerContainerizer::~DockerContainerizer()
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.docker_socket = flags.docker_socket;
   dockerFlags.launcher_dir = flags.launcher_dir;
+  dockerFlags.network_cni_plugins_dir = flags.network_cni_plugins_dir;
+  dockerFlags.network_cni_config_dir = flags.network_cni_config_dir;  
 
   if (taskEnvironment.isSome()) {
     dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));

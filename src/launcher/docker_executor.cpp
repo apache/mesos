@@ -245,7 +245,9 @@ int main(int argc, char** argv)
           flags.launcher_dir.get(),
           taskEnvironment,
           defaultContainerDNS,
-          flags.cgroups_enable_cfs));
+          flags.cgroups_enable_cfs,
+          flags.network_cni_plugins_dir.get(),
+          flags.network_cni_config_dir.get()));
 
   Owned<mesos::MesosExecutorDriver> driver(
       new mesos::MesosExecutorDriver(executor.get()));
