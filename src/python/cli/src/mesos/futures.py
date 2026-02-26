@@ -81,7 +81,7 @@ except ImportError:
             if run:
                 try:
                     fn(self)
-                except:
+                except Exception:
                     # TODO(benh): Log if Exception, but semantics tell
                     # us to ignore regardless.
                     pass
@@ -112,7 +112,7 @@ except ImportError:
             for cb in callbacks:
                 try:
                     cb(self)
-                except:
+                except Exception:
                     # TODO(benh): Log if Exception, but semantics tell
                     # us to ignore regardless.
                     pass
