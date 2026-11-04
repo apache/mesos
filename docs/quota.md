@@ -73,7 +73,7 @@ curl --request POST \
 ```
 
 * Note that the request will be denied if the current quota consumption is above
-the provided limit. This check can be overriden by setting `force` to `true`.
+the provided limit. This check can be overridden by setting `force` to `true`.
 * Note that the master will attempt to rescind a sufficient number of offers to
 ensure that the role cannot exceed its limits.
 
